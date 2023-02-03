@@ -1,7 +1,7 @@
 /*
  * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
  *
- * Copyright (c) 2023 Matouš Kučera
+ * Copyright (c) 2023 Matous Kucera
  *
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -38,6 +38,13 @@ interface MappingResolver {
      * @return the reader, null if this resolver doesn't support the version
      */
     fun reader(): Reader?
+
+    /**
+     * Creates a new license file reader.
+     *
+     * @return the reader, null if this resolver doesn't support the version
+     */
+    fun licenseReader(): Reader?
 
     /**
      * Computes a checksum using the provided digest, outputting it in a hexadecimal format.

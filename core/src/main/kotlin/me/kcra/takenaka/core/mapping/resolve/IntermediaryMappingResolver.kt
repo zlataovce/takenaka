@@ -1,7 +1,7 @@
 /*
  * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
  *
- * Copyright (c) 2023 Matouš Kučera
+ * Copyright (c) 2023 Matous Kucera
  *
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -45,11 +45,10 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
     override fun reader(): Reader? {
         val file = workspace[INTERMEDIARY]
 
-        val url = URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${version.id}.tiny")
+        val conn = URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${version.id}.tiny")
+            .openConnection() as HttpURLConnection
 
-        val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "HEAD"
-
         try {
             when (conn.responseCode) {
                 HttpURLConnection.HTTP_OK -> {
@@ -62,17 +61,54 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
                         logger.warn { "length mismatch for ${version.id} Intermediary mapping cache, fetching them again" }
                     }
                 }
-                HttpURLConnection.HTTP_NOT_FOUND -> return null
+
+                HttpURLConnection.HTTP_NOT_FOUND -> {
+                    logger.info { "failed to fetch ${version.id} Intermediary mappings, version not found" }
+                    return null
+                }
             }
         } finally {
             conn.disconnect()
         }
 
-        url.openStream().use {
+        conn.requestMethod = "GET"
+        try {
+            when (conn.responseCode) {
+                HttpURLConnection.HTTP_OK -> {
+                    conn.inputStream.use {
+                        Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                    }
+
+                    logger.info { "fetched ${version.id} Intermediary mappings" }
+                    return file.reader()
+                }
+
+                else -> logger.warn { "failed to fetch ${version.id} Intermediary mappings, received ${conn.responseCode}" }
+            }
+        } finally {
+            conn.disconnect()
+        }
+
+        return null
+    }
+
+    /**
+     * Creates a new license file reader.
+     *
+     * @return the reader, null if this resolver doesn't support the version
+     */
+    override fun licenseReader(): Reader {
+        val file = workspace[INTERMEDIARY_LICENSE]
+
+        if (INTERMEDIARY_LICENSE in workspace) {
+            logger.info { "found cached Intermediary license file" }
+            return file.reader()
+        }
+
+        URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/LICENSE").openStream().use {
             Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
         }
 
-        logger.info { "fetched ${version.id} Intermediary mappings" }
         return file.reader()
     }
 
@@ -81,5 +117,10 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
          * The file name of the cached mappings.
          */
         const val INTERMEDIARY = "intermediary.tiny"
+
+        /**
+         * The file name of the cached license file.
+         */
+        const val INTERMEDIARY_LICENSE = "intermediary_license.txt"
     }
 }

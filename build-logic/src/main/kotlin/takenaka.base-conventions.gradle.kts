@@ -23,7 +23,7 @@ publishing {
             from(components["java"])
             pom {
                 name.set("takenaka")
-                // description.set("")
+                description.set("A Kotlin library for comparing obfuscation mappings of Minecraft: Java Edition.")
                 url.set("https://github.com/zlataovce/takenaka")
                 licenses {
                     license {

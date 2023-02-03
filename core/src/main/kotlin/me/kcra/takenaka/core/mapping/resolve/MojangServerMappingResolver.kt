@@ -1,7 +1,7 @@
 /*
  * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
  *
- * Copyright (c) 2023 Matouš Kučera
+ * Copyright (c) 2023 Matous Kucera
  *
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -25,6 +25,7 @@ import me.kcra.takenaka.core.VersionAttributes
 import me.kcra.takenaka.core.VersionedWorkspace
 import mu.KotlinLogging
 import java.io.Reader
+import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -74,12 +75,37 @@ class MojangServerMappingResolver(
             logger.warn { "checksum mismatch for ${version.id} Mojang mapping cache, fetching them again" }
         }
 
-        URL(attributes.downloads.serverMappings?.url).openStream().use {
-            Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        val conn = URL(attributes.downloads.serverMappings?.url)
+            .openConnection() as HttpURLConnection
+
+        conn.requestMethod = "GET"
+        try {
+            when (conn.responseCode) {
+                HttpURLConnection.HTTP_OK -> {
+                    conn.inputStream.use {
+                        Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                    }
+
+                    logger.info { "fetched ${version.id} Mojang mappings" }
+                    return file.reader()
+                }
+
+                else -> logger.info { "failed to fetch ${version.id} Mojang mappings, received ${conn.responseCode}" }
+            }
+        } finally {
+            conn.disconnect()
         }
 
-        logger.info { "fetched ${version.id} Mojang mappings" }
-        return file.reader()
+        return null
+    }
+
+    /**
+     * Creates a new license file reader.
+     *
+     * @return the reader, null if this resolver doesn't support the version
+     */
+    override fun licenseReader(): Reader? {
+        return reader()?.buffered()?.use { it.readLine().reader() }
     }
 
     /**
@@ -112,6 +138,7 @@ class MojangServerMappingResolver(
          * The file name of the cached attributes.
          */
         const val ATTRIBUTES = "attributes.json"
+
         /**
          * The file name of the cached server mappings.
          */
