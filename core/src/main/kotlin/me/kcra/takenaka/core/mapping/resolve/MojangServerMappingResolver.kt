@@ -105,6 +105,7 @@ class MojangServerMappingResolver(
      * @return the reader, null if this resolver doesn't support the version
      */
     override fun licenseReader(): Reader? {
+        // read first line of the mapping file
         return reader()?.buffered()?.use { it.readLine().reader() }
     }
 

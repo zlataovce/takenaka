@@ -193,3 +193,36 @@ data class VersionAttributes(
         val url: String
     )
 }
+
+/**
+ * Spigot's version manifest.
+ *
+ * @property refs the Git ref hashes (BuildData, Bukkit, CraftBukkit, Spigot)
+ */
+data class SpigotVersionManifest(
+    val name: String,
+    val description: String,
+    val refs: Map<String, String>,
+    val toolsVersion: Int,
+    val javaVersions: List<Int>?
+)
+
+/**
+ * Spigot's BuildData info.json attributes.
+ */
+data class SpigotVersionAttributes(
+    val minecraftVersion: String,
+    val spigotVersion: String?,
+    val serverUrl: String?,
+    val minecraftHash: String?,
+    val accessTransforms: String,
+    val mappingsUrl: String?,
+    val classMappings: String,
+    val memberMappings: String?,
+    val packageMappings: String?,
+    val classMapCommand: String?,
+    val memberMapCommand: String?,
+    val finalMapCommand: String?,
+    val decompileCommand: String?,
+    val toolsVersion: Int?
+)

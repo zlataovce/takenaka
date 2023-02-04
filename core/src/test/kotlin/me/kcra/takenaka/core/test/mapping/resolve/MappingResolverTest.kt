@@ -7,12 +7,11 @@ import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.manifestObjectMapper
-import me.kcra.takenaka.core.mapping.resolve.IntermediaryMappingResolver
-import me.kcra.takenaka.core.mapping.resolve.MojangServerMappingResolver
-import me.kcra.takenaka.core.mapping.resolve.SeargeMappingResolver
+import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.versionManifest
 import org.junit.Test
 import java.io.File
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.system.measureTimeMillis
 import kotlin.test.BeforeTest
 
@@ -70,10 +69,13 @@ class MappingResolverTest {
         val manifest = objectMapper.versionManifest()
 
         suspend fun resolveVersionMappings(versionedWorkspace: VersionedWorkspace) = coroutineScope {
+            val spigotReadLock = ReentrantLock()
             val resolvers = listOf(
                 MojangServerMappingResolver(versionedWorkspace, objectMapper),
                 IntermediaryMappingResolver(versionedWorkspace),
-                SeargeMappingResolver(versionedWorkspace)
+                SeargeMappingResolver(versionedWorkspace),
+                SpigotClassMappingResolver(versionedWorkspace, objectMapper, spigotReadLock),
+                SpigotMemberMappingResolver(versionedWorkspace, objectMapper, spigotReadLock)
             )
 
             // dry run the fetching without reading anything
