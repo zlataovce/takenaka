@@ -19,7 +19,11 @@ package me.kcra.takenaka.core.mapping.resolve
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.mapping.MappingContributor
 import mu.KotlinLogging
+import net.fabricmc.mappingio.MappingReader
+import net.fabricmc.mappingio.MappingVisitor
+import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import java.io.File
 import java.io.Reader
 import java.net.HttpURLConnection
@@ -37,9 +41,10 @@ private val logger = KotlinLogging.logger {}
  * @property workspace the workspace
  * @author Matouš Kučera
  */
-class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver {
+class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver, MappingContributor {
     private val sha1Digest = MessageDigest.getInstance("SHA-1")
     override val version: Version by workspace::version
+    override val targetNamespace: String = "searge"
 
     /**
      * Creates a new mapping file reader (SRG/TSRG format).
@@ -104,6 +109,37 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
     }
 
     /**
+     * Creates a new license file reader.
+     *
+     * @return the reader, null if this resolver doesn't support the version
+     */
+    override fun licenseReader(): Reader {
+        val file = workspace[SEARGE_LICENSE]
+
+        if (SEARGE_LICENSE in workspace) {
+            logger.info { "found cached Searge license file" }
+            return file.reader()
+        }
+
+        URL("https://raw.githubusercontent.com/MinecraftForge/MCPConfig/master/LICENSE").openStream().use {
+            Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
+
+        return file.reader()
+    }
+
+    /**
+     * Visits the mappings to the supplied visitor.
+     *
+     * @param visitor the visitor
+     */
+    override fun accept(visitor: MappingVisitor) {
+        // Searge has obf, srg and id namespaces
+        // obf is the obfuscated one
+        reader()?.let { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("obf" to "source", "srg" to "searge", "id" to "searge_id"))) }
+    }
+
+    /**
      * Extracts the mapping file from the supplied zip file.
      *
      * @param file the zip file
@@ -124,26 +160,6 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
         }
 
         return mappingFile
-    }
-
-    /**
-     * Creates a new license file reader.
-     *
-     * @return the reader, null if this resolver doesn't support the version
-     */
-    override fun licenseReader(): Reader {
-        val file = workspace[SEARGE_LICENSE]
-
-        if (SEARGE_LICENSE in workspace) {
-            logger.info { "found cached Searge license file" }
-            return file.reader()
-        }
-
-        URL("https://raw.githubusercontent.com/MinecraftForge/MCPConfig/master/LICENSE").openStream().use {
-            Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        }
-
-        return file.reader()
     }
 
     companion object {

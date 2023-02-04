@@ -3,8 +3,16 @@ package me.kcra.takenaka.core.mapping.resolve
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import me.kcra.takenaka.core.*
+import me.kcra.takenaka.core.SpigotVersionAttributes
+import me.kcra.takenaka.core.SpigotVersionManifest
+import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.mapping.MappingContributor
 import mu.KotlinLogging
+import net.fabricmc.mappingio.MappingReader
+import net.fabricmc.mappingio.MappingVisitor
+import net.fabricmc.mappingio.adapter.MappingNsRenamer
+import net.fabricmc.mappingio.format.MappingFormat
 import java.io.Reader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -26,8 +34,9 @@ abstract class AbstractSpigotMappingResolver(
     val workspace: VersionedWorkspace,
     private val objectMapper: ObjectMapper,
     private val readLock: Lock = ReentrantLock()
-) : MappingResolver {
+) : MappingResolver, MappingContributor {
     override val version: Version by workspace::version
+    override val targetNamespace: String = "spigot"
 
     /**
      * The version manifest.
@@ -98,6 +107,16 @@ abstract class AbstractSpigotMappingResolver(
     override fun licenseReader(): Reader? {
         // read first line of the mapping file
         return reader()?.buffered()?.use { it.readLine().reader() }
+    }
+
+    /**
+     * Visits the mappings to the supplied visitor.
+     *
+     * @param visitor the visitor
+     */
+    override fun accept(visitor: MappingVisitor) {
+        // mapping-io doesn't detect TSRG (CSRG), so we need to specify it manually
+        reader()?.let { MappingReader.read(it, MappingFormat.TSRG, MappingNsRenamer(visitor, mapOf("target" to "spigot"))) }
     }
 
     /**

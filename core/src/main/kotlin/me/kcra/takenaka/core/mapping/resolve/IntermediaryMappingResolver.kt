@@ -19,7 +19,11 @@ package me.kcra.takenaka.core.mapping.resolve
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.mapping.MappingContributor
 import mu.KotlinLogging
+import net.fabricmc.mappingio.MappingReader
+import net.fabricmc.mappingio.MappingVisitor
+import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import java.io.Reader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -34,8 +38,9 @@ private val logger = KotlinLogging.logger {}
  * @property workspace the workspace
  * @author Matouš Kučera
  */
-class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingResolver {
+class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingResolver, MappingContributor {
     override val version: Version by workspace::version
+    override val targetNamespace: String = "intermediary"
 
     /**
      * Creates a new mapping file reader (Tiny format).
@@ -113,6 +118,17 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
         }
 
         return file.reader()
+    }
+
+    /**
+     * Visits the mappings to the supplied visitor.
+     *
+     * @param visitor the visitor
+     */
+    override fun accept(visitor: MappingVisitor) {
+        // Intermediary has official and intermediary namespaces
+        // official is the obfuscated one
+        reader()?.let { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("official" to "source"))) }
     }
 
     companion object {

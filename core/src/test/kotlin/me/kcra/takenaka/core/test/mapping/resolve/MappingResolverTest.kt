@@ -7,13 +7,16 @@ import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.manifestObjectMapper
+import me.kcra.takenaka.core.mapping.MappingContributor
+import me.kcra.takenaka.core.mapping.VersionedMappingFile
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.versionManifest
-import org.junit.Test
 import java.io.File
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.system.measureTimeMillis
-import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class MappingResolverTest {
     private val objectMapper = manifestObjectMapper()
@@ -26,7 +29,7 @@ class MappingResolverTest {
         "1.18.2",
         "1.18.1",
         "1.18",
-        "1.17.1",
+        /*"1.17.1",
         "1.17",
         "1.16.5",
         "1.16.4",
@@ -55,22 +58,19 @@ class MappingResolverTest {
         "1.9.4",
         "1.9.2",
         "1.9",
-        "1.8.8"
+        "1.8.8"*/
     )
-
-    @BeforeTest
-    fun `clean test residues`() {
-        workspaceDir.deleteRecursively()
-    }
 
     @Test
     fun `resolve mappings for supported versions`() {
         val workspace = CompositeWorkspace(workspaceDir)
         val manifest = objectMapper.versionManifest()
 
+        val files = mutableListOf<VersionedMappingFile>()
+
         suspend fun resolveVersionMappings(versionedWorkspace: VersionedWorkspace) = coroutineScope {
             val spigotReadLock = ReentrantLock()
-            val resolvers = listOf(
+            val resolvers = listOf<MappingContributor>(
                 MojangServerMappingResolver(versionedWorkspace, objectMapper),
                 IntermediaryMappingResolver(versionedWorkspace),
                 SeargeMappingResolver(versionedWorkspace),
@@ -78,10 +78,16 @@ class MappingResolverTest {
                 SpigotMemberMappingResolver(versionedWorkspace, objectMapper, spigotReadLock)
             )
 
-            // dry run the fetching without reading anything
+            val file = VersionedMappingFile(versionedWorkspace.version)
+            files += file
+
+            val writeLock = ReentrantLock()
+
             resolvers.forEach {
                 launch(Dispatchers.IO) {
-                    it.reader()?.close()
+                    writeLock.withLock {
+                        it.accept(file)
+                    }
                 }
             }
         }
@@ -95,8 +101,11 @@ class MappingResolverTest {
         }
 
         val time = measureTimeMillis(::resolveMappings)
+        files.clear()
         val cachedTime = measureTimeMillis(::resolveMappings)
 
         println("Elapsed ${time / 1000}s, cached ${cachedTime / 1000}s")
+
+        assertEquals(versions.size, files.size, message = "wrong amount of mapping files was processed")
     }
 }

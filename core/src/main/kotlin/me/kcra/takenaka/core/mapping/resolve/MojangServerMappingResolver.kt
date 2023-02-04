@@ -23,7 +23,12 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionAttributes
 import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.mapping.MappingContributor
 import mu.KotlinLogging
+import net.fabricmc.mappingio.MappingReader
+import net.fabricmc.mappingio.MappingVisitor
+import net.fabricmc.mappingio.adapter.MappingNsRenamer
+import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch
 import java.io.Reader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -42,9 +47,10 @@ private val logger = KotlinLogging.logger {}
 class MojangServerMappingResolver(
     val workspace: VersionedWorkspace,
     private val objectMapper: ObjectMapper
-) : MappingResolver {
+) : MappingResolver, MappingContributor {
     private val sha1Digest = MessageDigest.getInstance("SHA-1")
     override val version: Version by workspace::version
+    override val targetNamespace: String = "mojang"
 
     /**
      * The version attributes.
@@ -107,6 +113,16 @@ class MojangServerMappingResolver(
     override fun licenseReader(): Reader? {
         // read first line of the mapping file
         return reader()?.buffered()?.use { it.readLine().reader() }
+    }
+
+    /**
+     * Visits the mappings to the supplied visitor.
+     *
+     * @param visitor the visitor
+     */
+    override fun accept(visitor: MappingVisitor) {
+        // Mojang maps are original -> obfuscated, so we need to switch it beforehand
+        reader()?.let { MappingReader.read(it, MappingSourceNsSwitch(MappingNsRenamer(visitor, mapOf("target" to "source", "source" to "mojang")), "target")) }
     }
 
     /**
