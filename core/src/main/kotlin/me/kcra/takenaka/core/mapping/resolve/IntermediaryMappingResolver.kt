@@ -45,7 +45,7 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
     override fun reader(): Reader? {
         val file = workspace[INTERMEDIARY]
 
-        val conn = URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${version.id}.tiny")
+        var conn = URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${version.id}.tiny")
             .openConnection() as HttpURLConnection
 
         conn.requestMethod = "HEAD"
@@ -63,13 +63,16 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
                 }
 
                 HttpURLConnection.HTTP_NOT_FOUND -> {
-                    logger.info { "failed to fetch ${version.id} Intermediary mappings, version not found" }
+                    logger.info { "did not find Intermediary mappings for ${version.id}" }
                     return null
                 }
             }
         } finally {
             conn.disconnect()
         }
+
+        conn = URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${version.id}.tiny")
+            .openConnection() as HttpURLConnection
 
         conn.requestMethod = "GET"
         try {

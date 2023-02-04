@@ -19,7 +19,37 @@ package me.kcra.takenaka.core
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.MapperFeature
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.module.kotlin.jsonMapper
+import com.fasterxml.jackson.module.kotlin.kotlinModule
+import com.fasterxml.jackson.module.kotlin.readValue
+import java.net.URL
 import java.time.Instant
+
+/**
+ * The URL to the v2 version manifest.
+ */
+const val VERSION_MANIFEST_V2 = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
+
+/**
+ * Creates a new ObjectMapper with all modules necessary for deserializing the manifest.
+ *
+ * @return the object mapper
+ */
+fun manifestObjectMapper(): ObjectMapper = jsonMapper {
+    addModule(kotlinModule())
+    addModule(JavaTimeModule())
+    enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
+}
+
+/**
+ * Fetches and deserializes the version manifest from Mojang's API.
+ *
+ * @return the version manifest
+ */
+fun ObjectMapper.versionManifest(): VersionManifest = readValue(URL(VERSION_MANIFEST_V2))
 
 /**
  * Mojang's v2 version manifest.
@@ -126,6 +156,7 @@ data class VersionAttributes(
 
     // unrelated fields omitted for brevity
 ) {
+    @JsonIgnoreProperties(ignoreUnknown = true) // apparently there are more fields for old versions
     data class Downloads(
         /**
          * The client download information.

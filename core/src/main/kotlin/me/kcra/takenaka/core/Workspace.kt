@@ -60,14 +60,18 @@ interface Workspace {
  * @property rootDirectory the workspace root
  */
 class CompositeWorkspace(override val rootDirectory: File) : Workspace {
+    init {
+        rootDirectory.mkdirs()
+    }
+
     /**
      * Creates a new versioned sub-workspace.
      *
      * @param version the version to which the sub-workspace should belong
      * @return the sub-workspace
      */
-    fun newVersioned(version: Version): VersionedWorkspace =
-        VersionedWorkspace(rootDirectory.resolve(version.id).apply { mkdirs() }, version)
+    fun versioned(version: Version): VersionedWorkspace =
+        VersionedWorkspace(rootDirectory.resolve(version.id), version)
 }
 
 /**
@@ -77,5 +81,9 @@ class CompositeWorkspace(override val rootDirectory: File) : Workspace {
  * @property version the version which this workspace belongs to
  */
 class VersionedWorkspace(override val rootDirectory: File, val version: Version) : Workspace {
+    init {
+        rootDirectory.mkdirs()
+    }
+
     override fun asVersioned(version: Version): VersionedWorkspace = this
 }

@@ -10,7 +10,10 @@ repositories {
 dependencies {
     implementation(libs.bundles.kotlin)
     implementation(libs.bundles.asm)
-    implementation(libs.jackson.module.kotlin)
+    implementation(libs.bundles.jackson)
     implementation(libs.mapping.io)
     implementation(libs.kotlin.logging.jvm)
+    implementation(libs.kotlinx.coroutines.core.jvm)
+    testImplementation(kotlin("test"))
+    testRuntimeOnly(libs.slf4j.simple)
 }
