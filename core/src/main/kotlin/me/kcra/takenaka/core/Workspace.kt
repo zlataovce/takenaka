@@ -18,6 +18,8 @@
 package me.kcra.takenaka.core
 
 import java.io.File
+import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantLock
 
 /**
  * A filesystem-based workspace.
@@ -81,6 +83,9 @@ class CompositeWorkspace(override val rootDirectory: File) : Workspace {
  * @property version the version which this workspace belongs to
  */
 class VersionedWorkspace(override val rootDirectory: File, val version: Version) : Workspace {
+    internal val spigotManifestLock: Lock = ReentrantLock()
+    internal val mojangManifestLock: Lock = ReentrantLock()
+
     init {
         rootDirectory.mkdirs()
     }

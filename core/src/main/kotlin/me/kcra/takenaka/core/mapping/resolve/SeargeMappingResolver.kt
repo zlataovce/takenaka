@@ -22,6 +22,7 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
+import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import java.io.File
@@ -136,7 +137,7 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
     override fun accept(visitor: MappingVisitor) {
         // Searge has obf, srg and id namespaces
         // obf is the obfuscated one
-        reader()?.let { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("obf" to "source", "srg" to "searge", "id" to "searge_id"))) }
+        reader()?.let { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("obf" to MappingUtil.NS_SOURCE_FALLBACK, "srg" to "searge", "id" to "searge_id"))) }
     }
 
     /**

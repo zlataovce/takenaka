@@ -10,6 +10,7 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
+import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import net.fabricmc.mappingio.format.MappingFormat
@@ -18,8 +19,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.util.concurrent.locks.Lock
-import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 private val logger = KotlinLogging.logger {}
@@ -32,8 +31,7 @@ private val logger = KotlinLogging.logger {}
  */
 abstract class AbstractSpigotMappingResolver(
     val workspace: VersionedWorkspace,
-    private val objectMapper: ObjectMapper,
-    private val readLock: Lock = ReentrantLock()
+    private val objectMapper: ObjectMapper
 ) : MappingResolver, MappingContributor {
     override val version: Version by workspace::version
     override val targetNamespace: String = "spigot"
@@ -116,7 +114,7 @@ abstract class AbstractSpigotMappingResolver(
      */
     override fun accept(visitor: MappingVisitor) {
         // mapping-io doesn't detect TSRG (CSRG), so we need to specify it manually
-        reader()?.let { MappingReader.read(it, MappingFormat.TSRG, MappingNsRenamer(visitor, mapOf("target" to "spigot"))) }
+        reader()?.let { MappingReader.read(it, MappingFormat.TSRG, MappingNsRenamer(visitor, mapOf(MappingUtil.NS_TARGET_FALLBACK to "spigot"))) }
     }
 
     /**
@@ -127,7 +125,7 @@ abstract class AbstractSpigotMappingResolver(
     private fun readManifest(): SpigotVersionManifest {
         // synchronize on the version instance, so both the class and member mapping resolvers
         // don't try to fetch the same files simultaneously
-        readLock.withLock {
+        workspace.spigotManifestLock.withLock {
             val file = workspace[MANIFEST]
 
             if (MANIFEST in workspace) {
@@ -156,7 +154,7 @@ abstract class AbstractSpigotMappingResolver(
     private fun readAttributes(): SpigotVersionAttributes {
         // synchronize on the version instance, so both the class and member mapping resolvers
         // don't try to fetch the same files simultaneously
-        readLock.withLock {
+        workspace.spigotManifestLock.withLock {
             val file = workspace[INFO]
 
             if (INFO in workspace) {
@@ -198,9 +196,8 @@ abstract class AbstractSpigotMappingResolver(
  */
 class SpigotClassMappingResolver(
     workspace: VersionedWorkspace,
-    objectMapper: ObjectMapper,
-    readLock: Lock
-) : AbstractSpigotMappingResolver(workspace, objectMapper, readLock) {
+    objectMapper: ObjectMapper
+) : AbstractSpigotMappingResolver(workspace, objectMapper) {
     override val mappingAttribute: String
         get() = attributes.classMappings
     override val mappingAttributeName: String
@@ -215,9 +212,8 @@ class SpigotClassMappingResolver(
  */
 class SpigotMemberMappingResolver(
     workspace: VersionedWorkspace,
-    objectMapper: ObjectMapper,
-    readLock: Lock
-) : AbstractSpigotMappingResolver(workspace, objectMapper, readLock) {
+    objectMapper: ObjectMapper
+) : AbstractSpigotMappingResolver(workspace, objectMapper) {
     override val mappingAttribute: String?
         get() = attributes.memberMappings
     override val mappingAttributeName: String

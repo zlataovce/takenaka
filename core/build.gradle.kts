@@ -17,3 +17,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testRuntimeOnly(libs.slf4j.simple)
 }
+
+tasks.withType<Test> {
+    maxHeapSize = "2048m"
+}

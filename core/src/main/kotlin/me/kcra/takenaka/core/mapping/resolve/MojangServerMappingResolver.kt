@@ -26,6 +26,7 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
+import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch
@@ -45,17 +46,12 @@ private val logger = KotlinLogging.logger {}
  * @author Matouš Kučera
  */
 class MojangServerMappingResolver(
-    val workspace: VersionedWorkspace,
-    private val objectMapper: ObjectMapper
-) : MappingResolver, MappingContributor {
+    workspace: VersionedWorkspace,
+    objectMapper: ObjectMapper
+) : MojangManifestConsumer(workspace, objectMapper), MappingResolver, MappingContributor {
     private val sha1Digest = MessageDigest.getInstance("SHA-1")
     override val version: Version by workspace::version
     override val targetNamespace: String = "mojang"
-
-    /**
-     * The version attributes.
-     */
-    val attributes: VersionAttributes by lazy(::readAttributes)
 
     /**
      * Creates a new mapping file reader (ProGuard format).
@@ -122,40 +118,10 @@ class MojangServerMappingResolver(
      */
     override fun accept(visitor: MappingVisitor) {
         // Mojang maps are original -> obfuscated, so we need to switch it beforehand
-        reader()?.let { MappingReader.read(it, MappingSourceNsSwitch(MappingNsRenamer(visitor, mapOf("target" to "source", "source" to "mojang")), "target")) }
-    }
-
-    /**
-     * Reads the attributes of the targeted version from cache, fetching it if the cache missed.
-     *
-     * @return the attributes
-     */
-    private fun readAttributes(): VersionAttributes {
-        val file = workspace[ATTRIBUTES]
-
-        if (ATTRIBUTES in workspace) {
-            try {
-                return objectMapper.readValue<VersionAttributes>(file).apply {
-                    logger.info { "read cached ${version.id} attributes" }
-                }
-            } catch (e: JacksonException) {
-                logger.warn(e) { "failed to read cached ${version.id} attributes, fetching them again" }
-            }
-        }
-
-        val content = URL(version.url).readText()
-        file.writeText(content)
-
-        logger.info { "fetched ${version.id} attributes" }
-        return objectMapper.readValue(content)
+        reader()?.let { MappingReader.read(it, MappingSourceNsSwitch(MappingNsRenamer(visitor, mapOf("target" to MappingUtil.NS_SOURCE_FALLBACK, MappingUtil.NS_SOURCE_FALLBACK to "mojang")), MappingUtil.NS_TARGET_FALLBACK)) }
     }
 
     companion object {
-        /**
-         * The file name of the cached attributes.
-         */
-        const val ATTRIBUTES = "attributes.json"
-
         /**
          * The file name of the cached server mappings.
          */

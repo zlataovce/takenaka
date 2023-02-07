@@ -6,6 +6,13 @@ import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MemoryMappingTree
 
 /**
+ * A version-to-mapping file map.
+ *
+ * This map should be sorted by its natural order (by using the Comparable interface of the version).
+ */
+typealias VersionedMappingFileMap = Map<Version, VersionedMappingFile>
+
+/**
  * A mapping tree with a version.
  *
  * @property version the version

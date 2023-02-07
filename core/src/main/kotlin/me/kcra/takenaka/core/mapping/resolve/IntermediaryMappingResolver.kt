@@ -22,6 +22,7 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
+import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import java.io.Reader
@@ -128,7 +129,7 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
     override fun accept(visitor: MappingVisitor) {
         // Intermediary has official and intermediary namespaces
         // official is the obfuscated one
-        reader()?.let { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("official" to "source"))) }
+        reader()?.let { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK))) }
     }
 
     companion object {

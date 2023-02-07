@@ -1,9 +1,8 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package me.kcra.takenaka.core.test.mapping.resolve
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.manifestObjectMapper
@@ -29,7 +28,7 @@ class MappingResolverTest {
         "1.18.2",
         "1.18.1",
         "1.18",
-        /*"1.17.1",
+        "1.17.1",
         "1.17",
         "1.16.5",
         "1.16.4",
@@ -58,7 +57,7 @@ class MappingResolverTest {
         "1.9.4",
         "1.9.2",
         "1.9",
-        "1.8.8"*/
+        "1.8.8"
     )
 
     @Test
