@@ -20,13 +20,17 @@ package me.kcra.takenaka.core.mapping.resolve
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
+import me.kcra.takenaka.core.util.copyTo
+import me.kcra.takenaka.core.util.getChecksum
+import me.kcra.takenaka.core.util.httpRequest
+import me.kcra.takenaka.core.util.ok
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
+import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import java.io.File
 import java.io.Reader
-import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -52,10 +56,11 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
      * @return the reader, null if the version doesn't have mappings released
      */
     override fun reader(): Reader? {
-        val file = workspace[SEARGE]
+        val file = workspace[MCP_CONFIG]
+        var url = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp_config/${version.id}/mcp_config-${version.id}.zip.sha1")
 
-        fun mappingFileReader(url: URL, checksum: String): Reader {
-            if (SEARGE in workspace) {
+        fun readMcpConfig(checksum: String): Reader {
+            if (MCP_CONFIG in workspace) {
                 val fileChecksum = file.getChecksum(sha1Digest)
 
                 if (checksum == fileChecksum) {
@@ -66,45 +71,28 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
                 logger.warn { "checksum mismatch for ${version.id} Searge mapping cache, fetching them again" }
             }
 
-            URL(url.toString().removeSuffix(".sha1")).openStream().use {
-                Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
-            }
+            URL(url.toString().removeSuffix(".sha1")).copyTo(file.toPath())
 
             logger.info { "fetched ${version.id} Searge mappings" }
             return findMappingFile(file).reader()
         }
 
-        var conn = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp_config/${version.id}/mcp_config-${version.id}.zip.sha1")
-            .openConnection() as HttpURLConnection
-
-        conn.requestMethod = "GET"
-        try {
-            when (conn.responseCode) {
-                HttpURLConnection.HTTP_OK -> {
-                    return mappingFileReader(conn.url, conn.inputStream.reader().use(Reader::readText))
-                }
+        url.httpRequest {
+            if (it.ok) {
+                return readMcpConfig(it.inputStream.reader().use(Reader::readText))
             }
-        } finally {
-            conn.disconnect()
         }
 
         // let's try the second URL
 
-        conn = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp/${version.id}/mcp-${version.id}-srg.zip.sha1")
-            .openConnection() as HttpURLConnection
-
-        conn.requestMethod = "GET"
-        try {
-            when (conn.responseCode) {
-                HttpURLConnection.HTTP_OK -> {
-                    return mappingFileReader(conn.url, conn.inputStream.reader().use(Reader::readText))
-                }
-                else -> logger.warn { "failed to fetch ${version.id} Searge mappings, didn't find a valid URL" }
+        url = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp/${version.id}/mcp-${version.id}-srg.zip.sha1")
+        url.httpRequest {
+            if (it.ok) {
+                return readMcpConfig(it.inputStream.reader().use(Reader::readText))
             }
-        } finally {
-            conn.disconnect()
         }
 
+        logger.warn { "failed to fetch ${version.id} Searge mappings, didn't find a valid URL" }
         return null
     }
 
@@ -114,16 +102,15 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
      * @return the reader, null if this resolver doesn't support the version
      */
     override fun licenseReader(): Reader {
-        val file = workspace[SEARGE_LICENSE]
+        val file = workspace[LICENSE]
 
-        if (SEARGE_LICENSE in workspace) {
+        if (LICENSE in workspace) {
             logger.info { "found cached Searge license file" }
             return file.reader()
         }
 
-        URL("https://raw.githubusercontent.com/MinecraftForge/MCPConfig/master/LICENSE").openStream().use {
-            Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        }
+        URL("https://raw.githubusercontent.com/MinecraftForge/MCPConfig/master/LICENSE")
+            .copyTo(file.toPath())
 
         return file.reader()
     }
@@ -136,7 +123,7 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
     override fun accept(visitor: MappingVisitor) {
         // Searge has obf, srg and id namespaces
         // obf is the obfuscated one
-        reader()?.let { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("obf" to "source", "srg" to "searge", "id" to "searge_id"))) }
+        reader()?.let { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("obf" to MappingUtil.NS_SOURCE_FALLBACK, "srg" to "searge", "id" to "searge_id"))) }
     }
 
     /**
@@ -146,7 +133,7 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
      * @return the file
      */
     private fun findMappingFile(file: File): File {
-        val mappingFile = workspace[JOINED]
+        val mappingFile = workspace[MAPPINGS]
 
         if (!mappingFile.isFile) {
             ZipFile(file).use {
@@ -166,16 +153,16 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
         /**
          * The file name of the cached zip file.
          */
-        const val SEARGE = "searge.zip"
+        const val MCP_CONFIG = "mcp_config.zip"
 
         /**
-         * The file name of the joined server mappings.
+         * The file name of the server mappings.
          */
-        const val JOINED = "joined.srg"
+        const val MAPPINGS = "searge_mappings.srg"
 
         /**
          * The file name of the cached license file.
          */
-        const val SEARGE_LICENSE = "searge_license.txt"
+        const val LICENSE = "searge_license.txt"
     }
 }

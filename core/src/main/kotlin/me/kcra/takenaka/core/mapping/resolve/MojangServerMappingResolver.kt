@@ -17,23 +17,22 @@
 
 package me.kcra.takenaka.core.mapping.resolve
 
-import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import me.kcra.takenaka.core.Version
-import me.kcra.takenaka.core.VersionAttributes
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
+import me.kcra.takenaka.core.util.copyTo
+import me.kcra.takenaka.core.util.getChecksum
+import me.kcra.takenaka.core.util.httpRequest
+import me.kcra.takenaka.core.util.ok
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
+import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch
 import java.io.Reader
-import java.net.HttpURLConnection
 import java.net.URL
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 
 private val logger = KotlinLogging.logger {}
@@ -45,17 +44,12 @@ private val logger = KotlinLogging.logger {}
  * @author Matouš Kučera
  */
 class MojangServerMappingResolver(
-    val workspace: VersionedWorkspace,
-    private val objectMapper: ObjectMapper
-) : MappingResolver, MappingContributor {
+    workspace: VersionedWorkspace,
+    objectMapper: ObjectMapper
+) : MojangManifestConsumer(workspace, objectMapper), MappingResolver, MappingContributor {
     private val sha1Digest = MessageDigest.getInstance("SHA-1")
     override val version: Version by workspace::version
     override val targetNamespace: String = "mojang"
-
-    /**
-     * The version attributes.
-     */
-    val attributes: VersionAttributes by lazy(::readAttributes)
 
     /**
      * Creates a new mapping file reader (ProGuard format).
@@ -68,9 +62,9 @@ class MojangServerMappingResolver(
             return null
         }
 
-        val file = workspace[SERVER_MAPPINGS]
+        val file = workspace[MAPPINGS]
 
-        if (SERVER_MAPPINGS in workspace) {
+        if (MAPPINGS in workspace) {
             val checksum = file.getChecksum(sha1Digest)
 
             if (attributes.downloads.serverMappings?.sha1 == checksum) {
@@ -81,25 +75,15 @@ class MojangServerMappingResolver(
             logger.warn { "checksum mismatch for ${version.id} Mojang mapping cache, fetching them again" }
         }
 
-        val conn = URL(attributes.downloads.serverMappings?.url)
-            .openConnection() as HttpURLConnection
+        URL(attributes.downloads.serverMappings?.url).httpRequest {
+            if (it.ok) {
+                it.copyTo(file.toPath())
 
-        conn.requestMethod = "GET"
-        try {
-            when (conn.responseCode) {
-                HttpURLConnection.HTTP_OK -> {
-                    conn.inputStream.use {
-                        Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                    }
-
-                    logger.info { "fetched ${version.id} Mojang mappings" }
-                    return file.reader()
-                }
-
-                else -> logger.info { "failed to fetch ${version.id} Mojang mappings, received ${conn.responseCode}" }
+                logger.info { "fetched ${version.id} Mojang mappings" }
+                return file.reader()
             }
-        } finally {
-            conn.disconnect()
+
+            logger.info { "failed to fetch ${version.id} Mojang mappings, received ${it.responseCode}" }
         }
 
         return null
@@ -122,43 +106,13 @@ class MojangServerMappingResolver(
      */
     override fun accept(visitor: MappingVisitor) {
         // Mojang maps are original -> obfuscated, so we need to switch it beforehand
-        reader()?.let { MappingReader.read(it, MappingSourceNsSwitch(MappingNsRenamer(visitor, mapOf("target" to "source", "source" to "mojang")), "target")) }
-    }
-
-    /**
-     * Reads the attributes of the targeted version from cache, fetching it if the cache missed.
-     *
-     * @return the attributes
-     */
-    private fun readAttributes(): VersionAttributes {
-        val file = workspace[ATTRIBUTES]
-
-        if (ATTRIBUTES in workspace) {
-            try {
-                return objectMapper.readValue<VersionAttributes>(file).apply {
-                    logger.info { "read cached ${version.id} attributes" }
-                }
-            } catch (e: JacksonException) {
-                logger.warn(e) { "failed to read cached ${version.id} attributes, fetching them again" }
-            }
-        }
-
-        val content = URL(version.url).readText()
-        file.writeText(content)
-
-        logger.info { "fetched ${version.id} attributes" }
-        return objectMapper.readValue(content)
+        reader()?.let { MappingReader.read(it, MappingSourceNsSwitch(MappingNsRenamer(visitor, mapOf("target" to MappingUtil.NS_SOURCE_FALLBACK, MappingUtil.NS_SOURCE_FALLBACK to "mojang")), MappingUtil.NS_TARGET_FALLBACK)) }
     }
 
     companion object {
         /**
-         * The file name of the cached attributes.
-         */
-        const val ATTRIBUTES = "attributes.json"
-
-        /**
          * The file name of the cached server mappings.
          */
-        const val SERVER_MAPPINGS = "server_mappings.txt"
+        const val MAPPINGS = "mojang_mappings.txt"
     }
 }

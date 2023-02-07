@@ -18,10 +18,7 @@
 package me.kcra.takenaka.core.mapping.resolve
 
 import me.kcra.takenaka.core.Version
-import java.io.File
-import java.io.FileInputStream
 import java.io.Reader
-import java.security.MessageDigest
 
 /**
  * A mapping file resolver.
@@ -45,27 +42,4 @@ interface MappingResolver {
      * @return the reader, null if this resolver doesn't support the version
      */
     fun licenseReader(): Reader?
-
-    /**
-     * Computes a checksum using the provided digest, outputting it in a hexadecimal format.
-     *
-     * @param digest the digest
-     * @return the checksum
-     */
-    fun File.getChecksum(digest: MessageDigest): String {
-        FileInputStream(this).use {
-            val buffer = ByteArray(1024)
-            var bytesCount: Int
-            while (it.read(buffer).also { b -> bytesCount = b } != -1) {
-                digest.update(buffer, 0, bytesCount)
-            }
-        }
-
-        val bytes = digest.digest()
-        return buildString {
-            for (i in bytes.indices) {
-                append(((bytes[i].toInt() and 0xff) + 0x100).toString(16).substring(1))
-            }
-        }
-    }
 }
