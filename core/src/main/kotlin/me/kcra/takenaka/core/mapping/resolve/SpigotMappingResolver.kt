@@ -1,3 +1,20 @@
+/*
+ * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
+ *
+ * Copyright (c) 2023 Matous Kucera
+ *
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.core.JacksonException
@@ -8,6 +25,9 @@ import me.kcra.takenaka.core.SpigotVersionManifest
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
+import me.kcra.takenaka.core.util.copyTo
+import me.kcra.takenaka.core.util.httpRequest
+import me.kcra.takenaka.core.util.ok
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
 import net.fabricmc.mappingio.MappingUtil
@@ -15,10 +35,7 @@ import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import net.fabricmc.mappingio.format.MappingFormat
 import java.io.Reader
-import java.net.HttpURLConnection
 import java.net.URL
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import kotlin.concurrent.withLock
 
 private val logger = KotlinLogging.logger {}
@@ -73,25 +90,15 @@ abstract class AbstractSpigotMappingResolver(
         // that isn't very efficient, but it doesn't make a large difference in the time it takes (around +3 seconds)
         // perhaps we could provide a way to modify this behavior?
 
-        val conn = URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${manifest.refs["BuildData"]}")
-            .openConnection() as HttpURLConnection
+        URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${manifest.refs["BuildData"]}").httpRequest {
+            if (it.ok) {
+                it.copyTo(file.toPath())
 
-        conn.requestMethod = "GET"
-        try {
-            when (conn.responseCode) {
-                HttpURLConnection.HTTP_OK -> {
-                    conn.inputStream.use {
-                        Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                    }
-
-                    logger.info { "fetched ${version.id} Spigot mappings ($mappingAttribute)" }
-                    return file.reader()
-                }
-
-                else -> logger.warn { "failed to fetch ${version.id} Spigot mappings ($mappingAttribute), received ${conn.responseCode}" }
+                logger.info { "fetched ${version.id} Spigot mappings ($mappingAttribute)" }
+                return file.reader()
             }
-        } finally {
-            conn.disconnect()
+
+            logger.warn { "failed to fetch ${version.id} Spigot mappings ($mappingAttribute), received ${it.responseCode}" }
         }
 
         return null
@@ -155,9 +162,9 @@ abstract class AbstractSpigotMappingResolver(
         // synchronize on the version instance, so both the class and member mapping resolvers
         // don't try to fetch the same files simultaneously
         workspace.spigotManifestLock.withLock {
-            val file = workspace[INFO]
+            val file = workspace[BUILDDATA_INFO]
 
-            if (INFO in workspace) {
+            if (BUILDDATA_INFO in workspace) {
                 try {
                     return objectMapper.readValue<SpigotVersionAttributes>(file).apply {
                         logger.info { "read cached ${version.id} Spigot attributes" }
@@ -179,12 +186,12 @@ abstract class AbstractSpigotMappingResolver(
         /**
          * The file name of the cached version manifest.
          */
-        const val MANIFEST = "manifest.json"
+        const val MANIFEST = "spigot_manifest.json"
 
         /**
          * The file name of the cached version attributes.
          */
-        const val INFO = "info.json"
+        const val BUILDDATA_INFO = "spigot_builddata_info.json"
     }
 }
 

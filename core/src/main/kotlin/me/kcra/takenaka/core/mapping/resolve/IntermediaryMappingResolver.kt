@@ -20,16 +20,17 @@ package me.kcra.takenaka.core.mapping.resolve
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
+import me.kcra.takenaka.core.util.contentLength
+import me.kcra.takenaka.core.util.copyTo
+import me.kcra.takenaka.core.util.httpRequest
+import me.kcra.takenaka.core.util.ok
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import java.io.Reader
-import java.net.HttpURLConnection
 import java.net.URL
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 
 private val logger = KotlinLogging.logger {}
 
@@ -49,53 +50,34 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
      * @return the reader, null if the version doesn't have mappings released
      */
     override fun reader(): Reader? {
-        val file = workspace[INTERMEDIARY]
+        val file = workspace[MAPPINGS]
 
-        var conn = URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${version.id}.tiny")
-            .openConnection() as HttpURLConnection
+        val url = URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${version.id}.tiny")
+        val length = url.contentLength
 
-        conn.requestMethod = "HEAD"
-        try {
-            when (conn.responseCode) {
-                HttpURLConnection.HTTP_OK -> {
-                    if (INTERMEDIARY in workspace) {
-                        if (file.length() == conn.contentLengthLong) {
-                            logger.info { "matched same length for cached ${version.id} Intermediary mappings" }
-                            return file.reader()
-                        }
-
-                        logger.warn { "length mismatch for ${version.id} Intermediary mapping cache, fetching them again" }
-                    }
-                }
-
-                HttpURLConnection.HTTP_NOT_FOUND -> {
-                    logger.info { "did not find Intermediary mappings for ${version.id}" }
-                    return null
-                }
-            }
-        } finally {
-            conn.disconnect()
+        if (length == (-1).toLong()) {
+            logger.info { "did not find Intermediary mappings for ${version.id}" }
+            return null
         }
 
-        conn = URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${version.id}.tiny")
-            .openConnection() as HttpURLConnection
-
-        conn.requestMethod = "GET"
-        try {
-            when (conn.responseCode) {
-                HttpURLConnection.HTTP_OK -> {
-                    conn.inputStream.use {
-                        Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                    }
-
-                    logger.info { "fetched ${version.id} Intermediary mappings" }
-                    return file.reader()
-                }
-
-                else -> logger.warn { "failed to fetch ${version.id} Intermediary mappings, received ${conn.responseCode}" }
+        if (MAPPINGS in workspace) {
+            if (file.length() == length) {
+                logger.info { "matched same length for cached ${version.id} Intermediary mappings" }
+                return file.reader()
             }
-        } finally {
-            conn.disconnect()
+
+            logger.warn { "length mismatch for ${version.id} Intermediary mapping cache, fetching them again" }
+        }
+
+        url.httpRequest {
+            if (it.ok) {
+                it.copyTo(file.toPath())
+
+                logger.info { "fetched ${version.id} Intermediary mappings" }
+                return file.reader()
+            }
+
+            logger.warn { "failed to fetch ${version.id} Intermediary mappings, received ${it.responseCode}" }
         }
 
         return null
@@ -107,16 +89,15 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
      * @return the reader, null if this resolver doesn't support the version
      */
     override fun licenseReader(): Reader {
-        val file = workspace[INTERMEDIARY_LICENSE]
+        val file = workspace[LICENSE]
 
-        if (INTERMEDIARY_LICENSE in workspace) {
+        if (LICENSE in workspace) {
             logger.info { "found cached Intermediary license file" }
             return file.reader()
         }
 
-        URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/LICENSE").openStream().use {
-            Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        }
+        URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/LICENSE")
+            .copyTo(file.toPath())
 
         return file.reader()
     }
@@ -136,11 +117,11 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
         /**
          * The file name of the cached mappings.
          */
-        const val INTERMEDIARY = "intermediary.tiny"
+        const val MAPPINGS = "intermediary_mappings.tiny"
 
         /**
          * The file name of the cached license file.
          */
-        const val INTERMEDIARY_LICENSE = "intermediary_license.txt"
+        const val LICENSE = "intermediary_license.txt"
     }
 }
