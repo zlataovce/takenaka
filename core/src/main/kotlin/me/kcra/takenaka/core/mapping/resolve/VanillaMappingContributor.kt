@@ -18,13 +18,16 @@
 package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import me.kcra.takenaka.core.RELAXED_CACHE
 import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.getChecksum
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
 import mu.KotlinLogging
+import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import org.objectweb.asm.ClassReader
@@ -64,7 +67,42 @@ class VanillaMappingContributor(
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        TODO("Not yet implemented")
+        while (true) {
+            if (visitor.visitHeader()) {
+                visitor.visitNamespaces(targetNamespace, listOf(NS_MODIFIERS, NS_SIGNATURE))
+            }
+
+            if (visitor.visitContent()) {
+                classes.forEach { klass ->
+                    if (visitor.visitClass(klass.name)) {
+                        visitor.visitDstName(MappedElementKind.CLASS, 0, klass.access.toString(10))
+                        visitor.visitDstName(MappedElementKind.CLASS, 1, klass.signature)
+
+                        if (visitor.visitElementContent(MappedElementKind.CLASS)) {
+                            klass.fields.forEach { field ->
+                                if (visitor.visitField(field.name, field.desc)) {
+                                    visitor.visitDstName(MappedElementKind.FIELD, 0, field.access.toString(10))
+                                    visitor.visitDstName(MappedElementKind.FIELD, 1, field.signature)
+                                    visitor.visitElementContent(MappedElementKind.FIELD)
+                                }
+                            }
+
+                            klass.methods.forEach { method ->
+                                if (visitor.visitMethod(method.name, method.desc)) {
+                                    visitor.visitDstName(MappedElementKind.METHOD, 0, method.access.toString(10))
+                                    visitor.visitDstName(MappedElementKind.METHOD, 1, method.signature)
+                                    visitor.visitElementContent(MappedElementKind.METHOD)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (visitor.visitEnd()) {
+                break
+            }
+        }
     }
 
     /**
@@ -73,7 +111,7 @@ class VanillaMappingContributor(
      * @return the classes
      */
     private fun readServerJar(): List<ClassNode> {
-        var file = fetchServerJar() ?: return listOf()
+        var file = fetchServerJar() ?: return emptyList()
 
         fun readJar(zf: ZipFile): List<ClassNode> {
             return zf.stream()
@@ -86,7 +124,7 @@ class VanillaMappingContributor(
                         }
                     }
                 }
-                .filter { k -> (k.access and Opcodes.ACC_SYNTHETIC) == 0 && k.innerClasses.none { k.name == it.name && it.innerName == null } } // no synthetics and no anonymous classes
+                .filter { k -> (k.access and Opcodes.ACC_SYNTHETIC) == 0 } // no synthetics
                 .collect(Collectors.toList())
         }
 
@@ -94,8 +132,8 @@ class VanillaMappingContributor(
             if (zf.getEntry("net/minecraft/bundler/Main.class") != null) {
                 file = file.resolveSibling(file.nameWithoutExtension + "-bundled.jar")
 
-                if (!file.isFile) {
-                    zf.getInputStream(zf.getEntry("versions/${workspace.version.id}/server-${workspace.version.id}.jar")).use {
+                if (RELAXED_CACHE !in workspace.resolverOptions || !file.isFile) {
+                    zf.getInputStream(zf.getEntry("META-INF/versions/${workspace.version.id}/server-${workspace.version.id}.jar")).use {
                         Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
                     }
                     logger.info { "extracted ${workspace.version.id} bundled JAR" }

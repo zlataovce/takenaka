@@ -22,6 +22,33 @@ import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 
 /**
+ * Options for resolvers, these are integers ORed together.
+ */
+typealias ResolverOptions = Int
+
+/**
+ * Creates resolver options from multiple options.
+ *
+ * @param options the options
+ * @return the resolver options
+ */
+fun resolverOptionsOf(vararg options: Int): ResolverOptions = options.reduceOrNull { v1, v2 -> v1 or v2 } ?: 0
+
+/**
+ * Checks if the options contain an option.
+ *
+ * @param option the option to check
+ * @return do the options contain the option?
+ */
+operator fun ResolverOptions.contains(option: Int): Boolean = (this and option) != 0
+
+/**
+ * Requests resolvers to cache items without a checksum.
+ */
+const val RELAXED_CACHE = 0x00000001
+fun ResolverOptions.relaxedCache(): ResolverOptions = this or RELAXED_CACHE
+
+/**
  * A filesystem-based workspace.
  */
 interface Workspace {
@@ -31,13 +58,18 @@ interface Workspace {
     val rootDirectory: File
 
     /**
+     * Options for resolvers.
+     */
+    val resolverOptions: ResolverOptions
+
+    /**
      * Converts this workspace to a versioned one.
      *
      * @param version the version to which the workspace should belong
      * @return the versioned workspace
      */
     fun asVersioned(version: Version): VersionedWorkspace =
-        VersionedWorkspace(rootDirectory, version)
+        VersionedWorkspace(rootDirectory, resolverOptions, version)
 
     /**
      * Checks if this workspace contains the specified file.
@@ -61,7 +93,7 @@ interface Workspace {
  *
  * @property rootDirectory the workspace root
  */
-class CompositeWorkspace(override val rootDirectory: File) : Workspace {
+class CompositeWorkspace(override val rootDirectory: File, override val resolverOptions: ResolverOptions = resolverOptionsOf()) : Workspace {
     init {
         rootDirectory.mkdirs()
     }
@@ -73,7 +105,7 @@ class CompositeWorkspace(override val rootDirectory: File) : Workspace {
      * @return the sub-workspace
      */
     fun versioned(version: Version): VersionedWorkspace =
-        VersionedWorkspace(rootDirectory.resolve(version.id), version)
+        VersionedWorkspace(rootDirectory.resolve(version.id), resolverOptions, version)
 }
 
 /**
@@ -82,7 +114,7 @@ class CompositeWorkspace(override val rootDirectory: File) : Workspace {
  * @property rootDirectory the workspace root
  * @property version the version which this workspace belongs to
  */
-class VersionedWorkspace(override val rootDirectory: File, val version: Version) : Workspace {
+class VersionedWorkspace(override val rootDirectory: File, override val resolverOptions: ResolverOptions = resolverOptionsOf(), val version: Version) : Workspace {
     internal val spigotManifestLock: Lock = ReentrantLock()
     internal val mojangManifestLock: Lock = ReentrantLock()
 

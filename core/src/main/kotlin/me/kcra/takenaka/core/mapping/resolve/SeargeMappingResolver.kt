@@ -17,8 +17,10 @@
 
 package me.kcra.takenaka.core.mapping.resolve
 
+import me.kcra.takenaka.core.RELAXED_CACHE
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.getChecksum
@@ -135,7 +137,7 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
     private fun findMappingFile(file: File): File {
         val mappingFile = workspace[MAPPINGS]
 
-        if (!mappingFile.isFile) {
+        if (RELAXED_CACHE !in workspace.resolverOptions || !mappingFile.isFile) {
             ZipFile(file).use {
                 val entry = it.stream()
                     .filter { e -> e.name == "config/joined.tsrg" || e.name == "joined.srg" }

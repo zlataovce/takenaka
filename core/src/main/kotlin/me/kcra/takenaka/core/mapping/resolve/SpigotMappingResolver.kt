@@ -20,10 +20,7 @@ package me.kcra.takenaka.core.mapping.resolve
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import me.kcra.takenaka.core.SpigotVersionAttributes
-import me.kcra.takenaka.core.SpigotVersionManifest
-import me.kcra.takenaka.core.Version
-import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.*
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.httpRequest
@@ -86,9 +83,10 @@ abstract class AbstractSpigotMappingResolver(
 
         val file = workspace[mappingAttribute!!]
 
-        // Spigot's stash doesn't seem to support sending Content-Length headers, so we'll need to re-fetch the mappings every time
-        // that isn't very efficient, but it doesn't make a large difference in the time it takes (around +3 seconds)
-        // perhaps we could provide a way to modify this behavior?
+        // Spigot's stash doesn't seem to support sending Content-Length headers
+        if (RELAXED_CACHE in workspace.resolverOptions && file.isFile) {
+            return file.reader()
+        }
 
         URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${manifest.refs["BuildData"]}").httpRequest {
             if (it.ok) {
@@ -135,7 +133,7 @@ abstract class AbstractSpigotMappingResolver(
         workspace.spigotManifestLock.withLock {
             val file = workspace[MANIFEST]
 
-            if (MANIFEST in workspace) {
+            if (RELAXED_CACHE in workspace.resolverOptions && MANIFEST in workspace) {
                 try {
                     return objectMapper.readValue<SpigotVersionManifest>(file).apply {
                         logger.info { "read cached ${version.id} Spigot manifest" }
@@ -164,7 +162,7 @@ abstract class AbstractSpigotMappingResolver(
         workspace.spigotManifestLock.withLock {
             val file = workspace[BUILDDATA_INFO]
 
-            if (BUILDDATA_INFO in workspace) {
+            if (RELAXED_CACHE in workspace.resolverOptions && BUILDDATA_INFO in workspace) {
                 try {
                     return objectMapper.readValue<SpigotVersionAttributes>(file).apply {
                         logger.info { "read cached ${version.id} Spigot attributes" }
