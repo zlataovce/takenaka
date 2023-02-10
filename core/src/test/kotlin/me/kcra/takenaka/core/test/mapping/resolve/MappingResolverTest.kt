@@ -20,8 +20,9 @@ package me.kcra.takenaka.core.test.mapping.resolve
 import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.*
 import me.kcra.takenaka.core.*
-import me.kcra.takenaka.core.mapping.ancestry.VersionedMappings
+import me.kcra.takenaka.core.mapping.VersionedMappingMap
 import me.kcra.takenaka.core.mapping.resolve.*
+import me.kcra.takenaka.core.util.objectMapper
 import net.fabricmc.mappingio.format.Tiny1Writer
 import net.fabricmc.mappingio.tree.MemoryMappingTree
 import java.io.File
@@ -69,7 +70,7 @@ val VERSIONS = listOf(
 )
 
 class MappingResolverTest {
-    private val objectMapper = manifestObjectMapper()
+    private val objectMapper = objectMapper()
     private val workspaceDir = File("test-workspace")
 
     @Test
@@ -106,7 +107,7 @@ suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper
     return@coroutineScope file
 }
 
-fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, save: Boolean = true): VersionedMappings = runBlocking {
+fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, save: Boolean = true): VersionedMappingMap = runBlocking {
     val manifest = objectMapper.versionManifest()
     val jobs = mutableListOf<Deferred<Pair<Version, MemoryMappingTree>>>()
 

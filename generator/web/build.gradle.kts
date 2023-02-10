@@ -3,13 +3,13 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
 }
 
+repositories {
+    maven("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven")
+}
+
 dependencies {
-    api(libs.bundles.asm)
-    api(libs.bundles.jackson)
-    api(libs.mapping.io)
-    implementation(libs.bundles.kotlin)
-    implementation(libs.kotlin.logging.jvm)
-    testImplementation(libs.kotlinx.coroutines.core.jvm)
+    implementation(project(":generator-common"))
+    implementation(libs.kotlinx.html.jvm)
     testImplementation(kotlin("test"))
     testRuntimeOnly(libs.slf4j.simple)
 }

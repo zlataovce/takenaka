@@ -68,8 +68,14 @@ interface Workspace {
      * @param version the version to which the workspace should belong
      * @return the versioned workspace
      */
-    fun asVersioned(version: Version): VersionedWorkspace =
-        VersionedWorkspace(rootDirectory, resolverOptions, version)
+    fun asVersioned(version: Version): VersionedWorkspace = VersionedWorkspace(rootDirectory, resolverOptions, version)
+
+    /**
+     * Converts this workspace to a composite one.
+     *
+     * @return the composite workspace
+     */
+    fun asComposite(): CompositeWorkspace = CompositeWorkspace(rootDirectory, resolverOptions)
 
     /**
      * Checks if this workspace contains the specified file.
@@ -106,6 +112,8 @@ class CompositeWorkspace(override val rootDirectory: File, override val resolver
      */
     fun versioned(version: Version): VersionedWorkspace =
         VersionedWorkspace(rootDirectory.resolve(version.id), resolverOptions, version)
+
+    override fun asComposite(): CompositeWorkspace = this
 }
 
 /**

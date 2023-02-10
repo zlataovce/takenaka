@@ -6,6 +6,7 @@ plugins {
 
 repositories {
     mavenCentral()
+    maven("https://maven.fabricmc.net")
 }
 
 java {
@@ -23,7 +24,7 @@ publishing {
             from(components["java"])
             pom {
                 name.set("takenaka")
-                description.set("A Kotlin library for comparing obfuscation mappings of Minecraft: Java Edition.")
+                description.set("A Kotlin library for reconciling multiple obfuscation mapping files over multiple versions of Minecraft: JE.")
                 url.set("https://github.com/zlataovce/takenaka")
                 licenses {
                     license {

@@ -14,6 +14,7 @@ mapping-io = { group = "net.fabricmc", name = "mapping-io", version = "0.3.0" }
 kotlin-logging-jvm = { group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.4" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version = "2.0.6" }
 kotlinx-coroutines-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core-jvm", version = "1.6.4" }
+kotlinx-html-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-html-jvm", version = "0.8.1" }
 build-licenser = { group = "org.cadixdev.licenser", name = "org.cadixdev.licenser.gradle.plugin", version = "0.6.1" }
 
 [bundles]

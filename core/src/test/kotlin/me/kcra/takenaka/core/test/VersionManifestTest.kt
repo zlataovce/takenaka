@@ -19,7 +19,7 @@ package me.kcra.takenaka.core.test
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import me.kcra.takenaka.core.SpigotVersionManifest
-import me.kcra.takenaka.core.manifestObjectMapper
+import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
 import java.net.URL
 import kotlin.test.Test
@@ -27,7 +27,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 class VersionManifestTest {
-    private val objectMapper = manifestObjectMapper()
+    private val objectMapper = objectMapper()
 
     @Test
     fun `fetch and deserialize the version manifest`() {

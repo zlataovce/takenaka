@@ -4,12 +4,9 @@ plugins {
 }
 
 dependencies {
-    api(libs.bundles.asm)
-    api(libs.bundles.jackson)
-    api(libs.mapping.io)
-    implementation(libs.bundles.kotlin)
-    implementation(libs.kotlin.logging.jvm)
-    testImplementation(libs.kotlinx.coroutines.core.jvm)
+    api(project(":core"))
+    api(libs.kotlin.logging.jvm)
+    api(libs.kotlinx.coroutines.core.jvm)
     testImplementation(kotlin("test"))
     testRuntimeOnly(libs.slf4j.simple)
 }
