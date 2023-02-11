@@ -69,7 +69,7 @@ class VanillaMappingContributor(
     override fun accept(visitor: MappingVisitor) {
         while (true) {
             if (visitor.visitHeader()) {
-                visitor.visitNamespaces(targetNamespace, listOf(NS_MODIFIERS, NS_SIGNATURE))
+                visitor.visitNamespaces(targetNamespace, listOf(NS_MODIFIERS, NS_SIGNATURE, NS_SUPER, NS_INTERFACES))
             }
 
             if (visitor.visitContent()) {
@@ -77,6 +77,10 @@ class VanillaMappingContributor(
                     if (visitor.visitClass(klass.name)) {
                         visitor.visitDstName(MappedElementKind.CLASS, 0, klass.access.toString(10))
                         visitor.visitDstName(MappedElementKind.CLASS, 1, klass.signature)
+                        visitor.visitDstName(MappedElementKind.CLASS, 2, klass.superName)
+                        if (klass.interfaces.isNotEmpty()) {
+                            visitor.visitDstName(MappedElementKind.CLASS, 3, klass.interfaces.joinToString(","))
+                        }
 
                         if (visitor.visitElementContent(MappedElementKind.CLASS)) {
                             klass.fields.forEach { field ->
@@ -191,8 +195,18 @@ class VanillaMappingContributor(
         const val NS_MODIFIERS = "modifiers"
 
         /**
-         * The namespace of the class generic signature.
+         * The namespace of the class's generic signature.
          */
         const val NS_SIGNATURE = "signature"
+
+        /**
+         * The namespace of the class's superclass.
+         */
+        const val NS_SUPER = "super"
+
+        /**
+         * The namespace of the class's superinterfaces.
+         */
+        const val NS_INTERFACES = "interfaces"
     }
 }

@@ -17,21 +17,78 @@
 
 package me.kcra.takenaka.generator.common
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
+import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
+import me.kcra.takenaka.core.mapping.ContributorProvider
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
+import me.kcra.takenaka.core.util.objectMapper
+import me.kcra.takenaka.core.versionManifest
+import net.fabricmc.mappingio.tree.MemoryMappingTree
 
 /**
  * An abstract base for a generator.
  * A generator transforms mappings into another form, such as accessors or documentation.
  *
- * @property workspace the workspace in which this generator can move around
+ * @param workspace the workspace in which this generator can move around
+ * @param mappingWorkspace the workspace in which the mappings are stored
+ * @param versions the Minecraft versions that this generator will process
  * @author Matouš Kučera
  */
-abstract class AbstractGenerator(val workspace: Workspace) {
+abstract class AbstractGenerator(
+    val workspace: Workspace,
+    val versions: List<String>,
+    private val mappingWorkspace: CompositeWorkspace,
+    private val contributorProvider: ContributorProvider
+) {
+    /**
+     * An object mapper instance for this generator.
+     */
+    private val objectMapper = objectMapper()
+
+    /**
+     * The mappings.
+     */
+    protected val mappings: VersionedMappingMap by lazy(::resolveMappings)
+
     /**
      * Launches the generator.
-     *
-     * @param mappings the mappings
      */
-    abstract fun generate(mappings: VersionedMappingMap)
+    abstract fun generate()
+
+    /**
+     * Resolves mappings for all targeted versions.
+     *
+     * @return a map of joined mapping files, keyed by version
+     */
+    private fun resolveMappings(): VersionedMappingMap = runBlocking {
+        val manifest = objectMapper.versionManifest()
+
+        return@runBlocking versions
+            .map { manifest[it] ?: error("did not find version $it in manifest") }
+            .parallelMap { version ->
+                val versionWorkspace = mappingWorkspace.versioned(version)
+
+                val tree = MemoryMappingTree()
+                contributorProvider(versionWorkspace, objectMapper).forEach { contributor ->
+                    contributor.accept(tree)
+                }
+
+                return@parallelMap version to tree
+            }
+            .toMap()
+    }
+}
+
+/**
+ * Maps an [Iterable] in parallel.
+ *
+ * @param f the mapping function
+ * @return the remapped list
+ */
+suspend fun <A, B> Iterable<A>.parallelMap(f: suspend (A) -> B): List<B> = coroutineScope {
+    map { async { f(it) } }.awaitAll()
 }

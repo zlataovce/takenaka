@@ -15,32 +15,23 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.mapping
+package me.kcra.takenaka.generator.common.cli
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.VersionedWorkspace
-import net.fabricmc.mappingio.MappingVisitor
-
-/**
- * A function for providing a list of mapping contributors for a single version.
- */
-typealias ContributorProvider = (VersionedWorkspace, ObjectMapper) -> List<MappingContributor>
+import me.kcra.takenaka.core.CompositeWorkspace
+import me.kcra.takenaka.core.Workspace
 
 /**
- * A mapping contributor.
+ * An option-less abstraction over CLI implementations.
  *
  * @author Matouš Kučera
  */
-interface MappingContributor {
+interface CLIFacade {
     /**
-     * The target namespace of the contributor's mappings.
-     */
-    val targetNamespace: String
-
-    /**
-     * Visits its mappings to the supplied visitor.
+     * Launches the generator.
      *
-     * @param visitor the visitor
+     * @param output the workspace where the generator can freely move around
+     * @param versions the versions to be processed
+     * @param mappingWorkspace the workspace where the generator can cache mappings
      */
-    fun accept(visitor: MappingVisitor)
+    fun generate(output: Workspace, versions: List<String>, mappingWorkspace: CompositeWorkspace)
 }

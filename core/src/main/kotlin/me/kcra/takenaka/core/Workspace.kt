@@ -95,6 +95,35 @@ interface Workspace {
 }
 
 /**
+ * Creates a new workspace.
+ *
+ * @param rootDirectory the workspaces' root directory
+ * @param resolverOptions the resolver options
+ * @return the workspace
+ */
+fun workspaceOf(rootDirectory: String, resolverOptions: ResolverOptions = resolverOptionsOf()): Workspace =
+    Simple(File(rootDirectory), resolverOptions)
+
+/**
+ * A simple sub-workspace with a user-defined name.
+ */
+private class Simple(override val rootDirectory: File, override val resolverOptions: ResolverOptions = resolverOptionsOf()) : Workspace {
+    init {
+        rootDirectory.mkdirs()
+    }
+}
+
+/**
+ * Creates a new composite workspace.
+ *
+ * @param rootDirectory the workspaces' root directory
+ * @param resolverOptions the resolver options
+ * @return the workspace
+ */
+fun compositeWorkspaceOf(rootDirectory: String, resolverOptions: ResolverOptions = resolverOptionsOf()): CompositeWorkspace =
+    CompositeWorkspace(File(rootDirectory), resolverOptions)
+
+/**
  * A workspace, which houses multiple sub-workspaces.
  *
  * @property rootDirectory the workspace root
@@ -112,6 +141,23 @@ class CompositeWorkspace(override val rootDirectory: File, override val resolver
      */
     fun versioned(version: Version): VersionedWorkspace =
         VersionedWorkspace(rootDirectory.resolve(version.id), resolverOptions, version)
+
+    /**
+     * Creates a new sub-workspace with a unique name.
+     *
+     * @param name the name of the sub-workspace
+     * @return the sub-workspace
+     */
+    fun workspace(name: String): Workspace = Simple(rootDirectory.resolve(name), resolverOptions)
+
+    /**
+     * Creates a new composite sub-workspace with a unique name.
+     *
+     * @param name the name of the sub-workspace
+     * @return the sub-workspace
+     */
+    fun composite(name: String): CompositeWorkspace =
+        CompositeWorkspace(rootDirectory.resolve(name), resolverOptions)
 
     override fun asComposite(): CompositeWorkspace = this
 }

@@ -3,10 +3,6 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
 }
 
-repositories {
-    maven("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven")
-}
-
 dependencies {
     implementation(project(":generator-common"))
     implementation(libs.kotlinx.html.jvm)

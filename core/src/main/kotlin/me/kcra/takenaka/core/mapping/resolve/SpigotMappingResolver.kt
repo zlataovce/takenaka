@@ -118,8 +118,16 @@ abstract class AbstractSpigotMappingResolver(
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        // mapping-io doesn't detect TSRG (CSRG), so we need to specify it manually
-        reader()?.let { MappingReader.read(it, MappingFormat.TSRG, MappingNsRenamer(visitor, mapOf(MappingUtil.NS_TARGET_FALLBACK to "spigot"))) }
+        reader()?.buffered()?.let {
+            // mapping-io doesn't remove comments (it will parse them)
+            it.mark(0)
+            if (!it.readLine().startsWith('#')) {
+                it.reset()
+            }
+
+            // mapping-io doesn't detect TSRG (CSRG), so we need to specify it manually
+            MappingReader.read(it, MappingFormat.TSRG, MappingNsRenamer(visitor, mapOf(MappingUtil.NS_TARGET_FALLBACK to "spigot")))
+        }
     }
 
     /**
