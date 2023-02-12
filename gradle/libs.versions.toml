@@ -7,6 +7,7 @@ jackson = "2.14.2"
 kotlin-stdlib-jdk8 = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib-jdk8", version.ref = "kotlin" }
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
 asm = { group = "org.ow2.asm", name = "asm", version.ref = "asm" }
+asm-commons = { group = "org.ow2.asm", name = "asm-commons", version.ref = "asm" }
 asm-tree = { group = "org.ow2.asm", name = "asm-tree", version.ref = "asm" }
 asm-util = { group = "org.ow2.asm", name = "asm-util", version.ref = "asm" }
 jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin", version.ref = "jackson" }
@@ -21,7 +22,7 @@ build-licenser = { group = "org.cadixdev.licenser", name = "org.cadixdev.license
 
 [bundles]
 kotlin = ["kotlin-stdlib-jdk8", "kotlin-reflect"]
-asm = ["asm", "asm-tree", "asm-util"]
+asm = ["asm", "asm-commons", "asm-tree", "asm-util"]
 jackson = ["jackson-module-kotlin", "jackson-datatype-jsr310"]
 
 [plugins]

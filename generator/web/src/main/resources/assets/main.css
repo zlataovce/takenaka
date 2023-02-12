@@ -18,11 +18,6 @@
     /* 2 */
 }
 
-::before,
-::after {
-    --tw-content: '';
-}
-
 /*
 1. Use a consistent sensible line-height in all browsers.
 2. Prevent adjustments of font size after orientation changes in iOS.
@@ -541,6 +536,7 @@ a:hover {
 table {
     table-layout: auto;
     color: white;
+    border-collapse: collapse;
 }
 
 .badge {
@@ -563,8 +559,7 @@ table {
 
 .table-spacer {
     border-bottom-width: 2px;
-    border-color: rgb(55 65 81);
-    margin-bottom: 0.5rem;
+    border-color: #374151;
 }
 
 th {
@@ -577,7 +572,35 @@ th {
     line-height: 1.25rem;
 }
 
-.modifiers {
+.member-modifiers {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     vertical-align: top;
+}
+
+h4 {
+    color: white;
+    font-size: large;
+    font-weight: bolder;
+    text-decoration-line: underline;
+    text-underline-offset: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.row-borders > thead > tr {
+    border-bottom: 2px solid #374151;
+}
+
+.row-borders > tbody > tr {
+    border: 1px solid #1f2937;
+    border-right-width: 0;
+    border-left-width: 0;
+}
+
+.row-borders > tbody > tr:last-child {
+    border-bottom: none;
+}
+
+.row-borders > tbody > tr > td {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
 }

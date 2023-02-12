@@ -19,3 +19,6 @@ fun formatModifiers(mod: Int, mask: Int): String = buildString {
     if ((mMod and Opcodes.ACC_TRANSIENT) != 0) append("transient ")
     if ((mMod and Opcodes.ACC_VOLATILE) != 0) append("volatile ")
 }
+
+fun String.toInternalName(): String = replace('.', '/')
+fun String.fromInternalName(): String = replace('/', '.')

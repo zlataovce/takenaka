@@ -19,26 +19,34 @@ package me.kcra.takenaka.generator.web.pages
 
 import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
+import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
+import me.kcra.takenaka.core.util.MappingTreeRemapper
+import me.kcra.takenaka.generator.web.LinkingTraceSignatureVisitor
 import me.kcra.takenaka.generator.web.WebGenerator
 import me.kcra.takenaka.generator.web.components.*
+import me.kcra.takenaka.generator.web.mapTypeAndLink
 import net.fabricmc.mappingio.tree.MappingTree
 import org.objectweb.asm.Opcodes
+import org.objectweb.asm.Type
+import org.objectweb.asm.commons.Remapper
 import org.objectweb.asm.signature.SignatureReader
-import org.objectweb.asm.util.TraceSignatureVisitor
 import org.w3c.dom.Document
 import java.lang.reflect.Modifier
+
+private val tracedSignatureRegex = "&lt;.+&gt;".toRegex()
 
 /**
  * Generates a class overview page.
  *
  * @param workspace the workspace
+ * @param friendlyNameRemapper the remapper for remapping signatures
  * @param klass the class
  * @return the generated document
  */
-fun WebGenerator.classPage(workspace: VersionedWorkspace, klass: MappingTree.ClassMapping): Document = createHTMLDocument().html {
-    val friendlyName = getFriendlyDstName(klass).replace('/', '.')
+fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: Remapper, klass: MappingTree.ClassMapping): Document = createHTMLDocument().html {
+    val friendlyName = getFriendlyDstName(klass).fromInternalName()
 
     head {
         link(href = "/assets/main.css", rel = "stylesheet")
@@ -54,34 +62,34 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, klass: MappingTree.Cla
             val mod = klass.getName(VanillaMappingContributor.NS_MODIFIERS).toInt()
             val signature = klass.getName(VanillaMappingContributor.NS_SIGNATURE)
 
-            var classHeader = formatClassHeader(klass, mod, friendlyName)
-            var classDescription = formatClassDescription(klass, mod)
+            var classHeader = formatClassHeader(friendlyName, mod)
+            var classDescription = formatClassDescription(klass, friendlyNameRemapper, workspace.version, mod)
             if (signature != null) {
-                val visitor = TraceSignatureVisitor(mod)
+                val visitor = LinkingTraceSignatureVisitor(klass.tree, friendlyNameRemapper, workspace.version, mod)
                 SignatureReader(signature).accept(visitor)
 
+                val declaration = visitor.declaration.trim()
+
                 // FIXME: make a custom implementation, I was too lazy to reimplement TraceSignatureVisitor
-                if (visitor.declaration.startsWith('<')) {
-                    var openedTypeArguments = 0
-                    val classTypeArgument = visitor.declaration.takeWhile { c ->
-                        when (c) {
-                            '<' -> openedTypeArguments++
-                            '>' -> openedTypeArguments--
-                        }
+                if (declaration.startsWith("&lt;")) {
+                    val classTypeArgument = tracedSignatureRegex.find(declaration)?.value ?: ""
 
-                        return@takeWhile openedTypeArguments > 0
-                    }
-
-                    classHeader += visitor.declaration.substring(0, classTypeArgument.length + 1)
-                    classDescription = visitor.declaration.substring(classTypeArgument.length + 1).trimStart()
+                    classHeader += classTypeArgument
+                    classDescription = declaration.removePrefix(classTypeArgument).trimStart()
+                } else if (declaration.startsWith("implements") || declaration.startsWith("extends")) {
+                    classDescription = declaration
                 }
             }
 
             p(classes = "class-header") {
-                +classHeader
+                unsafe {
+                    +classHeader
+                }
             }
             p(classes = "class-description") {
-                +classDescription
+                unsafe {
+                    +classDescription
+                }
             }
             spacerTopComponent()
             table {
@@ -97,51 +105,177 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, klass: MappingTree.Cla
                             }
                             td {
                                 p(classes = "mapping-value") {
-                                    +name
+                                    +name.fromInternalName()
                                 }
                             }
                         }
                     }
                 }
             }
-            spacerBottomComponent()
-            table(classes = "member-table") {
-                spacerTableComponent()
-                thead {
-                    tr {
-                        th {
-                            +"Modifier and Type"
+            if (klass.fields.isNotEmpty()) {
+                spacerBottomComponent()
+                h4 {
+                    +"Field summary"
+                }
+                table(classes = "member-table row-borders") {
+                    thead {
+                        tr {
+                            th {
+                                +"Modifier and Type"
+                            }
+                            th {
+                                +"Field"
+                            }
                         }
-                        th {
-                            +"Field"
+                    }
+                    tbody {
+                        klass.fields.forEach { field ->
+                            val fieldMod = field.getName(VanillaMappingContributor.NS_MODIFIERS).toInt()
+
+                            tr {
+                                td(classes = "member-modifiers") {
+                                    +formatModifiers(fieldMod, Modifier.fieldModifiers())
+
+                                    val type = Type.getType(field.srcDesc).className
+                                    val fieldKlass = field.tree.getClass(type)
+                                    if (fieldKlass != null) {
+                                        val friendlyFieldKlass = getFriendlyDstName(fieldKlass)
+
+                                        a(href = "/${workspace.version.id}/$friendlyFieldKlass.html") {
+                                            +friendlyFieldKlass.substringAfterLast('/')
+                                        }
+                                    } else {
+                                        +type
+                                    }
+                                }
+                                td {
+                                    table {
+                                        tbody {
+                                            (MappingTree.SRC_NAMESPACE_ID until klass.tree.maxNamespaceId).forEach { id ->
+                                                val ns = klass.tree.getNamespaceName(id)
+                                                val nsFriendlyName = namespaceFriendlyNames[ns]
+
+                                                if (nsFriendlyName != null) {
+                                                    val name = field.getName(id)
+                                                    if (name != null) {
+                                                        tr {
+                                                            td {
+                                                                badgeComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8")
+                                                            }
+                                                            td {
+                                                                p(classes = "mapping-value") {
+                                                                    +name
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-                tbody {
-                    klass.fields.forEach { field ->
-                        val fieldMod = field.getName(VanillaMappingContributor.NS_MODIFIERS).toInt()
-
+            }
+            if (klass.methods.any { it.srcName == "<init>" }) {
+                spacerBottomComponent()
+                h4 {
+                    +"Constructor summary"
+                }
+                table(classes = "member-table row-borders") {
+                    thead {
                         tr {
-                            td(classes = "modifiers") {
-                                +formatModifiers(fieldMod, Modifier.fieldModifiers())
+                            th {
+                                +"Modifier"
                             }
-                            td {
-                                table {
-                                    tbody {
-                                        (MappingTree.SRC_NAMESPACE_ID until klass.tree.maxNamespaceId).forEach { id ->
-                                            val ns = klass.tree.getNamespaceName(id)
-                                            val nsFriendlyName = namespaceFriendlyNames[ns]
+                            th {
+                                +"Constructor"
+                            }
+                        }
+                    }
+                    tbody {
+                        klass.methods.forEach { method ->
+                            if (method.srcName != "<init>") return@forEach
 
-                                            if (nsFriendlyName != null) {
-                                                val name = field.getName(id)
-                                                if (name != null) {
-                                                    tr {
-                                                        td {
-                                                            badgeComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8")
-                                                        }
-                                                        td {
-                                                            p(classes = "mapping-value") {
-                                                                +name
+                            val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS).toInt()
+                            tr {
+                                td(classes = "member-modifiers") {
+                                    +formatModifiers(methodMod, Modifier.constructorModifiers())
+                                }
+                                td {
+                                    p {
+                                        unsafe {
+                                            +formatMethodDescriptor(method, friendlyNameRemapper, workspace.version, methodMod, skipReturnType = true)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (klass.methods.any { it.srcName == "<init>" }) {
+                spacerBottomComponent()
+                h4 {
+                    +"Method summary"
+                }
+                table(classes = "member-table row-borders") {
+                    thead {
+                        tr {
+                            th {
+                                +"Modifier and Type"
+                            }
+                            th {
+                                +"Method"
+                            }
+                        }
+                    }
+                    tbody {
+                        klass.methods.forEach { method ->
+                            // skip constructors and static initializers
+                            if (method.srcName == "<init>" || method.srcName == "<clinit>") return@forEach
+
+                            val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS).toInt()
+                            tr {
+                                td(classes = "member-modifiers") {
+                                    +formatModifiers(methodMod, Modifier.methodModifiers())
+
+                                    val type = Type.getType(method.srcDesc).returnType.className
+                                    val methodKlass = method.tree.getClass(type)
+                                    if (methodKlass != null) {
+                                        val friendlyMethodKlass = getFriendlyDstName(methodKlass)
+
+                                        a(href = "/${workspace.version.id}/$friendlyMethodKlass.html") {
+                                            +friendlyMethodKlass.substringAfterLast('/')
+                                        }
+                                    } else {
+                                        +type
+                                    }
+                                }
+                                td {
+                                    table {
+                                        tbody {
+                                            (MappingTree.SRC_NAMESPACE_ID until method.tree.maxNamespaceId).forEach { id ->
+                                                val ns = method.tree.getNamespaceName(id)
+                                                val nsFriendlyName = namespaceFriendlyNames[ns]
+
+                                                if (nsFriendlyName != null) {
+                                                    val name = method.getName(id)
+                                                    if (name != null) {
+                                                        tr {
+                                                            td {
+                                                                badgeComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8")
+                                                            }
+                                                            td {
+                                                                p(classes = "mapping-value") {
+                                                                    unsafe {
+                                                                        val remapper = MappingTreeRemapper(method.tree) { it.getName(id) }
+
+                                                                        +"$name${formatMethodDescriptor(method, remapper, workspace.version, methodMod, skipReturnType = true)}"
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -162,12 +296,11 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, klass: MappingTree.Cla
 /**
  * Formats a class mapping to a class header (e.g. "public class HelloWorld").
  *
- * @param klass the class mapping
- * @param mod the class modifiers
  * @param friendlyName the class friendly name
+ * @param mod the class modifiers
  * @return the class header
  */
-private fun formatClassHeader(klass: MappingTree.ClassMapping, mod: Int, friendlyName: String): String = buildString {
+private fun formatClassHeader(friendlyName: String, mod: Int): String = buildString {
     append(formatModifiers(mod, Modifier.classModifiers()))
     when {
         (mod and Opcodes.ACC_INTERFACE) != 0 -> append("interface ")
@@ -184,15 +317,17 @@ private fun formatClassHeader(klass: MappingTree.ClassMapping, mod: Int, friendl
  * Formats a class mapping to a class description (e.g. "extends Object implements net.minecraft.protocol.Packet").
  *
  * @param klass the class mapping
+ * @param nameRemapper the remapper for remapping signatures
+ * @param version the mapping's version
  * @param mod the class modifiers
  * @return the class description
  */
-private fun formatClassDescription(klass: MappingTree.ClassMapping, mod: Int): String = buildString {
+private fun formatClassDescription(klass: MappingTree.ClassMapping, nameRemapper: Remapper, version: Version, mod: Int): String = buildString {
     val superClass = klass.getName(VanillaMappingContributor.NS_SUPER) ?: "java/lang/Object"
     val interfaces = klass.getName(VanillaMappingContributor.NS_INTERFACES)?.split(',') ?: emptyList()
 
     if (superClass != "java/lang/Object") {
-        append("extends ${superClass.replace('/', '.')}")
+        append("extends ${nameRemapper.mapTypeAndLink(version, superClass)}")
         if (interfaces.isNotEmpty()) {
             append(" ")
         }
@@ -204,6 +339,85 @@ private fun formatClassDescription(klass: MappingTree.ClassMapping, mod: Int): S
                 else -> "implements"
             }
         )
-        append(" ${interfaces.joinToString(", ") { it.replace('/', '.') }}")
+        append(" ${interfaces.joinToString(", ") { nameRemapper.mapTypeAndLink(version, it) }}")
     }
+}
+
+/**
+ * Formats a method descriptor (e.g. "(String arg0, Throwable arg1)").
+ *
+ * @param method the method mapping
+ * @param nameRemapper the remapper for remapping signatures
+ * @param version the mapping's version
+ * @param mod the method modifiers
+ * @param skipReturnType whether the return type should be skipped
+ * @return the formatted descriptor
+ */
+private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapper: Remapper, version: Version, mod: Int, skipReturnType: Boolean = false): String = buildString {
+    // example:
+    // descriptor: ([Ldyl;Ljava/util/Map;Z)V
+    // signature: ([Ldyl;Ljava/util/Map<Lchq;Ldzg;>;Z)V
+    // visited signature: (net.minecraft.world.level.storage.loot.predicates.LootItemCondition[], java.util.Map<net.minecraft.world.item.enchantment.Enchantment, net.minecraft.world.level.storage.loot.providers.number.NumberProvider>, boolean)void
+
+    val signature = method.getName(VanillaMappingContributor.NS_SIGNATURE)
+    if (signature != null) {
+        val visitor = LinkingTraceSignatureVisitor(method.tree, nameRemapper, version, mod)
+        SignatureReader(signature).accept(visitor)
+
+        val returnType = visitor.declaration.substringAfterLast(')')
+        if (!skipReturnType) {
+            append(returnType).append(' ')
+        }
+
+        append('(')
+
+        val args = visitor.declaration.removeSuffix(returnType).trim('(', ')').split(", ")
+        var argumentIndex = 0
+        append(
+            args.joinToString { arg ->
+                val i = argumentIndex++
+                // if it's the last argument and the method has a variadic parameter, show it as such
+                return@joinToString if (i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0 && arg.endsWith("[]")) {
+                    "${arg.removeSuffix("[]")}... arg$i"
+                } else {
+                    "$arg arg$i"
+                }
+            }
+        )
+
+        append(')')
+        return@buildString
+    }
+
+    // there's no generic signature, so just format the descriptor
+
+    val type = Type.getType(method.srcDesc)
+    if (!skipReturnType) {
+        append(nameRemapper.mapTypeAndLink(version, type.returnType.internalName)).append(' ')
+    }
+
+    append('(')
+
+    val args = type.argumentTypes
+    var argumentIndex = 0
+    append(
+        args.joinToString { arg ->
+            val i = argumentIndex++
+            return@joinToString when (arg.sort) {
+                Type.ARRAY -> buildString {
+                    append(nameRemapper.mapTypeAndLink(version, arg.elementType.internalName))
+                    var arrayDimensions = "[]".repeat(arg.dimensions)
+                    if ((mod and Opcodes.ACC_VARARGS) != 0) {
+                        arrayDimensions =  "${arrayDimensions.substringBeforeLast("[]")}..."
+                    }
+                    append(arrayDimensions)
+                }
+
+                // Type#INTERNAL, it's private, so we need to use the value directly
+                Type.OBJECT, 12 -> nameRemapper.mapTypeAndLink(version, arg.internalName)
+                else -> arg.className
+            } + " arg$i"
+        }
+    )
+    append(')')
 }

@@ -24,6 +24,7 @@ import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ContributorProvider
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
+import me.kcra.takenaka.core.util.MappingTreeRemapper
 import me.kcra.takenaka.generator.common.AbstractGenerator
 import me.kcra.takenaka.generator.web.pages.classPage
 import mu.KotlinLogging
@@ -63,6 +64,7 @@ class WebGenerator(
         runBlocking {
             mappings.forEach { (version, tree) ->
                 val versionWorkspace = composite.versioned(version)
+                val friendlyNameRemapper = MappingTreeRemapper(tree, ::getFriendlyDstName)
 
                 launch {
                     tree.classes.forEach { klass ->
@@ -70,7 +72,7 @@ class WebGenerator(
                         if (klass.getName(VanillaMappingContributor.NS_MODIFIERS) == null) {
                             logger.warn { "Skipping generation for class ${getFriendlyDstName(klass)}, missing modifiers" }
                         } else {
-                            classPage(versionWorkspace, klass).serialize(versionWorkspace, "${getFriendlyDstName(klass)}.html")
+                            classPage(versionWorkspace, friendlyNameRemapper, klass).serialize(versionWorkspace, "${getFriendlyDstName(klass)}.html")
                         }
                     }
                 }

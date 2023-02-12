@@ -2,7 +2,10 @@ package me.kcra.takenaka.generator.web.components
 
 import kotlinx.html.*
 
-fun SectioningOrFlowContent.navComponent() {
+/**
+ * Appends a navbar component.
+ */
+fun FlowContent.navComponent() {
     nav {
         div(classes = "nav-items") {
             p(classes = "nav-brand") {
