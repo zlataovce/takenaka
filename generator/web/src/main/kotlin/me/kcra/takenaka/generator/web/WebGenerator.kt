@@ -17,8 +17,10 @@
 
 package me.kcra.takenaka.generator.web
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.html.dom.serialize
 import kotlinx.html.dom.write
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
@@ -27,11 +29,14 @@ import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.util.MappingTreeRemapper
 import me.kcra.takenaka.generator.common.AbstractGenerator
 import me.kcra.takenaka.generator.web.pages.classPage
+import me.kcra.takenaka.generator.web.transformers.Transformer
 import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTree
 import org.w3c.dom.Document
+import java.io.BufferedReader
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger {}
 
@@ -39,8 +44,11 @@ private val logger = KotlinLogging.logger {}
  * A generator that generates documentation in an HTML format.
  *
  * @param workspace the workspace in which this generator can move around
- * @param mappingWorkspace the workspace in which the mappings are stored
  * @param versions the Minecraft versions that this generator will process
+ * @param mappingWorkspace the workspace in which the mappings are stored
+ * @param contributorProvider a function that provides mapping contributors to be processed
+ * @param coroDispatcher the Kotlin Coroutines context
+ * @param transformers a list of transformers that transform the output
  * @param namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @param namespaceBadgeColors a map of namespaces and their colors, defaults to #94a3b8 for all of them
  * @param namespaceFriendlyNames a map of namespaces and their names that will be shown in the documentation, unspecified namespaces will not be shown
@@ -51,6 +59,8 @@ class WebGenerator(
     versions: List<String>,
     mappingWorkspace: CompositeWorkspace,
     contributorProvider: ContributorProvider,
+    val coroDispatcher: CoroutineContext = Dispatchers.IO,
+    val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaceBadgeColors: Map<String, String> = emptyMap(),
     val namespaceFriendlyNames: Map<String, String> = emptyMap()
@@ -66,13 +76,14 @@ class WebGenerator(
                 val versionWorkspace = composite.versioned(version)
                 val friendlyNameRemapper = MappingTreeRemapper(tree, ::getFriendlyDstName)
 
-                launch {
+                launch(coroDispatcher) {
                     tree.classes.forEach { klass ->
                         // skip mappings without modifiers, those weren't in the server JAR
                         if (klass.getName(VanillaMappingContributor.NS_MODIFIERS) == null) {
                             logger.warn { "Skipping generation for class ${getFriendlyDstName(klass)}, missing modifiers" }
                         } else {
-                            classPage(versionWorkspace, friendlyNameRemapper, klass).serialize(versionWorkspace, "${getFriendlyDstName(klass)}.html")
+                            classPage(versionWorkspace, friendlyNameRemapper, klass)
+                                .serialize(versionWorkspace, "${getFriendlyDstName(klass)}.html")
                         }
                     }
                 }
@@ -82,14 +93,27 @@ class WebGenerator(
         workspace["assets"].mkdirs()
 
         fun copyAsset(name: String) {
-            Files.copy(
-                javaClass.getResourceAsStream("/assets/$name") ?: error("Could not copy over /assets/$name from resources"),
-                workspace["assets/$name"].toPath(),
-                StandardCopyOption.REPLACE_EXISTING
-            )
+            val inputStream = javaClass.getResourceAsStream("/assets/$name")
+                ?: error("Could not copy over /assets/$name from resources")
+            val destination = workspace["assets/$name"]
+
+            if (transformers.isNotEmpty() && name.endsWith(".css")) {
+                var content = inputStream.bufferedReader().use(BufferedReader::readText)
+
+                transformers.forEach { transformer ->
+                    content = transformer.transformCss(content)
+                }
+
+                destination.writeText(content)
+            } else {
+                inputStream.use {
+                    Files.copy(it, destination.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                }
+            }
         }
 
         copyAsset("main.css")
+        copyAsset("main.js")
     }
 
     /**
@@ -101,7 +125,17 @@ class WebGenerator(
     fun Document.serialize(workspace: Workspace, path: String) {
         val file = workspace[path]
         file.parentFile.mkdirs()
-        file.writer().use { it.write(this, prettyPrint = false) }
+
+        if (transformers.isEmpty()) {
+            file.writer().use { it.write(this, prettyPrint = false) }
+        } else {
+            var content = serialize(prettyPrint = false)
+            transformers.forEach { transformer ->
+                content = transformer.transformHtml(content)
+            }
+
+            file.writeText(content)
+        }
     }
 
     /**

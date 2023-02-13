@@ -15,13 +15,22 @@
  * limitations under the License.
  */
 
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package me.kcra.takenaka.generator.web.cli
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.generator.common.cli.CLIFacade
 import me.kcra.takenaka.generator.web.WebGenerator
+import me.kcra.takenaka.generator.web.transformers.Minifier
+import me.kcra.takenaka.generator.web.transformers.Transformer
+import mu.KotlinLogging
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * A CLI implementation of [WebGenerator].
@@ -37,6 +46,16 @@ class WebCLIFacade : CLIFacade {
      * @param mappingWorkspace the workspace where the generator can cache mappings
      */
     override fun generate(output: Workspace, versions: List<String>, mappingWorkspace: CompositeWorkspace) {
+        val env = System.getProperty("me.kcra.takenaka.generator.web.env", "development").lowercase()
+        logger.info { "Building in $env mode" }
+
+        val transformers = mutableListOf<Transformer>()
+        if (env == "production") {
+            transformers += Minifier()
+        }
+
+        val concurrencyLimit = System.getProperty("me.kcra.takenaka.generator.web.concurrencyLimit", "-1").toInt()
+        val coroDispatcher = if (concurrencyLimit != -1) Dispatchers.IO.limitedParallelism(concurrencyLimit) else Dispatchers.IO
         val generator = WebGenerator(
             output,
             versions,
@@ -51,6 +70,8 @@ class WebCLIFacade : CLIFacade {
                     VanillaMappingContributor(versionWorkspace, objectMapper)
                 )
             },
+            coroDispatcher,
+            transformers,
             listOf("mojang", "spigot", "searge", "intermediary"),
             mapOf(
                 "mojang" to "rgb(77 124 15)",

@@ -1,3 +1,20 @@
+/*
+ * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
+ *
+ * Copyright (c) 2023 Matous Kucera
+ *
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap'); /* ! tailwindcss v3.2.6 preflight stylesheet | MIT License | https://tailwindcss.com */
 
 /*
@@ -406,12 +423,40 @@ video {
 
 /* Preflight end */
 
+:root {
+    --text: white;
+    --text-badge: white;
+    --text-description: #e5e7eb;
+    --bg: #151515;
+    --nav: #0d0d0d;
+    --search: #101010;
+    --button: #101010;
+    --button-hover: #020202;
+    --link: #9ca3af;
+    --link-hover: #3b82f6;
+}
+
+[data-theme="light"] {
+    --text: black;
+    --text-description: black;
+    --bg: white;
+    --nav: #d4d4d8;
+    --search: #a1a1aa;
+    --button: #a1a1aa;
+    --button-hover: #8d8d95;
+    --link: #52525b;
+}
+
+[data-theme="light"] input::placeholder {
+    color: #71717a;
+}
+
 * {
     font-family: Inter, sans-serif;
 }
 
 html, body {
-    background-color: #151515;
+    background-color: var(--bg);
     margin: 0;
 }
 
@@ -419,7 +464,7 @@ nav {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    background-color: #0d0d0d;
+    background-color: var(--nav);
 }
 
 @media (min-width: 640px) {
@@ -446,7 +491,7 @@ nav {
     margin: auto 1rem;
     font-size: 0.875rem;
     line-height: 1.25rem;
-    color: white;
+    color: var(--text);
 }
 
 .nav-brand {
@@ -456,19 +501,19 @@ nav {
     font-weight: 600;
 }
 
-.search {
+.search-box {
     display: flex;
     justify-content: space-between;
     justify-self: end;
-    background-color: #101010;
+    background-color: var(--search);
     font-size: 0.875rem;
     line-height: 1.25rem;
-    color: white;
+    color: var(--text);
 }
 
 .search-input {
     width: 100%;
-    background-color: #101010;
+    background-color: var(--search);
     padding: 1rem;
 }
 
@@ -477,10 +522,15 @@ nav {
     outline-offset: 2px;
 }
 
-.search-icon {
+.button-icon {
     cursor: pointer;
     padding: 1rem;
-    color: white;
+    color: var(--text);
+    background-color: var(--button);
+}
+
+.button-icon:hover {
+    background-color: var(--button-hover);
 }
 
 main {
@@ -495,13 +545,13 @@ main {
 }
 
 a {
-    color: #9ca3af;
+    color: var(--link);
     text-decoration-line: underline;
     text-underline-offset: 4px;
 }
 
 a:hover {
-    color: #3b82f6;
+    color: var(--link-hover);
 }
 
 .class-header {
@@ -509,14 +559,14 @@ a:hover {
     overflow-wrap: break-word;
     font-size: 1.5rem;
     line-height: 2rem;
-    color: white;
+    color: var(--text);
 }
 
 .class-description {
     margin-top: 0.25rem;
     font-size: 0.875rem;
     line-height: 1.25rem;
-    color: #e5e7eb;
+    color: var(--text-description);
 }
 
 .spacer-top {
@@ -535,7 +585,7 @@ a:hover {
 
 table {
     table-layout: auto;
-    color: white;
+    color: var(--text);
     border-collapse: collapse;
 }
 
@@ -544,6 +594,7 @@ table {
     font-size: 0.75rem;
     font-weight: 600;
     line-height: .75rem;
+    color: var(--text-badge);
 }
 
 .mapping-value {
@@ -555,11 +606,6 @@ table {
 
 .member-table {
     width: 100%;
-}
-
-.table-spacer {
-    border-bottom-width: 2px;
-    border-color: #374151;
 }
 
 th {
@@ -578,7 +624,7 @@ th {
 }
 
 h4 {
-    color: white;
+    color: var(--text);
     font-size: large;
     font-weight: bolder;
     text-decoration-line: underline;

@@ -34,8 +34,9 @@ import net.fabricmc.mappingio.tree.MemoryMappingTree
  * A generator transforms mappings into another form, such as accessors or documentation.
  *
  * @param workspace the workspace in which this generator can move around
- * @param mappingWorkspace the workspace in which the mappings are stored
  * @param versions the Minecraft versions that this generator will process
+ * @param mappingWorkspace the workspace in which the mappings are stored
+ * @param contributorProvider a function that provides mapping contributors to be processed
  * @author Matouš Kučera
  */
 abstract class AbstractGenerator(

@@ -1,3 +1,20 @@
+/*
+ * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
+ *
+ * Copyright (c) 2023 Matous Kucera
+ *
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package me.kcra.takenaka.generator.web
 
 import me.kcra.takenaka.core.Version
@@ -68,11 +85,26 @@ class LinkingTraceSignatureVisitor : SignatureVisitor {
     private val remapper: Remapper
 
     /**
+     * The link remapper.
+     */
+    private val linkRemapper: Remapper?
+
+    /**
      * The version of the mappings.
      */
     private val version: Version
 
     private val classNames: MutableList<String> = mutableListOf()
+
+    /**
+     * The index where the main formals end.
+     */
+    private var formalEndIndex: Int = -1
+
+    val formals: String
+        get() = if (formalEndIndex != -1) declaration_.substring(0, formalEndIndex) else ""
+    val superTypes: String
+        get() = (if (formalEndIndex != -1) declaration_.substring(formalEndIndex) else declaration).trim()
 
     val declaration: String get() = declaration_.toString()
     val returnType: String? get() = returnType_?.toString()
@@ -83,18 +115,20 @@ class LinkingTraceSignatureVisitor : SignatureVisitor {
      *
      * @param accessFlags for class type signatures, the access flags of the class.
      */
-    constructor(tree: MappingTree, remapper: Remapper, version: Version, accessFlags: Int) : super(Opcodes.ASM9) {
+    constructor(tree: MappingTree, remapper: Remapper, linkRemapper: Remapper?, version: Version, accessFlags: Int) : super(Opcodes.ASM9) {
         isInterface = accessFlags and Opcodes.ACC_INTERFACE != 0
         declaration_ = StringBuilder()
         this.remapper = remapper
+        this.linkRemapper = linkRemapper
         this.tree = tree
         this.version = version
     }
 
-    private constructor(tree: MappingTree, remapper: Remapper, version: Version, stringBuilder: StringBuilder) : super(Opcodes.ASM9) {
+    private constructor(tree: MappingTree, remapper: Remapper, linkRemapper: Remapper?, version: Version, stringBuilder: StringBuilder) : super(Opcodes.ASM9) {
         isInterface = false
         declaration_ = stringBuilder
         this.remapper = remapper
+        this.linkRemapper = linkRemapper
         this.tree = tree
         this.version = version
     }
@@ -158,12 +192,12 @@ class LinkingTraceSignatureVisitor : SignatureVisitor {
         declaration_.append(')')
         StringBuilder().also { builder ->
             returnType_ = builder
-            return LinkingTraceSignatureVisitor(tree, remapper, version, builder)
+            return LinkingTraceSignatureVisitor(tree, remapper, linkRemapper, version, builder)
         }
     }
 
     override fun visitExceptionType(): SignatureVisitor =
-        LinkingTraceSignatureVisitor(tree, remapper, version, exceptions_?.append(COMMA_SEPARATOR) ?: StringBuilder().also { exceptions_ = it })
+        LinkingTraceSignatureVisitor(tree, remapper, linkRemapper, version, exceptions_?.append(COMMA_SEPARATOR) ?: StringBuilder().also { exceptions_ = it })
 
     override fun visitBaseType(descriptor: Char) {
         val baseType = BASE_TYPES[descriptor] ?: throw IllegalArgumentException()
@@ -191,10 +225,10 @@ class LinkingTraceSignatureVisitor : SignatureVisitor {
             // Object 'but java.lang.String extends java.lang.Object' is unnecessary.
             val needObjectClass = argumentStack % 2 != 0 || parameterTypeVisited
             if (needObjectClass) {
-                declaration_.append(separator).append(remapper.mapTypeAndLink(version, name))
+                declaration_.append(separator).append(remapper.mapTypeAndLink(version, name, linkRemapper = linkRemapper))
             }
         } else {
-            declaration_.append(separator).append(remapper.mapTypeAndLink(version, name))
+            declaration_.append(separator).append(remapper.mapTypeAndLink(version, name, linkRemapper = linkRemapper))
         }
         separator = ""
         argumentStack *= 2
@@ -216,7 +250,7 @@ class LinkingTraceSignatureVisitor : SignatureVisitor {
         declaration_.append('.')
         declaration_.append(separator).append(
             if (remappedName != className) {
-                """<a href="/${version.id}/$remappedName.html">${remappedName.substring(index)}</a>"""
+                """<a href="/${version.id}/${linkRemapper?.mapType(className) ?: remappedName}.html">${remappedName.substring(index)}</a>"""
             } else {
                 remappedName.substring(index)
             }
@@ -263,6 +297,9 @@ class LinkingTraceSignatureVisitor : SignatureVisitor {
     private fun endFormals() {
         if (formalTypeParameterVisited) {
             declaration_.append("&gt;")
+            if (argumentStack % 2 == 0) {
+                formalEndIndex = declaration_.length
+            }
             formalTypeParameterVisited = false
         }
     }
@@ -307,11 +344,11 @@ class LinkingTraceSignatureVisitor : SignatureVisitor {
  * @param internalName the internal name of the class to be remapped
  * @return the remapped type, a link if it was found
  */
-fun Remapper.mapTypeAndLink(version: Version, internalName: String): String {
+fun Remapper.mapTypeAndLink(version: Version, internalName: String, linkRemapper: Remapper? = null): String {
     val remappedName = mapType(internalName)
 
     return if (remappedName != internalName) {
-        """<a href="/${version.id}/$remappedName.html">${remappedName.substringAfterLast('/')}</a>"""
+        """<a href="/${version.id}/${linkRemapper?.mapType(internalName) ?: remappedName}.html">${remappedName.substringAfterLast('/')}</a>"""
     } else {
         remappedName.fromInternalName()
     }

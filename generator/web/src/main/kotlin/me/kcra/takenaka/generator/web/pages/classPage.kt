@@ -35,8 +35,6 @@ import org.objectweb.asm.signature.SignatureReader
 import org.w3c.dom.Document
 import java.lang.reflect.Modifier
 
-private val tracedSignatureRegex = "&lt;.+&gt;".toRegex()
-
 /**
  * Generates a class overview page.
  *
@@ -50,6 +48,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
 
     head {
         link(href = "/assets/main.css", rel = "stylesheet")
+        script(src = "/assets/main.js") {}
         title(content = friendlyName)
     }
     body {
@@ -65,20 +64,11 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
             var classHeader = formatClassHeader(friendlyName, mod)
             var classDescription = formatClassDescription(klass, friendlyNameRemapper, workspace.version, mod)
             if (signature != null) {
-                val visitor = LinkingTraceSignatureVisitor(klass.tree, friendlyNameRemapper, workspace.version, mod)
+                val visitor = LinkingTraceSignatureVisitor(klass.tree, friendlyNameRemapper, null, workspace.version, mod)
                 SignatureReader(signature).accept(visitor)
 
-                val declaration = visitor.declaration.trim()
-
-                // FIXME: make a custom implementation, I was too lazy to reimplement TraceSignatureVisitor
-                if (declaration.startsWith("&lt;")) {
-                    val classTypeArgument = tracedSignatureRegex.find(declaration)?.value ?: ""
-
-                    classHeader += classTypeArgument
-                    classDescription = declaration.removePrefix(classTypeArgument).trimStart()
-                } else if (declaration.startsWith("implements") || declaration.startsWith("extends")) {
-                    classDescription = declaration
-                }
+                classHeader += visitor.formals
+                classDescription = visitor.superTypes
             }
 
             p(classes = "class-header") {
@@ -207,7 +197,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                                 td {
                                     p {
                                         unsafe {
-                                            +formatMethodDescriptor(method, friendlyNameRemapper, workspace.version, methodMod, skipReturnType = true)
+                                            +formatMethodDescriptor(method, friendlyNameRemapper, null, workspace.version, methodMod, skipReturnType = true)
                                         }
                                     }
                                 }
@@ -273,7 +263,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                                                                     unsafe {
                                                                         val remapper = MappingTreeRemapper(method.tree) { it.getName(id) }
 
-                                                                        +"$name${formatMethodDescriptor(method, remapper, workspace.version, methodMod, skipReturnType = true)}"
+                                                                        +"$name${formatMethodDescriptor(method, remapper, friendlyNameRemapper, workspace.version, methodMod, skipReturnType = true)}"
                                                                     }
                                                                 }
                                                             }
@@ -348,12 +338,13 @@ private fun formatClassDescription(klass: MappingTree.ClassMapping, nameRemapper
  *
  * @param method the method mapping
  * @param nameRemapper the remapper for remapping signatures
+ * @param linkRemapper the remapper used for remapping link addresses
  * @param version the mapping's version
  * @param mod the method modifiers
  * @param skipReturnType whether the return type should be skipped
  * @return the formatted descriptor
  */
-private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapper: Remapper, version: Version, mod: Int, skipReturnType: Boolean = false): String = buildString {
+private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapper: Remapper, linkRemapper: Remapper?, version: Version, mod: Int, skipReturnType: Boolean = false): String = buildString {
     // example:
     // descriptor: ([Ldyl;Ljava/util/Map;Z)V
     // signature: ([Ldyl;Ljava/util/Map<Lchq;Ldzg;>;Z)V
@@ -361,7 +352,7 @@ private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapp
 
     val signature = method.getName(VanillaMappingContributor.NS_SIGNATURE)
     if (signature != null) {
-        val visitor = LinkingTraceSignatureVisitor(method.tree, nameRemapper, version, mod)
+        val visitor = LinkingTraceSignatureVisitor(method.tree, nameRemapper, linkRemapper, version, mod)
         SignatureReader(signature).accept(visitor)
 
         val returnType = visitor.declaration.substringAfterLast(')')
@@ -393,7 +384,7 @@ private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapp
 
     val type = Type.getType(method.srcDesc)
     if (!skipReturnType) {
-        append(nameRemapper.mapTypeAndLink(version, type.returnType.internalName)).append(' ')
+        append(nameRemapper.mapTypeAndLink(version, type.returnType.internalName, linkRemapper)).append(' ')
     }
 
     append('(')
@@ -405,7 +396,7 @@ private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapp
             val i = argumentIndex++
             return@joinToString when (arg.sort) {
                 Type.ARRAY -> buildString {
-                    append(nameRemapper.mapTypeAndLink(version, arg.elementType.internalName))
+                    append(nameRemapper.mapTypeAndLink(version, arg.elementType.internalName, linkRemapper))
                     var arrayDimensions = "[]".repeat(arg.dimensions)
                     if ((mod and Opcodes.ACC_VARARGS) != 0) {
                         arrayDimensions =  "${arrayDimensions.substringBeforeLast("[]")}..."
@@ -414,7 +405,7 @@ private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapp
                 }
 
                 // Type#INTERNAL, it's private, so we need to use the value directly
-                Type.OBJECT, 12 -> nameRemapper.mapTypeAndLink(version, arg.internalName)
+                Type.OBJECT, 12 -> nameRemapper.mapTypeAndLink(version, arg.internalName, linkRemapper)
                 else -> arg.className
             } + " arg$i"
         }
