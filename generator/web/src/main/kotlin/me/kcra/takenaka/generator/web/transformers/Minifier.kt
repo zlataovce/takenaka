@@ -18,6 +18,8 @@
 package me.kcra.takenaka.generator.web.transformers
 
 import mu.KotlinLogging
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 private val logger = KotlinLogging.logger {}
 
@@ -27,6 +29,11 @@ private val logger = KotlinLogging.logger {}
  * @author Matouš Kučera
  */
 class Minifier : Transformer {
+    /**
+     * The transformation lock.
+     */
+    private val lock = ReentrantLock()
+
     /**
      * Amount of unique visited class names, used as an entropy for generating a class name.
      */
@@ -44,11 +51,13 @@ class Minifier : Transformer {
      * @return the transformed markup
      */
     override fun transformHtml(content: String): String {
-        return content.replace(CLASS_ATTR_REGEX) { m ->
-            """class="${m.groups[1]!!.value.split(' ').joinToString(" ") {
-                logger.debug { "Minifying CSS class $it in markup" } 
-                classes.computeIfAbsent(it) { nextMinifiedClass() }
-            }}""""
+        lock.withLock {
+            return content.replace(CLASS_ATTR_REGEX) { m ->
+                """class="${m.groups[1]!!.value.split(' ').joinToString(" ") {
+                    logger.debug { "Minifying CSS class $it in markup" }
+                    classes.computeIfAbsent(it) { nextMinifiedClass() }
+                }}""""
+            }
         }
     }
 
@@ -70,15 +79,38 @@ class Minifier : Transformer {
      * @return the transformed stylesheet
      */
     override fun transformCss(content: String): String {
-        var remappedContent = content.split("\r\n", "\n")
-            .joinToString("") { it.trim() }
-            .replace(COMMENT_REGEX, "")
-        classes.forEach { (original, minified) ->
-            logger.debug { "Minifying CSS class $original to $minified in a stylesheet" }
-            remappedContent = remappedContent.replace(".$original", ".$minified")
-        }
+        lock.withLock {
+            var remappedContent = content.split("\r\n", "\n")
+                .joinToString("") { it.trim() }
+                .replace(COMMENT_REGEX, "")
+            classes.forEach { (original, minified) ->
+                logger.debug { "Minifying CSS class $original to $minified in a stylesheet" }
+                remappedContent = remappedContent.replace(".$original", ".$minified")
+            }
 
-        return remappedContent
+            return remappedContent
+        }
+    }
+
+    /**
+     * Minifies raw JavaScript code.
+     *
+     * @param content the JS code
+     * @return the transformed code
+     */
+    override fun transformJs(content: String): String {
+        lock.withLock {
+            return content.replace(COMMENT_REGEX, "")
+                .split("\r\n", "\n")
+                .mapNotNull { line ->
+                    if (line.startsWith("//")) {
+                        return@mapNotNull null
+                    }
+
+                    line.substringBefore("//")
+                }
+                .joinToString("") { it.trim() }
+        }
     }
 
     companion object {

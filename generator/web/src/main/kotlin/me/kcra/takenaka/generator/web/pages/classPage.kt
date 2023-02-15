@@ -23,10 +23,8 @@ import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.util.MappingTreeRemapper
-import me.kcra.takenaka.generator.web.LinkingTraceSignatureVisitor
-import me.kcra.takenaka.generator.web.WebGenerator
+import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.components.*
-import me.kcra.takenaka.generator.web.mapTypeAndLink
 import net.fabricmc.mappingio.tree.MappingTree
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -46,11 +44,7 @@ import java.lang.reflect.Modifier
 fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: Remapper, klass: MappingTree.ClassMapping): Document = createHTMLDocument().html {
     val friendlyName = getFriendlyDstName(klass).fromInternalName()
 
-    head {
-        link(href = "/assets/main.css", rel = "stylesheet")
-        script(src = "/assets/main.js") {}
-        title(content = friendlyName)
-    }
+    headComponent(friendlyName)
     body {
         navComponent()
         main {
@@ -64,7 +58,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
             var classHeader = formatClassHeader(friendlyName, mod)
             var classDescription = formatClassDescription(klass, friendlyNameRemapper, workspace.version, mod)
             if (signature != null) {
-                val visitor = LinkingTraceSignatureVisitor(klass.tree, friendlyNameRemapper, null, workspace.version, mod)
+                val visitor = SignatureFormatter(klass.tree, friendlyNameRemapper, null, workspace.version, mod)
                 SignatureReader(signature).accept(visitor)
 
                 classHeader += visitor.formals
@@ -352,7 +346,7 @@ private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapp
 
     val signature = method.getName(VanillaMappingContributor.NS_SIGNATURE)
     if (signature != null) {
-        val visitor = LinkingTraceSignatureVisitor(method.tree, nameRemapper, linkRemapper, version, mod)
+        val visitor = SignatureFormatter(method.tree, nameRemapper, linkRemapper, version, mod)
         SignatureReader(signature).accept(visitor)
 
         val returnType = visitor.declaration.substringAfterLast(')')

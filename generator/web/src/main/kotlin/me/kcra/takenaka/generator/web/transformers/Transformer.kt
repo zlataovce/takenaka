@@ -42,4 +42,14 @@ interface Transformer {
     fun transformCss(content: String): String {
         return content
     }
+
+    /**
+     * Transforms raw JavaScript code.
+     *
+     * @param content the JS code
+     * @return the transformed code
+     */
+    fun transformJs(content: String): String {
+        return content
+    }
 }

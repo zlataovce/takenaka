@@ -25,7 +25,7 @@ import me.kcra.takenaka.core.Workspace
  *
  * @author Matouš Kučera
  */
-interface CLIFacade {
+interface CLI {
     /**
      * Launches the generator.
      *

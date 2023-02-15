@@ -24,7 +24,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.resolve.*
-import me.kcra.takenaka.generator.common.cli.CLIFacade
+import me.kcra.takenaka.generator.common.cli.CLI
 import me.kcra.takenaka.generator.web.WebGenerator
 import me.kcra.takenaka.generator.web.transformers.Minifier
 import me.kcra.takenaka.generator.web.transformers.Transformer
@@ -37,7 +37,7 @@ private val logger = KotlinLogging.logger {}
  *
  * @author Matouš Kučera
  */
-class WebCLIFacade : CLIFacade {
+class WebCLI : CLI {
     /**
      * Launches the generator.
      *
@@ -46,16 +46,17 @@ class WebCLIFacade : CLIFacade {
      * @param mappingWorkspace the workspace where the generator can cache mappings
      */
     override fun generate(output: Workspace, versions: List<String>, mappingWorkspace: CompositeWorkspace) {
-        val env = System.getProperty("me.kcra.takenaka.generator.web.env", "development").lowercase()
-        logger.info { "Building in $env mode" }
+        val isProduction = System.getProperty("me.kcra.takenaka.generator.web.env", "development").lowercase() == "production"
+        logger.info { "Building in ${if (isProduction) "production" else "development"} mode" }
 
         val transformers = mutableListOf<Transformer>()
-        if (env == "production") {
+        if (isProduction) {
             transformers += Minifier()
         }
 
         val concurrencyLimit = System.getProperty("me.kcra.takenaka.generator.web.concurrencyLimit", "-1").toInt()
-        val coroDispatcher = if (concurrencyLimit != -1) Dispatchers.IO.limitedParallelism(concurrencyLimit) else Dispatchers.IO
+        val coroutineDispatcher = if (concurrencyLimit != -1) Dispatchers.IO.limitedParallelism(concurrencyLimit) else Dispatchers.IO
+
         val generator = WebGenerator(
             output,
             versions,
@@ -70,7 +71,7 @@ class WebCLIFacade : CLIFacade {
                     VanillaMappingContributor(versionWorkspace, objectMapper)
                 )
             },
-            coroDispatcher,
+            coroutineDispatcher,
             transformers,
             listOf("mojang", "spigot", "searge", "intermediary"),
             mapOf(

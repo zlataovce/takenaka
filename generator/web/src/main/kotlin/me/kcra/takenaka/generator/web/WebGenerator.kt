@@ -32,6 +32,7 @@ import me.kcra.takenaka.generator.web.pages.classPage
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTree
+import org.objectweb.asm.Opcodes
 import org.w3c.dom.Document
 import java.io.BufferedReader
 import java.nio.file.Files
@@ -47,7 +48,7 @@ private val logger = KotlinLogging.logger {}
  * @param versions the Minecraft versions that this generator will process
  * @param mappingWorkspace the workspace in which the mappings are stored
  * @param contributorProvider a function that provides mapping contributors to be processed
- * @param coroDispatcher the Kotlin Coroutines context
+ * @param coroutineDispatcher the Kotlin Coroutines context
  * @param transformers a list of transformers that transform the output
  * @param namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @param namespaceBadgeColors a map of namespaces and their colors, defaults to #94a3b8 for all of them
@@ -59,7 +60,7 @@ class WebGenerator(
     versions: List<String>,
     mappingWorkspace: CompositeWorkspace,
     contributorProvider: ContributorProvider,
-    val coroDispatcher: CoroutineContext = Dispatchers.IO,
+    val coroutineDispatcher: CoroutineContext = Dispatchers.IO,
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaceBadgeColors: Map<String, String> = emptyMap(),
@@ -76,12 +77,12 @@ class WebGenerator(
                 val versionWorkspace = composite.versioned(version)
                 val friendlyNameRemapper = MappingTreeRemapper(tree, ::getFriendlyDstName)
 
-                launch(coroDispatcher) {
-                    tree.classes.forEach { klass ->
-                        // skip mappings without modifiers, those weren't in the server JAR
-                        if (klass.getName(VanillaMappingContributor.NS_MODIFIERS) == null) {
-                            logger.warn { "Skipping generation for class ${getFriendlyDstName(klass)}, missing modifiers" }
-                        } else {
+                tree.classes.forEach { klass ->
+                    // skip mappings without modifiers, those weren't in the server JAR
+                    if (klass.getName(VanillaMappingContributor.NS_MODIFIERS) == null) {
+                        logger.warn { "Skipping generation for class ${getFriendlyDstName(klass)}, missing modifiers" }
+                    } else {
+                        launch(coroutineDispatcher) {
                             classPage(versionWorkspace, friendlyNameRemapper, klass)
                                 .serialize(versionWorkspace, "${getFriendlyDstName(klass)}.html")
                         }
@@ -97,11 +98,16 @@ class WebGenerator(
                 ?: error("Could not copy over /assets/$name from resources")
             val destination = workspace["assets/$name"]
 
-            if (transformers.isNotEmpty() && name.endsWith(".css")) {
+            if (transformers.isNotEmpty()) {
                 var content = inputStream.bufferedReader().use(BufferedReader::readText)
 
                 transformers.forEach { transformer ->
-                    content = transformer.transformCss(content)
+                    content = when (name.substringAfterLast('.')) {
+                        "css" -> transformer.transformCss(content)
+                        "js" -> transformer.transformJs(content)
+                        "html" -> transformer.transformHtml(content)
+                        else -> content
+                    }
                 }
 
                 destination.writeText(content)
@@ -151,3 +157,42 @@ class WebGenerator(
         return (0 until elem.tree.maxNamespaceId).firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
     }
 }
+
+/**
+ * Formats a modifier integer into a string.
+ *
+ * @param mod the modifier integer
+ * @param mask the modifier mask (you can get that from the [java.lang.reflect.Modifier] class or use 0)
+ * @return the modifier string
+ */
+fun formatModifiers(mod: Int, mask: Int): String = buildString {
+    val mMod = mod and mask
+
+    if ((mMod and Opcodes.ACC_PUBLIC) != 0) append("public ")
+    if ((mMod and Opcodes.ACC_PRIVATE) != 0) append("private ")
+    if ((mMod and Opcodes.ACC_PROTECTED) != 0) append("protected ")
+    if ((mMod and Opcodes.ACC_STATIC) != 0) append("static ")
+    // an interface is implicitly abstract
+    // we need to check the unmasked modifiers here, since ACC_INTERFACE is not among Modifier#classModifiers
+    if ((mMod and Opcodes.ACC_ABSTRACT) != 0 && (mod and Opcodes.ACC_INTERFACE) == 0) append("abstract ")
+    if ((mMod and Opcodes.ACC_FINAL) != 0) append("final ")
+    if ((mMod and Opcodes.ACC_NATIVE) != 0) append("native ")
+    if ((mMod and Opcodes.ACC_STRICT) != 0) append("strict ")
+    if ((mMod and Opcodes.ACC_SYNCHRONIZED) != 0) append("synchronized ")
+    if ((mMod and Opcodes.ACC_TRANSIENT) != 0) append("transient ")
+    if ((mMod and Opcodes.ACC_VOLATILE) != 0) append("volatile ")
+}
+
+/**
+ * Replaces dots with slashes (e.g. qualified class name to internal name).
+ *
+ * @return the replaced string
+ */
+fun String.toInternalName(): String = replace('.', '/')
+
+/**
+ * Replaces slashes with dots (e.g. internal name to qualified class name).
+ *
+ * @return the replaced string
+ */
+fun String.fromInternalName(): String = replace('/', '.')

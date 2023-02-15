@@ -52,7 +52,7 @@ fun main(args: Array<String>) {
     val versionList = versions.split(',')
     val mappingWorkspace = compositeWorkspaceOf(mappingCache, options)
 
-    ServiceLoader.load(CLIFacade::class.java).asSequence()
+    ServiceLoader.load(CLI::class.java).asSequence()
         .ifEmpty { error("Did not find any service implementations of me.kcra.takenaka.generator.common.cli.CLIFacade") }
         .forEach {
             logger.info { "Running generator ${it::class.qualifiedName}..." }

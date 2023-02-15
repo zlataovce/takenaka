@@ -18,21 +18,22 @@
 package me.kcra.takenaka.generator.web
 
 import me.kcra.takenaka.core.Version
-import me.kcra.takenaka.generator.web.pages.fromInternalName
 import net.fabricmc.mappingio.tree.MappingTree
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.commons.Remapper
 import org.objectweb.asm.signature.SignatureVisitor
 
 /**
- * A [SignatureVisitor] that builds the Java generic type declaration corresponding to the
+ * A [SignatureVisitor] implementation that builds the Java generic type declaration corresponding to the
  * signature it visits, changing class references to HTML links.
+ *
+ * This is adapted from the [org.objectweb.asm.util.TraceSignatureVisitor] class.
  *
  * @author Eugene Kuleshov
  * @author Eric Bruneton
  * @author Matouš Kučera
  */
-class LinkingTraceSignatureVisitor : SignatureVisitor {
+class SignatureFormatter : SignatureVisitor {
     /** Whether the visited signature is a class signature of a Java interface.  */
     private val isInterface: Boolean
 
@@ -111,7 +112,7 @@ class LinkingTraceSignatureVisitor : SignatureVisitor {
     val exceptions: String? get() = exceptions_?.toString()
 
     /**
-     * Constructs a new [LinkingTraceSignatureVisitor].
+     * Constructs a new [SignatureFormatter].
      *
      * @param accessFlags for class type signatures, the access flags of the class.
      */
@@ -192,12 +193,12 @@ class LinkingTraceSignatureVisitor : SignatureVisitor {
         declaration_.append(')')
         StringBuilder().also { builder ->
             returnType_ = builder
-            return LinkingTraceSignatureVisitor(tree, remapper, linkRemapper, version, builder)
+            return SignatureFormatter(tree, remapper, linkRemapper, version, builder)
         }
     }
 
     override fun visitExceptionType(): SignatureVisitor =
-        LinkingTraceSignatureVisitor(tree, remapper, linkRemapper, version, exceptions_?.append(COMMA_SEPARATOR) ?: StringBuilder().also { exceptions_ = it })
+        SignatureFormatter(tree, remapper, linkRemapper, version, exceptions_?.append(COMMA_SEPARATOR) ?: StringBuilder().also { exceptions_ = it })
 
     override fun visitBaseType(descriptor: Char) {
         val baseType = BASE_TYPES[descriptor] ?: throw IllegalArgumentException()
