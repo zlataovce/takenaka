@@ -54,3 +54,10 @@ fun FlowContent.navComponent() {
         }
     }
 }
+
+/**
+ * Appends a navbar component placeholder that is replaced with a real navbar dynamically.
+ */
+fun FlowContent.navPlaceholderComponent() {
+    nav {}
+}

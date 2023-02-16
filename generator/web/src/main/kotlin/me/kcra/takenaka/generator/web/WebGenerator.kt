@@ -20,14 +20,21 @@ package me.kcra.takenaka.generator.web
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.html.BODY
+import kotlinx.html.body
+import kotlinx.html.consumers.filter
+import kotlinx.html.dom.append
+import kotlinx.html.dom.document
 import kotlinx.html.dom.serialize
 import kotlinx.html.dom.write
+import kotlinx.html.html
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ContributorProvider
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.util.MappingTreeRemapper
 import me.kcra.takenaka.generator.common.AbstractGenerator
+import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.classPage
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import mu.KotlinLogging
@@ -118,8 +125,29 @@ class WebGenerator(
             }
         }
 
-        copyAsset("main.css")
         copyAsset("main.js")
+
+        fun makeBasicComponent(block: BODY.() -> Unit): Document = document {
+            append.filter { if (it.tagName in listOf("html", "body")) SKIP else PASS }
+                .html {
+                    body {
+                        block()
+                    }
+                }
+        }
+
+        var componentFileContent = generateComponentFile(
+            mapOf(
+                "nav" to makeBasicComponent { navComponent() }
+            )
+        )
+        transformers.forEach { transformer ->
+            componentFileContent = transformer.transformJs(componentFileContent)
+        }
+
+        workspace["assets/components.js"].writeText(componentFileContent)
+
+        copyAsset("main.css") // main.css should be copied last to minify correctly
     }
 
     /**
@@ -142,6 +170,47 @@ class WebGenerator(
 
             file.writeText(content)
         }
+    }
+
+    /**
+     * Generates a components.js file.
+     *
+     * @param components map of tag names to the component
+     * @return the content of the component file
+     */
+    fun generateComponentFile(components: Map<String, Document>): String = buildString {
+        fun Document.serializeAsComponent(): String {
+            var content = serialize(prettyPrint = false)
+            transformers.forEach { transformer ->
+                content = transformer.transformHtml(content)
+            }
+
+            return content.substringAfter("\n")
+        }
+
+        append(
+            """
+                const replaceComponent = (tag, component) => {
+                    for (let e of document.getElementsByTagName(tag)) {
+                        if (e.children.length === 0) {
+                            e.outerHTML = component;
+                        }
+                    }
+                };
+            """.trimIndent()
+        )
+
+        components.forEach { (tag, document) ->
+            append("const ${tag}Component = `${document.serializeAsComponent()}`;")
+        }
+
+        append("window.addEventListener(\"load\", () => {")
+
+        components.forEach { (tag, _) ->
+            append("    replaceComponent(\"$tag\", ${tag}Component);")
+        }
+
+        append("});")
     }
 
     /**

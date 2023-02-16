@@ -102,13 +102,6 @@ class Minifier : Transformer {
         lock.withLock {
             return content.replace(COMMENT_REGEX, "")
                 .split("\r\n", "\n")
-                .mapNotNull { line ->
-                    if (line.startsWith("//")) {
-                        return@mapNotNull null
-                    }
-
-                    line.substringBefore("//")
-                }
                 .joinToString("") { it.trim() }
         }
     }

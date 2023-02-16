@@ -46,7 +46,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
 
     headComponent(friendlyName)
     body {
-        navComponent()
+        navPlaceholderComponent()
         main {
             a(href = "#") {
                 +friendlyName.substringBeforeLast('.')
