@@ -78,6 +78,16 @@ interface Workspace {
     fun asComposite(): CompositeWorkspace = CompositeWorkspace(rootDirectory, resolverOptions)
 
     /**
+     * Cleans this workspace.
+     *
+     * The default behavior is to completely remove the [rootDirectory] and recreate it.
+     */
+    fun clean() {
+        rootDirectory.deleteRecursively()
+        rootDirectory.mkdirs()
+    }
+
+    /**
      * Checks if this workspace contains the specified file.
      *
      * @param file the file name

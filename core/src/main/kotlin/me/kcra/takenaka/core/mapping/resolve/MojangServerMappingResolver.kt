@@ -26,11 +26,10 @@ import me.kcra.takenaka.core.util.getChecksum
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
 import mu.KotlinLogging
-import net.fabricmc.mappingio.MappingReader
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
-import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch
+import net.fabricmc.mappingio.format.ProGuardReader
 import java.io.Reader
 import java.net.URL
 import java.security.MessageDigest
@@ -106,7 +105,7 @@ class MojangServerMappingResolver(
      */
     override fun accept(visitor: MappingVisitor) {
         // Mojang maps are original -> obfuscated, so we need to switch it beforehand
-        reader()?.let { MappingReader.read(it, MappingSourceNsSwitch(MappingNsRenamer(visitor, mapOf("target" to MappingUtil.NS_SOURCE_FALLBACK, MappingUtil.NS_SOURCE_FALLBACK to "mojang")), MappingUtil.NS_TARGET_FALLBACK)) }
+        reader()?.let { ProGuardReader.read(it, targetNamespace, MappingUtil.NS_SOURCE_FALLBACK, MappingSourceNsSwitch(visitor, MappingUtil.NS_SOURCE_FALLBACK)) }
     }
 
     companion object {

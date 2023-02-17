@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.mapping.resolve
+package me.kcra.takenaka.core.mapping
 
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingVisitor

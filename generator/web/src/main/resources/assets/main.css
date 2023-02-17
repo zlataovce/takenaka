@@ -218,6 +218,10 @@ th {
     vertical-align: top;
 }
 
+.member-modifiers > * {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
 h4 {
     color: var(--text);
     font-size: large;

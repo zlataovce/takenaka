@@ -17,23 +17,23 @@
 
 package me.kcra.takenaka.core.mapping.resolve
 
-import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
-import me.kcra.takenaka.core.*
+import me.kcra.takenaka.core.RELAXED_CACHE
+import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
 import mu.KotlinLogging
-import net.fabricmc.mappingio.MappingReader
+import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
-import net.fabricmc.mappingio.adapter.MappingNsRenamer
-import net.fabricmc.mappingio.format.MappingFormat
+import net.fabricmc.mappingio.format.TsrgReader
+import net.fabricmc.mappingio.tree.MappingTree
 import java.io.Reader
 import java.net.URL
-import kotlin.concurrent.withLock
 
 private val logger = KotlinLogging.logger {}
 
@@ -44,21 +44,11 @@ private val logger = KotlinLogging.logger {}
  * @author Matouš Kučera
  */
 abstract class AbstractSpigotMappingResolver(
-    val workspace: VersionedWorkspace,
-    private val objectMapper: ObjectMapper
-) : MappingResolver, MappingContributor {
+    workspace: VersionedWorkspace,
+    objectMapper: ObjectMapper
+) : SpigotManifestConsumer(workspace, objectMapper), MappingResolver, MappingContributor {
     override val version: Version by workspace::version
     override val targetNamespace: String = "spigot"
-
-    /**
-     * The version manifest.
-     */
-    val manifest by lazy(::readManifest)
-
-    /**
-     * The version attributes.
-     */
-    val attributes by lazy(::readAttributes)
 
     /**
      * The name of the attribute with the mapping file name.
@@ -125,79 +115,8 @@ abstract class AbstractSpigotMappingResolver(
                 it.reset()
             }
 
-            // mapping-io doesn't detect TSRG (CSRG), so we need to specify it manually
-            MappingReader.read(it, MappingFormat.TSRG, MappingNsRenamer(visitor, mapOf(MappingUtil.NS_TARGET_FALLBACK to "spigot")))
+            TsrgReader.read(it, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor)
         }
-    }
-
-    /**
-     * Reads the manifest of the targeted version from cache, fetching it if the cache missed.
-     *
-     * @return the manifest
-     */
-    private fun readManifest(): SpigotVersionManifest {
-        // synchronize on the version instance, so both the class and member mapping resolvers
-        // don't try to fetch the same files simultaneously
-        workspace.spigotManifestLock.withLock {
-            val file = workspace[MANIFEST]
-
-            if (RELAXED_CACHE in workspace.resolverOptions && MANIFEST in workspace) {
-                try {
-                    return objectMapper.readValue<SpigotVersionManifest>(file).apply {
-                        logger.info { "read cached ${version.id} Spigot manifest" }
-                    }
-                } catch (e: JacksonException) {
-                    logger.warn(e) { "failed to read cached ${version.id} Spigot manifest, fetching it again" }
-                }
-            }
-
-            val content = URL("https://hub.spigotmc.org/versions/${version.id}.json").readText()
-            file.writeText(content)
-
-            logger.info { "fetched ${version.id} Spigot manifest" }
-            return objectMapper.readValue(content)
-        }
-    }
-
-    /**
-     * Reads the attributes of the targeted version from cache, fetching it if the cache missed.
-     *
-     * @return the attributes
-     */
-    private fun readAttributes(): SpigotVersionAttributes {
-        // synchronize on the version instance, so both the class and member mapping resolvers
-        // don't try to fetch the same files simultaneously
-        workspace.spigotManifestLock.withLock {
-            val file = workspace[BUILDDATA_INFO]
-
-            if (RELAXED_CACHE in workspace.resolverOptions && BUILDDATA_INFO in workspace) {
-                try {
-                    return objectMapper.readValue<SpigotVersionAttributes>(file).apply {
-                        logger.info { "read cached ${version.id} Spigot attributes" }
-                    }
-                } catch (e: JacksonException) {
-                    logger.warn(e) { "failed to read cached ${version.id} Spigot attributes, fetching them again" }
-                }
-            }
-
-            val content = URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/info.json?at=${manifest.refs["BuildData"]}").readText()
-            file.writeText(content)
-
-            logger.info { "fetched ${version.id} Spigot attributes" }
-            return objectMapper.readValue(content)
-        }
-    }
-
-    companion object {
-        /**
-         * The file name of the cached version manifest.
-         */
-        const val MANIFEST = "spigot_manifest.json"
-
-        /**
-         * The file name of the cached version attributes.
-         */
-        const val BUILDDATA_INFO = "spigot_builddata_info.json"
     }
 }
 
@@ -211,10 +130,8 @@ class SpigotClassMappingResolver(
     workspace: VersionedWorkspace,
     objectMapper: ObjectMapper
 ) : AbstractSpigotMappingResolver(workspace, objectMapper) {
-    override val mappingAttribute: String
-        get() = attributes.classMappings
-    override val mappingAttributeName: String
-        get() = "classMappings"
+    override val mappingAttributeName: String = "classMappings"
+    override val mappingAttribute: String? = attributes.classMappings
 }
 
 /**
@@ -227,8 +144,73 @@ class SpigotMemberMappingResolver(
     workspace: VersionedWorkspace,
     objectMapper: ObjectMapper
 ) : AbstractSpigotMappingResolver(workspace, objectMapper) {
-    override val mappingAttribute: String?
-        get() = attributes.memberMappings
-    override val mappingAttributeName: String
-        get() = "memberMappings"
+    override val mappingAttributeName: String = "memberMappings"
+    override val mappingAttribute: String? = attributes.memberMappings
+
+    /**
+     * Visits the mappings to the supplied visitor.
+     *
+     * @param visitor the visitor
+     */
+    override fun accept(visitor: MappingVisitor) {
+        if (visitor !is MappingTree) {
+            throw UnsupportedOperationException("Spigot class members can only be visited to a mapping tree")
+        }
+
+        val namespaceId = visitor.getNamespaceId(targetNamespace)
+        if (namespaceId == MappingTree.NULL_NAMESPACE_ID) {
+            error("Mapping tree has not visited Spigot class members before")
+        }
+
+        while (true) {
+            if (visitor.visitHeader()) {
+                visitor.visitNamespaces(MappingUtil.NS_SOURCE_FALLBACK, listOf(targetNamespace))
+            }
+
+            if (visitor.visitContent()) {
+                reader()?.buffered()?.forEachLine { line ->
+                    if (line.startsWith('#')) {
+                        return@forEachLine // skip comments
+                    }
+
+                    val columns = line.split(' ', limit = 4)
+                    val owner = columns[0]
+                    val srcName = columns[1]
+
+                    val ownerKlass = visitor.getClass(owner, namespaceId)
+                    if (ownerKlass == null) {
+                        logger.warn { "skipping field $srcName in $owner, unknown owner" }
+                        return@forEachLine
+                    }
+
+                    if (visitor.visitClass(ownerKlass.srcName) && visitor.visitElementContent(MappedElementKind.CLASS)) {
+                        when (columns.size) {
+                            3 -> { // field
+                                val name = columns[2]
+
+                                if (visitor.visitField(srcName, null)) {
+                                    visitor.visitDstName(MappedElementKind.FIELD, 0, name)
+                                    visitor.visitElementContent(MappedElementKind.FIELD)
+                                }
+                            }
+                            4 -> { // method
+                                val desc = columns[2]
+                                val name = columns[3]
+
+                                if (visitor.visitMethod(srcName, null)) {
+                                    visitor.visitDstName(MappedElementKind.METHOD, 0, name)
+                                    visitor.visitDstDesc(MappedElementKind.METHOD, 0, desc)
+                                    visitor.visitElementContent(MappedElementKind.METHOD)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (visitor.visitEnd()) {
+                break
+            }
+        }
+    }
 }

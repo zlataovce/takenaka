@@ -174,7 +174,7 @@ class SignatureFormatter : SignatureVisitor {
     override fun visitParameterType(): SignatureVisitor {
         endFormals()
         if (parameterTypeVisited) {
-            declaration_.append(COMMA_SEPARATOR)
+            declaration_.append('+')
         } else {
             declaration_.append('(')
             parameterTypeVisited = true
@@ -191,10 +191,9 @@ class SignatureFormatter : SignatureVisitor {
             declaration_.append('(')
         }
         declaration_.append(')')
-        StringBuilder().also { builder ->
-            returnType_ = builder
-            return SignatureFormatter(tree, remapper, linkRemapper, version, builder)
-        }
+        val returnType0 = StringBuilder()
+        returnType_ = returnType0
+        return SignatureFormatter(tree, remapper, linkRemapper, version, returnType0)
     }
 
     override fun visitExceptionType(): SignatureVisitor =
@@ -347,9 +346,10 @@ class SignatureFormatter : SignatureVisitor {
  */
 fun Remapper.mapTypeAndLink(version: Version, internalName: String, linkRemapper: Remapper? = null): String {
     val remappedName = mapType(internalName)
+    val linkName = linkRemapper?.mapType(internalName) ?: remappedName
 
-    return if (remappedName != internalName) {
-        """<a href="/${version.id}/${linkRemapper?.mapType(internalName) ?: remappedName}.html">${remappedName.substringAfterLast('/')}</a>"""
+    return if (remappedName != internalName || linkName != remappedName) {
+        """<a href="/${version.id}/$linkName.html">${remappedName.substringAfterLast('/')}</a>"""
     } else {
         remappedName.fromInternalName()
     }

@@ -202,7 +202,7 @@ data class SpigotVersionAttributes(
     val minecraftHash: String?,
     val accessTransforms: String,
     val mappingsUrl: String?,
-    val classMappings: String,
+    val classMappings: String?,
     val memberMappings: String?,
     val packageMappings: String?,
     val classMapCommand: String?,

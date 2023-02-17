@@ -75,11 +75,11 @@ class WebCLI : CLI {
             transformers,
             listOf("mojang", "spigot", "searge", "intermediary"),
             mapOf(
-                "mojang" to "rgb(77 124 15)",
-                "spigot" to "rgb(202 138 4)",
-                "searge" to "rgb(185 28 28)",
-                "intermediary" to "rgb(3 105 161)",
-                "source" to "rgb(88 28 135)"
+                "mojang" to "#4D7C0F",
+                "spigot" to "#CA8A04",
+                "searge" to "#B91C1C",
+                "intermediary" to "#0369A1",
+                "source" to "#581C87"
             ),
             mapOf(
                 "mojang" to "Mojang",

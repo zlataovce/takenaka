@@ -21,8 +21,8 @@ import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
-import me.kcra.takenaka.core.util.MappingTreeRemapper
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.components.*
 import net.fabricmc.mappingio.tree.MappingTree
@@ -48,8 +48,10 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
     body {
         navPlaceholderComponent()
         main {
-            a(href = "#") {
-                +friendlyName.substringBeforeLast('.')
+            if ('.' in friendlyName) {
+                a(href = "#") {
+                    +friendlyName.substringBeforeLast('.')
+                }
             }
 
             val mod = klass.getName(VanillaMappingContributor.NS_MODIFIERS).toInt()
@@ -114,22 +116,14 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                     }
                     tbody {
                         klass.fields.forEach { field ->
-                            val fieldMod = field.getName(VanillaMappingContributor.NS_MODIFIERS).toInt()
+                            val fieldMod = field.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: return@forEach
 
                             tr {
                                 td(classes = "member-modifiers") {
                                     +formatModifiers(fieldMod, Modifier.fieldModifiers())
 
-                                    val type = Type.getType(field.srcDesc).className
-                                    val fieldKlass = field.tree.getClass(type)
-                                    if (fieldKlass != null) {
-                                        val friendlyFieldKlass = getFriendlyDstName(fieldKlass)
-
-                                        a(href = "/${workspace.version.id}/$friendlyFieldKlass.html") {
-                                            +friendlyFieldKlass.substringAfterLast('/')
-                                        }
-                                    } else {
-                                        +type
+                                    unsafe {
+                                        +formatType(Type.getType(field.srcDesc), workspace.version, friendlyNameRemapper)
                                     }
                                 }
                                 td {
@@ -183,7 +177,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                         klass.methods.forEach { method ->
                             if (method.srcName != "<init>") return@forEach
 
-                            val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS).toInt()
+                            val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: return@forEach
                             tr {
                                 td(classes = "member-modifiers") {
                                     +formatModifiers(methodMod, Modifier.constructorModifiers())
@@ -191,7 +185,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                                 td {
                                     p {
                                         unsafe {
-                                            +formatMethodDescriptor(method, friendlyNameRemapper, null, workspace.version, methodMod, skipReturnType = true)
+                                            +formatMethodDescriptor(method, friendlyNameRemapper, null, workspace.version, methodMod)
                                         }
                                     }
                                 }
@@ -200,7 +194,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                     }
                 }
             }
-            if (klass.methods.any { it.srcName == "<init>" }) {
+            if (klass.methods.any { it.srcName != "<init>" && it.srcName != "<clinit>" }) {
                 spacerBottomComponent()
                 h4 {
                     +"Method summary"
@@ -221,21 +215,26 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                             // skip constructors and static initializers
                             if (method.srcName == "<init>" || method.srcName == "<clinit>") return@forEach
 
-                            val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS).toInt()
+                            val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: return@forEach
                             tr {
                                 td(classes = "member-modifiers") {
-                                    +formatModifiers(methodMod, Modifier.methodModifiers())
+                                    unsafe {
+                                        +formatModifiers(methodMod, Modifier.methodModifiers())
 
-                                    val type = Type.getType(method.srcDesc).returnType.className
-                                    val methodKlass = method.tree.getClass(type)
-                                    if (methodKlass != null) {
-                                        val friendlyMethodKlass = getFriendlyDstName(methodKlass)
+                                        val methodSignature = method.getName(VanillaMappingContributor.NS_SIGNATURE)
+                                        if (methodSignature != null) {
+                                            val visitor = SignatureFormatter(method.tree, friendlyNameRemapper, null, workspace.version, mod)
+                                            SignatureReader(methodSignature).accept(visitor)
 
-                                        a(href = "/${workspace.version.id}/$friendlyMethodKlass.html") {
-                                            +friendlyMethodKlass.substringAfterLast('/')
+                                            val formals = visitor.declaration.substringBefore('(')
+
+                                            if (formals.isNotEmpty()) {
+                                                +formals
+                                            }
+                                            +(visitor.returnType ?: "")
+                                        } else {
+                                            +formatType(Type.getType(method.srcDesc).returnType, workspace.version, friendlyNameRemapper)
                                         }
-                                    } else {
-                                        +type
                                     }
                                 }
                                 td {
@@ -255,9 +254,9 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                                                             td {
                                                                 p(classes = "mapping-value") {
                                                                     unsafe {
-                                                                        val remapper = MappingTreeRemapper(method.tree) { it.getName(id) }
+                                                                        val remapper = ElementRemapper(method.tree) { it.getName(id) }
 
-                                                                        +"$name${formatMethodDescriptor(method, remapper, friendlyNameRemapper, workspace.version, methodMod, skipReturnType = true)}"
+                                                                        +"$name${formatMethodDescriptor(method, remapper, friendlyNameRemapper, workspace.version, methodMod, skipFormals = true)}"
                                                                     }
                                                                 }
                                                             }
@@ -335,10 +334,9 @@ private fun formatClassDescription(klass: MappingTree.ClassMapping, nameRemapper
  * @param linkRemapper the remapper used for remapping link addresses
  * @param version the mapping's version
  * @param mod the method modifiers
- * @param skipReturnType whether the return type should be skipped
  * @return the formatted descriptor
  */
-private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapper: Remapper, linkRemapper: Remapper?, version: Version, mod: Int, skipReturnType: Boolean = false): String = buildString {
+private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapper: Remapper, linkRemapper: Remapper?, version: Version, mod: Int, skipFormals: Boolean = false): String = buildString {
     // example:
     // descriptor: ([Ldyl;Ljava/util/Map;Z)V
     // signature: ([Ldyl;Ljava/util/Map<Lchq;Ldzg;>;Z)V
@@ -349,26 +347,30 @@ private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapp
         val visitor = SignatureFormatter(method.tree, nameRemapper, linkRemapper, version, mod)
         SignatureReader(signature).accept(visitor)
 
-        val returnType = visitor.declaration.substringAfterLast(')')
-        if (!skipReturnType) {
-            append(returnType).append(' ')
+        val formals = visitor.declaration.substringBefore('(')
+        if (!skipFormals && formals.isNotEmpty()) {
+            append(formals).append(' ')
         }
 
         append('(')
 
-        val args = visitor.declaration.removeSuffix(returnType).trim('(', ')').split(", ")
-        var argumentIndex = 0
-        append(
-            args.joinToString { arg ->
-                val i = argumentIndex++
-                // if it's the last argument and the method has a variadic parameter, show it as such
-                return@joinToString if (i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0 && arg.endsWith("[]")) {
-                    "${arg.removeSuffix("[]")}... arg$i"
-                } else {
-                    "$arg arg$i"
+        val args = visitor.declaration.substring(visitor.declaration.indexOf('(') + 1, visitor.declaration.lastIndexOf(')'))
+        if (args.isNotEmpty()) {
+            val splitArgs = args.split('+')
+
+            var argumentIndex = 0
+            append(
+                splitArgs.joinToString { arg ->
+                    val i = argumentIndex++
+                    // if it's the last argument and the method has a variadic parameter, show it as such
+                    return@joinToString if (i == (splitArgs.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0 && arg.endsWith("[]")) {
+                        "${arg.removeSuffix("[]")}... arg$i"
+                    } else {
+                        "$arg arg$i"
+                    }
                 }
-            }
-        )
+            )
+        }
 
         append(')')
         return@buildString
@@ -376,33 +378,32 @@ private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapp
 
     // there's no generic signature, so just format the descriptor
 
-    val type = Type.getType(method.srcDesc)
-    if (!skipReturnType) {
-        append(nameRemapper.mapTypeAndLink(version, type.returnType.internalName, linkRemapper)).append(' ')
-    }
-
     append('(')
 
-    val args = type.argumentTypes
+    val args = Type.getType(method.srcDesc).argumentTypes
     var argumentIndex = 0
     append(
         args.joinToString { arg ->
             val i = argumentIndex++
-            return@joinToString when (arg.sort) {
-                Type.ARRAY -> buildString {
-                    append(nameRemapper.mapTypeAndLink(version, arg.elementType.internalName, linkRemapper))
-                    var arrayDimensions = "[]".repeat(arg.dimensions)
-                    if ((mod and Opcodes.ACC_VARARGS) != 0) {
-                        arrayDimensions =  "${arrayDimensions.substringBeforeLast("[]")}..."
-                    }
-                    append(arrayDimensions)
-                }
-
-                // Type#INTERNAL, it's private, so we need to use the value directly
-                Type.OBJECT, 12 -> nameRemapper.mapTypeAndLink(version, arg.internalName, linkRemapper)
-                else -> arg.className
-            } + " arg$i"
+            return@joinToString "${formatType(arg, version, nameRemapper, linkRemapper, isVarargs = (mod and Opcodes.ACC_VARARGS) != 0)} arg$i"
         }
     )
     append(')')
+}
+
+private fun formatType(type: Type, version: Version, nameRemapper: Remapper, linkRemapper: Remapper? = null, isVarargs: Boolean = false): String {
+    return when (type.sort) {
+        Type.ARRAY -> buildString {
+            append(nameRemapper.mapTypeAndLink(version, type.elementType.internalName, linkRemapper))
+            var arrayDimensions = "[]".repeat(type.dimensions)
+            if (isVarargs) {
+                arrayDimensions =  "${arrayDimensions.substringBeforeLast("[]")}..."
+            }
+            append(arrayDimensions)
+        }
+
+        // Type#INTERNAL, it's private, so we need to use the value directly
+        Type.OBJECT, 12 -> nameRemapper.mapTypeAndLink(version, type.internalName, linkRemapper)
+        else -> type.className
+    }
 }

@@ -32,7 +32,7 @@ import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ContributorProvider
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
-import me.kcra.takenaka.core.util.MappingTreeRemapper
+import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.generator.common.AbstractGenerator
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.classPage
@@ -82,7 +82,7 @@ class WebGenerator(
         runBlocking {
             mappings.forEach { (version, tree) ->
                 val versionWorkspace = composite.versioned(version)
-                val friendlyNameRemapper = MappingTreeRemapper(tree, ::getFriendlyDstName)
+                val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
 
                 tree.classes.forEach { klass ->
                     // skip mappings without modifiers, those weren't in the server JAR

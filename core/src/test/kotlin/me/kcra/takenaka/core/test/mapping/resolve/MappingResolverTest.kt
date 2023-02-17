@@ -20,6 +20,7 @@ package me.kcra.takenaka.core.test.mapping.resolve
 import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.*
 import me.kcra.takenaka.core.*
+import me.kcra.takenaka.core.mapping.MissingDescriptorFilter
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper

@@ -23,10 +23,7 @@ import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
 import kotlinx.cli.default
 import kotlinx.cli.required
-import me.kcra.takenaka.core.compositeWorkspaceOf
-import me.kcra.takenaka.core.relaxedCache
-import me.kcra.takenaka.core.resolverOptionsOf
-import me.kcra.takenaka.core.workspaceOf
+import me.kcra.takenaka.core.*
 import mu.KotlinLogging
 import java.util.*
 import kotlin.system.measureTimeMillis
@@ -40,17 +37,24 @@ fun main(args: Array<String>) {
     val parser = ArgParser("takenaka")
     val output by parser.option(ArgType.String, shortName = "o", description = "Output directory").default("output")
     val versions by parser.option(ArgType.String, shortName = "v", description = "Target Minecraft versions, separated by commas").required()
-    val mappingCache by parser.option(ArgType.String, shortName = "w", description = "Caching directory for mappings").default("mapping-cache")
-    val relaxedCache by parser.option(ArgType.Boolean, shortName = "c", description = "Relaxes cache invalidation conditions").default(true)
+    val mappingCache by parser.option(ArgType.String, shortName = "c", description = "Caching directory for mappings").default("mapping-cache")
+    val strictCache by parser.option(ArgType.Boolean, description = "Restricts cache invalidation conditions").default(false)
+    val clean by parser.option(ArgType.Boolean, description = "Removes previous build output before launching").default(false)
 
     parser.parse(args)
 
+    val versionList = versions.split(',')
+
     var options = resolverOptionsOf()
-    if (relaxedCache) options = options.relaxedCache()
+    if (!strictCache) options = options.relaxedCache()
 
     val workspace = workspaceOf(output, options)
-    val versionList = versions.split(',')
     val mappingWorkspace = compositeWorkspaceOf(mappingCache, options)
+
+    if (clean) {
+        workspace.clean()
+        mappingWorkspace.clean()
+    }
 
     ServiceLoader.load(CLI::class.java).asSequence()
         .ifEmpty { error("Did not find any service implementations of me.kcra.takenaka.generator.common.cli.CLIFacade") }
