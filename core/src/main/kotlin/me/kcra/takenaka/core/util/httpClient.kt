@@ -17,6 +17,7 @@
 
 package me.kcra.takenaka.core.util
 
+import java.io.Reader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.file.CopyOption
@@ -78,3 +79,10 @@ val HttpURLConnection.ok: Boolean
  */
 fun HttpURLConnection.copyTo(target: Path, vararg options: CopyOption = arrayOf(StandardCopyOption.REPLACE_EXISTING)) =
     inputStream.use { Files.copy(it, target, *options) }
+
+/**
+ * Copies the byte stream of the HTTP connection to a string.
+ *
+ * @return the response
+ */
+fun HttpURLConnection.readText(): String = inputStream.reader().use(Reader::readText)

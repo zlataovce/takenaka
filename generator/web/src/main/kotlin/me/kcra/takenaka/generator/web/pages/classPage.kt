@@ -38,10 +38,11 @@ import java.lang.reflect.Modifier
  *
  * @param workspace the workspace
  * @param friendlyNameRemapper the remapper for remapping signatures
+ * @param packageIndex the index used for looking up foreign class references
  * @param klass the class
  * @return the generated document
  */
-fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: Remapper, klass: MappingTree.ClassMapping): Document = createHTMLDocument().html {
+fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: Remapper, packageIndex: ClassSearchIndex, klass: MappingTree.ClassMapping): Document = createHTMLDocument().html {
     val friendlyName = getFriendlyDstName(klass).fromInternalName()
 
     headComponent(friendlyName)
@@ -58,9 +59,9 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
             val signature = klass.getName(VanillaMappingContributor.NS_SIGNATURE)
 
             var classHeader = formatClassHeader(friendlyName, mod)
-            var classDescription = formatClassDescription(klass, friendlyNameRemapper, workspace.version, mod)
+            var classDescription = formatClassDescription(klass, packageIndex, friendlyNameRemapper, workspace.version, mod)
             if (signature != null) {
-                val visitor = SignatureFormatter(klass.tree, friendlyNameRemapper, null, workspace.version, mod)
+                val visitor = SignatureFormatter(klass.tree, packageIndex, friendlyNameRemapper, null, workspace.version, mod)
                 SignatureReader(signature).accept(visitor)
 
                 classHeader += visitor.formals
@@ -86,9 +87,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
 
                         val name = klass.getName(id) ?: return@forEach
                         tr {
-                            td {
-                                badgeComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8")
-                            }
+                            badgeColumnComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8")
                             td {
                                 p(classes = "mapping-value") {
                                     +name.fromInternalName()
@@ -123,7 +122,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                                     +formatModifiers(fieldMod, Modifier.fieldModifiers())
 
                                     unsafe {
-                                        +formatType(Type.getType(field.srcDesc), workspace.version, friendlyNameRemapper)
+                                        +formatType(Type.getType(field.srcDesc), workspace.version, packageIndex, friendlyNameRemapper)
                                     }
                                 }
                                 td {
@@ -137,9 +136,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                                                     val name = field.getName(id)
                                                     if (name != null) {
                                                         tr {
-                                                            td {
-                                                                badgeComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8")
-                                                            }
+                                                            badgeColumnComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8")
                                                             td {
                                                                 p(classes = "mapping-value") {
                                                                     +name
@@ -185,7 +182,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                                 td {
                                     p {
                                         unsafe {
-                                            +formatMethodDescriptor(method, friendlyNameRemapper, null, workspace.version, methodMod)
+                                            +formatMethodDescriptor(method, friendlyNameRemapper, null, packageIndex, workspace.version, methodMod)
                                         }
                                     }
                                 }
@@ -223,7 +220,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
 
                                         val methodSignature = method.getName(VanillaMappingContributor.NS_SIGNATURE)
                                         if (methodSignature != null) {
-                                            val visitor = SignatureFormatter(method.tree, friendlyNameRemapper, null, workspace.version, mod)
+                                            val visitor = SignatureFormatter(method.tree, packageIndex, friendlyNameRemapper, null, workspace.version, mod)
                                             SignatureReader(methodSignature).accept(visitor)
 
                                             val formals = visitor.declaration.substringBefore('(')
@@ -233,7 +230,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                                             }
                                             +(visitor.returnType ?: "")
                                         } else {
-                                            +formatType(Type.getType(method.srcDesc).returnType, workspace.version, friendlyNameRemapper)
+                                            +formatType(Type.getType(method.srcDesc).returnType, workspace.version, packageIndex, friendlyNameRemapper)
                                         }
                                     }
                                 }
@@ -248,15 +245,13 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                                                     val name = method.getName(id)
                                                     if (name != null) {
                                                         tr {
-                                                            td {
-                                                                badgeComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8")
-                                                            }
+                                                            badgeColumnComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8")
                                                             td {
                                                                 p(classes = "mapping-value") {
                                                                     unsafe {
                                                                         val remapper = ElementRemapper(method.tree) { it.getName(id) }
 
-                                                                        +"$name${formatMethodDescriptor(method, remapper, friendlyNameRemapper, workspace.version, methodMod, skipFormals = true)}"
+                                                                        +"$name${formatMethodDescriptor(method, remapper, friendlyNameRemapper, packageIndex, workspace.version, methodMod, skipFormals = true)}"
                                                                     }
                                                                 }
                                                             }
@@ -273,6 +268,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                 }
             }
         }
+        footerPlaceholderComponent()
     }
 }
 
@@ -300,17 +296,18 @@ private fun formatClassHeader(friendlyName: String, mod: Int): String = buildStr
  * Formats a class mapping to a class description (e.g. "extends Object implements net.minecraft.protocol.Packet").
  *
  * @param klass the class mapping
+ * @param packageIndex the index used for looking up foreign class references
  * @param nameRemapper the remapper for remapping signatures
  * @param version the mapping's version
  * @param mod the class modifiers
  * @return the class description
  */
-private fun formatClassDescription(klass: MappingTree.ClassMapping, nameRemapper: Remapper, version: Version, mod: Int): String = buildString {
+private fun formatClassDescription(klass: MappingTree.ClassMapping, packageIndex: ClassSearchIndex, nameRemapper: Remapper, version: Version, mod: Int): String = buildString {
     val superClass = klass.getName(VanillaMappingContributor.NS_SUPER) ?: "java/lang/Object"
     val interfaces = klass.getName(VanillaMappingContributor.NS_INTERFACES)?.split(',') ?: emptyList()
 
     if (superClass != "java/lang/Object") {
-        append("extends ${nameRemapper.mapTypeAndLink(version, superClass)}")
+        append("extends ${nameRemapper.mapTypeAndLink(version, superClass, packageIndex)}")
         if (interfaces.isNotEmpty()) {
             append(" ")
         }
@@ -322,7 +319,7 @@ private fun formatClassDescription(klass: MappingTree.ClassMapping, nameRemapper
                 else -> "implements"
             }
         )
-        append(" ${interfaces.joinToString(", ") { nameRemapper.mapTypeAndLink(version, it) }}")
+        append(" ${interfaces.joinToString(", ") { nameRemapper.mapTypeAndLink(version, it, packageIndex) }}")
     }
 }
 
@@ -332,11 +329,12 @@ private fun formatClassDescription(klass: MappingTree.ClassMapping, nameRemapper
  * @param method the method mapping
  * @param nameRemapper the remapper for remapping signatures
  * @param linkRemapper the remapper used for remapping link addresses
+ * @param packageIndex the index used for looking up foreign class references
  * @param version the mapping's version
  * @param mod the method modifiers
  * @return the formatted descriptor
  */
-private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapper: Remapper, linkRemapper: Remapper?, version: Version, mod: Int, skipFormals: Boolean = false): String = buildString {
+private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapper: Remapper, linkRemapper: Remapper?, packageIndex: ClassSearchIndex, version: Version, mod: Int, skipFormals: Boolean = false): String = buildString {
     // example:
     // descriptor: ([Ldyl;Ljava/util/Map;Z)V
     // signature: ([Ldyl;Ljava/util/Map<Lchq;Ldzg;>;Z)V
@@ -344,7 +342,7 @@ private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapp
 
     val signature = method.getName(VanillaMappingContributor.NS_SIGNATURE)
     if (signature != null) {
-        val visitor = SignatureFormatter(method.tree, nameRemapper, linkRemapper, version, mod)
+        val visitor = SignatureFormatter(method.tree, packageIndex, nameRemapper, linkRemapper, version, mod)
         SignatureReader(signature).accept(visitor)
 
         val formals = visitor.declaration.substringBefore('(')
@@ -385,16 +383,27 @@ private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapp
     append(
         args.joinToString { arg ->
             val i = argumentIndex++
-            return@joinToString "${formatType(arg, version, nameRemapper, linkRemapper, isVarargs = (mod and Opcodes.ACC_VARARGS) != 0)} arg$i"
+            return@joinToString "${formatType(arg, version, packageIndex, nameRemapper, linkRemapper, isVarargs = i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0)} arg$i"
         }
     )
     append(')')
 }
 
-private fun formatType(type: Type, version: Version, nameRemapper: Remapper, linkRemapper: Remapper? = null, isVarargs: Boolean = false): String {
+/**
+ * Formats a type with links and remaps any class names in it.
+ *
+ * @param type the type
+ * @param version the version of the mappings
+ * @param packageIndex the index used for looking up foreign class references
+ * @param nameRemapper the name remapper
+ * @param linkRemapper the link remapper, the remapped name will be used if it's null
+ * @param isVarargs whether this is the last parameter of a method and the last array dimension should be made into a variadic parameter
+ * @return the formatted type
+ */
+private fun formatType(type: Type, version: Version, packageIndex: ClassSearchIndex, nameRemapper: Remapper, linkRemapper: Remapper? = null, isVarargs: Boolean = false): String {
     return when (type.sort) {
         Type.ARRAY -> buildString {
-            append(nameRemapper.mapTypeAndLink(version, type.elementType.internalName, linkRemapper))
+            append(nameRemapper.mapTypeAndLink(version, type.elementType.internalName, packageIndex, linkRemapper))
             var arrayDimensions = "[]".repeat(type.dimensions)
             if (isVarargs) {
                 arrayDimensions =  "${arrayDimensions.substringBeforeLast("[]")}..."
@@ -403,7 +412,7 @@ private fun formatType(type: Type, version: Version, nameRemapper: Remapper, lin
         }
 
         // Type#INTERNAL, it's private, so we need to use the value directly
-        Type.OBJECT, 12 -> nameRemapper.mapTypeAndLink(version, type.internalName, linkRemapper)
+        Type.OBJECT, 12 -> nameRemapper.mapTypeAndLink(version, type.internalName, packageIndex, linkRemapper)
         else -> type.className
     }
 }

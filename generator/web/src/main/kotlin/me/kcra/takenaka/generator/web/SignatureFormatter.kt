@@ -81,6 +81,11 @@ class SignatureFormatter : SignatureVisitor {
     private val tree: MappingTree
 
     /**
+     * The package index used for looking up foreign class references.
+     */
+    private val packageIndex: ClassSearchIndex
+
+    /**
      * The class name remapper.
      */
     private val remapper: Remapper
@@ -116,18 +121,20 @@ class SignatureFormatter : SignatureVisitor {
      *
      * @param accessFlags for class type signatures, the access flags of the class.
      */
-    constructor(tree: MappingTree, remapper: Remapper, linkRemapper: Remapper?, version: Version, accessFlags: Int) : super(Opcodes.ASM9) {
+    constructor(tree: MappingTree, packageIndex: ClassSearchIndex, remapper: Remapper, linkRemapper: Remapper?, version: Version, accessFlags: Int) : super(Opcodes.ASM9) {
         isInterface = accessFlags and Opcodes.ACC_INTERFACE != 0
         declaration_ = StringBuilder()
+        this.packageIndex = packageIndex
         this.remapper = remapper
         this.linkRemapper = linkRemapper
         this.tree = tree
         this.version = version
     }
 
-    private constructor(tree: MappingTree, remapper: Remapper, linkRemapper: Remapper?, version: Version, stringBuilder: StringBuilder) : super(Opcodes.ASM9) {
+    private constructor(tree: MappingTree, packageIndex: ClassSearchIndex, remapper: Remapper, linkRemapper: Remapper?, version: Version, stringBuilder: StringBuilder) : super(Opcodes.ASM9) {
         isInterface = false
         declaration_ = stringBuilder
+        this.packageIndex = packageIndex
         this.remapper = remapper
         this.linkRemapper = linkRemapper
         this.tree = tree
@@ -193,11 +200,11 @@ class SignatureFormatter : SignatureVisitor {
         declaration_.append(')')
         val returnType0 = StringBuilder()
         returnType_ = returnType0
-        return SignatureFormatter(tree, remapper, linkRemapper, version, returnType0)
+        return SignatureFormatter(tree, packageIndex, remapper, linkRemapper, version, returnType0)
     }
 
     override fun visitExceptionType(): SignatureVisitor =
-        SignatureFormatter(tree, remapper, linkRemapper, version, exceptions_?.append(COMMA_SEPARATOR) ?: StringBuilder().also { exceptions_ = it })
+        SignatureFormatter(tree, packageIndex, remapper, linkRemapper, version, exceptions_?.append(COMMA_SEPARATOR) ?: StringBuilder().also { exceptions_ = it })
 
     override fun visitBaseType(descriptor: Char) {
         val baseType = BASE_TYPES[descriptor] ?: throw IllegalArgumentException()
@@ -225,10 +232,10 @@ class SignatureFormatter : SignatureVisitor {
             // Object 'but java.lang.String extends java.lang.Object' is unnecessary.
             val needObjectClass = argumentStack % 2 != 0 || parameterTypeVisited
             if (needObjectClass) {
-                declaration_.append(separator).append(remapper.mapTypeAndLink(version, name, linkRemapper = linkRemapper))
+                declaration_.append(separator).append(remapper.mapTypeAndLink(version, name, packageIndex, linkRemapper = linkRemapper))
             }
         } else {
-            declaration_.append(separator).append(remapper.mapTypeAndLink(version, name, linkRemapper = linkRemapper))
+            declaration_.append(separator).append(remapper.mapTypeAndLink(version, name, packageIndex, linkRemapper = linkRemapper))
         }
         separator = ""
         argumentStack *= 2
@@ -342,9 +349,15 @@ class SignatureFormatter : SignatureVisitor {
  *
  * @param version the mapping version
  * @param internalName the internal name of the class to be remapped
+ * @param packageIndex the index used for looking up foreign class references
  * @return the remapped type, a link if it was found
  */
-fun Remapper.mapTypeAndLink(version: Version, internalName: String, linkRemapper: Remapper? = null): String {
+fun Remapper.mapTypeAndLink(version: Version, internalName: String, packageIndex: ClassSearchIndex, linkRemapper: Remapper? = null): String {
+    val jdkUrl = packageIndex.linkClass(internalName)
+    if (jdkUrl != null) {
+        return """<a href="$jdkUrl">${internalName.substringAfterLast('/')}</a>"""
+    }
+
     val remappedName = mapType(internalName)
     val linkName = linkRemapper?.mapType(internalName) ?: remappedName
 

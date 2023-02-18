@@ -47,7 +47,7 @@ data class ClassAncestryTree(val allowedNamespaces: MutableMap<Version, Collecti
      * @param keys the keys
      * @return the node, null if not found
      */
-    operator fun get(keys: Collection<String>): Node? = firstOrNull { it.keys.any { k -> k in keys } }
+    operator fun get(keys: Collection<String>): Node? = find { it.keys.any { k -> k in keys } }
 }
 
 /**

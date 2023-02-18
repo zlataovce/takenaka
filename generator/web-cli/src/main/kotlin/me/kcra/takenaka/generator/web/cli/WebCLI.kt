@@ -24,8 +24,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.resolve.*
+import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.generator.common.cli.CLI
-import me.kcra.takenaka.generator.web.WebGenerator
+import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.transformers.Minifier
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import mu.KotlinLogging
@@ -57,6 +58,22 @@ class WebCLI : CLI {
         val concurrencyLimit = System.getProperty("me.kcra.takenaka.generator.web.concurrencyLimit", "-1").toInt()
         val coroutineDispatcher = if (concurrencyLimit != -1) Dispatchers.IO.limitedParallelism(concurrencyLimit) else Dispatchers.IO
 
+        val indexers = mutableListOf<ClassSearchIndex>()
+
+        val configuredIndexers = System.getProperty("me.kcra.takenaka.generator.web.indexedJavadocs", "")
+        if (configuredIndexers.isNotBlank()) {
+            indexers += configuredIndexers.split(',')
+                .map { indexerDef ->
+                    val (packaze, url) = indexerDef.split('+', limit = 2)
+
+                    classSearchIndexOf(url, packaze)
+                }
+        }
+
+        if (System.getProperty("me.kcra.takenaka.generator.web.indexJDK", "true").toBoolean()) {
+            indexers += objectMapper().jdkClassSearchIndexOf(JDK_17_BASE_URL)
+        }
+
         val generator = WebGenerator(
             output,
             versions,
@@ -87,7 +104,8 @@ class WebCLI : CLI {
                 "searge" to "Searge",
                 "intermediary" to "Intermediary",
                 "source" to "Obfuscated"
-            )
+            ),
+            compositeClassSearchIndexOf(*indexers.toTypedArray())
         )
 
         generator.generate()

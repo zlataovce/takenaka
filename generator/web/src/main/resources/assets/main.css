@@ -181,7 +181,7 @@ a:hover {
 table {
     table-layout: auto;
     color: var(--text);
-    border-collapse: collapse;
+    border-collapse: separate;
 }
 
 .badge {
@@ -201,6 +201,7 @@ table {
 
 .member-table {
     width: 100%;
+    border-collapse: collapse;
 }
 
 th {
@@ -216,6 +217,7 @@ th {
 .member-modifiers {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     vertical-align: top;
+    word-break: break-word;
 }
 
 .member-modifiers > * {
@@ -248,4 +250,9 @@ h4 {
 .row-borders > tbody > tr > td {
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
+}
+
+footer {
+    padding: 1rem;
+    color: var(--text);
 }

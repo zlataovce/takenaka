@@ -17,9 +17,7 @@
 
 package me.kcra.takenaka.generator.web.components
 
-import kotlinx.html.FlowContent
-import kotlinx.html.p
-import kotlinx.html.style
+import kotlinx.html.*
 
 /**
  * Appends a namespace badge component.
@@ -29,6 +27,19 @@ import kotlinx.html.style
  */
 fun FlowContent.badgeComponent(content: String, color: String) {
     p(classes = "badge") {
+        style = "background-color:$color"
+        +content
+    }
+}
+
+/**
+ * Appends a namespace badge column (td) component.
+ *
+ * @param content the namespace name
+ * @param color the badge color in a CSS compatible format
+ */
+fun TR.badgeColumnComponent(content: String, color: String) {
+    td(classes = "badge") {
         style = "background-color:$color"
         +content
     }

@@ -48,7 +48,7 @@ abstract class AbstractGenerator(
     /**
      * An object mapper instance for this generator.
      */
-    private val objectMapper = objectMapper()
+    protected val objectMapper = objectMapper()
 
     /**
      * The mappings.

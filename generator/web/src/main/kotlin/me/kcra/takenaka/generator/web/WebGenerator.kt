@@ -34,6 +34,7 @@ import me.kcra.takenaka.core.mapping.ContributorProvider
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.generator.common.AbstractGenerator
+import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.classPage
 import me.kcra.takenaka.generator.web.transformers.Transformer
@@ -60,6 +61,7 @@ private val logger = KotlinLogging.logger {}
  * @param namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @param namespaceBadgeColors a map of namespaces and their colors, defaults to #94a3b8 for all of them
  * @param namespaceFriendlyNames a map of namespaces and their names that will be shown in the documentation, unspecified namespaces will not be shown
+ * @param index a resolver for foreign class references
  * @author Matouš Kučera
  */
 class WebGenerator(
@@ -71,7 +73,8 @@ class WebGenerator(
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaceBadgeColors: Map<String, String> = emptyMap(),
-    val namespaceFriendlyNames: Map<String, String> = emptyMap()
+    val namespaceFriendlyNames: Map<String, String> = emptyMap(),
+    val index: ClassSearchIndex = emptyClassSearchIndex()
 ) : AbstractGenerator(workspace, versions, mappingWorkspace, contributorProvider) {
     /**
      * Launches the generator.
@@ -90,7 +93,7 @@ class WebGenerator(
                         logger.warn { "Skipping generation for class ${getFriendlyDstName(klass)}, missing modifiers" }
                     } else {
                         launch(coroutineDispatcher) {
-                            classPage(versionWorkspace, friendlyNameRemapper, klass)
+                            classPage(versionWorkspace, friendlyNameRemapper, index, klass)
                                 .serialize(versionWorkspace, "${getFriendlyDstName(klass)}.html")
                         }
                     }
@@ -138,7 +141,8 @@ class WebGenerator(
 
         var componentFileContent = generateComponentFile(
             mapOf(
-                "nav" to makeBasicComponent { navComponent() }
+                "nav" to makeBasicComponent { navComponent() },
+                "footer" to makeBasicComponent { footerComponent() }
             )
         )
         transformers.forEach { transformer ->
