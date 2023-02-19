@@ -59,19 +59,24 @@ class WebCLI : CLI {
         val coroutineDispatcher = if (concurrencyLimit != -1) Dispatchers.IO.limitedParallelism(concurrencyLimit) else Dispatchers.IO
 
         val indexers = mutableListOf<ClassSearchIndex>()
+        val indexerMapper = objectMapper()
 
-        val configuredIndexers = System.getProperty("me.kcra.takenaka.generator.web.indexedJavadocs", "")
+        val configuredIndexers = System.getProperty("me.kcra.takenaka.generator.web.index.foreign", "")
         if (configuredIndexers.isNotBlank()) {
             indexers += configuredIndexers.split(',')
                 .map { indexerDef ->
-                    val (packaze, url) = indexerDef.split('+', limit = 2)
+                    val options = indexerDef.split('+', limit = 2)
 
-                    classSearchIndexOf(url, packaze)
+                    if (options.size == 2) {
+                        classSearchIndexOf(options[0], options[1])
+                    } else {
+                        indexerMapper.modularClassSearchIndexOf(options[0])
+                    }
                 }
         }
 
-        if (System.getProperty("me.kcra.takenaka.generator.web.indexJDK", "true").toBoolean()) {
-            indexers += objectMapper().jdkClassSearchIndexOf(JDK_17_BASE_URL)
+        if (System.getProperty("me.kcra.takenaka.generator.web.index.jdk", "true").toBoolean()) {
+            indexers += indexerMapper.modularClassSearchIndexOf(JDK_17_BASE_URL)
         }
 
         val generator = WebGenerator(

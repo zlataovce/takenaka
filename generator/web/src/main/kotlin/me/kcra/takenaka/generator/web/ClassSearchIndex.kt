@@ -29,11 +29,11 @@ const val JDK_17_BASE_URL = "https://docs.oracle.com/en/java/javase/17/docs/api"
  * @param baseUrl the base URL of the Javadoc site
  * @return the index
  */
-fun ObjectMapper.jdkClassSearchIndexOf(baseUrl: String): JDKClassSearchIndex {
+fun ObjectMapper.modularClassSearchIndexOf(baseUrl: String): ModularClassSearchIndex {
     val content = URL("$baseUrl/package-search-index.js").httpRequest(action = HttpURLConnection::readText)
     val nodeArray = content.dropWhile { it != '[' }.dropLastWhile { it != ']' }
 
-    return JDKClassSearchIndex(baseUrl, readValue(nodeArray))
+    return ModularClassSearchIndex(baseUrl, readValue(nodeArray))
 }
 
 /**
@@ -107,18 +107,18 @@ class CompositeClassSearchIndex(val indexes: List<ClassSearchIndex>) : ClassSear
 }
 
 /**
- * A module-to-package mapping of the JDK, useful for making documentation links to JDK classes.
+ * A module-to-package mapping of a Javadoc site.
  *
  * @property baseUrl the base URL of the Javadoc site
  * @property index the package nodes
  * @author Matouš Kučera
  */
-data class JDKClassSearchIndex(override val baseUrl: String, val index: List<Node>) : ClassSearchIndex {
+data class ModularClassSearchIndex(override val baseUrl: String, val index: List<Node>) : ClassSearchIndex {
     /**
-     * Tries to make a URL to a JDK class.
+     * Tries to make a URL to a foreign class.
      *
      * @param internalName the classes' internal name
-     * @return the URL or null, if it's not a JDK class
+     * @return the URL or null, if it's not in this index
      */
     override fun linkClass(internalName: String): String? {
         val klassPackage = internalName.fromInternalName().substringBeforeLast('.')

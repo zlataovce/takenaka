@@ -353,9 +353,9 @@ class SignatureFormatter : SignatureVisitor {
  * @return the remapped type, a link if it was found
  */
 fun Remapper.mapTypeAndLink(version: Version, internalName: String, packageIndex: ClassSearchIndex, linkRemapper: Remapper? = null): String {
-    val jdkUrl = packageIndex.linkClass(internalName)
-    if (jdkUrl != null) {
-        return """<a href="$jdkUrl">${internalName.substringAfterLast('/')}</a>"""
+    val foreignUrl = packageIndex.linkClass(internalName)
+    if (foreignUrl != null) {
+        return """<a href="$foreignUrl">${internalName.substringAfterLast('/')}</a>"""
     }
 
     val remappedName = mapType(internalName)
