@@ -421,7 +421,7 @@ private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapp
 private fun formatType(type: Type, version: Version, packageIndex: ClassSearchIndex, nameRemapper: Remapper, linkRemapper: Remapper? = null, isVarargs: Boolean = false): String {
     return when (type.sort) {
         Type.ARRAY -> buildString {
-            append(nameRemapper.mapTypeAndLink(version, type.elementType.className, packageIndex, linkRemapper))
+            append(nameRemapper.mapTypeAndLink(version, type.elementType.className.toInternalName(), packageIndex, linkRemapper))
             var arrayDimensions = "[]".repeat(type.dimensions)
             if (isVarargs) {
                 arrayDimensions =  "${arrayDimensions.substringBeforeLast("[]")}..."
