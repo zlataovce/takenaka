@@ -18,6 +18,7 @@
 package me.kcra.takenaka.generator.web.components
 
 import kotlinx.html.*
+import me.kcra.takenaka.generator.web.StyleSupplier
 
 /**
  * Appends a namespace badge component.
@@ -25,9 +26,17 @@ import kotlinx.html.*
  * @param content the namespace name
  * @param color the badge color in a CSS compatible format
  */
-fun FlowContent.badgeComponent(content: String, color: String) {
-    p(classes = "badge") {
-        style = "background-color:$color"
+fun FlowContent.badgeComponent(content: String, color: String, styleSupplier: StyleSupplier? = null) {
+    val extraClass = if (styleSupplier != null) {
+        " ${styleSupplier("badge-${content.lowercase()}", "background-color:$color")}"
+    } else {
+        ""
+    }
+
+    p(classes = "badge$extraClass") {
+        if (styleSupplier == null) {
+            style = "background-color:$color"
+        }
         +content
     }
 }
@@ -38,9 +47,17 @@ fun FlowContent.badgeComponent(content: String, color: String) {
  * @param content the namespace name
  * @param color the badge color in a CSS compatible format
  */
-fun TR.badgeColumnComponent(content: String, color: String) {
-    td(classes = "badge") {
-        style = "background-color:$color"
+fun TR.badgeColumnComponent(content: String, color: String, styleSupplier: StyleSupplier? = null) {
+    val extraClass = if (styleSupplier != null) {
+        " ${styleSupplier("badge-${content.lowercase()}", "background-color:$color")}"
+    } else {
+        ""
+    }
+
+    td(classes = "badge$extraClass") {
+        if (styleSupplier == null) {
+            style = "background-color:$color"
+        }
         +content
     }
 }

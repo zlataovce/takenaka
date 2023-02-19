@@ -42,7 +42,7 @@ import java.lang.reflect.Modifier
  * @param klass the class
  * @return the generated document
  */
-fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: Remapper, packageIndex: ClassSearchIndex, klass: MappingTree.ClassMapping): Document = createHTMLDocument().html {
+fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: Remapper, packageIndex: ClassSearchIndex, styleSupplier: StyleSupplier, klass: MappingTree.ClassMapping): Document = createHTMLDocument().html {
     val friendlyName = getFriendlyDstName(klass).fromInternalName()
 
     headComponent(friendlyName)
@@ -87,7 +87,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
 
                         val name = klass.getName(id) ?: return@forEach
                         tr {
-                            badgeColumnComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8")
+                            badgeColumnComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8", styleSupplier)
                             td {
                                 p(classes = "mapping-value") {
                                     +name.fromInternalName()
@@ -136,7 +136,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                                                     val name = field.getName(id)
                                                     if (name != null) {
                                                         tr {
-                                                            badgeColumnComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8")
+                                                            badgeColumnComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8", styleSupplier)
                                                             td {
                                                                 p(classes = "mapping-value") {
                                                                     +name
@@ -226,7 +226,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                                             val formals = visitor.declaration.substringBefore('(')
 
                                             if (formals.isNotEmpty()) {
-                                                +formals
+                                                +"$formals "
                                             }
                                             +(visitor.returnType ?: "")
                                         } else {
@@ -245,7 +245,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                                                     val name = method.getName(id)
                                                     if (name != null) {
                                                         tr {
-                                                            badgeColumnComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8")
+                                                            badgeColumnComponent(nsFriendlyName, namespaceBadgeColors[ns] ?: "#94a3b8", styleSupplier)
                                                             td {
                                                                 p(classes = "mapping-value") {
                                                                     unsafe {
@@ -371,6 +371,11 @@ private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapp
         }
 
         append(')')
+
+        if (visitor.exceptions != null) {
+            append(" throws ").append(visitor.exceptions)
+        }
+
         return@buildString
     }
 

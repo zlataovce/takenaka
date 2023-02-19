@@ -45,6 +45,9 @@ import org.w3c.dom.Document
 import java.io.BufferedReader
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.coroutines.CoroutineContext
 
 private val logger = KotlinLogging.logger {}
@@ -82,6 +85,8 @@ class WebGenerator(
     override fun generate() {
         val composite = workspace.asComposite()
 
+        val styleSupplier = DefaultStyleSupplier()
+
         runBlocking {
             mappings.forEach { (version, tree) ->
                 val versionWorkspace = composite.versioned(version)
@@ -93,7 +98,7 @@ class WebGenerator(
                         logger.warn { "Skipping generation for class ${getFriendlyDstName(klass)}, missing modifiers" }
                     } else {
                         launch(coroutineDispatcher) {
-                            classPage(versionWorkspace, friendlyNameRemapper, index, klass)
+                            classPage(versionWorkspace, friendlyNameRemapper, index, styleSupplier::apply, klass)
                                 .serialize(versionWorkspace, "${getFriendlyDstName(klass)}.html")
                         }
                     }
@@ -150,6 +155,20 @@ class WebGenerator(
         }
 
         workspace["assets/components.js"].writeText(componentFileContent)
+
+        var generatedStylesContent = ""
+        styleSupplier.styles.forEach { (k, s) ->
+            generatedStylesContent += """
+                .$k {
+                    $s
+                }
+            """.trimIndent()
+        }
+        transformers.forEach { transformer ->
+            generatedStylesContent = transformer.transformCss(generatedStylesContent)
+        }
+
+        workspace["assets/generated.css"].writeText(generatedStylesContent)
 
         copyAsset("main.css") // main.css should be copied last to minify correctly
     }
@@ -229,7 +248,23 @@ class WebGenerator(
         }
         return (0 until elem.tree.maxNamespaceId).firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
     }
+
+    /**
+     * A synchronized [StyleSupplier] implementation.
+     */
+    private class DefaultStyleSupplier(val styles: MutableMap<String, String> = mutableMapOf()) {
+        private val supplierLock: Lock = ReentrantLock()
+
+        fun apply(k: String, s: String): String = supplierLock.withLock {
+            styles.putIfAbsent(k, s); k
+        }
+    }
 }
+
+/**
+ * A function that provides a CSS class name from a key and the style content.
+ */
+typealias StyleSupplier = (String, String) -> String
 
 /**
  * Formats a modifier integer into a string.
