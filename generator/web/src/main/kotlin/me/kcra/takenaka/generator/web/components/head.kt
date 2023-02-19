@@ -8,7 +8,6 @@ import kotlinx.html.*
 fun HTML.headComponent(title: String) {
     head {
         link(href = "/assets/main.css", rel = "stylesheet")
-        link(href = "/assets/generated.css", rel = "stylesheet")
         script(src = "/assets/main.js") {}
         script(src = "/assets/components.js") {}
         title(content = title)

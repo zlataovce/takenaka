@@ -128,7 +128,6 @@ class VanillaMappingContributor(
                         }
                     }
                 }
-                .filter { k -> (k.access and Opcodes.ACC_SYNTHETIC) == 0 } // no synthetics
                 .collect(Collectors.toList())
         }
 

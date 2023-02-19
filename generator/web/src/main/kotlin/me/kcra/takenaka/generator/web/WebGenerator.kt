@@ -37,6 +37,9 @@ import me.kcra.takenaka.generator.common.AbstractGenerator
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.classPage
+import me.kcra.takenaka.generator.web.pages.overviewPage
+import me.kcra.takenaka.generator.web.pages.packagePage
+import me.kcra.takenaka.generator.web.pages.versionsPage
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTree
@@ -45,6 +48,7 @@ import org.w3c.dom.Document
 import java.io.BufferedReader
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.util.*
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -65,6 +69,7 @@ private val logger = KotlinLogging.logger {}
  * @param namespaceBadgeColors a map of namespaces and their colors, defaults to #94a3b8 for all of them
  * @param namespaceFriendlyNames a map of namespaces and their names that will be shown in the documentation, unspecified namespaces will not be shown
  * @param index a resolver for foreign class references
+ * @param skipSynthetics whether synthetic classes and their members should be skipped
  * @author Matouš Kučera
  */
 class WebGenerator(
@@ -77,7 +82,8 @@ class WebGenerator(
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaceBadgeColors: Map<String, String> = emptyMap(),
     val namespaceFriendlyNames: Map<String, String> = emptyMap(),
-    val index: ClassSearchIndex = emptyClassSearchIndex()
+    val index: ClassSearchIndex = emptyClassSearchIndex(),
+    val skipSynthetics: Boolean = true
 ) : AbstractGenerator(workspace, versions, mappingWorkspace, contributorProvider) {
     /**
      * Launches the generator.
@@ -92,18 +98,39 @@ class WebGenerator(
                 val versionWorkspace = composite.versioned(version)
                 val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
 
+                val classMap = mutableMapOf<String, MutableMap<String, ClassType>>()
+
                 tree.classes.forEach { klass ->
+                    val mod = klass.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull()
+                    val friendlyName = getFriendlyDstName(klass)
+
                     // skip mappings without modifiers, those weren't in the server JAR
-                    if (klass.getName(VanillaMappingContributor.NS_MODIFIERS) == null) {
-                        logger.warn { "Skipping generation for class ${getFriendlyDstName(klass)}, missing modifiers" }
+                    if (mod == null) {
+                        logger.warn { "Skipping generation for class $friendlyName, missing modifiers" }
+                    } else if (skipSynthetics && (mod and Opcodes.ACC_SYNTHETIC) != 0) {
+                        logger.warn { "Skipping generation for class $friendlyName, synthetic" }
                     } else {
                         launch(coroutineDispatcher) {
                             classPage(versionWorkspace, friendlyNameRemapper, index, styleSupplier::apply, klass)
-                                .serialize(versionWorkspace, "${getFriendlyDstName(klass)}.html")
+                                .serialize(versionWorkspace, "$friendlyName.html")
                         }
+
+                        classMap.getOrPut(friendlyName.substringBeforeLast('/')) { mutableMapOf() } +=
+                            friendlyName.substringAfterLast('/') to classTypeOf(mod)
                     }
                 }
+
+                classMap.forEach { (packageName, classes) ->
+                    packagePage(versionWorkspace, packageName, classes)
+                        .serialize(versionWorkspace, "$packageName/index.html")
+                }
+
+                overviewPage(versionWorkspace, classMap.keys)
+                    .serialize(versionWorkspace, "index.html")
             }
+
+            versionsPage(mappings.entries.associate { (version, tree) -> version to tree.dstNamespaces }, styleSupplier::apply)
+                .serialize(workspace, "index.html")
         }
 
         workspace["assets"].mkdirs()
@@ -145,9 +172,29 @@ class WebGenerator(
         }
 
         var componentFileContent = generateComponentFile(
-            mapOf(
-                "nav" to makeBasicComponent { navComponent() },
-                "footer" to makeBasicComponent { footerComponent() }
+            listOf(
+                Triple(
+                    "nav",
+                    makeBasicComponent { navComponent() },
+                    // dynamically find the version in the URL, this is a hack, I know
+                    """
+                        const link = document.getElementById("overview-link");
+                        const path = window.location.pathname.substring(1);
+                        if (path) {
+                            const parts = [];
+                            for (const part of path.split("/")) {
+                                parts.push(part);
+                                if (part.includes(".")) {
+                                    link.href = "/" + parts.join("/") + "/index.html";
+                                    return;
+                                }
+                            }
+                        }
+                    
+                        link.remove();
+                    """.trimIndent()
+                ),
+                Triple("footer", makeBasicComponent { footerComponent() }, null)
             )
         )
         transformers.forEach { transformer ->
@@ -198,10 +245,10 @@ class WebGenerator(
     /**
      * Generates a components.js file.
      *
-     * @param components map of tag names to the component
+     * @param components a list of tag-document-callback
      * @return the content of the component file
      */
-    fun generateComponentFile(components: Map<String, Document>): String = buildString {
+    fun generateComponentFile(components: List<Triple<String, Document, String?>>): String = buildString {
         fun Document.serializeAsComponent(): String {
             var content = serialize(prettyPrint = false)
             transformers.forEach { transformer ->
@@ -213,24 +260,30 @@ class WebGenerator(
 
         append(
             """
-                const replaceComponent = (tag, component) => {
+                const replaceComponent = (tag, component, callback) => {
                     for (let e of document.getElementsByTagName(tag)) {
                         if (e.children.length === 0) {
                             e.outerHTML = component;
+                            callback(e);
                         }
                     }
                 };
             """.trimIndent()
         )
 
-        components.forEach { (tag, document) ->
+        components.forEach { (tag, document, callback) ->
             append("const ${tag}Component = `${document.serializeAsComponent()}`;")
+            append("const ${tag}ComponentCallback = (e) => {")
+            if (callback != null) {
+                append(callback)
+            }
+            append("};")
         }
 
         append("window.addEventListener(\"load\", () => {")
 
         components.forEach { (tag, _) ->
-            append("    replaceComponent(\"$tag\", ${tag}Component);")
+            append("    replaceComponent(\"$tag\", ${tag}Component, ${tag}ComponentCallback);")
         }
 
         append("});")
@@ -304,3 +357,25 @@ fun String.toInternalName(): String = replace('.', '/')
  * @return the replaced string
  */
 fun String.fromInternalName(): String = replace('/', '.')
+
+/**
+ * A class type.
+ */
+enum class ClassType {
+    CLASS, INTERFACE, ENUM;
+
+    override fun toString(): String = name.lowercase()
+        .replaceFirstChar { it.titlecase(Locale.getDefault()) }
+}
+
+/**
+ * Makes a class type from a modifier.
+ *
+ * @param mod the modifier
+ * @return the type
+ */
+fun classTypeOf(mod: Int): ClassType = when {
+    (mod and Opcodes.ACC_INTERFACE) != 0 -> ClassType.INTERFACE
+    (mod and Opcodes.ACC_ENUM) != 0 -> ClassType.ENUM
+    else -> ClassType.CLASS
+}

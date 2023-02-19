@@ -13,3 +13,4 @@ Refer to the [generator-common-cli README](../common-cli/README.md) for command-
     * a plus-sign delimited pair of a supported package and a link to the Javadoc root (Javadoc sites _with no modules_): `org.slf4j+https://www.slf4j.org/api`
     * a link to the Javadoc root (Javadoc sites _with modules_): `https://docs.oracle.com/en/java/javase/17/docs/api`
 * `me.kcra.takenaka.generator.web.index.jdk` (boolean, defaults to `true`) - Whether the JDK 17 site should be indexed for linking.
+* `me.kcra.takenaka.generator.web.skipSynthetics` (boolean, defaults to `true`) - Whether synthetic classes and their members should be skipped.

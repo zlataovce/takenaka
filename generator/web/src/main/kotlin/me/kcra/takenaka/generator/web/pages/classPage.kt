@@ -49,10 +49,9 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
     body {
         navPlaceholderComponent()
         main {
-            if ('.' in friendlyName) {
-                a(href = "#") {
-                    +friendlyName.substringBeforeLast('.')
-                }
+            val friendlyPackageName = friendlyName.substringBeforeLast('.')
+            a(href = "/${workspace.version.id}/${friendlyPackageName.replace('.', '/')}/index.html") {
+                +friendlyPackageName
             }
 
             val mod = klass.getName(VanillaMappingContributor.NS_MODIFIERS).toInt()
@@ -116,6 +115,7 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                     tbody {
                         klass.fields.forEach { field ->
                             val fieldMod = field.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: return@forEach
+                            if (skipSynthetics && (fieldMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach
 
                             tr {
                                 td(classes = "member-modifiers") {
@@ -175,6 +175,8 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                             if (method.srcName != "<init>") return@forEach
 
                             val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: return@forEach
+                            if (skipSynthetics && (methodMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach
+
                             tr {
                                 td(classes = "member-modifiers") {
                                     +formatModifiers(methodMod, Modifier.constructorModifiers())
@@ -213,10 +215,18 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
                             if (method.srcName == "<init>" || method.srcName == "<clinit>") return@forEach
 
                             val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: return@forEach
+                            if (skipSynthetics && (methodMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach
+
                             tr {
                                 td(classes = "member-modifiers") {
                                     unsafe {
-                                        +formatModifiers(methodMod, Modifier.methodModifiers())
+                                        var mask = Modifier.methodModifiers()
+                                        // remove public modifiers on interface members, they are implicit
+                                        if ((mod and Opcodes.ACC_INTERFACE) != 0) {
+                                            mask = mask and Modifier.PUBLIC.inv()
+                                        }
+
+                                        +formatModifiers(methodMod, mask)
 
                                         val methodSignature = method.getName(VanillaMappingContributor.NS_SIGNATURE)
                                         if (methodSignature != null) {
@@ -282,8 +292,8 @@ fun WebGenerator.classPage(workspace: VersionedWorkspace, friendlyNameRemapper: 
 private fun formatClassHeader(friendlyName: String, mod: Int): String = buildString {
     append(formatModifiers(mod, Modifier.classModifiers()))
     when {
+        (mod and Opcodes.ACC_ANNOTATION) != 0 -> append("@interface ") // annotations are interfaces, so this must be before ACC_INTERFACE
         (mod and Opcodes.ACC_INTERFACE) != 0 -> append("interface ")
-        (mod and Opcodes.ACC_ANNOTATION) != 0 -> append("@interface ")
         (mod and Opcodes.ACC_ENUM) != 0 -> append("enum ")
         (mod and Opcodes.ACC_MODULE) != 0 -> append("module ")
         (mod and Opcodes.ACC_RECORD) != 0 -> append("record ")
@@ -304,9 +314,12 @@ private fun formatClassHeader(friendlyName: String, mod: Int): String = buildStr
  */
 private fun formatClassDescription(klass: MappingTree.ClassMapping, packageIndex: ClassSearchIndex, nameRemapper: Remapper, version: Version, mod: Int): String = buildString {
     val superClass = klass.getName(VanillaMappingContributor.NS_SUPER) ?: "java/lang/Object"
-    val interfaces = klass.getName(VanillaMappingContributor.NS_INTERFACES)?.split(',') ?: emptyList()
+    val interfaces = klass.getName(VanillaMappingContributor.NS_INTERFACES)
+        ?.split(',')
+        ?.filter { it != "java/lang/annotation/Annotation" }
+        ?: emptyList()
 
-    if (superClass != "java/lang/Object") {
+    if (superClass != "java/lang/Object" && superClass != "java/lang/Record") {
         append("extends ${nameRemapper.mapTypeAndLink(version, superClass, packageIndex)}")
         if (interfaces.isNotEmpty()) {
             append(" ")
@@ -408,7 +421,7 @@ private fun formatMethodDescriptor(method: MappingTree.MethodMapping, nameRemapp
 private fun formatType(type: Type, version: Version, packageIndex: ClassSearchIndex, nameRemapper: Remapper, linkRemapper: Remapper? = null, isVarargs: Boolean = false): String {
     return when (type.sort) {
         Type.ARRAY -> buildString {
-            append(nameRemapper.mapTypeAndLink(version, type.elementType.internalName, packageIndex, linkRemapper))
+            append(nameRemapper.mapTypeAndLink(version, type.elementType.className, packageIndex, linkRemapper))
             var arrayDimensions = "[]".repeat(type.dimensions)
             if (isVarargs) {
                 arrayDimensions =  "${arrayDimensions.substringBeforeLast("[]")}..."

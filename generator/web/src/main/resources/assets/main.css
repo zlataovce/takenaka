@@ -17,6 +17,7 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap');
 @import url('https://cdn.jsdelivr.net/npm/tailwindcss@3.2.6/src/css/preflight.css');
+@import url('/assets/generated.css');
 
 :root {
     --text: white;
@@ -94,6 +95,20 @@ nav {
     font-size: 1.125rem;
     line-height: 1.75rem;
     font-weight: 600;
+    text-decoration-line: none;
+}
+
+.nav-brand:hover {
+    color: var(--text);
+}
+
+.nav-link {
+    color: var(--text);
+    text-decoration-line: none;
+}
+
+.nav-link:hover {
+    color: var(--text);
 }
 
 .search-box {
@@ -224,6 +239,11 @@ th {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
+h1 {
+    color: var(--text);
+    font-size: large;
+}
+
 h4 {
     color: var(--text);
     font-size: large;
@@ -253,6 +273,18 @@ h4 {
 }
 
 footer {
-    padding: 1rem;
+    padding: 0.75rem 1rem;
     color: var(--text);
+}
+
+@media (min-width: 1024px) {
+    footer {
+        padding-left: 10%;
+        padding-right: 10%;
+    }
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
 }

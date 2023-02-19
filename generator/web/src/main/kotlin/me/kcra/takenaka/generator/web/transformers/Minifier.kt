@@ -85,7 +85,7 @@ class Minifier : Transformer {
                 .replace(COMMENT_REGEX, "")
             classes.forEach { (original, minified) ->
                 logger.debug { "Minifying CSS class $original to $minified in a stylesheet" }
-                remappedContent = remappedContent.replace(".$original ", ".$minified ")
+                remappedContent = remappedContent.replace("\\.$original([ :])".toRegex()) { ".$minified${it.groups[1]?.value}" }
             }
 
             return remappedContent

@@ -79,6 +79,8 @@ class WebCLI : CLI {
             indexers += indexerMapper.modularClassSearchIndexOf(JDK_17_BASE_URL)
         }
 
+        val skipSynthetics = System.getProperty("me.kcra.takenaka.generator.web.skipSynthetics", "true").toBoolean()
+
         val generator = WebGenerator(
             output,
             versions,
@@ -110,7 +112,8 @@ class WebCLI : CLI {
                 "intermediary" to "Intermediary",
                 "source" to "Obfuscated"
             ),
-            compositeClassSearchIndexOf(*indexers.toTypedArray())
+            compositeClassSearchIndexOf(*indexers.toTypedArray()),
+            skipSynthetics
         )
 
         generator.generate()
