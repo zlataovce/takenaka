@@ -3,9 +3,11 @@ package me.kcra.takenaka.generator.web.pages
 import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
-import me.kcra.takenaka.generator.web.StyleSupplier
-import me.kcra.takenaka.generator.web.WebGenerator
-import me.kcra.takenaka.generator.web.components.*
+import me.kcra.takenaka.generator.web.GenerationContext
+import me.kcra.takenaka.generator.web.components.badgeComponent
+import me.kcra.takenaka.generator.web.components.footerPlaceholderComponent
+import me.kcra.takenaka.generator.web.components.headComponent
+import me.kcra.takenaka.generator.web.components.navPlaceholderComponent
 import org.w3c.dom.Document
 
 /**
@@ -14,7 +16,7 @@ import org.w3c.dom.Document
  * @param versions the versions with their supported mappings
  * @return the generated document
  */
-fun WebGenerator.versionsPage(versions: Map<Version, List<String>>, styleSupplier: StyleSupplier): Document = createHTMLDocument().html {
+fun GenerationContext.versionsPage(versions: Map<Version, List<String>>): Document = createHTMLDocument().html {
     headComponent("mappings")
     body {
         navPlaceholderComponent()
@@ -41,9 +43,9 @@ fun WebGenerator.versionsPage(versions: Map<Version, List<String>>, styleSupplie
                             td {
                                 style = "display:flex"
                                 mappings.forEach { mappingType ->
-                                    val nsFriendlyName = namespaceFriendlyNames[mappingType]
+                                    val nsFriendlyName = generator.namespaceFriendlyNames[mappingType]
                                     if (nsFriendlyName != null) {
-                                        badgeComponent(nsFriendlyName, namespaceBadgeColors[mappingType] ?: "#94a3b8", styleSupplier)
+                                        badgeComponent(nsFriendlyName, generator.namespaceBadgeColors[mappingType] ?: "#94a3b8", styleSupplier)
                                     }
                                 }
                             }

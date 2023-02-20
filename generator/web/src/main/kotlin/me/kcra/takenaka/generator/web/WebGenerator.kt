@@ -31,8 +31,8 @@ import kotlinx.html.html
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ContributorProvider
-import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.ElementRemapper
+import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.generator.common.AbstractGenerator
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
@@ -48,7 +48,6 @@ import org.w3c.dom.Document
 import java.io.BufferedReader
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.util.*
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -58,6 +57,8 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * A generator that generates documentation in an HTML format.
+ *
+ * An instance can be reused, but it is **not** thread-safe!
  *
  * @param workspace the workspace in which this generator can move around
  * @param versions the Minecraft versions that this generator will process
@@ -90,19 +91,19 @@ class WebGenerator(
      */
     override fun generate() {
         val composite = workspace.asComposite()
-
         val styleSupplier = DefaultStyleSupplier()
+        val context = GenerationContext(this, styleSupplier::apply)
 
         runBlocking {
             mappings.forEach { (version, tree) ->
                 val versionWorkspace = composite.versioned(version)
-                val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
+                val friendlyNameRemapper = ElementRemapper(tree, context::getFriendlyDstName)
 
                 val classMap = mutableMapOf<String, MutableMap<String, ClassType>>()
 
                 tree.classes.forEach { klass ->
                     val mod = klass.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull()
-                    val friendlyName = getFriendlyDstName(klass)
+                    val friendlyName = context.getFriendlyDstName(klass)
 
                     // skip mappings without modifiers, those weren't in the server JAR
                     if (mod == null) {
@@ -111,7 +112,7 @@ class WebGenerator(
                         logger.warn { "Skipping generation for class $friendlyName, synthetic" }
                     } else {
                         launch(coroutineDispatcher) {
-                            classPage(versionWorkspace, friendlyNameRemapper, index, styleSupplier::apply, klass)
+                            context.classPage(klass, versionWorkspace, friendlyNameRemapper)
                                 .serialize(versionWorkspace, "$friendlyName.html")
                         }
 
@@ -121,15 +122,15 @@ class WebGenerator(
                 }
 
                 classMap.forEach { (packageName, classes) ->
-                    packagePage(versionWorkspace, packageName, classes)
+                    context.packagePage(versionWorkspace, packageName, classes)
                         .serialize(versionWorkspace, "$packageName/index.html")
                 }
 
-                overviewPage(versionWorkspace, classMap.keys)
+                context.overviewPage(versionWorkspace, classMap.keys)
                     .serialize(versionWorkspace, "index.html")
             }
 
-            versionsPage(mappings.entries.associate { (version, tree) -> version to tree.dstNamespaces }, styleSupplier::apply)
+            context.versionsPage(mappings.entries.associate { (version, tree) -> version to tree.dstNamespaces })
                 .serialize(workspace, "index.html")
         }
 
@@ -288,6 +289,15 @@ class WebGenerator(
 
         append("});")
     }
+}
+
+/**
+ * A generation context.
+ *
+ * @author Matouš Kučera
+ */
+class GenerationContext(val generator: WebGenerator, val styleSupplier: StyleSupplier) {
+    val index: ClassSearchIndex by generator::index
 
     /**
      * Gets a "friendly" destination name of an element.
@@ -296,21 +306,35 @@ class WebGenerator(
      * @return the name
      */
     fun getFriendlyDstName(elem: MappingTree.ElementMapping): String {
-        namespaceFriendlinessIndex.forEach { ns ->
+        generator.namespaceFriendlinessIndex.forEach { ns ->
             elem.getName(ns)?.let { return it }
         }
         return (0 until elem.tree.maxNamespaceId).firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
     }
 
     /**
-     * A synchronized [StyleSupplier] implementation.
+     * Formats a modifier integer into a string.
+     *
+     * @param mod the modifier integer
+     * @param mask the modifier mask (you can get that from the [java.lang.reflect.Modifier] class or use 0)
+     * @return the modifier string
      */
-    private class DefaultStyleSupplier(val styles: MutableMap<String, String> = mutableMapOf()) {
-        private val supplierLock: Lock = ReentrantLock()
+    fun formatModifiers(mod: Int, mask: Int): String = buildString {
+        val mMod = mod and mask
 
-        fun apply(k: String, s: String): String = supplierLock.withLock {
-            styles.putIfAbsent(k, s); k
-        }
+        if ((mMod and Opcodes.ACC_PUBLIC) != 0) append("public ")
+        if ((mMod and Opcodes.ACC_PRIVATE) != 0) append("private ")
+        if ((mMod and Opcodes.ACC_PROTECTED) != 0) append("protected ")
+        if ((mMod and Opcodes.ACC_STATIC) != 0) append("static ")
+        // an interface is implicitly abstract
+        // we need to check the unmasked modifiers here, since ACC_INTERFACE is not among Modifier#classModifiers
+        if ((mMod and Opcodes.ACC_ABSTRACT) != 0 && (mod and Opcodes.ACC_INTERFACE) == 0) append("abstract ")
+        if ((mMod and Opcodes.ACC_FINAL) != 0) append("final ")
+        if ((mMod and Opcodes.ACC_NATIVE) != 0) append("native ")
+        if ((mMod and Opcodes.ACC_STRICT) != 0) append("strict ")
+        if ((mMod and Opcodes.ACC_SYNCHRONIZED) != 0) append("synchronized ")
+        if ((mMod and Opcodes.ACC_TRANSIENT) != 0) append("transient ")
+        if ((mMod and Opcodes.ACC_VOLATILE) != 0) append("volatile ")
     }
 }
 
@@ -320,28 +344,14 @@ class WebGenerator(
 typealias StyleSupplier = (String, String) -> String
 
 /**
- * Formats a modifier integer into a string.
- *
- * @param mod the modifier integer
- * @param mask the modifier mask (you can get that from the [java.lang.reflect.Modifier] class or use 0)
- * @return the modifier string
+ * A synchronized [StyleSupplier] implementation.
  */
-fun formatModifiers(mod: Int, mask: Int): String = buildString {
-    val mMod = mod and mask
+class DefaultStyleSupplier(val styles: MutableMap<String, String> = mutableMapOf()) {
+    private val supplierLock: Lock = ReentrantLock()
 
-    if ((mMod and Opcodes.ACC_PUBLIC) != 0) append("public ")
-    if ((mMod and Opcodes.ACC_PRIVATE) != 0) append("private ")
-    if ((mMod and Opcodes.ACC_PROTECTED) != 0) append("protected ")
-    if ((mMod and Opcodes.ACC_STATIC) != 0) append("static ")
-    // an interface is implicitly abstract
-    // we need to check the unmasked modifiers here, since ACC_INTERFACE is not among Modifier#classModifiers
-    if ((mMod and Opcodes.ACC_ABSTRACT) != 0 && (mod and Opcodes.ACC_INTERFACE) == 0) append("abstract ")
-    if ((mMod and Opcodes.ACC_FINAL) != 0) append("final ")
-    if ((mMod and Opcodes.ACC_NATIVE) != 0) append("native ")
-    if ((mMod and Opcodes.ACC_STRICT) != 0) append("strict ")
-    if ((mMod and Opcodes.ACC_SYNCHRONIZED) != 0) append("synchronized ")
-    if ((mMod and Opcodes.ACC_TRANSIENT) != 0) append("transient ")
-    if ((mMod and Opcodes.ACC_VOLATILE) != 0) append("volatile ")
+    fun apply(k: String, s: String): String = supplierLock.withLock {
+        styles.putIfAbsent(k, s); k
+    }
 }
 
 /**
@@ -357,25 +367,3 @@ fun String.toInternalName(): String = replace('.', '/')
  * @return the replaced string
  */
 fun String.fromInternalName(): String = replace('/', '.')
-
-/**
- * A class type.
- */
-enum class ClassType {
-    CLASS, INTERFACE, ENUM;
-
-    override fun toString(): String = name.lowercase()
-        .replaceFirstChar { it.titlecase(Locale.getDefault()) }
-}
-
-/**
- * Makes a class type from a modifier.
- *
- * @param mod the modifier
- * @return the type
- */
-fun classTypeOf(mod: Int): ClassType = when {
-    (mod and Opcodes.ACC_INTERFACE) != 0 -> ClassType.INTERFACE
-    (mod and Opcodes.ACC_ENUM) != 0 -> ClassType.ENUM
-    else -> ClassType.CLASS
-}

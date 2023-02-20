@@ -3,7 +3,7 @@ package me.kcra.takenaka.generator.web.pages
 import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.VersionedWorkspace
-import me.kcra.takenaka.generator.web.WebGenerator
+import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.footerPlaceholderComponent
 import me.kcra.takenaka.generator.web.components.headComponent
 import me.kcra.takenaka.generator.web.components.navPlaceholderComponent
@@ -18,7 +18,7 @@ import org.w3c.dom.Document
  * @param packages the packages in this version
  * @return the generated document
  */
-fun WebGenerator.overviewPage(workspace: VersionedWorkspace, packages: Set<String>): Document = createHTMLDocument().html {
+fun GenerationContext.overviewPage(workspace: VersionedWorkspace, packages: Set<String>): Document = createHTMLDocument().html {
     headComponent(workspace.version.id)
     body {
         navPlaceholderComponent()

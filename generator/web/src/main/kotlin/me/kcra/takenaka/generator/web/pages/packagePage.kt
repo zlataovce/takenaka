@@ -4,7 +4,7 @@ import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.generator.web.ClassType
-import me.kcra.takenaka.generator.web.WebGenerator
+import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.footerPlaceholderComponent
 import me.kcra.takenaka.generator.web.components.headComponent
 import me.kcra.takenaka.generator.web.components.navPlaceholderComponent
@@ -20,7 +20,7 @@ import org.w3c.dom.Document
  * @param classes the friendly class names
  * @return the generated document
  */
-fun WebGenerator.packagePage(workspace: VersionedWorkspace, packageName: String, classes: Map<String, ClassType>): Document = createHTMLDocument().html {
+fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: String, classes: Map<String, ClassType>): Document = createHTMLDocument().html {
     val packageName0 = packageName.fromInternalName()
 
     headComponent(packageName0)
