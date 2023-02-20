@@ -1,18 +1,21 @@
 # takenaka
 
-A Kotlin library for reconciling multiple obfuscation mapping files over multiple versions of Minecraft: JE.
+A Kotlin library for reconciling multiple obfuscation mapping files from multiple versions of Minecraft: JE.
 
 The goal of this project is to improve the maintainability and performance of the [NMSMapper](https://github.com/ScreamingSandals/NMSMapper) library.
 
 ## Features
 
-- [ ] Cross-version history comparison
-  - [x] for classes
-  - [ ] for class members (fields and methods)
-- [ ] Documentation generation (mappings comparison website)
-  - [ ] with a modern look, responsive
-  - [ ] generics support
-- [ ] Accessor generation
+* fetching and deserialization of various mappings
+* parsing of the server JAR (modifiers, superclasses, superinterfaces and more)
+* cross-version mapping ancestry comparison
+* web documentation generation (including generics!)
+
+### Planned features
+
+- [ ] cross-version history comparison for class members (fields and methods)
+- [ ] history page for the web documentation
+- [ ] reflective accessor generation
 
 ### Mappings
 
