@@ -95,7 +95,7 @@ class MojangServerMappingResolver(
      */
     override fun licenseReader(): Reader? {
         // read first line of the mapping file
-        return reader()?.buffered()?.use { it.readLine().reader() }
+        return reader()?.buffered()?.use { it.readLine().removePrefix("# ").reader() }
     }
 
     /**
@@ -106,6 +106,7 @@ class MojangServerMappingResolver(
     override fun accept(visitor: MappingVisitor) {
         // Mojang maps are original -> obfuscated, so we need to switch it beforehand
         reader()?.let { ProGuardReader.read(it, targetNamespace, MappingUtil.NS_SOURCE_FALLBACK, MappingSourceNsSwitch(visitor, MappingUtil.NS_SOURCE_FALLBACK)) }
+        licenseReader()?.use { visitor.visitMetadata(META_LICENSE, it.readText()) }
     }
 
     companion object {
@@ -113,5 +114,10 @@ class MojangServerMappingResolver(
          * The file name of the cached server mappings.
          */
         const val MAPPINGS = "mojang_mappings.txt"
+
+        /**
+         * The license metadata key.
+         */
+        const val META_LICENSE = "mojang_license"
     }
 }

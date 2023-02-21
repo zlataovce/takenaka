@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.readText
 import java.net.HttpURLConnection

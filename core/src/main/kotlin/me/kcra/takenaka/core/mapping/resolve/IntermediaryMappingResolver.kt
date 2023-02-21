@@ -110,7 +110,9 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
     override fun accept(visitor: MappingVisitor) {
         // Intermediary has official and intermediary namespaces
         // official is the obfuscated one
-        reader()?.let { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK))) }
+        reader()?.use { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK))) }
+        // limit the license file to 12 lines for conciseness
+        licenseReader().buffered().use { visitor.visitMetadata(META_LICENSE, it.lineSequence().take(12).joinToString("\n")) }
     }
 
     companion object {
@@ -123,5 +125,10 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
          * The file name of the cached license file.
          */
         const val LICENSE = "intermediary_license.txt"
+
+        /**
+         * The license metadata key.
+         */
+        const val META_LICENSE = "intermediary_license"
     }
 }

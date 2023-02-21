@@ -40,3 +40,17 @@ class ElementRemapper(val tree: MappingTree, val elementMapper: ElementMapper) :
         tree.getClass(owner)?.getField(name, descriptor)?.let(elementMapper) ?: name
     override fun map(internalName: String): String = tree.getClass(internalName)?.let(elementMapper) ?: internalName
 }
+
+/**
+ * Replaces dots with slashes (e.g. qualified class name to internal name).
+ *
+ * @return the replaced string
+ */
+fun String.toInternalName(): String = replace('.', '/')
+
+/**
+ * Replaces slashes with dots (e.g. internal name to qualified class name).
+ *
+ * @return the replaced string
+ */
+fun String.fromInternalName(): String = replace('/', '.')

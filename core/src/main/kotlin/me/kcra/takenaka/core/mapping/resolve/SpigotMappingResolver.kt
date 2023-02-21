@@ -23,6 +23,7 @@ import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
+import me.kcra.takenaka.core.mapping.adapter.LegacySpigotMappingPrepender
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
@@ -32,6 +33,7 @@ import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.format.TsrgReader
 import net.fabricmc.mappingio.tree.MappingTree
+import net.fabricmc.mappingio.tree.MappingTreeView
 import java.io.Reader
 import java.net.URL
 
@@ -99,7 +101,7 @@ abstract class AbstractSpigotMappingResolver(
      */
     override fun licenseReader(): Reader? {
         // read first line of the mapping file
-        return reader()?.buffered()?.use { it.readLine().reader() }
+        return reader()?.buffered()?.use { it.readLine().removePrefix("# ").reader() }
     }
 
     /**
@@ -117,6 +119,14 @@ abstract class AbstractSpigotMappingResolver(
 
             TsrgReader.read(it, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor)
         }
+        licenseReader()?.use { visitor.visitMetadata(META_LICENSE, it.readText()) }
+    }
+
+    companion object {
+        /**
+         * The license metadata key.
+         */
+        const val META_LICENSE = "spigot_license"
     }
 }
 
@@ -153,13 +163,13 @@ class SpigotMemberMappingResolver(
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        if (visitor !is MappingTree) {
-            throw UnsupportedOperationException("Spigot class members can only be visited to a mapping tree")
+        if (visitor !is MappingTreeView) {
+            throw UnsupportedOperationException("Spigot class member mappings can only be visited to a mapping tree")
         }
 
         val namespaceId = visitor.getNamespaceId(targetNamespace)
         if (namespaceId == MappingTree.NULL_NAMESPACE_ID) {
-            error("Mapping tree has not visited Spigot class members before")
+            error("Mapping tree has not visited Spigot class mappings before")
         }
 
         while (true) {
@@ -178,6 +188,8 @@ class SpigotMemberMappingResolver(
                     val srcName = columns[1]
 
                     val ownerKlass = visitor.getClass(owner, namespaceId)
+                        ?: visitor.getClass(LegacySpigotMappingPrepender.PREPENDING_REMAPPER.map(owner), namespaceId)
+
                     if (ownerKlass == null) {
                         logger.warn { "skipping field $srcName in $owner, unknown owner" }
                         return@forEachLine

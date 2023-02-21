@@ -31,7 +31,6 @@ import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import org.objectweb.asm.ClassReader
-import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.ClassNode
 import java.io.File
 import java.net.URL
@@ -53,7 +52,6 @@ class VanillaMappingContributor(
     objectMapper: ObjectMapper
 ) : MojangManifestConsumer(workspace, objectMapper), MappingContributor {
     private val sha1Digest = MessageDigest.getInstance("SHA-1")
-    private val classPattern = "net/minecraft/.*\\.class|[^/]+\\.class".toRegex()
     override val targetNamespace: String = MappingUtil.NS_SOURCE_FALLBACK
 
     /**
@@ -119,7 +117,7 @@ class VanillaMappingContributor(
 
         fun readJar(zf: ZipFile): List<ClassNode> {
             return zf.stream()
-                .filter { it.name.matches(classPattern) && !it.isDirectory }
+                .filter { it.name.matches(CLASS_PATTERN) && !it.isDirectory }
                 .map { entry ->
                     ClassNode().also { klass ->
                         zf.getInputStream(entry).use { inputStream ->
@@ -183,6 +181,8 @@ class VanillaMappingContributor(
     }
 
     companion object {
+        private val CLASS_PATTERN = "net/minecraft/.*\\.class|[^/]+\\.class".toRegex()
+
         /**
          * The file name of the cached server JAR.
          */

@@ -20,13 +20,13 @@ package me.kcra.takenaka.generator.web.pages
 import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.web.ClassType
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.footerPlaceholderComponent
 import me.kcra.takenaka.generator.web.components.headComponent
 import me.kcra.takenaka.generator.web.components.navPlaceholderComponent
 import me.kcra.takenaka.generator.web.components.spacerBottomComponent
-import me.kcra.takenaka.generator.web.fromInternalName
 import org.w3c.dom.Document
 
 /**

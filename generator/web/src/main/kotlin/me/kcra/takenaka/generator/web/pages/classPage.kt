@@ -22,7 +22,9 @@ import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
+import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
+import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.components.*
 import net.fabricmc.mappingio.tree.MappingTree

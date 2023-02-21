@@ -42,7 +42,7 @@ open class MojangManifestConsumer(
     /**
      * The version attributes.
      */
-    protected val attributes: VersionAttributes by lazy(::readAttributes)
+    val attributes: VersionAttributes by lazy(::readAttributes)
 
     /**
      * Reads the attributes of the targeted version from cache, fetching it if the cache missed.

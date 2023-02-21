@@ -123,9 +123,17 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        // Searge has obf, srg and id namespaces
-        // obf is the obfuscated one
-        reader()?.let { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("obf" to MappingUtil.NS_SOURCE_FALLBACK, "srg" to "searge", "id" to "searge_id"))) }
+        // Searge has obf, srg and id namespaces; obf is the obfuscated one
+        reader()?.let {
+            MappingReader.read(it, MappingNsRenamer(visitor, mapOf(
+                "obf" to MappingUtil.NS_SOURCE_FALLBACK,
+                "srg" to "searge",
+                "id" to "searge_id",
+                // in older versions, there weren't any namespaces, so make sure to rename the fallback too
+                MappingUtil.NS_TARGET_FALLBACK to "searge"
+            )))
+        }
+        licenseReader().use { visitor.visitMetadata(META_LICENSE, it.readText()) }
     }
 
     /**
@@ -166,5 +174,10 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
          * The file name of the cached license file.
          */
         const val LICENSE = "searge_license.txt"
+
+        /**
+         * The license metadata key.
+         */
+        const val META_LICENSE = "searge_license"
     }
 }

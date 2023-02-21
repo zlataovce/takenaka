@@ -20,11 +20,9 @@ package me.kcra.takenaka.core.test.mapping.resolve
 import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.*
 import me.kcra.takenaka.core.*
-import me.kcra.takenaka.core.mapping.MissingDescriptorFilter
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
-import net.fabricmc.mappingio.format.Tiny1Writer
 import net.fabricmc.mappingio.tree.MemoryMappingTree
 import java.io.File
 import kotlin.system.measureTimeMillis
@@ -108,7 +106,7 @@ suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper
     return@coroutineScope file
 }
 
-fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, save: Boolean = true): VersionedMappingMap = runBlocking {
+fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper): VersionedMappingMap = runBlocking {
     val manifest = objectMapper.versionManifest()
     val jobs = mutableListOf<Deferred<Pair<Version, MemoryMappingTree>>>()
 
@@ -118,10 +116,6 @@ fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, save: Boolean
         jobs += async {
             val workspace = versioned(version)
             val tree = workspace.resolveVersionMappings(objectMapper)
-
-            if (save) {
-                tree.accept(MissingDescriptorFilter(Tiny1Writer(workspace["joined.tiny"].writer())))
-            }
 
             version to tree
         }

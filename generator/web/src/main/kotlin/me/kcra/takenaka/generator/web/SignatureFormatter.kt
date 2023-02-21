@@ -18,6 +18,7 @@
 package me.kcra.takenaka.generator.web
 
 import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.core.mapping.fromInternalName
 import net.fabricmc.mappingio.tree.MappingTree
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.commons.Remapper

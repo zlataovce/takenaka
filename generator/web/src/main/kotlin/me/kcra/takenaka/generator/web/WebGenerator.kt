@@ -353,17 +353,3 @@ class DefaultStyleSupplier(val styles: MutableMap<String, String> = mutableMapOf
         styles.putIfAbsent(k, s); k
     }
 }
-
-/**
- * Replaces dots with slashes (e.g. qualified class name to internal name).
- *
- * @return the replaced string
- */
-fun String.toInternalName(): String = replace('.', '/')
-
-/**
- * Replaces slashes with dots (e.g. internal name to qualified class name).
- *
- * @return the replaced string
- */
-fun String.fromInternalName(): String = replace('/', '.')
