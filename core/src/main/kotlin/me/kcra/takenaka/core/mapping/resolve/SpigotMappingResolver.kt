@@ -31,6 +31,7 @@ import mu.KotlinLogging
 import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
+import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
 import net.fabricmc.mappingio.format.TsrgReader
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
@@ -163,11 +164,15 @@ class SpigotMemberMappingResolver(
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        if (visitor !is MappingTreeView) {
+        var visitor0 = visitor
+
+        // HACK!
+        while (visitor0 is ForwardingMappingVisitor) visitor0 = NEXT_VISITOR_FIELD.get(visitor0) as MappingVisitor
+        if (visitor0 !is MappingTreeView) {
             throw UnsupportedOperationException("Spigot class member mappings can only be visited to a mapping tree")
         }
 
-        val namespaceId = visitor.getNamespaceId(targetNamespace)
+        val namespaceId = visitor0.getNamespaceId(targetNamespace)
         if (namespaceId == MappingTree.NULL_NAMESPACE_ID) {
             error("Mapping tree has not visited Spigot class mappings before")
         }
@@ -187,11 +192,12 @@ class SpigotMemberMappingResolver(
                     val owner = columns[0]
                     val srcName = columns[1]
 
-                    val ownerKlass = visitor.getClass(owner, namespaceId)
-                        ?: visitor.getClass(LegacySpigotMappingPrepender.PREPENDING_REMAPPER.map(owner), namespaceId)
+                    val ownerKlass = visitor0.getClass(owner, namespaceId)
+                        ?: visitor0.getClass(LegacySpigotMappingPrepender.PREPENDING_REMAPPER.map(owner), namespaceId)
+                        ?: visitor0.getClass(owner) // search for unobfuscated class names as well, like Main and MinecraftServer
 
                     if (ownerKlass == null) {
-                        logger.warn { "skipping field $srcName in $owner, unknown owner" }
+                        logger.warn { "skipping member $srcName in $owner, unknown owner" }
                         return@forEachLine
                     }
 
@@ -224,5 +230,9 @@ class SpigotMemberMappingResolver(
                 break
             }
         }
+    }
+
+    companion object {
+        private val NEXT_VISITOR_FIELD = ForwardingMappingVisitor::class.java.getDeclaredField("next").apply { isAccessible = true }
     }
 }

@@ -13,11 +13,12 @@ import org.objectweb.asm.commons.Remapper
  *
  * @param dstNamespace the namespace, whose mappings are to be modified
  * @param prependAll whether every class name should be prefixed (or have their package replaced), only package-less class names are prefixed by default
+ * @param prependedClasses the classes that have been prepended and should be remapped in descriptors
  * @param next the visitor to delegate to
  * @author Matouš Kučera
  */
-class LegacySpigotMappingPrepender(next: MappingVisitor, prependAll: Boolean = false, val dstNamespace: String = "spigot") : ForwardingMappingVisitor(next) {
-    private val remapper = PrependingRemapper(prependAll)
+class LegacySpigotMappingPrepender(next: MappingVisitor, prependAll: Boolean = false, val dstNamespace: String = "spigot", val prependedClasses: MutableList<String> = mutableListOf()) : ForwardingMappingVisitor(next) {
+    private val remapper = PrependingRemapper(prependAll, prependedClasses)
 
     private var srcNamespace: String? = null
     private var dstNamespaces: MutableList<String>? = null
@@ -33,7 +34,10 @@ class LegacySpigotMappingPrepender(next: MappingVisitor, prependAll: Boolean = f
         var name0 = name
 
         if (name0 != null && targetKind == MappedElementKind.CLASS && dstNamespaces?.get(namespace) == dstNamespace) {
-            name0 = remapper.map(name0.toInternalName())
+            name0 = name0.toInternalName()
+
+            prependedClasses += name0
+            name0 = remapper.map(name0)
         }
 
         super.visitDstName(targetKind, namespace, name0)
@@ -53,10 +57,11 @@ class LegacySpigotMappingPrepender(next: MappingVisitor, prependAll: Boolean = f
      * A [Remapper] that prepends class names with `net.minecraft.server.VVV`.
      *
      * @param remapAll whether every class name should be prefixed (or have their package replaced), only package-less class names are prefixed by default
+     * @param prependedClasses the classes that have been prepended and should be remapped in descriptors
      */
-    class PrependingRemapper(val remapAll: Boolean = false) : Remapper() {
+    class PrependingRemapper(val remapAll: Boolean = false, val prependedClasses: MutableList<String> = mutableListOf()) : Remapper() {
         override fun map(internalName: String): String {
-            if ((remapAll && (internalName.startsWith("net/minecraft") || internalName.startsWith("com/mojang"))) || !internalName.contains('/')) {
+            if ((remapAll && (prependedClasses.isEmpty() || internalName in prependedClasses)) || !internalName.contains('/')) {
                 return "net/minecraft/server/VVV/${internalName.substringAfterLast('/')}"
             }
             return internalName
