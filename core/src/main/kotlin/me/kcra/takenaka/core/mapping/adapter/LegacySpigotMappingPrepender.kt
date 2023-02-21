@@ -56,7 +56,7 @@ class LegacySpigotMappingPrepender(next: MappingVisitor, prependAll: Boolean = f
      */
     class PrependingRemapper(val remapAll: Boolean = false) : Remapper() {
         override fun map(internalName: String): String {
-            if (remapAll || !internalName.contains('/')) {
+            if ((remapAll && (internalName.startsWith("net/minecraft") || internalName.startsWith("com/mojang"))) || !internalName.contains('/')) {
                 return "net/minecraft/server/VVV/${internalName.substringAfterLast('/')}"
             }
             return internalName
