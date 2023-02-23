@@ -1,3 +1,20 @@
+/*
+ * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
+ *
+ * Copyright (c) 2023 Matous Kucera
+ *
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package me.kcra.takenaka.core.mapping.adapter
 
 import me.kcra.takenaka.core.mapping.toInternalName
@@ -9,22 +26,22 @@ import org.objectweb.asm.commons.Remapper
 /**
  * A mapping visitor that prepends an implicit `net.minecraft.server.VVV` package prefix, if needed.
  *
- * NOTE: the "Legacy" part of the class name is not related to [The Flattening](https://minecraft.fandom.com/wiki/Java_Edition_1.13/Flattening).
+ * Spigot mappings have had an implicit `net.minecraft.server.VVV` package, `VVV` being the CraftBukkit NMS version (e.g. 1_19_R2, you can get this from the CraftBukkit POM), until 1.17.
+ * In one of the last 1.16.5 BuildData commits, packages were added to the mappings, even though they are not present in the distributed reobfuscated JARs.
+ * To solve this, you can apply [LegacySpigotMappingPrepender] instances to both a [me.kcra.takenaka.core.mapping.resolve.SpigotClassMappingResolver] and a [me.kcra.takenaka.core.mapping.resolve.SpigotMemberMappingResolver],
+ * passing the same instance of [prependedClasses] to both.
  *
- * @param dstNamespace the namespace, whose mappings are to be modified
- * @param prependAll whether every class name should be prefixed (or have their package replaced), only package-less class names are prefixed by default
- * @param prependedClasses the classes that have been prepended and should be remapped in descriptors
+ * @param namespace the namespace, whose mappings are to be modified (most likely `spigot` or to be exact, [me.kcra.takenaka.core.mapping.resolve.AbstractSpigotMappingResolver.targetNamespace])
+ * @param prependedClasses the classes that have been prepended and should be remapped in descriptors (only class names that are a package-replace candidate should be specified here, any class name without a package will have a prefix prepended implicitly)
  * @param next the visitor to delegate to
  * @author Matouš Kučera
  */
-class LegacySpigotMappingPrepender(next: MappingVisitor, prependAll: Boolean = false, val dstNamespace: String = "spigot", val prependedClasses: MutableList<String> = mutableListOf()) : ForwardingMappingVisitor(next) {
-    private val remapper = PrependingRemapper(prependAll, prependedClasses)
+class LegacySpigotMappingPrepender(next: MappingVisitor, val namespace: String = "spigot", val prependedClasses: MutableList<String> = mutableListOf()) : ForwardingMappingVisitor(next) {
+    private val remapper = PrependingRemapper(prependedClasses = prependedClasses)
 
-    private var srcNamespace: String? = null
-    private var dstNamespaces: MutableList<String>? = null
+    private var dstNamespaces: List<String> = emptyList()
 
     override fun visitNamespaces(srcNamespace: String, dstNamespaces: MutableList<String>) {
-        this.srcNamespace = srcNamespace
         this.dstNamespaces = dstNamespaces
 
         super.visitNamespaces(srcNamespace, dstNamespaces)
@@ -33,7 +50,7 @@ class LegacySpigotMappingPrepender(next: MappingVisitor, prependAll: Boolean = f
     override fun visitDstName(targetKind: MappedElementKind, namespace: Int, name: String?) {
         var name0 = name
 
-        if (name0 != null && targetKind == MappedElementKind.CLASS && dstNamespaces?.get(namespace) == dstNamespace) {
+        if (name0 != null && targetKind == MappedElementKind.CLASS && dstNamespaces[namespace] == this.namespace) {
             name0 = name0.toInternalName()
 
             prependedClasses += name0
@@ -46,7 +63,7 @@ class LegacySpigotMappingPrepender(next: MappingVisitor, prependAll: Boolean = f
     override fun visitDstDesc(targetKind: MappedElementKind, namespace: Int, desc: String?) {
         var desc0 = desc
 
-        if (desc0 != null && dstNamespaces?.get(namespace) == dstNamespace) {
+        if (desc0 != null && dstNamespaces[namespace] == this.namespace) {
             desc0 = remapper.mapDesc(desc0)
         }
 
@@ -56,12 +73,11 @@ class LegacySpigotMappingPrepender(next: MappingVisitor, prependAll: Boolean = f
     /**
      * A [Remapper] that prepends class names with `net.minecraft.server.VVV`.
      *
-     * @param remapAll whether every class name should be prefixed (or have their package replaced), only package-less class names are prefixed by default
-     * @param prependedClasses the classes that have been prepended and should be remapped in descriptors
+     * @param prependedClasses the classes that have been prepended and should be remapped in descriptors (only class names that are a package-replace candidate should be specified here, any class name without a package will have a prefix prepended implicitly)
      */
-    class PrependingRemapper(val remapAll: Boolean = false, val prependedClasses: MutableList<String> = mutableListOf()) : Remapper() {
+    class PrependingRemapper(val prependedClasses: List<String> = emptyList()) : Remapper() {
         override fun map(internalName: String): String {
-            if ((remapAll && (prependedClasses.isEmpty() || internalName in prependedClasses)) || !internalName.contains('/')) {
+            if (!internalName.contains('/') || internalName in prependedClasses) {
                 return "net/minecraft/server/VVV/${internalName.substringAfterLast('/')}"
             }
             return internalName
@@ -72,6 +88,6 @@ class LegacySpigotMappingPrepender(next: MappingVisitor, prependAll: Boolean = f
         /**
          * A default instance.
          */
-        val PREPENDING_REMAPPER = PrependingRemapper(remapAll = true)
+        val PREPENDING_REMAPPER = PrependingRemapper()
     }
 }

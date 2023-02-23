@@ -27,7 +27,7 @@ import net.fabricmc.mappingio.tree.MappingTree
  * @property allowedNamespaces namespace IDs that are used in this tree for tracing history, per version
  * @author Matouš Kučera
  */
-data class ClassAncestryTree(val allowedNamespaces: MutableMap<Version, Collection<Int>> = mutableMapOf()) : MutableList<ClassAncestryTree.Node> by mutableListOf() {
+data class ClassAncestryTree(val allowedNamespaces: MutableMap<Version, List<Int>> = mutableMapOf()) : MutableList<ClassAncestryTree.Node> by mutableListOf() {
     /**
      * A node in the ancestry tree.
      * This represents one class in multiple versions.
