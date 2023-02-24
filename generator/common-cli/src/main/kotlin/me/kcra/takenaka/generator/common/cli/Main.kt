@@ -44,12 +44,20 @@ fun main(args: Array<String>) {
     parser.parse(args)
 
     val versionList = versions.split(',')
+    val options = resolverOptions {
+        if (!strictCache) {
+            relaxedCache()
+        }
+    }
 
-    var options = resolverOptionsOf()
-    if (!strictCache) options = options.relaxedCache()
-
-    val workspace = workspaceOf(output, options)
-    val mappingWorkspace = compositeWorkspaceOf(mappingCache, options)
+    val workspace = workspace {
+        rootDirectory = output
+        resolverOptions = options
+    }
+    val mappingWorkspace = compositeWorkspace {
+        rootDirectory = mappingCache
+        resolverOptions = options
+    }
 
     if (clean) {
         workspace.clean()

@@ -23,7 +23,6 @@ import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.mapping.adapter.LegacySpigotMappingPrepender
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
@@ -193,8 +192,8 @@ class SpigotMemberMappingResolver(
                     val srcName = columns[1]
 
                     val ownerKlass = visitor0.getClass(owner, namespaceId)
-                        ?: visitor0.getClass(LegacySpigotMappingPrepender.PREPENDING_REMAPPER.map(owner), namespaceId)
-                        ?: visitor0.getClass(owner) // search for unobfuscated class names as well, like Main and MinecraftServer
+                        ?: visitor0.getClass("net/minecraft/server/VVV/${owner.substringAfterLast('/')}", namespaceId) // search for prefixed class names
+                        ?: visitor0.getClass(owner) // search for unobfuscated class names, like Main and MinecraftServer
 
                     if (ownerKlass == null) {
                         logger.warn { "skipping member $srcName in $owner, unknown owner" }

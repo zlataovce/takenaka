@@ -20,19 +20,12 @@ package me.kcra.takenaka.core
 import java.io.File
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.reflect.KProperty
 
 /**
  * Options for resolvers, these are integers ORed together.
  */
 typealias ResolverOptions = Int
-
-/**
- * Creates resolver options from multiple options.
- *
- * @param options the options
- * @return the resolver options
- */
-fun resolverOptionsOf(vararg options: Int): ResolverOptions = options.reduceOrNull { v1, v2 -> v1 or v2 } ?: 0
 
 /**
  * Checks if the options contain an option.
@@ -43,10 +36,62 @@ fun resolverOptionsOf(vararg options: Int): ResolverOptions = options.reduceOrNu
 operator fun ResolverOptions.contains(option: Int): Boolean = (this and option) != 0
 
 /**
+ * Creates mutable resolver options from immutable ones.
+ *
+ * @return the resolver options
+ */
+fun ResolverOptions.toMutableResolverOptions() = MutableResolverOptions(this)
+
+/**
+ * Mutable resolver options.
+ *
+ * @property value the integer value, internal use only (or for resolver implementations)
+ * @author Matouš Kučera
+ */
+class MutableResolverOptions(var value: ResolverOptions = 0) {
+    /**
+     * Appends the [RELAXED_CACHE] option.
+     */
+    fun relaxedCache() {
+        value = value or RELAXED_CACHE
+    }
+
+    /**
+     * Checks if the options contain an option.
+     *
+     * @param option the option to check
+     * @return do the options contain the option?
+     */
+    operator fun contains(option: Int): Boolean = (value and option) != 0
+
+    /**
+     * Returns the resolver options.
+     *
+     * @return the value
+     */
+    fun toResolverOptions(): ResolverOptions = value
+}
+
+/**
+ * Creates resolver options from multiple options.
+ *
+ * @param options the options
+ * @return the resolver options
+ */
+fun resolverOptionsOf(vararg options: Int): ResolverOptions = options.reduceOrNull { v1, v2 -> v1 or v2 } ?: 0
+
+/**
+ * Creates resolver options from a builder.
+ *
+ * @param block the builder action
+ * @return the resolver options
+ */
+inline fun resolverOptions(block: MutableResolverOptions.() -> Unit): MutableResolverOptions = MutableResolverOptions().apply(block)
+
+/**
  * Requests resolvers to cache items without a checksum.
  */
-const val RELAXED_CACHE = 0x00000001
-fun ResolverOptions.relaxedCache(): ResolverOptions = this or RELAXED_CACHE
+const val RELAXED_CACHE: ResolverOptions = 0x00000001
 
 /**
  * A filesystem-based workspace.
@@ -63,21 +108,6 @@ interface Workspace {
     val resolverOptions: ResolverOptions
 
     /**
-     * Converts this workspace to a versioned one.
-     *
-     * @param version the version to which the workspace should belong
-     * @return the versioned workspace
-     */
-    fun asVersioned(version: Version): VersionedWorkspace = VersionedWorkspace(rootDirectory, resolverOptions, version)
-
-    /**
-     * Converts this workspace to a composite one.
-     *
-     * @return the composite workspace
-     */
-    fun asComposite(): CompositeWorkspace = CompositeWorkspace(rootDirectory, resolverOptions)
-
-    /**
      * Cleans this workspace.
      *
      * The default behavior is to completely remove the [rootDirectory] and recreate it.
@@ -85,6 +115,16 @@ interface Workspace {
     fun clean() {
         rootDirectory.deleteRecursively()
         rootDirectory.mkdirs()
+    }
+
+    /**
+     * Creates a mutable workspace from this workspace.
+     *
+     * @return the workspace
+     */
+    fun toMutableWorkspace(): MutableWorkspace = MutableWorkspace().apply {
+        this.rootDirectory = this@Workspace.rootDirectory.absolutePath
+        this.resolverOptions = this@Workspace.resolverOptions.toMutableResolverOptions()
     }
 
     /**
@@ -102,41 +142,95 @@ interface Workspace {
      * @return the file
      */
     operator fun get(file: String): File = rootDirectory.resolve(file)
-}
 
-/**
- * Creates a new workspace.
- *
- * @param rootDirectory the workspaces' root directory
- * @param resolverOptions the resolver options
- * @return the workspace
- */
-fun workspaceOf(rootDirectory: String, resolverOptions: ResolverOptions = resolverOptionsOf()): Workspace =
-    Simple(File(rootDirectory), resolverOptions)
-
-/**
- * A simple sub-workspace with a user-defined name.
- */
-private class Simple(override val rootDirectory: File, override val resolverOptions: ResolverOptions = resolverOptionsOf()) : Workspace {
-    init {
-        rootDirectory.mkdirs()
+    /**
+     * Converts this workspace to a composite one.
+     *
+     * @return the composite workspace
+     */
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): CompositeWorkspace {
+        if (this is CompositeWorkspace) return this
+        return CompositeWorkspace(rootDirectory, resolverOptions)
     }
 }
 
 /**
- * Creates a new composite workspace.
+ * A workspace builder.
  *
- * @param rootDirectory the workspaces' root directory
- * @param resolverOptions the resolver options
+ * @author Matouš Kučera
+ */
+open class MutableWorkspace {
+    /**
+     * The workspaces' root directory.
+     */
+    open lateinit var rootDirectory: String
+
+    /**
+     * The resolver options.
+     */
+    open var resolverOptions: MutableResolverOptions = MutableResolverOptions()
+
+    /**
+     * Creates a workspace from this builder.
+     *
+     * @return the simple workspace
+     */
+    open fun toWorkspace(): Workspace = Simple(File(rootDirectory), resolverOptions.toResolverOptions())
+
+    /**
+     * Applies an action to [resolverOptions].
+     *
+     * @param block the builder action
+     */
+    inline fun resolverOptions(block: MutableResolverOptions.() -> Unit) {
+        resolverOptions.apply(block)
+    }
+
+    /**
+     * A simple workspace.
+     */
+    private class Simple(override val rootDirectory: File, override val resolverOptions: ResolverOptions = resolverOptionsOf()) : Workspace {
+        init {
+            rootDirectory.mkdirs()
+        }
+    }
+}
+
+/**
+ * Creates a workspace from a builder.
+ *
+ * @param block the builder action
  * @return the workspace
  */
-fun compositeWorkspaceOf(rootDirectory: String, resolverOptions: ResolverOptions = resolverOptionsOf()): CompositeWorkspace =
-    CompositeWorkspace(File(rootDirectory), resolverOptions)
+inline fun workspace(block: MutableWorkspace.() -> Unit): Workspace = MutableWorkspace().apply(block).toWorkspace()
+
+/**
+ * A composite workspace builder.
+ *
+ * @author Matouš Kučera
+ */
+open class MutableCompositeWorkspace : MutableWorkspace() {
+    /**
+     * Creates a composite workspace from this builder.
+     *
+     * @return the composite workspace
+     */
+    override fun toWorkspace() = CompositeWorkspace(File(rootDirectory), resolverOptions.toResolverOptions())
+}
+
+/**
+ * Creates a composite workspace from a builder.
+ *
+ * @param block the builder action
+ * @return the workspace
+ */
+inline fun compositeWorkspace(block: MutableCompositeWorkspace.() -> Unit): CompositeWorkspace = MutableCompositeWorkspace().apply(block).toWorkspace()
 
 /**
  * A workspace, which houses multiple sub-workspaces.
  *
  * @property rootDirectory the workspace root
+ * @property resolverOptions the resolver options
  */
 class CompositeWorkspace(override val rootDirectory: File, override val resolverOptions: ResolverOptions = resolverOptionsOf()) : Workspace {
     init {
@@ -144,38 +238,116 @@ class CompositeWorkspace(override val rootDirectory: File, override val resolver
     }
 
     /**
-     * Creates a new versioned sub-workspace.
-     *
-     * @param version the version to which the sub-workspace should belong
-     * @return the sub-workspace
-     */
-    fun versioned(version: Version): VersionedWorkspace =
-        VersionedWorkspace(rootDirectory.resolve(version.id), resolverOptions, version)
-
-    /**
      * Creates a new sub-workspace with a unique name.
      *
-     * @param name the name of the sub-workspace
      * @return the sub-workspace
      */
-    fun workspace(name: String): Workspace = Simple(rootDirectory.resolve(name), resolverOptions)
+    inline fun workspace(crossinline block: Builder.() -> Unit): Lazy<Workspace> = lazy { Builder().apply(block).toWorkspace() }
 
     /**
      * Creates a new composite sub-workspace with a unique name.
      *
-     * @param name the name of the sub-workspace
      * @return the sub-workspace
      */
-    fun composite(name: String): CompositeWorkspace =
-        CompositeWorkspace(rootDirectory.resolve(name), resolverOptions)
+    inline fun composite(crossinline block: CompositeBuilder.() -> Unit): Lazy<CompositeWorkspace> = lazy { CompositeBuilder().apply(block).toWorkspace() }
 
-    override fun asComposite(): CompositeWorkspace = this
+    /**
+     * Creates a new versioned sub-workspace.
+     *
+     * @return the sub-workspace
+     */
+    inline fun versioned(crossinline block: VersionedBuilder.() -> Unit): Lazy<VersionedWorkspace> = lazy { VersionedBuilder().apply(block).toWorkspace() }
+
+    /**
+     * A base workspace builder.
+     */
+    inner class Builder : MutableWorkspace() {
+        /**
+         * The workspace name.
+         */
+        var name: String
+            get() = rootDirectory.substringAfterLast(File.separatorChar)
+            set(value) {
+                rootDirectory = this@CompositeWorkspace.rootDirectory.resolve(value).absolutePath
+            }
+
+        init {
+            resolverOptions = this@CompositeWorkspace.resolverOptions.toMutableResolverOptions()
+        }
+    }
+
+    /**
+     * A composite workspace builder.
+     */
+    inner class CompositeBuilder : MutableCompositeWorkspace() {
+        /**
+         * The workspace name.
+         */
+        var name: String
+            get() = rootDirectory.substringAfterLast(File.separatorChar)
+            set(value) {
+                rootDirectory = this@CompositeWorkspace.rootDirectory.resolve(value).absolutePath
+            }
+
+        init {
+            resolverOptions = this@CompositeWorkspace.resolverOptions.toMutableResolverOptions()
+        }
+    }
+
+    /**
+     * A versioned workspace builder.
+     */
+    inner class VersionedBuilder : MutableVersionedWorkspace() {
+        /**
+         * The user-defined root directory.
+         */
+        private var rootDirectory_: String? = null
+
+        /**
+         * Returns the user-defined root directory or a directory named by the version.
+         */
+        override var rootDirectory: String
+            get() = rootDirectory_ ?: this@CompositeWorkspace.rootDirectory.resolve(version.id).absolutePath
+            set(value) {
+                rootDirectory_ = value
+            }
+
+        init {
+            resolverOptions = this@CompositeWorkspace.resolverOptions.toMutableResolverOptions()
+        }
+    }
 }
+
+/**
+ * A versioned workspace builder.
+ */
+open class MutableVersionedWorkspace : MutableWorkspace() {
+    /**
+     * The version.
+     */
+    lateinit var version: Version
+
+    /**
+     * Creates a versioned workspace from this builder.
+     *
+     * @return the versioned workspace
+     */
+    override fun toWorkspace() = VersionedWorkspace(File(rootDirectory), resolverOptions.toResolverOptions(), version)
+}
+
+/**
+ * Creates a versioned workspace from a builder.
+ *
+ * @param block the builder action
+ * @return the workspace
+ */
+inline fun versionedWorkspace(block: MutableVersionedWorkspace.() -> Unit): VersionedWorkspace = MutableVersionedWorkspace().apply(block).toWorkspace()
 
 /**
  * A workspace, which belongs to a specific Minecraft version.
  *
  * @property rootDirectory the workspace root
+ * @property resolverOptions the resolver options
  * @property version the version which this workspace belongs to
  */
 class VersionedWorkspace(override val rootDirectory: File, override val resolverOptions: ResolverOptions = resolverOptionsOf(), val version: Version) : Workspace {
@@ -186,5 +358,14 @@ class VersionedWorkspace(override val rootDirectory: File, override val resolver
         rootDirectory.mkdirs()
     }
 
-    override fun asVersioned(version: Version): VersionedWorkspace = this
+    /**
+     * Creates a mutable workspace from this workspace.
+     *
+     * @return the workspace
+     */
+    override fun toMutableWorkspace(): MutableVersionedWorkspace = MutableVersionedWorkspace().apply {
+        this.rootDirectory = this@VersionedWorkspace.rootDirectory.absolutePath
+        this.resolverOptions = this@VersionedWorkspace.resolverOptions.toMutableResolverOptions()
+        this.version = this@VersionedWorkspace.version
+    }
 }

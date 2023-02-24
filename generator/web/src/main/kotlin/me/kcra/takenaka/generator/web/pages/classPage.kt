@@ -115,7 +115,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                     }
                     tbody {
                         klass.fields.forEach { field ->
-                            val fieldMod = field.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: return@forEach
+                            val fieldMod = field.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: 0
                             if (generator.skipSynthetics && (fieldMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach
 
                             tr {
@@ -175,7 +175,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                         klass.methods.forEach { method ->
                             if (method.srcName != "<init>") return@forEach
 
-                            val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: return@forEach
+                            val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: 0
                             if (generator.skipSynthetics && (methodMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach
 
                             tr {
@@ -215,7 +215,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                             // skip constructors and static initializers
                             if (method.srcName == "<init>" || method.srcName == "<clinit>") return@forEach
 
-                            val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: return@forEach
+                            val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: 0
                             if (generator.skipSynthetics && (methodMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach
 
                             tr {

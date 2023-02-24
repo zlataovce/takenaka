@@ -17,6 +17,7 @@
 
 package me.kcra.takenaka.generator.web
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -90,20 +91,21 @@ class WebGenerator(
      * Launches the generator.
      */
     override fun generate() {
-        val composite = workspace.asComposite()
+        val composite: CompositeWorkspace by workspace
         val styleSupplier = DefaultStyleSupplier()
-        val context = GenerationContext(this, styleSupplier::apply)
 
-        runBlocking {
+        generationContext(styleSupplier = styleSupplier::apply) {
             mappings.forEach { (version, tree) ->
-                val versionWorkspace = composite.versioned(version)
-                val friendlyNameRemapper = ElementRemapper(tree, context::getFriendlyDstName)
+                val versionWorkspace by composite.versioned {
+                    this.version = version
+                }
 
+                val friendlyNameRemapper = ElementRemapper(tree, this::getFriendlyDstName)
                 val classMap = mutableMapOf<String, MutableMap<String, ClassType>>()
 
                 tree.classes.forEach { klass ->
                     val mod = klass.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull()
-                    val friendlyName = context.getFriendlyDstName(klass)
+                    val friendlyName = getFriendlyDstName(klass)
 
                     // skip mappings without modifiers, those weren't in the server JAR
                     if (mod == null) {
@@ -112,7 +114,7 @@ class WebGenerator(
                         logger.warn { "Skipping generation for class $friendlyName, synthetic" }
                     } else {
                         launch(coroutineDispatcher) {
-                            context.classPage(klass, versionWorkspace, friendlyNameRemapper)
+                            classPage(klass, versionWorkspace, friendlyNameRemapper)
                                 .serialize(versionWorkspace, "$friendlyName.html")
                         }
 
@@ -122,15 +124,15 @@ class WebGenerator(
                 }
 
                 classMap.forEach { (packageName, classes) ->
-                    context.packagePage(versionWorkspace, packageName, classes)
+                    packagePage(versionWorkspace, packageName, classes)
                         .serialize(versionWorkspace, "$packageName/index.html")
                 }
 
-                context.overviewPage(versionWorkspace, classMap.keys)
+                overviewPage(versionWorkspace, classMap.keys)
                     .serialize(versionWorkspace, "index.html")
             }
 
-            context.versionsPage(mappings.entries.associate { (version, tree) -> version to tree.dstNamespaces })
+            versionsPage(mappings.entries.associate { (version, tree) -> version to tree.dstNamespaces })
                 .serialize(workspace, "index.html")
         }
 
@@ -292,11 +294,20 @@ class WebGenerator(
 }
 
 /**
+ * Opens a generation context.
+ *
+ * @param styleSupplier the style supplier that will be used in the context
+ * @param block the context user
+ */
+inline fun <R> WebGenerator.generationContext(noinline styleSupplier: StyleSupplier, crossinline block: suspend GenerationContext.() -> R): R =
+    runBlocking(coroutineDispatcher) { block(GenerationContext(this, this@generationContext, styleSupplier)) }
+
+/**
  * A generation context.
  *
  * @author Matouš Kučera
  */
-class GenerationContext(val generator: WebGenerator, val styleSupplier: StyleSupplier) {
+class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenerator, val styleSupplier: StyleSupplier) : CoroutineScope by coroutineScope {
     val index: ClassSearchIndex by generator::index
 
     /**

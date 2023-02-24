@@ -24,7 +24,6 @@ import me.kcra.takenaka.core.mapping.VersionedMappingMap
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
 import net.fabricmc.mappingio.tree.MemoryMappingTree
-import java.io.File
 import kotlin.system.measureTimeMillis
 import kotlin.test.Test
 
@@ -70,11 +69,17 @@ val VERSIONS = listOf(
 
 class MappingResolverTest {
     private val objectMapper = objectMapper()
-    private val workspaceDir = File("test-workspace")
+    private val workspaceDir = "test-workspace"
 
     @Test
     fun `resolve mappings for supported versions`() {
-        val workspace = CompositeWorkspace(workspaceDir, resolverOptionsOf(RELAXED_CACHE))
+        val workspace = compositeWorkspace {
+            rootDirectory = workspaceDir
+
+            resolverOptions {
+                relaxedCache()
+            }
+        }
 
         val time = measureTimeMillis {
             workspace.resolveMappings(objectMapper)
@@ -114,7 +119,9 @@ fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper): VersionedMap
         val version = manifest[it] ?: error("did not find $it in manifest")
 
         jobs += async {
-            val workspace = versioned(version)
+            val workspace by versioned {
+                this.version = version
+            }
             val tree = workspace.resolveVersionMappings(objectMapper)
 
             version to tree

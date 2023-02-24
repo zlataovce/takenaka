@@ -71,7 +71,9 @@ abstract class AbstractGenerator(
         return@runBlocking versions
             .map { manifest[it] ?: error("did not find version $it in manifest") }
             .parallelMap { version ->
-                val versionWorkspace = mappingWorkspace.versioned(version)
+                val versionWorkspace by mappingWorkspace.versioned {
+                    this.version = version
+                }
 
                 val tree = MemoryMappingTree()
                 contributorProvider(versionWorkspace, objectMapper).forEach { contributor ->
