@@ -118,16 +118,6 @@ interface Workspace {
     }
 
     /**
-     * Creates a mutable workspace from this workspace.
-     *
-     * @return the workspace
-     */
-    fun toMutableWorkspace(): MutableWorkspace = MutableWorkspace().apply {
-        this.rootDirectory = this@Workspace.rootDirectory.absolutePath
-        this.resolverOptions = this@Workspace.resolverOptions.toMutableResolverOptions()
-    }
-
-    /**
      * Checks if this workspace contains the specified file.
      *
      * @param file the file name
@@ -156,7 +146,7 @@ interface Workspace {
  *
  * @author Matouš Kučera
  */
-open class MutableWorkspace {
+open class WorkspaceBuilder {
     /**
      * The workspaces' root directory.
      */
@@ -182,19 +172,19 @@ open class MutableWorkspace {
     inline fun resolverOptions(block: MutableResolverOptions.() -> Unit) {
         resolverOptions.apply(block)
     }
+}
 
-    /**
-     * A simple workspace.
-     */
-    private class Simple(override val rootDirectory: File, override val resolverOptions: ResolverOptions = resolverOptionsOf()) : Workspace {
-        private val composite by lazy { CompositeWorkspace(rootDirectory, resolverOptions) }
+/**
+ * A simple workspace.
+ */
+private class Simple(override val rootDirectory: File, override val resolverOptions: ResolverOptions = resolverOptionsOf()) : Workspace {
+    private val composite by lazy { CompositeWorkspace(rootDirectory, resolverOptions) }
 
-        init {
-            rootDirectory.mkdirs()
-        }
-
-        override fun getValue(thisRef: Any?, property: KProperty<*>) = composite
+    init {
+        rootDirectory.mkdirs()
     }
+
+    override operator fun getValue(thisRef: Any?, property: KProperty<*>) = composite
 }
 
 /**
@@ -203,14 +193,14 @@ open class MutableWorkspace {
  * @param block the builder action
  * @return the workspace
  */
-inline fun workspace(block: MutableWorkspace.() -> Unit): Workspace = MutableWorkspace().apply(block).toWorkspace()
+inline fun workspace(block: WorkspaceBuilder.() -> Unit): Workspace = WorkspaceBuilder().apply(block).toWorkspace()
 
 /**
  * A composite workspace builder.
  *
  * @author Matouš Kučera
  */
-open class MutableCompositeWorkspace : MutableWorkspace() {
+open class CompositeWorkspaceBuilder : WorkspaceBuilder() {
     /**
      * Creates a composite workspace from this builder.
      *
@@ -225,7 +215,7 @@ open class MutableCompositeWorkspace : MutableWorkspace() {
  * @param block the builder action
  * @return the workspace
  */
-inline fun compositeWorkspace(block: MutableCompositeWorkspace.() -> Unit): CompositeWorkspace = MutableCompositeWorkspace().apply(block).toWorkspace()
+inline fun compositeWorkspace(block: CompositeWorkspaceBuilder.() -> Unit): CompositeWorkspace = CompositeWorkspaceBuilder().apply(block).toWorkspace()
 
 /**
  * A workspace, which houses multiple sub-workspaces.
@@ -245,7 +235,7 @@ class CompositeWorkspace(override val rootDirectory: File, override val resolver
      *
      * @return the sub-workspace
      */
-    inline fun workspace(crossinline block: Builder.() -> Unit): Lazy<Workspace> = lazy { Builder().apply(block).toWorkspace() }
+    inline fun workspace(crossinline block: Builder.() -> Unit): Lazy<Workspace> = lazyOf(Builder().apply(block).toWorkspace())
 
     /**
      * Creates a new composite sub-workspace with a unique name.
@@ -264,7 +254,7 @@ class CompositeWorkspace(override val rootDirectory: File, override val resolver
     /**
      * A base workspace builder.
      */
-    inner class Builder : MutableWorkspace() {
+    inner class Builder : WorkspaceBuilder() {
         /**
          * The workspace name.
          */
@@ -282,7 +272,7 @@ class CompositeWorkspace(override val rootDirectory: File, override val resolver
     /**
      * A composite workspace builder.
      */
-    inner class CompositeBuilder : MutableCompositeWorkspace() {
+    inner class CompositeBuilder : CompositeWorkspaceBuilder() {
         /**
          * The workspace name.
          */
@@ -300,7 +290,7 @@ class CompositeWorkspace(override val rootDirectory: File, override val resolver
     /**
      * A versioned workspace builder.
      */
-    inner class VersionedBuilder : MutableVersionedWorkspace() {
+    inner class VersionedBuilder : VersionedWorkspaceBuilder() {
         /**
          * The user-defined root directory.
          */
@@ -324,7 +314,7 @@ class CompositeWorkspace(override val rootDirectory: File, override val resolver
 /**
  * A versioned workspace builder.
  */
-open class MutableVersionedWorkspace : MutableWorkspace() {
+open class VersionedWorkspaceBuilder : WorkspaceBuilder() {
     /**
      * The version.
      */
@@ -344,7 +334,7 @@ open class MutableVersionedWorkspace : MutableWorkspace() {
  * @param block the builder action
  * @return the workspace
  */
-inline fun versionedWorkspace(block: MutableVersionedWorkspace.() -> Unit): VersionedWorkspace = MutableVersionedWorkspace().apply(block).toWorkspace()
+inline fun versionedWorkspace(block: VersionedWorkspaceBuilder.() -> Unit): VersionedWorkspace = VersionedWorkspaceBuilder().apply(block).toWorkspace()
 
 /**
  * A workspace, which belongs to a specific Minecraft version.
@@ -363,15 +353,4 @@ class VersionedWorkspace(override val rootDirectory: File, override val resolver
     }
 
     override operator fun getValue(thisRef: Any?, property: KProperty<*>) = composite
-
-    /**
-     * Creates a mutable workspace from this workspace.
-     *
-     * @return the workspace
-     */
-    override fun toMutableWorkspace(): MutableVersionedWorkspace = MutableVersionedWorkspace().apply {
-        this.rootDirectory = this@VersionedWorkspace.rootDirectory.absolutePath
-        this.resolverOptions = this@VersionedWorkspace.resolverOptions.toMutableResolverOptions()
-        this.version = this@VersionedWorkspace.version
-    }
 }

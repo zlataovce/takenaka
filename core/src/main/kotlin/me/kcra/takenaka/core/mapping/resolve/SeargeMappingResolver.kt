@@ -22,10 +22,7 @@ import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.util.copyTo
-import me.kcra.takenaka.core.util.getChecksum
-import me.kcra.takenaka.core.util.httpRequest
-import me.kcra.takenaka.core.util.ok
+import me.kcra.takenaka.core.util.*
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
 import net.fabricmc.mappingio.MappingUtil
@@ -36,7 +33,6 @@ import java.io.Reader
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.security.MessageDigest
 import java.util.zip.ZipFile
 
 private val logger = KotlinLogging.logger {}
@@ -48,7 +44,6 @@ private val logger = KotlinLogging.logger {}
  * @author Matouš Kučera
  */
 class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver, MappingContributor {
-    private val sha1Digest = MessageDigest.getInstance("SHA-1")
     override val version: Version by workspace::version
     override val targetNamespace: String = "searge"
 

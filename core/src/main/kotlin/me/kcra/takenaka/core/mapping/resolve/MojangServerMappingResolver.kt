@@ -21,10 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.util.copyTo
-import me.kcra.takenaka.core.util.getChecksum
-import me.kcra.takenaka.core.util.httpRequest
-import me.kcra.takenaka.core.util.ok
+import me.kcra.takenaka.core.util.*
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
@@ -32,7 +29,6 @@ import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch
 import net.fabricmc.mappingio.format.ProGuardReader
 import java.io.Reader
 import java.net.URL
-import java.security.MessageDigest
 
 private val logger = KotlinLogging.logger {}
 
@@ -46,7 +42,6 @@ class MojangServerMappingResolver(
     workspace: VersionedWorkspace,
     objectMapper: ObjectMapper
 ) : MojangManifestConsumer(workspace, objectMapper), MappingResolver, MappingContributor {
-    private val sha1Digest = MessageDigest.getInstance("SHA-1")
     override val version: Version by workspace::version
     override val targetNamespace: String = "mojang"
 

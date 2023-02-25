@@ -46,6 +46,11 @@ interface MappingContributor {
 }
 
 /**
+ * A function that wraps a mapping visitor.
+ */
+typealias VisitorWrapper = (MappingVisitor) -> MappingVisitor
+
+/**
  * A mapping contributor that wraps the mapping visitor before passing it to the delegate.
  *
  * @param contributor the delegate
@@ -54,7 +59,7 @@ interface MappingContributor {
  */
 class WrappingContributor(
     private val contributor: MappingContributor,
-    val wrap: (MappingVisitor) -> MappingVisitor
+    val wrap: VisitorWrapper
 ) : MappingContributor by contributor {
     override fun accept(visitor: MappingVisitor) = contributor.accept(wrap(visitor))
 }

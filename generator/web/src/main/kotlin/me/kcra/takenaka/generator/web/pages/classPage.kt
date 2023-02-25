@@ -23,7 +23,7 @@ import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.fromInternalName
-import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
+import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.components.*
@@ -55,8 +55,8 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                 +friendlyPackageName
             }
 
-            val mod = klass.getName(VanillaMappingContributor.NS_MODIFIERS).toInt()
-            val signature = klass.getName(VanillaMappingContributor.NS_SIGNATURE)
+            val mod = klass.modifiers
+            val signature = klass.signature
 
             var classHeader = formatClassHeader(friendlyName, mod)
             var classDescription = formatClassDescription(klass, mod, workspace.version, friendlyNameRemapper)
@@ -115,7 +115,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                     }
                     tbody {
                         klass.fields.forEach { field ->
-                            val fieldMod = field.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: 0
+                            val fieldMod = field.modifiers
                             if (generator.skipSynthetics && (fieldMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach
 
                             tr {
@@ -175,7 +175,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                         klass.methods.forEach { method ->
                             if (method.srcName != "<init>") return@forEach
 
-                            val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: 0
+                            val methodMod = method.modifiers
                             if (generator.skipSynthetics && (methodMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach
 
                             tr {
@@ -215,7 +215,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                             // skip constructors and static initializers
                             if (method.srcName == "<init>" || method.srcName == "<clinit>") return@forEach
 
-                            val methodMod = method.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: 0
+                            val methodMod = method.modifiers
                             if (generator.skipSynthetics && (methodMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach
 
                             tr {
@@ -229,7 +229,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
 
                                         +formatModifiers(methodMod, mask)
 
-                                        val methodSignature = method.getName(VanillaMappingContributor.NS_SIGNATURE)
+                                        val methodSignature = method.signature
                                         if (methodSignature != null) {
                                             val visitor = SignatureFormatter(method.tree, index, friendlyNameRemapper, null, workspace.version, mod)
                                             SignatureReader(methodSignature).accept(visitor)
@@ -313,11 +313,8 @@ fun GenerationContext.formatClassHeader(friendlyName: String, mod: Int): String 
  * @return the class description
  */
 fun GenerationContext.formatClassDescription(klass: MappingTree.ClassMapping, mod: Int, version: Version, nameRemapper: Remapper): String = buildString {
-    val superClass = klass.getName(VanillaMappingContributor.NS_SUPER) ?: "java/lang/Object"
-    val interfaces = klass.getName(VanillaMappingContributor.NS_INTERFACES)
-        ?.split(',')
-        ?.filter { it != "java/lang/annotation/Annotation" }
-        ?: emptyList()
+    val superClass = klass.superClass
+    val interfaces = klass.interfaces.filter { it != "java/lang/annotation/Annotation" }
 
     if (superClass != "java/lang/Object" && superClass != "java/lang/Record") {
         append("extends ${nameRemapper.mapTypeAndLink(version, superClass, index)}")
@@ -352,7 +349,7 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
     // signature: ([Ldyl;Ljava/util/Map<Lchq;Ldzg;>;Z)V
     // visited signature: (net.minecraft.world.level.storage.loot.predicates.LootItemCondition[], java.util.Map<net.minecraft.world.item.enchantment.Enchantment, net.minecraft.world.level.storage.loot.providers.number.NumberProvider>, boolean)void
 
-    val signature = method.getName(VanillaMappingContributor.NS_SIGNATURE)
+    val signature = method.signature
     if (signature != null) {
         val visitor = SignatureFormatter(method.tree, index, nameRemapper, linkRemapper, version, mod)
         SignatureReader(signature).accept(visitor)

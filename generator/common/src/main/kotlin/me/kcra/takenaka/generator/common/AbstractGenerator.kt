@@ -17,17 +17,17 @@
 
 package me.kcra.takenaka.generator.common
 
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ContributorProvider
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
+import me.kcra.takenaka.core.mapping.adapter.completeMethodOverrides
+import me.kcra.takenaka.core.mapping.buildMappingTree
+import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
-import net.fabricmc.mappingio.tree.MemoryMappingTree
+import kotlin.coroutines.CoroutineContext
 
 /**
  * An abstract base for a generator.
@@ -35,6 +35,7 @@ import net.fabricmc.mappingio.tree.MemoryMappingTree
  *
  * @param workspace the workspace in which this generator can move around
  * @param versions the Minecraft versions that this generator will process
+ * @param coroutineDispatcher the Kotlin Coroutines context
  * @param mappingWorkspace the workspace in which the mappings are stored
  * @param contributorProvider a function that provides mapping contributors to be processed
  * @author Matouš Kučera
@@ -42,6 +43,7 @@ import net.fabricmc.mappingio.tree.MemoryMappingTree
 abstract class AbstractGenerator(
     val workspace: Workspace,
     val versions: List<String>,
+    val coroutineDispatcher: CoroutineContext = Dispatchers.IO,
     private val mappingWorkspace: CompositeWorkspace,
     private val contributorProvider: ContributorProvider
 ) {
@@ -65,7 +67,7 @@ abstract class AbstractGenerator(
      *
      * @return a map of joined mapping files, keyed by version
      */
-    private fun resolveMappings(): VersionedMappingMap = runBlocking {
+    private fun resolveMappings(): VersionedMappingMap = runBlocking(coroutineDispatcher) {
         val manifest = objectMapper.versionManifest()
 
         return@runBlocking versions
@@ -75,12 +77,17 @@ abstract class AbstractGenerator(
                     this.version = version
                 }
 
-                val tree = MemoryMappingTree()
-                contributorProvider(versionWorkspace, objectMapper).forEach { contributor ->
-                    contributor.accept(tree)
-                }
+                return@parallelMap version to buildMappingTree {
+                    contributor(contributorProvider(versionWorkspace, objectMapper))
 
-                return@parallelMap version to tree
+                    mutate {
+                        dstNamespaces.forEach { ns ->
+                            if (ns in VanillaMappingContributor.NAMESPACES) return@forEach
+
+                            completeMethodOverrides(ns)
+                        }
+                    }
+                }
             }
             .toMap()
     }

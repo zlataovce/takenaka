@@ -83,11 +83,4 @@ class LegacySpigotMappingPrepender(next: MappingVisitor, val namespace: String =
             return internalName
         }
     }
-
-    companion object {
-        /**
-         * A default instance.
-         */
-        val PREPENDING_REMAPPER = PrependingRemapper()
-    }
 }

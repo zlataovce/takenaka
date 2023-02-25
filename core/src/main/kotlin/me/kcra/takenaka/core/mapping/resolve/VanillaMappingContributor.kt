@@ -22,21 +22,18 @@ import me.kcra.takenaka.core.RELAXED_CACHE
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.util.copyTo
-import me.kcra.takenaka.core.util.getChecksum
-import me.kcra.takenaka.core.util.httpRequest
-import me.kcra.takenaka.core.util.ok
+import me.kcra.takenaka.core.util.*
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
+import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.tree.ClassNode
 import java.io.File
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.security.MessageDigest
 import java.util.stream.Collectors
 import java.util.zip.ZipFile
 
@@ -51,7 +48,6 @@ class VanillaMappingContributor(
     workspace: VersionedWorkspace,
     objectMapper: ObjectMapper
 ) : MojangManifestConsumer(workspace, objectMapper), MappingContributor {
-    private val sha1Digest = MessageDigest.getInstance("SHA-1")
     override val targetNamespace: String = MappingUtil.NS_SOURCE_FALLBACK
 
     /**
@@ -207,5 +203,41 @@ class VanillaMappingContributor(
          * The namespace of the class's superinterfaces.
          */
         const val NS_INTERFACES = "interfaces"
+
+        /**
+         * All namespaces that this contributor produces.
+         */
+        val NAMESPACES = listOf(NS_MODIFIERS, NS_SIGNATURE, NS_SUPER, NS_INTERFACES)
     }
 }
+
+/**
+ * Gets the modifiers from the [VanillaMappingContributor.NS_MODIFIERS] namespace.
+ */
+val MappingTreeView.ElementMappingView.modifiers: Int
+    get() = getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: 0
+
+/**
+ * Gets the generic signature from the [VanillaMappingContributor.NS_SIGNATURE] namespace.
+ */
+val MappingTreeView.ElementMappingView.signature: String?
+    get() = getName(VanillaMappingContributor.NS_SIGNATURE)
+
+/**
+ * Gets the superclass from the [VanillaMappingContributor.NS_SUPER] namespace.
+ */
+val MappingTreeView.ClassMappingView.superClass: String
+    get() = getName(VanillaMappingContributor.NS_SUPER) ?: "java/lang/Object"
+
+/**
+ * Gets interfaces from the [VanillaMappingContributor.NS_INTERFACES] namespace.
+ */
+val MappingTreeView.ClassMappingView.interfaces: List<String>
+    get() = getName(VanillaMappingContributor.NS_INTERFACES).parseInterfaces()
+
+/**
+ * Parses interfaces per the [VanillaMappingContributor.NS_INTERFACES] format.
+ *
+ * @return the interfaces, empty if there were none
+ */
+fun String?.parseInterfaces(): List<String> = this?.split(',') ?: emptyList()

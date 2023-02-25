@@ -20,6 +20,29 @@ package me.kcra.takenaka.core.util
 import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
+import kotlin.reflect.KProperty
+
+/**
+ * A delegate that provides a thread-local [MessageDigest].
+ *
+ * @property value the [ThreadLocal]
+ */
+class ThreadLocalMessageDigestDelegate(private val value: ThreadLocal<MessageDigest>) {
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): MessageDigest = value.get()
+}
+
+/**
+ * Creates a thread-local [MessageDigest] with syntax sugar.
+ *
+ * @param algorithm the digest algorithm
+ */
+fun threadLocalMessageDigest(algorithm: String) =
+    ThreadLocalMessageDigestDelegate(ThreadLocal.withInitial { MessageDigest.getInstance(algorithm) })
+
+/**
+ * A thread-local SHA-1 digest.
+ */
+val sha1Digest by threadLocalMessageDigest("SHA-1")
 
 /**
  * Computes a checksum using the provided digest, outputting it in a hexadecimal format.

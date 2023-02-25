@@ -18,7 +18,6 @@
 package me.kcra.takenaka.generator.web
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.html.BODY
@@ -79,14 +78,14 @@ class WebGenerator(
     versions: List<String>,
     mappingWorkspace: CompositeWorkspace,
     contributorProvider: ContributorProvider,
-    val coroutineDispatcher: CoroutineContext = Dispatchers.IO,
+    coroutineDispatcher: CoroutineContext,
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaceBadgeColors: Map<String, String> = emptyMap(),
     val namespaceFriendlyNames: Map<String, String> = emptyMap(),
     val index: ClassSearchIndex = emptyClassSearchIndex(),
     val skipSynthetics: Boolean = true
-) : AbstractGenerator(workspace, versions, mappingWorkspace, contributorProvider) {
+) : AbstractGenerator(workspace, versions, coroutineDispatcher, mappingWorkspace, contributorProvider) {
     /**
      * Launches the generator.
      */

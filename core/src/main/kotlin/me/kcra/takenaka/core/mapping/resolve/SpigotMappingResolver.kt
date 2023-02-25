@@ -160,13 +160,18 @@ class SpigotMemberMappingResolver(
     /**
      * Visits the mappings to the supplied visitor.
      *
-     * @param visitor the visitor
+     * A [MappingTreeView] (or naturally, [MappingTree]) instance must be passed into this resolver,
+     * because it relies on the visitation of a preceding [SpigotClassMappingResolver] for matching class names.
+     *
+     * The mapping tree instance can have one or more [ForwardingMappingVisitor]s in front of it.
+     *
+     * @param visitor the mapping tree
      */
     override fun accept(visitor: MappingVisitor) {
         var visitor0 = visitor
 
-        // HACK!
-        while (visitor0 is ForwardingMappingVisitor) visitor0 = NEXT_VISITOR_FIELD.get(visitor0) as MappingVisitor
+        // skip over forwarding visitors in search of a mapping tree
+        while (visitor0 is ForwardingMappingVisitor) visitor0 = visitor0.next
         if (visitor0 !is MappingTreeView) {
             throw UnsupportedOperationException("Spigot class member mappings can only be visited to a mapping tree")
         }
@@ -232,6 +237,13 @@ class SpigotMemberMappingResolver(
     }
 
     companion object {
+        // HACK!
         private val NEXT_VISITOR_FIELD = ForwardingMappingVisitor::class.java.getDeclaredField("next").apply { isAccessible = true }
+
+        /**
+         * Gets the delegate visitor.
+         */
+        val ForwardingMappingVisitor.next: MappingVisitor
+            get() = NEXT_VISITOR_FIELD.get(this) as MappingVisitor
     }
 }
