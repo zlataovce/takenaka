@@ -24,7 +24,7 @@ import kotlin.concurrent.withLock
 private val logger = KotlinLogging.logger {}
 
 /**
- * A transformer that minifies stylesheets.
+ * A transformer that minifies web resources.
  *
  * @author Matouš Kučera
  */

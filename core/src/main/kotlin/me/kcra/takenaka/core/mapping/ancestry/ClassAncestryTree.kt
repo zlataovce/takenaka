@@ -47,7 +47,7 @@ data class ClassAncestryTree(val allowedNamespaces: MutableMap<Version, List<Int
      * @param keys the keys
      * @return the node, null if not found
      */
-    operator fun get(keys: Collection<String>): Node? = find { it.keys.any { k -> k in keys } }
+    operator fun get(keys: List<String>): Node? = find { it.keys.any { k -> k in keys } }
 }
 
 /**
@@ -57,7 +57,7 @@ data class ClassAncestryTree(val allowedNamespaces: MutableMap<Version, List<Int
  * @param allowedNamespaces namespaces that are used in this tree for tracing history, not distinguished by version; empty if all namespaces should be considered
  * @return the ancestry tree
  */
-fun classAncestryTreeOf(mappings: VersionedMappingMap, allowedNamespaces: Collection<String> = emptyList()): ClassAncestryTree {
+fun classAncestryTreeOf(mappings: VersionedMappingMap, allowedNamespaces: List<String> = emptyList()): ClassAncestryTree {
     val classTree = ClassAncestryTree()
 
     mappings.forEach { (version, tree) ->

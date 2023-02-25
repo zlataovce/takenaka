@@ -165,60 +165,39 @@ class WebGenerator(
 
         copyAsset("main.js")
 
-        fun makeBasicComponent(block: BODY.() -> Unit): Document = document {
-            append.filter { if (it.tagName in listOf("html", "body")) SKIP else PASS }
-                .html {
-                    body {
-                        block()
-                    }
+        val componentFileContent = generateComponentFile(
+            component {
+                tag = "nav"
+                content {
+                    navComponent()
                 }
-        }
-
-        var componentFileContent = generateComponentFile(
-            listOf(
-                Triple(
-                    "nav",
-                    makeBasicComponent { navComponent() },
-                    // dynamically find the version in the URL, this is a hack, I know
-                    """
-                        const link = document.getElementById("overview-link");
-                        const path = window.location.pathname.substring(1);
-                        if (path) {
-                            const parts = [];
-                            for (const part of path.split("/")) {
-                                parts.push(part);
-                                if (part.includes(".")) {
-                                    link.href = "/" + parts.join("/") + "/index.html";
-                                    return;
-                                }
+                // dynamically find the version in the URL, this is a hack, I know
+                callback = """
+                    const link = document.getElementById("overview-link");
+                    const path = window.location.pathname.substring(1);
+                    if (path) {
+                        const parts = [];
+                        for (const part of path.split("/")) {
+                            parts.push(part);
+                            if (part.includes(".")) {
+                                link.href = "/" + parts.join("/") + "/index.html";
+                                return;
                             }
                         }
-                    
-                        link.remove();
-                    """.trimIndent()
-                ),
-                Triple("footer", makeBasicComponent { footerComponent() }, null)
-            )
-        )
-        transformers.forEach { transformer ->
-            componentFileContent = transformer.transformJs(componentFileContent)
-        }
-
-        workspace["assets/components.js"].writeText(componentFileContent)
-
-        var generatedStylesContent = ""
-        styleSupplier.styles.forEach { (k, s) ->
-            generatedStylesContent += """
-                .$k {
-                    $s
+                    }
+                
+                    link.remove();
+                """.trimIndent()
+            },
+            component {
+                tag = "footer"
+                content {
+                    footerComponent()
                 }
-            """.trimIndent()
-        }
-        transformers.forEach { transformer ->
-            generatedStylesContent = transformer.transformCss(generatedStylesContent)
-        }
-
-        workspace["assets/generated.css"].writeText(generatedStylesContent)
+            }
+        )
+        workspace["assets/components.js"].writeText(componentFileContent.transformJs())
+        workspace["assets/generated.css"].writeText(styleSupplier.generateStyleSheet().transformCss())
 
         copyAsset("main.css") // main.css should be copied last to minify correctly
     }
@@ -251,7 +230,7 @@ class WebGenerator(
      * @param components a list of tag-document-callback
      * @return the content of the component file
      */
-    fun generateComponentFile(components: List<Triple<String, Document, String?>>): String = buildString {
+    fun generateComponentFile(vararg components: ComponentDefinition): String = buildString {
         fun Document.serializeAsComponent(): String {
             var content = serialize(prettyPrint = false)
             transformers.forEach { transformer ->
@@ -274,8 +253,8 @@ class WebGenerator(
             """.trimIndent()
         )
 
-        components.forEach { (tag, document, callback) ->
-            append("const ${tag}Component = `${document.serializeAsComponent()}`;")
+        components.forEach { (tag, content, callback) ->
+            append("const ${tag}Component = `${content.serializeAsComponent()}`;")
             append("const ${tag}ComponentCallback = (e) => {")
             if (callback != null) {
                 append(callback)
@@ -291,6 +270,20 @@ class WebGenerator(
 
         append("});")
     }
+
+    /**
+     * Transforms a JS script with all transformers in this generator.
+     *
+     * @return the transformed script
+     */
+    fun String.transformJs(): String = transformers.fold(this) { content0, transformer -> transformer.transformJs(content0) }
+
+    /**
+     * Transforms a CSS stylesheet with all transformers in this generator.
+     *
+     * @return the transformed stylesheet
+     */
+    fun String.transformCss(): String = transformers.fold(this) { content0, transformer -> transformer.transformCss(content0) }
 }
 
 /**
@@ -360,7 +353,84 @@ typealias StyleSupplier = (String, String) -> String
 class DefaultStyleSupplier(val styles: MutableMap<String, String> = mutableMapOf()) {
     private val supplierLock: Lock = ReentrantLock()
 
+    /**
+     * The [StyleSupplier].
+     */
     fun apply(k: String, s: String): String = supplierLock.withLock {
         styles.putIfAbsent(k, s); k
     }
+
+    /**
+     * Generates a stylesheet from gathered classes.
+     *
+     * @return the stylesheet content
+     */
+    fun generateStyleSheet(): String = buildString {
+        styles.forEach { (k, s) ->
+            append(
+                """
+                    .$k {
+                        $s
+                    }
+                """.trimIndent()
+            )
+        }
+    }
+}
+
+/**
+ * A HTML component.
+ *
+ * @property tag the main tag of the component, any tag that is empty and has the same name, will be replaced with the component
+ * @property content the component content/body
+ * @property callback a raw JS script that is called after the component has been loaded onto the site, an `e` variable of type `HTMLElement` is available
+ */
+data class ComponentDefinition(
+    val tag: String,
+    val content: Document,
+    val callback: String?
+)
+
+/**
+ * Builds an HTML component.
+ *
+ * @param block the builder action
+ * @return the component
+ */
+inline fun component(block: MutableComponentDefinition.() -> Unit): ComponentDefinition = MutableComponentDefinition().apply(block).toComponent()
+
+/**
+ * An HTML component builder.
+ *
+ * @property tag the main tag of the component, any tag that is empty and has the same name, will be replaced with the component
+ * @property content the component content/body
+ * @property callback a raw JS script that is called after the component has been loaded onto the site, an `e` variable of type `HTMLElement` is available
+ */
+class MutableComponentDefinition {
+    lateinit var tag: String
+    lateinit var content: Document
+    var callback: String? = null
+
+    /**
+     * Builds and sets the content of this component.
+     *
+     * @param block the builder action
+     */
+    inline fun content(crossinline block: BODY.() -> Unit) {
+        content = document {
+            append.filter { if (it.tagName in listOf("html", "body")) SKIP else PASS }
+                .html {
+                    body {
+                        block()
+                    }
+                }
+        }
+    }
+
+    /**
+     * Creates an immutable component out of this builder.
+     *
+     * @return the component
+     */
+    fun toComponent() = ComponentDefinition(tag, content, callback)
 }

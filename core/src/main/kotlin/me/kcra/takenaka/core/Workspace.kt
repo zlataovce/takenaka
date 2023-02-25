@@ -148,10 +148,7 @@ interface Workspace {
      *
      * @return the composite workspace
      */
-    operator fun getValue(thisRef: Any?, property: KProperty<*>): CompositeWorkspace {
-        if (this is CompositeWorkspace) return this
-        return CompositeWorkspace(rootDirectory, resolverOptions)
-    }
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): CompositeWorkspace
 }
 
 /**
@@ -190,9 +187,13 @@ open class MutableWorkspace {
      * A simple workspace.
      */
     private class Simple(override val rootDirectory: File, override val resolverOptions: ResolverOptions = resolverOptionsOf()) : Workspace {
+        private val composite by lazy { CompositeWorkspace(rootDirectory, resolverOptions) }
+
         init {
             rootDirectory.mkdirs()
         }
+
+        override fun getValue(thisRef: Any?, property: KProperty<*>) = composite
     }
 }
 
@@ -236,6 +237,8 @@ class CompositeWorkspace(override val rootDirectory: File, override val resolver
     init {
         rootDirectory.mkdirs()
     }
+
+    override operator fun getValue(thisRef: Any?, property: KProperty<*>) = this
 
     /**
      * Creates a new sub-workspace with a unique name.
@@ -351,12 +354,15 @@ inline fun versionedWorkspace(block: MutableVersionedWorkspace.() -> Unit): Vers
  * @property version the version which this workspace belongs to
  */
 class VersionedWorkspace(override val rootDirectory: File, override val resolverOptions: ResolverOptions = resolverOptionsOf(), val version: Version) : Workspace {
+    private val composite by lazy { CompositeWorkspace(rootDirectory, resolverOptions) }
     internal val spigotManifestLock: Lock = ReentrantLock()
     internal val mojangManifestLock: Lock = ReentrantLock()
 
     init {
         rootDirectory.mkdirs()
     }
+
+    override operator fun getValue(thisRef: Any?, property: KProperty<*>) = composite
 
     /**
      * Creates a mutable workspace from this workspace.
