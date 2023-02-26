@@ -17,38 +17,11 @@
 
 package me.kcra.takenaka.core.mapping.ancestry
 
-import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
 import net.fabricmc.mappingio.tree.MappingTree
 
-/**
- * A class name ancestry tree.
- *
- * @property allowedNamespaces namespace IDs that are used in this tree for tracing history, per version
- * @author Matouš Kučera
- */
-data class ClassAncestryTree(val allowedNamespaces: MutableMap<Version, List<Int>> = mutableMapOf()) : MutableList<ClassAncestryTree.Node> by mutableListOf() {
-    /**
-     * A node in the ancestry tree.
-     * This represents one class in multiple versions.
-     *
-     * @property keys a set of multiple mappings from multiple versions, this is used as a unique identifier for the class
-     * @property mappings the class mappings, keyed by the version
-     */
-    data class Node(
-        val keys: MutableSet<String> = mutableSetOf(),
-        val mappings: MutableMap<Version, MappingTree.ClassMapping> = mutableMapOf()
-    )
-
-    /**
-     * Tries to find a node in the tree.
-     * This works by checking if the supplied keys and the node's keys are disjoint, if not, it's the class we want.
-     *
-     * @param keys the keys
-     * @return the node, null if not found
-     */
-    operator fun get(keys: List<String>): Node? = find { it.keys.any { k -> k in keys } }
-}
+typealias ClassAncestryTree = AncestryTree<MappingTree.ClassMapping, ElementKey>
+typealias ClassAncestryNode = AncestryTree<MappingTree.ClassMapping, ElementKey>.Node
 
 /**
  * Computes an ancestry tree of all classes in the supplied versions.
@@ -61,21 +34,14 @@ fun classAncestryTreeOf(mappings: VersionedMappingMap, allowedNamespaces: List<S
     val classTree = ClassAncestryTree()
 
     mappings.forEach { (version, tree) ->
-        var treeAllowedNamespaces = allowedNamespaces
-            .map(tree::getNamespaceId)
-            .filter { it != MappingTree.NULL_NAMESPACE_ID }
-
-        if (treeAllowedNamespaces.isEmpty()) {
-            treeAllowedNamespaces = (0 until tree.maxNamespaceId).toList()
-        }
-
+        val treeAllowedNamespaces = tree.collectAllowedNamespaces(allowedNamespaces)
         classTree.allowedNamespaces[version] = treeAllowedNamespaces
 
         tree.classes.forEach { klass ->
             val classMappings = treeAllowedNamespaces.mapNotNull(klass::getDstName)
             // do we have a node with at least one same key?
             // if we don't, we make a new node and append it to the tree
-            val node = classTree[classMappings] ?: ClassAncestryTree.Node().also { classTree += it }
+            val node = classTree[classMappings] ?: classTree.Node().also { classTree += it }
 
             // append all mappings to the keys, ignoring duplicates (it's a set), and add a mapping entry to the node
             node.keys += classMappings

@@ -32,7 +32,7 @@ import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ContributorProvider
 import me.kcra.takenaka.core.mapping.ElementRemapper
-import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
+import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.generator.common.AbstractGenerator
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
@@ -41,7 +41,6 @@ import me.kcra.takenaka.generator.web.pages.overviewPage
 import me.kcra.takenaka.generator.web.pages.packagePage
 import me.kcra.takenaka.generator.web.pages.versionsPage
 import me.kcra.takenaka.generator.web.transformers.Transformer
-import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTree
 import org.objectweb.asm.Opcodes
 import org.w3c.dom.Document
@@ -53,8 +52,6 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.coroutines.CoroutineContext
 
-private val logger = KotlinLogging.logger {}
-
 /**
  * A generator that generates documentation in an HTML format.
  *
@@ -65,12 +62,12 @@ private val logger = KotlinLogging.logger {}
  * @param mappingWorkspace the workspace in which the mappings are stored
  * @param contributorProvider a function that provides mapping contributors to be processed
  * @param coroutineDispatcher the Kotlin Coroutines context
+ * @param skipSynthetics whether synthetic classes and their members should be skipped
  * @param transformers a list of transformers that transform the output
  * @param namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @param namespaceBadgeColors a map of namespaces and their colors, defaults to #94a3b8 for all of them
  * @param namespaceFriendlyNames a map of namespaces and their names that will be shown in the documentation, unspecified namespaces will not be shown
  * @param index a resolver for foreign class references
- * @param skipSynthetics whether synthetic classes and their members should be skipped
  * @author Matouš Kučera
  */
 class WebGenerator(
@@ -79,13 +76,13 @@ class WebGenerator(
     mappingWorkspace: CompositeWorkspace,
     contributorProvider: ContributorProvider,
     coroutineDispatcher: CoroutineContext,
+    skipSynthetics: Boolean,
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaceBadgeColors: Map<String, String> = emptyMap(),
     val namespaceFriendlyNames: Map<String, String> = emptyMap(),
-    val index: ClassSearchIndex = emptyClassSearchIndex(),
-    val skipSynthetics: Boolean = true
-) : AbstractGenerator(workspace, versions, coroutineDispatcher, mappingWorkspace, contributorProvider) {
+    val index: ClassSearchIndex = emptyClassSearchIndex()
+) : AbstractGenerator(workspace, versions, coroutineDispatcher, skipSynthetics, mappingWorkspace, contributorProvider) {
     /**
      * Launches the generator.
      */
@@ -103,23 +100,15 @@ class WebGenerator(
                 val classMap = mutableMapOf<String, MutableMap<String, ClassType>>()
 
                 tree.classes.forEach { klass ->
-                    val mod = klass.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull()
                     val friendlyName = getFriendlyDstName(klass)
 
-                    // skip mappings without modifiers, those weren't in the server JAR
-                    if (mod == null) {
-                        logger.warn { "Skipping generation for class $friendlyName, missing modifiers" }
-                    } else if (skipSynthetics && (mod and Opcodes.ACC_SYNTHETIC) != 0) {
-                        logger.warn { "Skipping generation for class $friendlyName, synthetic" }
-                    } else {
-                        launch(coroutineDispatcher) {
-                            classPage(klass, versionWorkspace, friendlyNameRemapper)
-                                .serialize(versionWorkspace, "$friendlyName.html")
-                        }
-
-                        classMap.getOrPut(friendlyName.substringBeforeLast('/')) { mutableMapOf() } +=
-                            friendlyName.substringAfterLast('/') to classTypeOf(mod)
+                    launch(coroutineDispatcher) {
+                        classPage(klass, versionWorkspace, friendlyNameRemapper)
+                            .serialize(versionWorkspace, "$friendlyName.html")
                     }
+
+                    classMap.getOrPut(friendlyName.substringBeforeLast('/')) { mutableMapOf() } +=
+                        friendlyName.substringAfterLast('/') to classTypeOf(klass.modifiers)
                 }
 
                 classMap.forEach { (packageName, classes) ->

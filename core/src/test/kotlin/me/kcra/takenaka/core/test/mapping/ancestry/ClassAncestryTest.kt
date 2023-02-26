@@ -37,7 +37,7 @@ class ClassAncestryTest {
             }
         }
 
-        val mappings = workspace.resolveMappings(objectMapper)
+        val mappings = workspace.resolveMappings(objectMapper, save = true)
         val tree = classAncestryTreeOf(mappings, allowedNamespaces = listOf("mojang", "searge", "intermediary", "spigot"))
 
         tree.forEach { node ->

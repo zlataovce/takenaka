@@ -194,7 +194,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                     }
                 }
             }
-            if (klass.methods.any { it.srcName != "<init>" && it.srcName != "<clinit>" }) {
+            if (klass.methods.any { it.srcName != "<init>" }) {
                 spacerBottomComponent()
                 h4 {
                     +"Method summary"
@@ -212,8 +212,8 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                     }
                     tbody {
                         klass.methods.forEach { method ->
-                            // skip constructors and static initializers
-                            if (method.srcName == "<init>" || method.srcName == "<clinit>") return@forEach
+                            // skip constructors
+                            if (method.srcName == "<init>") return@forEach
 
                             val methodMod = method.modifiers
                             if (generator.skipSynthetics && (methodMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach

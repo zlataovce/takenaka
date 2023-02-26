@@ -21,9 +21,13 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.*
 import me.kcra.takenaka.core.*
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
+import me.kcra.takenaka.core.mapping.WrappingContributor
+import me.kcra.takenaka.core.mapping.adapter.*
+import me.kcra.takenaka.core.mapping.buildMappingTree
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
-import net.fabricmc.mappingio.tree.MemoryMappingTree
+import net.fabricmc.mappingio.format.Tiny2Writer
+import net.fabricmc.mappingio.tree.MappingTree
 import kotlin.system.measureTimeMillis
 import kotlin.test.Test
 
@@ -92,28 +96,46 @@ class MappingResolverTest {
     }
 }
 
-suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper): MemoryMappingTree = coroutineScope {
-    val resolvers = listOf(
-        MojangServerMappingResolver(this@resolveVersionMappings, objectMapper),
-        IntermediaryMappingResolver(this@resolveVersionMappings),
-        SeargeMappingResolver(this@resolveVersionMappings),
-        SpigotClassMappingResolver(this@resolveVersionMappings, objectMapper),
-        SpigotMemberMappingResolver(this@resolveVersionMappings, objectMapper),
-        VanillaMappingContributor(this@resolveVersionMappings, objectMapper)
-    )
+suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper): MappingTree = coroutineScope {
+    return@coroutineScope buildMappingTree {
+        val _prependedClasses = mutableListOf<String>()
 
-    val file = MemoryMappingTree()
+        contributor(listOf(
+            MojangServerMappingResolver(this@resolveVersionMappings, objectMapper),
+            IntermediaryMappingResolver(this@resolveVersionMappings),
+            SeargeMappingResolver(this@resolveVersionMappings),
+            // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
+            // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
+            WrappingContributor(SpigotClassMappingResolver(this@resolveVersionMappings, objectMapper)) {
+                LegacySpigotMappingPrepender(it, prependedClasses = _prependedClasses)
+            },
+            WrappingContributor(SpigotMemberMappingResolver(this@resolveVersionMappings, objectMapper)) {
+                LegacySpigotMappingPrepender(it, prependedClasses = _prependedClasses)
+            },
+            VanillaMappingContributor(this@resolveVersionMappings, objectMapper)
+        ))
 
-    resolvers.forEach {
-        it.accept(file)
+        mutateBefore { tree ->
+            NamespaceFilter(MissingDescriptorFilter(tree), "searge_id")
+        }
+
+        mutateAfter {
+            filterWithModifiers()
+            filterNonSynthetic()
+            filterNonStaticInitializer()
+
+            dstNamespaces.forEach { ns ->
+                if (ns in VanillaMappingContributor.NAMESPACES) return@forEach
+
+                completeMethodOverrides(ns)
+            }
+        }
     }
-
-    return@coroutineScope file
 }
 
-fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper): VersionedMappingMap = runBlocking {
+fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, save: Boolean = false): VersionedMappingMap = runBlocking {
     val manifest = objectMapper.versionManifest()
-    val jobs = mutableListOf<Deferred<Pair<Version, MemoryMappingTree>>>()
+    val jobs = mutableListOf<Deferred<Pair<Version, MappingTree>>>()
 
     VERSIONS.forEach {
         val version = manifest[it] ?: error("did not find $it in manifest")
@@ -123,6 +145,11 @@ fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper): VersionedMap
                 this.version = version
             }
             val tree = workspace.resolveVersionMappings(objectMapper)
+
+            if (save) {
+                Tiny2Writer(workspace["joined.tiny"].writer(), false)
+                    .use { writer -> tree.accept(writer) }
+            }
 
             version to tree
         }

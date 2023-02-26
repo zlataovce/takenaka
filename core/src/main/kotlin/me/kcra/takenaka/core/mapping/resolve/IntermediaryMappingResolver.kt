@@ -112,7 +112,7 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
         // official is the obfuscated one
         reader()?.use { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK))) }
         // limit the license file to 12 lines for conciseness
-        licenseReader().buffered().use { visitor.visitMetadata(META_LICENSE, it.lineSequence().take(12).joinToString("\n")) }
+        licenseReader().buffered().use { visitor.visitMetadata(META_LICENSE, it.lineSequence().take(12).joinToString("\\n") { line -> line.replace("\t", "    ") }) }
     }
 
     companion object {

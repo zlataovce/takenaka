@@ -106,6 +106,7 @@ class WebCLI : CLI {
                 )
             },
             coroutineDispatcher,
+            skipSynthetics,
             transformers,
             listOf("mojang", "spigot", "searge", "intermediary"),
             mapOf(
@@ -122,8 +123,7 @@ class WebCLI : CLI {
                 "intermediary" to "Intermediary",
                 "source" to "Obfuscated"
             ),
-            compositeClassSearchIndexOf(*indexers.toTypedArray()),
-            skipSynthetics
+            compositeClassSearchIndexOf(*indexers.toTypedArray())
         )
 
         generator.generate()

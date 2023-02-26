@@ -23,6 +23,9 @@ import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ContributorProvider
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
 import me.kcra.takenaka.core.mapping.adapter.completeMethodOverrides
+import me.kcra.takenaka.core.mapping.adapter.filterNonStaticInitializer
+import me.kcra.takenaka.core.mapping.adapter.filterNonSynthetic
+import me.kcra.takenaka.core.mapping.adapter.filterWithModifiers
 import me.kcra.takenaka.core.mapping.buildMappingTree
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.util.objectMapper
@@ -36,6 +39,7 @@ import kotlin.coroutines.CoroutineContext
  * @param workspace the workspace in which this generator can move around
  * @param versions the Minecraft versions that this generator will process
  * @param coroutineDispatcher the Kotlin Coroutines context
+ * @param skipSynthetics whether synthetic classes and their members should be skipped
  * @param mappingWorkspace the workspace in which the mappings are stored
  * @param contributorProvider a function that provides mapping contributors to be processed
  * @author Matouš Kučera
@@ -44,6 +48,7 @@ abstract class AbstractGenerator(
     val workspace: Workspace,
     val versions: List<String>,
     val coroutineDispatcher: CoroutineContext = Dispatchers.IO,
+    val skipSynthetics: Boolean = false,
     private val mappingWorkspace: CompositeWorkspace,
     private val contributorProvider: ContributorProvider
 ) {
@@ -80,7 +85,15 @@ abstract class AbstractGenerator(
                 return@parallelMap version to buildMappingTree {
                     contributor(contributorProvider(versionWorkspace, objectMapper))
 
-                    mutate {
+                    mutateAfter {
+                        filterWithModifiers()
+
+                        if (skipSynthetics) {
+                            filterNonSynthetic()
+                        }
+
+                        filterNonStaticInitializer()
+
                         dstNamespaces.forEach { ns ->
                             if (ns in VanillaMappingContributor.NAMESPACES) return@forEach
 
