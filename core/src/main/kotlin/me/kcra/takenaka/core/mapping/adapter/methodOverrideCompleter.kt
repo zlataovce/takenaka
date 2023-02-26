@@ -27,11 +27,13 @@ fun MappingTree.completeMethodOverrides(namespace: String) {
 
     var correctionCount = 0
     classes.forEach { klass ->
-        val klassName = klass.getDstName(namespaceId)
+        val klassName by lazy { klass.getDstName(namespaceId) }
+        val klassSuperTypes by lazy { klass.superTypes }
+
         klass.methods.forEach { method ->
             val methodName = method.getDstName(namespaceId)
             if (methodName == null) {
-                klass.superTypes.forEach { superType ->
+                klassSuperTypes.forEach { superType ->
                     val superMethodName = superType.methods
                         .filter { it.srcName == method.srcName && it.srcDesc == method.srcDesc }
                         .firstNotNullOfOrNull { it.getDstName(namespaceId) }

@@ -154,6 +154,7 @@ class SpigotMemberMappingResolver(
     workspace: VersionedWorkspace,
     objectMapper: ObjectMapper
 ) : AbstractSpigotMappingResolver(workspace, objectMapper) {
+    private var expectPrefixedClassNames = false
     override val mappingAttributeName: String = "memberMappings"
     override val mappingAttribute: String? = attributes.memberMappings
 
@@ -196,9 +197,19 @@ class SpigotMemberMappingResolver(
                     val owner = columns[0]
                     val srcName = columns[1]
 
-                    val ownerKlass = visitor0.getClass(owner, namespaceId)
-                        ?: visitor0.getClass("net/minecraft/server/VVV/${owner.substringAfterLast('/')}", namespaceId) // search for prefixed class names
-                        ?: visitor0.getClass(owner) // search for unobfuscated class names, like Main and MinecraftServer
+                    fun getPrefixedClass(name: String): MappingTreeView.ClassMappingView? =
+                        visitor0.getClass("net/minecraft/server/VVV/${name.substringAfterLast('/')}", namespaceId)?.also { expectPrefixedClassNames = true }
+
+                    // perf: reorder queries based on previously read values
+                    val ownerKlass = if (expectPrefixedClassNames) {
+                         getPrefixedClass(owner) // search for prefixed class names
+                            ?: visitor0.getClass(owner) // search for unobfuscated class names, like Main and MinecraftServer
+                            ?: visitor0.getClass(owner, namespaceId)
+                    } else {
+                        visitor0.getClass(owner, namespaceId)
+                            ?: getPrefixedClass(owner) // search for prefixed class names
+                            ?: visitor0.getClass(owner) // search for unobfuscated class names, like Main and MinecraftServer
+                    }
 
                     if (ownerKlass == null) {
                         logger.warn { "skipping member $srcName in $owner, unknown owner" }

@@ -132,6 +132,8 @@ class CompositeClassSearchIndex(val indexes: List<ClassSearchIndex>) : ClassSear
  * @author Matouš Kučera
  */
 data class ModularClassSearchIndex(override val baseUrl: String, val index: List<Node>) : ClassSearchIndex {
+    private val packageIndex: Map<String, Node> = index.associateBy { it.`package` }
+
     /**
      * Tries to make a URL to a foreign class.
      *
@@ -142,7 +144,7 @@ data class ModularClassSearchIndex(override val baseUrl: String, val index: List
         val klassPackage = internalName.fromInternalName().substringBeforeLast('.')
         if (klassPackage == internalName) return null
 
-        val packageNode = index.find { it.`package` == klassPackage } ?: return null
+        val packageNode = packageIndex[klassPackage] ?: return null
         return "$baseUrl/${packageNode.module}/${internalName.replace('$', '.')}.html"
     }
 
