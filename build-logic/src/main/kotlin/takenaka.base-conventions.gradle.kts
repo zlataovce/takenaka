@@ -16,6 +16,7 @@ java {
 }
 
 license {
+    skipExistingHeaders(true)
     header(rootProject.file("license_header.txt"))
 }
 

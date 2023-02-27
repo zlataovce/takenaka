@@ -1,24 +1,38 @@
 /*
- * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
+ * ASM: a very small and fast Java bytecode manipulation framework
+ * Copyright (c) 2000-2011 INRIA, France Telecom
+ * All rights reserved.
  *
- * Copyright (c) 2023 Matous Kucera
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holders nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
  *
- * You may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Modifications to this file are licensed under the Apache License, Version 2.0.
  */
 
 package me.kcra.takenaka.generator.web
 
 import me.kcra.takenaka.core.Version
-import me.kcra.takenaka.core.mapping.fromInternalName
 import net.fabricmc.mappingio.tree.MappingTree
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.commons.Remapper
@@ -342,29 +356,5 @@ class SignatureFormatter : SignatureVisitor {
             'D' to "double",
             'V' to "void",
         )
-    }
-}
-
-/**
- * Remaps a type and creates a link if a mapping has been found.
- *
- * @param version the mapping version
- * @param internalName the internal name of the class to be remapped
- * @param packageIndex the index used for looking up foreign class references
- * @return the remapped type, a link if it was found
- */
-fun Remapper.mapTypeAndLink(version: Version, internalName: String, packageIndex: ClassSearchIndex, linkRemapper: Remapper? = null): String {
-    val foreignUrl = packageIndex.linkClass(internalName)
-    if (foreignUrl != null) {
-        return """<a href="$foreignUrl">${internalName.substringAfterLast('/')}</a>"""
-    }
-
-    val remappedName = mapType(internalName)
-    val linkName = linkRemapper?.mapType(internalName) ?: remappedName
-
-    return if (remappedName != internalName || linkName != remappedName) {
-        """<a href="/${version.id}/$linkName.html">${remappedName.substringAfterLast('/')}</a>"""
-    } else {
-        remappedName.fromInternalName()
     }
 }

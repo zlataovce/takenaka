@@ -29,9 +29,11 @@ import kotlinx.html.dom.serialize
 import kotlinx.html.dom.write
 import kotlinx.html.html
 import me.kcra.takenaka.core.CompositeWorkspace
+import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ContributorProvider
 import me.kcra.takenaka.core.mapping.ElementRemapper
+import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.generator.common.AbstractGenerator
 import me.kcra.takenaka.generator.web.components.footerComponent
@@ -43,6 +45,7 @@ import me.kcra.takenaka.generator.web.pages.versionsPage
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import net.fabricmc.mappingio.tree.MappingTree
 import org.objectweb.asm.Opcodes
+import org.objectweb.asm.commons.Remapper
 import org.w3c.dom.Document
 import java.io.BufferedReader
 import java.nio.file.Files
@@ -327,6 +330,30 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
         if ((mMod and Opcodes.ACC_SYNCHRONIZED) != 0) append("synchronized ")
         if ((mMod and Opcodes.ACC_TRANSIENT) != 0) append("transient ")
         if ((mMod and Opcodes.ACC_VOLATILE) != 0) append("volatile ")
+    }
+}
+
+/**
+ * Remaps a type and creates a link if a mapping has been found.
+ *
+ * @param version the mapping version
+ * @param internalName the internal name of the class to be remapped
+ * @param packageIndex the index used for looking up foreign class references
+ * @return the remapped type, a link if it was found
+ */
+fun Remapper.mapTypeAndLink(version: Version, internalName: String, packageIndex: ClassSearchIndex, linkRemapper: Remapper? = null): String {
+    val foreignUrl = packageIndex.linkClass(internalName)
+    if (foreignUrl != null) {
+        return """<a href="$foreignUrl">${internalName.substringAfterLast('/')}</a>"""
+    }
+
+    val remappedName = mapType(internalName)
+    val linkName = linkRemapper?.mapType(internalName) ?: remappedName
+
+    return if (remappedName != internalName || linkName != remappedName) {
+        """<a href="/${version.id}/$linkName.html">${remappedName.substringAfterLast('/')}</a>"""
+    } else {
+        remappedName.fromInternalName()
     }
 }
 
