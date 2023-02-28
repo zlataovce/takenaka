@@ -87,7 +87,7 @@ class WebCLI : CLI {
             output,
             versions,
             mappingWorkspace,
-            { versionWorkspace, objectMapper ->
+            { versionWorkspace ->
                 val _prependedClasses = mutableListOf<String>()
 
                 listOf(
@@ -96,10 +96,10 @@ class WebCLI : CLI {
                     SeargeMappingResolver(versionWorkspace),
                     // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
                     // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
-                    WrappingContributor(SpigotClassMappingResolver(versionWorkspace, objectMapper)) {
+                    WrappingContributor(SpigotClassMappingResolver(versionWorkspace, objectMapper, xmlMapper)) {
                         LegacySpigotMappingPrepender(it, prependedClasses = _prependedClasses)
                     },
-                    WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, objectMapper)) {
+                    WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, objectMapper, xmlMapper)) {
                         LegacySpigotMappingPrepender(it, prependedClasses = _prependedClasses)
                     },
                     VanillaMappingContributor(versionWorkspace, objectMapper)

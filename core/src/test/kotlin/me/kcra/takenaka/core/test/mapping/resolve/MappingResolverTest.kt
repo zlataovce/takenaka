@@ -18,6 +18,7 @@
 package me.kcra.takenaka.core.test.mapping.resolve
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.coroutines.*
 import me.kcra.takenaka.core.*
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
@@ -73,6 +74,7 @@ val VERSIONS = listOf(
 
 class MappingResolverTest {
     private val objectMapper = objectMapper()
+    private val xmlMapper = XmlMapper()
     private val workspaceDir = "test-workspace"
 
     @Test
@@ -86,17 +88,17 @@ class MappingResolverTest {
         }
 
         val time = measureTimeMillis {
-            workspace.resolveMappings(objectMapper)
+            workspace.resolveMappings(objectMapper, xmlMapper)
         }
         val cachedTime = measureTimeMillis {
-            workspace.resolveMappings(objectMapper)
+            workspace.resolveMappings(objectMapper, xmlMapper)
         }
 
         println("Elapsed ${time / 1000}s, cached ${cachedTime / 1000}s")
     }
 }
 
-suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper): MappingTree = coroutineScope {
+suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper, xmlMapper: ObjectMapper): MappingTree = coroutineScope {
     return@coroutineScope buildMappingTree {
         val _prependedClasses = mutableListOf<String>()
 
@@ -106,10 +108,10 @@ suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper
             SeargeMappingResolver(this@resolveVersionMappings),
             // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
             // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
-            WrappingContributor(SpigotClassMappingResolver(this@resolveVersionMappings, objectMapper)) {
+            WrappingContributor(SpigotClassMappingResolver(this@resolveVersionMappings, objectMapper, xmlMapper)) {
                 LegacySpigotMappingPrepender(it, prependedClasses = _prependedClasses)
             },
-            WrappingContributor(SpigotMemberMappingResolver(this@resolveVersionMappings, objectMapper)) {
+            WrappingContributor(SpigotMemberMappingResolver(this@resolveVersionMappings, objectMapper, xmlMapper)) {
                 LegacySpigotMappingPrepender(it, prependedClasses = _prependedClasses)
             },
             VanillaMappingContributor(this@resolveVersionMappings, objectMapper)
@@ -133,7 +135,7 @@ suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper
     }
 }
 
-fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, save: Boolean = false): VersionedMappingMap = runBlocking {
+fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, xmlMapper: ObjectMapper, save: Boolean = false): VersionedMappingMap = runBlocking {
     val manifest = objectMapper.versionManifest()
     val jobs = mutableListOf<Deferred<Pair<Version, MappingTree>>>()
 
@@ -144,7 +146,7 @@ fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, save: Boolean
             val workspace by versioned {
                 this.version = version
             }
-            val tree = workspace.resolveVersionMappings(objectMapper)
+            val tree = workspace.resolveVersionMappings(objectMapper, xmlMapper)
 
             if (save) {
                 Tiny2Writer(workspace["joined.tiny"].writer(), false)

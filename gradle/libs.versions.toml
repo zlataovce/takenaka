@@ -12,6 +12,7 @@ asm-tree = { group = "org.ow2.asm", name = "asm-tree", version.ref = "asm" }
 asm-util = { group = "org.ow2.asm", name = "asm-util", version.ref = "asm" }
 jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin", version.ref = "jackson" }
 jackson-datatype-jsr310 = { group = "com.fasterxml.jackson.datatype", name = "jackson-datatype-jsr310", version.ref = "jackson" }
+jackson-dataformat-xml = { group = "com.fasterxml.jackson.dataformat", name = "jackson-dataformat-xml", version.ref = "jackson" }
 mapping-io = { group = "net.fabricmc", name = "mapping-io", version = "0.3.0" }
 kotlin-logging-jvm = { group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.4" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version = "2.0.6" }
@@ -23,7 +24,7 @@ build-licenser = { group = "org.cadixdev.licenser", name = "org.cadixdev.license
 [bundles]
 kotlin = ["kotlin-stdlib-jdk8", "kotlin-reflect"]
 asm = ["asm", "asm-commons", "asm-tree", "asm-util"]
-jackson = ["jackson-module-kotlin", "jackson-datatype-jsr310"]
+jackson = ["jackson-module-kotlin", "jackson-datatype-jsr310", "jackson-dataformat-xml"]
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

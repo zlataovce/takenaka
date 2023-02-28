@@ -47,7 +47,8 @@ private val logger = KotlinLogging.logger {}
  */
 abstract class AbstractSpigotMappingResolver(
     workspace: VersionedWorkspace,
-    objectMapper: ObjectMapper
+    objectMapper: ObjectMapper,
+    val xmlMapper: ObjectMapper
 ) : SpigotManifestConsumer(workspace, objectMapper), MappingResolver, MappingContributor {
     override val version: Version by workspace::version
     override val targetNamespace: String = "spigot"
@@ -68,12 +69,13 @@ abstract class AbstractSpigotMappingResolver(
      * @return the reader, null if this resolver doesn't support the version
      */
     override fun reader(): Reader? {
-        if (mappingAttribute == null) {
+        val mappingAttribute0 = mappingAttribute
+        if (mappingAttribute0 == null) {
             logger.warn { "did not find ${version.id} Spigot mappings ($mappingAttributeName)" }
             return null
         }
 
-        val file = workspace[mappingAttribute!!]
+        val file = workspace[mappingAttribute0]
 
         // Spigot's stash doesn't seem to support sending Content-Length headers
         if (RELAXED_CACHE in workspace.resolverOptions && file.isFile) {
@@ -105,6 +107,32 @@ abstract class AbstractSpigotMappingResolver(
     }
 
     /**
+     * Creates a new CraftBukkit pom.xml file reader.
+     *
+     * @return the reader, null if an error occurred
+     */
+    fun pomReader(): Reader? {
+        val file = workspace[CRAFTBUKKIT_POM]
+
+        if (RELAXED_CACHE in workspace.resolverOptions && file.isFile) {
+            return file.reader()
+        }
+
+        URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/raw/pom.xml?at=${manifest.refs["CraftBukkit"]}").httpRequest {
+            if (it.ok) {
+                it.copyTo(file.toPath())
+
+                logger.info { "fetched ${version.id} CraftBukkit pom.xml" }
+                return file.reader()
+            }
+
+            logger.warn { "failed to fetch ${version.id} CraftBukkit pom.xml, received ${it.responseCode}" }
+        }
+
+        return null
+    }
+
+    /**
      * Visits the mappings to the supplied visitor.
      *
      * @param visitor the visitor
@@ -120,13 +148,24 @@ abstract class AbstractSpigotMappingResolver(
             TsrgReader.read(it, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor)
         }
         licenseReader()?.use { visitor.visitMetadata(META_LICENSE, it.readText()) }
+        pomReader()?.use { xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v -> visitor.visitMetadata(META_CB_NMS_VERSION, v) } }
     }
 
     companion object {
         /**
+         * The CraftBukkit pom.xml file.
+         */
+        const val CRAFTBUKKIT_POM = "pom.xml"
+
+        /**
          * The license metadata key.
          */
         const val META_LICENSE = "spigot_license"
+
+        /**
+         * The CraftBukkit NMS version metadata key.
+         */
+        const val META_CB_NMS_VERSION = "cb_nms_version"
     }
 }
 
@@ -138,8 +177,9 @@ abstract class AbstractSpigotMappingResolver(
  */
 class SpigotClassMappingResolver(
     workspace: VersionedWorkspace,
-    objectMapper: ObjectMapper
-) : AbstractSpigotMappingResolver(workspace, objectMapper) {
+    objectMapper: ObjectMapper,
+    xmlMapper: ObjectMapper
+) : AbstractSpigotMappingResolver(workspace, objectMapper, xmlMapper) {
     override val mappingAttributeName: String = "classMappings"
     override val mappingAttribute: String? = attributes.classMappings
 }
@@ -152,8 +192,9 @@ class SpigotClassMappingResolver(
  */
 class SpigotMemberMappingResolver(
     workspace: VersionedWorkspace,
-    objectMapper: ObjectMapper
-) : AbstractSpigotMappingResolver(workspace, objectMapper) {
+    objectMapper: ObjectMapper,
+    xmlMapper: ObjectMapper
+) : AbstractSpigotMappingResolver(workspace, objectMapper, xmlMapper) {
     private var expectPrefixedClassNames = false
     override val mappingAttributeName: String = "memberMappings"
     override val mappingAttribute: String? = attributes.memberMappings

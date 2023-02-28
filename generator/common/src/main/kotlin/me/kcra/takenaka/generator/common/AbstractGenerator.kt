@@ -17,10 +17,12 @@
 
 package me.kcra.takenaka.generator.common
 
+import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.coroutines.*
 import me.kcra.takenaka.core.CompositeWorkspace
+import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.ContributorProvider
+import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
 import me.kcra.takenaka.core.mapping.adapter.completeMethodOverrides
 import me.kcra.takenaka.core.mapping.adapter.filterNonStaticInitializer
@@ -31,6 +33,11 @@ import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
 import kotlin.coroutines.CoroutineContext
+
+/**
+ * A function for providing a list of mapping contributors for a single version.
+ */
+typealias ContributorProvider = AbstractGenerator.(VersionedWorkspace) -> List<MappingContributor>
 
 /**
  * An abstract base for a generator.
@@ -55,12 +62,17 @@ abstract class AbstractGenerator(
     /**
      * An object mapper instance for this generator.
      */
-    protected val objectMapper = objectMapper()
+    val objectMapper = objectMapper()
+
+    /**
+     * An XML object mapper instance for this generator.
+     */
+    val xmlMapper = XmlMapper()
 
     /**
      * The mappings.
      */
-    protected val mappings: VersionedMappingMap by lazy(::resolveMappings)
+    val mappings: VersionedMappingMap by lazy(::resolveMappings)
 
     /**
      * Launches the generator.
@@ -83,7 +95,7 @@ abstract class AbstractGenerator(
                 }
 
                 return@parallelMap version to buildMappingTree {
-                    contributor(contributorProvider(versionWorkspace, objectMapper))
+                    contributor(contributorProvider(versionWorkspace))
 
                     mutateAfter {
                         filterWithModifiers()

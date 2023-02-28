@@ -17,14 +17,7 @@
 
 package me.kcra.takenaka.core.mapping
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.VersionedWorkspace
 import net.fabricmc.mappingio.MappingVisitor
-
-/**
- * A function for providing a list of mapping contributors for a single version.
- */
-typealias ContributorProvider = (VersionedWorkspace, ObjectMapper) -> List<MappingContributor>
 
 /**
  * A mapping contributor.

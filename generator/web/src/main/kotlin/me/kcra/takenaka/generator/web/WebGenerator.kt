@@ -31,11 +31,12 @@ import kotlinx.html.html
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.ContributorProvider
 import me.kcra.takenaka.core.mapping.ElementRemapper
+import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.generator.common.AbstractGenerator
+import me.kcra.takenaka.generator.common.ContributorProvider
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.classPage
@@ -95,6 +96,7 @@ class WebGenerator(
 
         generationContext(styleSupplier = styleSupplier::apply) {
             mappings.forEach { (version, tree) ->
+                tree.replaceCraftBukkitNMSVersion()
                 val versionWorkspace by composite.versioned {
                     this.version = version
                 }

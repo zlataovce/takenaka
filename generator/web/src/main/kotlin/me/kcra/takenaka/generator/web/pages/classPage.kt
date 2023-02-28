@@ -386,9 +386,9 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
         val args = buildString {
             append('(')
 
-            val args = visitor.declaration.substring(argStart .. argEnd)
-            if (args.isNotEmpty()) {
-                val splitArgs = args.split('+')
+            val args0 = visitor.declaration.substring(argStart + 1, argEnd)
+            if (args0.isNotEmpty()) {
+                val splitArgs = args0.split('+')
 
                 var argumentIndex = 0
                 append(

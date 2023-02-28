@@ -17,6 +17,7 @@
 
 package me.kcra.takenaka.core.test.mapping.ancestry
 
+import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import me.kcra.takenaka.core.compositeWorkspace
 import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
 import me.kcra.takenaka.core.test.mapping.resolve.resolveMappings
@@ -25,6 +26,7 @@ import kotlin.test.Test
 
 class ClassAncestryTest {
     private val objectMapper = objectMapper()
+    private val xmlMapper = XmlMapper()
     private val workspaceDir = "test-workspace"
 
     @Test
@@ -37,7 +39,7 @@ class ClassAncestryTest {
             }
         }
 
-        val mappings = workspace.resolveMappings(objectMapper, save = true)
+        val mappings = workspace.resolveMappings(objectMapper, xmlMapper, save = true)
         val tree = classAncestryTreeOf(mappings, allowedNamespaces = listOf("mojang", "searge", "intermediary", "spigot"))
 
         tree.forEach { node ->
