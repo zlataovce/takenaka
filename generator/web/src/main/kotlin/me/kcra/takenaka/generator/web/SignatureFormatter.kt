@@ -33,14 +33,48 @@
 package me.kcra.takenaka.generator.web
 
 import me.kcra.takenaka.core.Version
-import net.fabricmc.mappingio.tree.MappingTree
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.commons.Remapper
 import org.objectweb.asm.signature.SignatureVisitor
 
 /**
- * A [SignatureVisitor] implementation that builds the Java generic type declaration corresponding to the
- * signature it visits, changing class references to HTML links.
+ * Formatting options.
+ */
+typealias FormattingOptions = Int
+
+/**
+ * Checks if the options contain an option.
+ *
+ * @param option the option to check
+ * @return do the options contain the option?
+ */
+operator fun FormattingOptions.contains(option: Int): Boolean = (this and option) != 0
+
+/**
+ * Creates formatting options from multiple options.
+ *
+ * @param options the options
+ * @return the formatting options
+ */
+fun formattingOptionsOf(vararg options: Int): FormattingOptions = options.reduceOrNull { v1, v2 -> v1 or v2 } ?: 0
+
+/**
+ * Requests the formatter to escape less than and greater than signs (formal type parameter declaration) to HTML format.
+ */
+const val ESCAPE_HTML_SYMBOLS = 0x00000001
+
+/**
+ * Requests the formatter to use the `extends` separator for superinterfaces, most likely because the visited signature belongs to an interface.
+ */
+const val INTERFACE_SIGNATURE = 0x00000010
+
+/**
+ * Requests the formatter to separate method signature arguments with plus signs (`+`).
+ */
+const val SEPARATE_ARGS_WITH_PLUS = 0x00000100
+
+/**
+ * A [SignatureVisitor] implementation that builds the Java generic type declaration corresponding to the signature it visits.
  *
  * This is adapted from the [org.objectweb.asm.util.TraceSignatureVisitor] class.
  *
@@ -90,20 +124,12 @@ class SignatureFormatter : SignatureVisitor {
     /** The separator to append before the next visited class or inner class type.  */
     private var separator = ""
 
-    /**
-     * The mapping tree used for remapping.
-     */
-    private val tree: MappingTree
-
-    /**
-     * The package index used for looking up foreign class references.
-     */
-    private val packageIndex: ClassSearchIndex
+    // remapping stuff
 
     /**
      * The class name remapper.
      */
-    private val remapper: Remapper
+    private val remapper: Remapper?
 
     /**
      * The link remapper.
@@ -111,53 +137,106 @@ class SignatureFormatter : SignatureVisitor {
     private val linkRemapper: Remapper?
 
     /**
+     * The package index used for looking up foreign class references.
+     */
+    private val packageIndex: ClassSearchIndex?
+
+    /**
      * The version of the mappings.
      */
-    private val version: Version
+    private val version: Version?
 
     private val classNames: MutableList<String> = mutableListOf()
+
+    // remapping stuff end
+
+    /**
+     * The formatting options.
+     */
+    val options: FormattingOptions
 
     /**
      * The index where the main formals end.
      */
-    private var formalEndIndex: Int = -1
+    var formalEndIndex: Int = -1
 
+    /**
+     * The formal type parameters of the visited class signature.
+     */
     val formals: String
         get() = if (formalEndIndex != -1) declaration_.substring(0, formalEndIndex) else ""
+
+    /**
+     * The supertypes of the visited class signature.
+     */
     val superTypes: String
         get() = (if (formalEndIndex != -1) declaration_.substring(formalEndIndex) else declaration).trim()
 
-    val declaration: String get() = declaration_.toString()
-    val returnType: String? get() = returnType_?.toString()
-    val exceptions: String? get() = exceptions_?.toString()
+    /**
+     * The entire rebuilt signature.
+     */
+    val declaration: String
+        get() = declaration_.toString()
+
+    /**
+     * The return type of the visited method signature.
+     */
+    val returnType: String?
+        get() = returnType_?.toString()
+
+    /**
+     * The throws clause of the visited method signature.
+     */
+    val exceptions: String?
+        get() = exceptions_?.toString()
+
+    private val formalStartStr: String
+        get() = if (ESCAPE_HTML_SYMBOLS in options) "&lt;" else "<"
+    private val formalEndStr: String
+        get() = if (ESCAPE_HTML_SYMBOLS in options) "&gt;" else ">"
 
     /**
      * Constructs a new [SignatureFormatter].
      *
-     * @param accessFlags for class type signatures, the access flags of the class.
+     * @param options the formatting options
      */
-    constructor(tree: MappingTree, packageIndex: ClassSearchIndex, remapper: Remapper, linkRemapper: Remapper?, version: Version, accessFlags: Int) : super(Opcodes.ASM9) {
-        isInterface = accessFlags and Opcodes.ACC_INTERFACE != 0
+    constructor(
+        options: FormattingOptions,
+        remapper: Remapper? = null,
+        linkRemapper: Remapper? = null,
+        packageIndex: ClassSearchIndex? = null,
+        version: Version? = null
+    ) : super(Opcodes.ASM9) {
+        isInterface = INTERFACE_SIGNATURE in options
         declaration_ = StringBuilder()
-        this.packageIndex = packageIndex
+
+        this.options = options
         this.remapper = remapper
         this.linkRemapper = linkRemapper
-        this.tree = tree
+        this.packageIndex = packageIndex
         this.version = version
     }
 
-    private constructor(tree: MappingTree, packageIndex: ClassSearchIndex, remapper: Remapper, linkRemapper: Remapper?, version: Version, stringBuilder: StringBuilder) : super(Opcodes.ASM9) {
+    private constructor(
+        options: FormattingOptions,
+        remapper: Remapper?,
+        linkRemapper: Remapper?,
+        packageIndex: ClassSearchIndex?,
+        version: Version?,
+        stringBuilder: StringBuilder
+    ) : super(Opcodes.ASM9) {
         isInterface = false
         declaration_ = stringBuilder
-        this.packageIndex = packageIndex
+
+        this.options = options
         this.remapper = remapper
         this.linkRemapper = linkRemapper
-        this.tree = tree
+        this.packageIndex = packageIndex
         this.version = version
     }
 
     override fun visitFormalTypeParameter(name: String) {
-        declaration_.append(if (formalTypeParameterVisited) COMMA_SEPARATOR else "&lt;").append(name)
+        declaration_.append(if (formalTypeParameterVisited) COMMA_SEPARATOR else formalStartStr).append(name)
         formalTypeParameterVisited = true
         interfaceBoundVisited = false
     }
@@ -196,7 +275,7 @@ class SignatureFormatter : SignatureVisitor {
     override fun visitParameterType(): SignatureVisitor {
         endFormals()
         if (parameterTypeVisited) {
-            declaration_.append('+')
+            declaration_.append(if (SEPARATE_ARGS_WITH_PLUS in options) '+' else COMMA_SEPARATOR)
         } else {
             declaration_.append('(')
             parameterTypeVisited = true
@@ -215,11 +294,11 @@ class SignatureFormatter : SignatureVisitor {
         declaration_.append(')')
         val returnType0 = StringBuilder()
         returnType_ = returnType0
-        return SignatureFormatter(tree, packageIndex, remapper, linkRemapper, version, returnType0)
+        return SignatureFormatter(options, remapper, linkRemapper, packageIndex, version, returnType0)
     }
 
     override fun visitExceptionType(): SignatureVisitor =
-        SignatureFormatter(tree, packageIndex, remapper, linkRemapper, version, exceptions_?.append(COMMA_SEPARATOR) ?: StringBuilder().also { exceptions_ = it })
+        SignatureFormatter(options, remapper, linkRemapper, packageIndex, version, exceptions_?.append(COMMA_SEPARATOR) ?: StringBuilder().also { exceptions_ = it })
 
     override fun visitBaseType(descriptor: Char) {
         val baseType = BASE_TYPES[descriptor] ?: throw IllegalArgumentException()
@@ -247,10 +326,10 @@ class SignatureFormatter : SignatureVisitor {
             // Object 'but java.lang.String extends java.lang.Object' is unnecessary.
             val needObjectClass = argumentStack % 2 != 0 || parameterTypeVisited
             if (needObjectClass) {
-                declaration_.append(separator).append(remapper.mapTypeAndLink(version, name, packageIndex, linkRemapper = linkRemapper))
+                declaration_.append(separator).append(remapper?.mapTypeAndLink(version!!, name, packageIndex!!, linkRemapper = linkRemapper) ?: name)
             }
         } else {
-            declaration_.append(separator).append(remapper.mapTypeAndLink(version, name, packageIndex, linkRemapper = linkRemapper))
+            declaration_.append(separator).append(remapper?.mapTypeAndLink(version!!, name, packageIndex!!, linkRemapper = linkRemapper) ?: name)
         }
         separator = ""
         argumentStack *= 2
@@ -260,19 +339,22 @@ class SignatureFormatter : SignatureVisitor {
         val outerClassName = classNames.removeAt(classNames.size - 1)
         val className = "$outerClassName$$name"
         classNames += className
-        val remappedOuter = remapper.mapType(outerClassName) + '$'
-        val remappedName = remapper.mapType(className)
-        val index =
-            if (remappedName.startsWith(remappedOuter)) remappedOuter.length else remappedName.lastIndexOf('$') + 1
+        val remappedOuter = (remapper?.mapType(outerClassName) ?: outerClassName) + '$'
+        val remappedName = remapper?.mapType(className) ?: className
+        val index = if (remappedName.startsWith(remappedOuter)) {
+            remappedOuter.length
+        } else {
+            remappedName.lastIndexOf('$') + 1
+        }
 
         if (argumentStack % 2 != 0) {
-            declaration_.append("&gt;")
+            declaration_.append(formalEndStr)
         }
         argumentStack /= 2
         declaration_.append('.')
         declaration_.append(separator).append(
             if (remappedName != className) {
-                """<a href="/${version.id}/${linkRemapper?.mapType(className) ?: remappedName}.html">${remappedName.substring(index)}</a>"""
+                """<a href="/${version!!.id}/${linkRemapper?.mapType(className) ?: remappedName}.html">${remappedName.substring(index)}</a>"""
             } else {
                 remappedName.substring(index)
             }
@@ -284,7 +366,7 @@ class SignatureFormatter : SignatureVisitor {
     override fun visitTypeArgument() {
         if (argumentStack % 2 == 0) {
             ++argumentStack
-            declaration_.append("&lt;")
+            declaration_.append(formalStartStr)
         } else {
             declaration_.append(COMMA_SEPARATOR)
         }
@@ -294,7 +376,7 @@ class SignatureFormatter : SignatureVisitor {
     override fun visitTypeArgument(tag: Char): SignatureVisitor {
         if (argumentStack % 2 == 0) {
             ++argumentStack
-            declaration_.append("&lt;")
+            declaration_.append(formalStartStr)
         } else {
             declaration_.append(COMMA_SEPARATOR)
         }
@@ -309,7 +391,7 @@ class SignatureFormatter : SignatureVisitor {
 
     override fun visitEnd() {
         if (argumentStack % 2 != 0) {
-            declaration_.append("&gt;")
+            declaration_.append(formalEndStr)
         }
         argumentStack /= 2
         endType()
@@ -318,7 +400,7 @@ class SignatureFormatter : SignatureVisitor {
 
     private fun endFormals() {
         if (formalTypeParameterVisited) {
-            declaration_.append("&gt;")
+            declaration_.append(formalEndStr)
             if (argumentStack % 2 == 0) {
                 formalEndIndex = declaration_.length
             }

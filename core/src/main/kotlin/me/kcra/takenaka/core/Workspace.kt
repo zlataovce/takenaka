@@ -86,7 +86,15 @@ fun resolverOptionsOf(vararg options: Int): ResolverOptions = options.reduceOrNu
  * @param block the builder action
  * @return the resolver options
  */
-inline fun resolverOptions(block: MutableResolverOptions.() -> Unit): MutableResolverOptions = MutableResolverOptions().apply(block)
+inline fun resolverOptions(block: MutableResolverOptions.() -> Unit): ResolverOptions = MutableResolverOptions().apply(block).toResolverOptions()
+
+/**
+ * Creates mutable resolver options from a builder.
+ *
+ * @param block the builder action
+ * @return the resolver options
+ */
+inline fun mutableResolverOptions(block: MutableResolverOptions.() -> Unit): MutableResolverOptions = MutableResolverOptions().apply(block)
 
 /**
  * Requests resolvers to cache items without a checksum.

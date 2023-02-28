@@ -44,7 +44,7 @@ fun main(args: Array<String>) {
     parser.parse(args)
 
     val versionList = versions.split(',')
-    val options = resolverOptions {
+    val options = mutableResolverOptions {
         if (!strictCache) {
             relaxedCache()
         }

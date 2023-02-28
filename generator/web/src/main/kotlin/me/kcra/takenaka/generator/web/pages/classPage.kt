@@ -61,7 +61,10 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
             var classHeader = formatClassHeader(friendlyName, mod)
             var classDescription = formatClassDescription(klass, mod, workspace.version, friendlyNameRemapper)
             if (signature != null) {
-                val visitor = SignatureFormatter(klass.tree, index, friendlyNameRemapper, null, workspace.version, mod)
+                var formattingOptions = formattingOptionsOf(ESCAPE_HTML_SYMBOLS)
+                if ((mod and Opcodes.ACC_INTERFACE) != 0) formattingOptions = formattingOptions or INTERFACE_SIGNATURE
+
+                val visitor = SignatureFormatter(formattingOptions, friendlyNameRemapper, null, index, workspace.version)
                 SignatureReader(signature).accept(visitor)
 
                 classHeader += visitor.formals
@@ -231,7 +234,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
 
                                         val methodSignature = method.signature
                                         if (methodSignature != null) {
-                                            val visitor = SignatureFormatter(method.tree, index, friendlyNameRemapper, null, workspace.version, mod)
+                                            val visitor = SignatureFormatter(formattingOptionsOf(ESCAPE_HTML_SYMBOLS), friendlyNameRemapper, null, index, workspace.version)
                                             SignatureReader(methodSignature).accept(visitor)
 
                                             val formals = visitor.declaration.substringBefore('(')
@@ -351,7 +354,7 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
 
     val signature = method.signature
     if (signature != null) {
-        val visitor = SignatureFormatter(method.tree, index, nameRemapper, linkRemapper, version, mod)
+        val visitor = SignatureFormatter(formattingOptionsOf(ESCAPE_HTML_SYMBOLS, SEPARATE_ARGS_WITH_PLUS), nameRemapper, linkRemapper, index, version)
         SignatureReader(signature).accept(visitor)
 
         val formals = visitor.declaration.substringBefore('(')
