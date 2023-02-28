@@ -79,6 +79,7 @@ abstract class AbstractSpigotMappingResolver(
 
         // Spigot's stash doesn't seem to support sending Content-Length headers
         if (RELAXED_CACHE in workspace.resolverOptions && file.isFile) {
+            logger.info { "found cached ${version.id} Spigot mappings ($mappingAttribute)" }
             return file.reader()
         }
 
@@ -115,6 +116,7 @@ abstract class AbstractSpigotMappingResolver(
         val file = workspace[CRAFTBUKKIT_POM]
 
         if (RELAXED_CACHE in workspace.resolverOptions && file.isFile) {
+            logger.info { "found cached ${version.id} CraftBukkit pom.xml ($mappingAttribute)" }
             return file.reader()
         }
 

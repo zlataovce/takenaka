@@ -376,40 +376,15 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
 
     val signature = method.signature
     if (signature != null) {
-        val visitor = SignatureFormatter(formattingOptionsOf(ESCAPE_HTML_SYMBOLS, SEPARATE_ARGS_WITH_PLUS), nameRemapper, linkRemapper, index, version)
+        var options = formattingOptionsOf(ESCAPE_HTML_SYMBOLS, GENERATE_NAMED_PARAMETERS)
+        if ((mod and Opcodes.ACC_VARARGS) != 0) options = options or VARIADIC_PARAMETER
+
+        val visitor = SignatureFormatter(options, nameRemapper, linkRemapper, index, version)
         SignatureReader(signature).accept(visitor)
 
-        val argStart = visitor.declaration.indexOf('(')
-        val argEnd = visitor.declaration.indexOf(')', startIndex = argStart)
-
-        val formals = visitor.declaration.substring(0 until argStart).ifEmpty { null }
-        val args = buildString {
-            append('(')
-
-            val args0 = visitor.declaration.substring(argStart + 1, argEnd)
-            if (args0.isNotEmpty()) {
-                val splitArgs = args0.split('+')
-
-                var argumentIndex = 0
-                append(
-                    splitArgs.joinToString { arg ->
-                        val i = argumentIndex++
-                        // if it's the last argument and the method has a variadic parameter, show it as such
-                        return@joinToString if (i == (splitArgs.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0 && arg.endsWith("[]")) {
-                            "${arg.removeSuffix("[]")}... arg$i"
-                        } else {
-                            "$arg arg$i"
-                        }
-                    }
-                )
-            }
-
-            append(')')
-        }
-
         return MethodDescriptorDeclaration(
-            formals,
-            args,
+            visitor.formals.ifEmpty { null },
+            visitor.args,
             visitor.returnType ?: error("Method signature without a return type"),
             visitor.exceptions
         )

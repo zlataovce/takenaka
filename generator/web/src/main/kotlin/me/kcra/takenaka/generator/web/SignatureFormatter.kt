@@ -69,9 +69,14 @@ const val ESCAPE_HTML_SYMBOLS = 0x00000001
 const val INTERFACE_SIGNATURE = 0x00000010
 
 /**
- * Requests the formatter to separate method signature arguments with plus signs (`+`).
+ * Requests the formatter to generate argument names in the form of `arg%argument index%`.
  */
-const val SEPARATE_ARGS_WITH_PLUS = 0x00000100
+const val GENERATE_NAMED_PARAMETERS = 0x00000100
+
+/**
+ * Requests the formatter to make the last argument a variadic one, if it's an array.
+ */
+const val VARIADIC_PARAMETER = 0x00001000
 
 /**
  * A [SignatureVisitor] implementation that builds the Java generic type declaration corresponding to the signature it visits.
@@ -161,6 +166,11 @@ class SignatureFormatter : SignatureVisitor {
     var formalEndIndex: Int = -1
 
     /**
+     * The index of the next argument.
+     */
+    var argumentIndex: Int = 0
+
+    /**
      * The formal type parameters of the visited class signature.
      */
     val formals: String
@@ -189,6 +199,17 @@ class SignatureFormatter : SignatureVisitor {
      */
     val exceptions: String?
         get() = exceptions_?.toString()
+
+    /**
+     * The parameters of the visited method signature.
+     */
+    val args: String
+        get() {
+            val startIndex = declaration_.indexOf('(')
+            val endIndex = declaration_.indexOf(')', startIndex)
+
+            return declaration_.substring(startIndex, endIndex + 1)
+        }
 
     private val formalStartStr: String
         get() = if (ESCAPE_HTML_SYMBOLS in options) "&lt;" else "<"
@@ -275,7 +296,8 @@ class SignatureFormatter : SignatureVisitor {
     override fun visitParameterType(): SignatureVisitor {
         endFormals()
         if (parameterTypeVisited) {
-            declaration_.append(if (SEPARATE_ARGS_WITH_PLUS in options) '+' else COMMA_SEPARATOR)
+            appendArgumentName()
+            declaration_.append(COMMA_SEPARATOR)
         } else {
             declaration_.append('(')
             parameterTypeVisited = true
@@ -288,6 +310,7 @@ class SignatureFormatter : SignatureVisitor {
         endFormals()
         if (parameterTypeVisited) {
             parameterTypeVisited = false
+            appendArgumentName()
         } else {
             declaration_.append('(')
         }
@@ -420,6 +443,16 @@ class SignatureFormatter : SignatureVisitor {
                 arrayStack /= 2
                 declaration_.append("[]")
             }
+        }
+    }
+
+    private fun appendArgumentName() {
+        if (GENERATE_NAMED_PARAMETERS in options) {
+            if (!parameterTypeVisited && VARIADIC_PARAMETER in options && declaration_.endsWith("[]")) {
+                declaration_.setLength(declaration_.length - 2)
+                declaration_.append("...")
+            }
+            declaration_.append(" arg${argumentIndex++}")
         }
     }
 
