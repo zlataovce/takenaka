@@ -188,7 +188,16 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                 td {
                                     p {
                                         unsafe {
-                                            +formatMethodDescriptor(method, methodMod, workspace.version, friendlyNameRemapper, linkRemapper = null)
+                                            val declaration = formatMethodDescriptor(method, methodMod, workspace.version, friendlyNameRemapper, linkRemapper = null)
+
+                                            if (declaration.formals != null) {
+                                                +declaration.formals
+                                            }
+                                            +declaration.args
+                                            if (declaration.exceptions != null) {
+                                                +" throws "
+                                                +declaration.exceptions
+                                            }
                                         }
                                     }
                                 }
@@ -232,20 +241,12 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
 
                                         +formatModifiers(methodMod, mask)
 
-                                        val methodSignature = method.signature
-                                        if (methodSignature != null) {
-                                            val visitor = SignatureFormatter(formattingOptionsOf(ESCAPE_HTML_SYMBOLS), friendlyNameRemapper, null, index, workspace.version)
-                                            SignatureReader(methodSignature).accept(visitor)
+                                        val declaration = formatMethodDescriptor(method, methodMod, workspace.version, friendlyNameRemapper)
 
-                                            val formals = visitor.declaration.substringBefore('(')
-
-                                            if (formals.isNotEmpty()) {
-                                                +"$formals "
-                                            }
-                                            +(visitor.returnType ?: "")
-                                        } else {
-                                            +formatType(Type.getType(method.srcDesc).returnType, workspace.version, friendlyNameRemapper)
+                                        if (declaration.formals != null) {
+                                            +"${declaration.formals} "
                                         }
+                                        +declaration.returnType
                                     }
                                 }
                                 td {
@@ -264,8 +265,14 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                                                 p(classes = "mapping-value") {
                                                                     unsafe {
                                                                         val remapper = ElementRemapper(method.tree) { it.getName(id) }
+                                                                        val declaration = formatMethodDescriptor(method, methodMod, workspace.version, remapper, linkRemapper = friendlyNameRemapper)
 
-                                                                        +"$name${formatMethodDescriptor(method, methodMod, workspace.version, remapper, linkRemapper = friendlyNameRemapper, skipFormals = true)}"
+                                                                        +name
+                                                                        +declaration.args
+                                                                        if (declaration.exceptions != null) {
+                                                                            +" throws "
+                                                                            +declaration.exceptions
+                                                                        }
                                                                     }
                                                                 }
                                                             }
@@ -337,6 +344,21 @@ fun GenerationContext.formatClassDescription(klass: MappingTree.ClassMapping, mo
 }
 
 /**
+ * A formatted method descriptor.
+ *
+ * @property formals the formal generic type arguments of the method
+ * @property args the method arguments, includes surrounding parentheses
+ * @property returnType the method return type
+ * @property exceptions the throws clause
+ */
+data class MethodDescriptorDeclaration(
+    val formals: String?,
+    val args: String,
+    val returnType: String,
+    val exceptions: String?
+)
+
+/**
  * Formats a method descriptor (e.g. "(String arg0, Throwable arg1)").
  *
  * @param method the method mapping
@@ -346,7 +368,7 @@ fun GenerationContext.formatClassDescription(klass: MappingTree.ClassMapping, mo
  * @param linkRemapper the remapper used for remapping link addresses
  * @return the formatted descriptor
  */
-fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, mod: Int, version: Version, nameRemapper: Remapper, linkRemapper: Remapper? = null, skipFormals: Boolean = false): String = buildString {
+fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, mod: Int, version: Version, nameRemapper: Remapper, linkRemapper: Remapper? = null): MethodDescriptorDeclaration {
     // example:
     // descriptor: ([Ldyl;Ljava/util/Map;Z)V
     // signature: ([Ldyl;Ljava/util/Map<Lchq;Ldzg;>;Z)V
@@ -357,53 +379,65 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
         val visitor = SignatureFormatter(formattingOptionsOf(ESCAPE_HTML_SYMBOLS, SEPARATE_ARGS_WITH_PLUS), nameRemapper, linkRemapper, index, version)
         SignatureReader(signature).accept(visitor)
 
-        val formals = visitor.declaration.substringBefore('(')
-        if (!skipFormals && formals.isNotEmpty()) {
-            append(formals).append(' ')
-        }
+        val argStart = visitor.declaration.indexOf('(')
+        val argEnd = visitor.declaration.indexOf(')', startIndex = argStart)
 
-        append('(')
+        val formals = visitor.declaration.substring(0 until argStart).ifEmpty { null }
+        val args = buildString {
+            append('(')
 
-        val args = visitor.declaration.substring(visitor.declaration.indexOf('(') + 1, visitor.declaration.lastIndexOf(')'))
-        if (args.isNotEmpty()) {
-            val splitArgs = args.split('+')
+            val args = visitor.declaration.substring(argStart .. argEnd)
+            if (args.isNotEmpty()) {
+                val splitArgs = args.split('+')
 
-            var argumentIndex = 0
-            append(
-                splitArgs.joinToString { arg ->
-                    val i = argumentIndex++
-                    // if it's the last argument and the method has a variadic parameter, show it as such
-                    return@joinToString if (i == (splitArgs.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0 && arg.endsWith("[]")) {
-                        "${arg.removeSuffix("[]")}... arg$i"
-                    } else {
-                        "$arg arg$i"
+                var argumentIndex = 0
+                append(
+                    splitArgs.joinToString { arg ->
+                        val i = argumentIndex++
+                        // if it's the last argument and the method has a variadic parameter, show it as such
+                        return@joinToString if (i == (splitArgs.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0 && arg.endsWith("[]")) {
+                            "${arg.removeSuffix("[]")}... arg$i"
+                        } else {
+                            "$arg arg$i"
+                        }
                     }
-                }
-            )
+                )
+            }
+
+            append(')')
         }
 
-        append(')')
-
-        if (visitor.exceptions != null) {
-            append(" throws ").append(visitor.exceptions)
-        }
-
-        return@buildString
+        return MethodDescriptorDeclaration(
+            formals,
+            args,
+            visitor.returnType ?: error("Method signature without a return type"),
+            visitor.exceptions
+        )
     }
 
     // there's no generic signature, so just format the descriptor
 
-    append('(')
+    val type = Type.getType(method.srcDesc)
+    val args = buildString {
+        append('(')
 
-    val args = Type.getType(method.srcDesc).argumentTypes
-    var argumentIndex = 0
-    append(
-        args.joinToString { arg ->
-            val i = argumentIndex++
-            return@joinToString "${formatType(arg, version, nameRemapper, linkRemapper, isVarargs = i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0)} arg$i"
-        }
+        val args = type.argumentTypes
+        var argumentIndex = 0
+        append(
+            args.joinToString { arg ->
+                val i = argumentIndex++
+                return@joinToString "${formatType(arg, version, nameRemapper, linkRemapper, isVarargs = i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0)} arg$i"
+            }
+        )
+        append(')')
+    }
+
+    return MethodDescriptorDeclaration(
+        null,
+        args,
+        formatType(type.returnType, version, nameRemapper, linkRemapper),
+        null
     )
-    append(')')
 }
 
 /**

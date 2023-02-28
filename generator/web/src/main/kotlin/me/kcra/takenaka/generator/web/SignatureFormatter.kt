@@ -401,7 +401,7 @@ class SignatureFormatter : SignatureVisitor {
     private fun endFormals() {
         if (formalTypeParameterVisited) {
             declaration_.append(formalEndStr)
-            if (argumentStack % 2 == 0) {
+            if (formalEndIndex == -1 && argumentStack % 2 == 0) {
                 formalEndIndex = declaration_.length
             }
             formalTypeParameterVisited = false
