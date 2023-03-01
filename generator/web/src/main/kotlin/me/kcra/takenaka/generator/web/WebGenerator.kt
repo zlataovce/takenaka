@@ -247,21 +247,21 @@ class WebGenerator(
         )
 
         components.forEach { (tag, content, callback) ->
-            append("const ${tag}Component = `${content.serializeAsComponent()}`;")
-            append("const ${tag}ComponentCallback = (e) => {")
+            appendLine("const ${tag}Component = `${content.serializeAsComponent()}`;")
+            appendLine("const ${tag}ComponentCallback = (e) => {")
             if (callback != null) {
-                append(callback)
+                appendLine(callback)
             }
-            append("};")
+            appendLine("};")
         }
 
-        append("window.addEventListener(\"load\", () => {")
+        appendLine("window.addEventListener(\"load\", () => {")
 
-        components.forEach { (tag, _) ->
-            append("    replaceComponent(\"$tag\", ${tag}Component, ${tag}ComponentCallback);")
+        components.forEach { (tag, _, _) ->
+            appendLine("    replaceComponent(\"$tag\", ${tag}Component, ${tag}ComponentCallback);")
         }
 
-        append("});")
+        appendLine("});")
     }
 
     /**
