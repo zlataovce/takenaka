@@ -24,10 +24,7 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
-import me.kcra.takenaka.core.mapping.adapter.completeMethodOverrides
-import me.kcra.takenaka.core.mapping.adapter.filterNonStaticInitializer
-import me.kcra.takenaka.core.mapping.adapter.filterNonSynthetic
-import me.kcra.takenaka.core.mapping.adapter.filterWithModifiers
+import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.buildMappingTree
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.util.objectMapper

@@ -33,12 +33,12 @@ import org.objectweb.asm.commons.Remapper
  *
  * @param namespace the namespace, whose mappings are to be modified (most likely `spigot` or to be exact, [me.kcra.takenaka.core.mapping.resolve.AbstractSpigotMappingResolver.targetNamespace])
  * @param prependedClasses the classes that have been prepended and should be remapped in descriptors (only class names that are a package-replace candidate should be specified here, any class name without a package will have a prefix prepended implicitly)
+ * @param prependEverything whether every class should have its package replaced (useful for fixing 1.16.5)
  * @param next the visitor to delegate to
  * @author Matouš Kučera
  */
-class LegacySpigotMappingPrepender(next: MappingVisitor, val namespace: String = "spigot", val prependedClasses: MutableList<String> = mutableListOf()) : ForwardingMappingVisitor(next) {
-    private val remapper = PrependingRemapper(prependedClasses = prependedClasses)
-
+class LegacySpigotMappingPrepender(next: MappingVisitor, val namespace: String = "spigot", val prependedClasses: MutableList<String> = mutableListOf(), val prependEverything: Boolean = false) : ForwardingMappingVisitor(next) {
+    private val remapper = PrependingRemapper(prependedClasses, prependEverything)
     private var dstNamespaces: List<String> = emptyList()
 
     override fun visitNamespaces(srcNamespace: String, dstNamespaces: MutableList<String>) {
@@ -51,10 +51,7 @@ class LegacySpigotMappingPrepender(next: MappingVisitor, val namespace: String =
         var name0 = name
 
         if (name0 != null && targetKind == MappedElementKind.CLASS && dstNamespaces[namespace] == this.namespace) {
-            name0 = name0.toInternalName()
-
-            prependedClasses += name0
-            name0 = remapper.map(name0)
+            name0 = remapper.map(name0.toInternalName())
         }
 
         super.visitDstName(targetKind, namespace, name0)
@@ -74,10 +71,14 @@ class LegacySpigotMappingPrepender(next: MappingVisitor, val namespace: String =
      * A [Remapper] that prepends class names with `net.minecraft.server.VVV`.
      *
      * @param prependedClasses the classes that have been prepended and should be remapped in descriptors (only class names that are a package-replace candidate should be specified here, any class name without a package will have a prefix prepended implicitly)
+     * @param prependEverything whether every class should have its package replaced (useful for fixing 1.16.5)
      */
-    class PrependingRemapper(val prependedClasses: List<String> = emptyList()) : Remapper() {
+    class PrependingRemapper(val prependedClasses: MutableList<String> = mutableListOf(), val prependEverything: Boolean = false) : Remapper() {
         override fun map(internalName: String): String {
-            if (!internalName.contains('/') || internalName in prependedClasses) {
+            if (!internalName.contains('/')) {
+                prependedClasses += internalName
+            }
+            if (prependEverything || internalName in prependedClasses) {
                 return "net/minecraft/server/VVV/${internalName.substringAfterLast('/')}"
             }
             return internalName

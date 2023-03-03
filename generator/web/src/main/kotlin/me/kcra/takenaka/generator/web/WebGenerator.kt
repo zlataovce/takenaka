@@ -32,6 +32,7 @@ import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
+import me.kcra.takenaka.core.mapping.adapter.completeInnerClassNames
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.modifiers
@@ -73,6 +74,7 @@ import kotlin.coroutines.CoroutineContext
  * @param namespaceFriendlyNames a map of namespaces and their names that will be shown in the documentation, unspecified namespaces will not be shown
  * @param namespaceDefaultBadgeColor the default namespace badge color, which will be used if not specified in [namespaceBadgeColors]
  * @param index a resolver for foreign class references
+ * @param spigotLikeNamespaces the namespaces that should have [replaceCraftBukkitNMSVersion] and [completeInnerClassNames] applied
  * @author Matouš Kučera
  */
 class WebGenerator(
@@ -87,7 +89,8 @@ class WebGenerator(
     val namespaceBadgeColors: Map<String, String> = emptyMap(),
     val namespaceFriendlyNames: Map<String, String> = emptyMap(),
     val namespaceDefaultBadgeColor: String = "#94a3b8",
-    val index: ClassSearchIndex = emptyClassSearchIndex()
+    val index: ClassSearchIndex = emptyClassSearchIndex(),
+    val spigotLikeNamespaces: List<String> = emptyList()
 ) : AbstractGenerator(workspace, versions, coroutineDispatcher, skipSynthetics, mappingWorkspace, contributorProvider) {
     /**
      * Launches the generator.
@@ -98,7 +101,12 @@ class WebGenerator(
 
         generationContext(styleSupplier = styleSupplier::apply) {
             mappings.forEach { (version, tree) ->
-                tree.replaceCraftBukkitNMSVersion()
+                spigotLikeNamespaces.forEach { ns ->
+                    if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
+                        tree.replaceCraftBukkitNMSVersion(ns)
+                        tree.completeInnerClassNames(ns)
+                    }
+                }
                 val versionWorkspace by composite.versioned {
                     this.version = version
                 }
