@@ -25,3 +25,95 @@ const setTheme = (theme) => {
 };
 
 window.addEventListener("load", () => document.documentElement.setAttribute("data-theme", getTheme()));
+
+// a map of "<namespace>" to "<namespace badge color>"
+let colors = {};
+// a list of { "<namespace>": <mapping string or null> }
+let classIndex = [];
+
+const updateClassIndex = (indexString) => {
+    const header = [];
+    for (const line of indexString.match(/[^\r\n]+/g)) {
+        if (header.length === 0) {
+            for (const col of line.split("\t")) {
+                const colParts = col.split(":", 2);
+
+                header.push(colParts[0]);
+                colors[colParts[0]] = colParts[1];
+            }
+        } else {
+            const obj = {};
+
+            for (const [index, col] of line.split("\t", header.length).entries()) {
+                obj[header[index]] = col || null;
+            }
+
+            classIndex.push(obj);
+        }
+    }
+};
+
+const search = (baseUrl, query) => {
+    query = query.trim();
+    const resultsBox = document.getElementById("search-results-box");
+
+    let results = [];
+    if (query) {
+        let targetedNamespace = null;
+
+        let newQuery = "";
+        for (const option of query.split(" ")) {
+            const optionParts = option.split(":", 2);
+            if (optionParts.length === 2) {
+                switch (optionParts[0]) {
+                    case "namespace":
+                    case "ns":
+                        targetedNamespace = optionParts[1].toLowerCase();
+                        break;
+                }
+            } else {
+                newQuery = newQuery + option;
+            }
+        }
+
+        newQuery = newQuery.replaceAll(".", "/");
+
+        for (const klass of classIndex) {
+            for (const ns in klass) {
+                const klassName = klass[ns];
+
+                // limit to 5 results
+                if (results.length <= 5 && klassName && klassName.includes(newQuery) && (!targetedNamespace || targetedNamespace === ns.toLowerCase())) {
+                    const elem = document.createElement("div");
+                    elem.classList.add("search-result");
+                    elem.addEventListener("click", () => {
+                        window.location.pathname = `${baseUrl}/${Object.values(klass).find((e) => e != null)}.html`;
+                    });
+
+                    const lastSlashIndex = klassName.lastIndexOf("/");
+                    const simpleKlassName = klassName.substring(lastSlashIndex + 1);
+                    const klassPackage = klassName.substring(0, lastSlashIndex).replaceAll("/", ".");
+
+                    const title = document.createElement("p");
+                    title.classList.add("search-result-title");
+                    title.innerText = simpleKlassName;
+                    elem.appendChild(title);
+
+                    const subtitle0 = document.createElement("p");
+                    subtitle0.classList.add("search-result-subtitle");
+                    subtitle0.innerText = `package: ${klassPackage}`;
+                    elem.appendChild(subtitle0);
+
+                    const subtitle1 = document.createElement("p");
+                    subtitle1.classList.add("search-result-subtitle");
+                    subtitle1.innerHTML = `namespace: <span style="color:${colors[ns]}">${ns}</span>`;
+                    elem.appendChild(subtitle1);
+
+                    results.push(elem);
+                }
+            }
+        }
+    }
+
+    resultsBox.replaceChildren(...results);
+};

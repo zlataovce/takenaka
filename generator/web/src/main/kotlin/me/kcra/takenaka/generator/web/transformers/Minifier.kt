@@ -102,12 +102,14 @@ class Minifier : Transformer {
         lock.withLock {
             return content.replace(COMMENT_REGEX, "")
                 .split("\r\n", "\n")
-                .joinToString("") { it.trim() }
+                .map(String::trim)
+                .filter { !it.startsWith("//") }
+                .joinToString("")
         }
     }
 
     companion object {
         private val CLASS_ATTR_REGEX = """class="([a-z- ]+?)"""".toRegex()
-        private val COMMENT_REGEX = "/\\*.*?\\*/".toRegex()
+        private val COMMENT_REGEX = "/\\*.*?\\*/".toRegex(RegexOption.DOT_MATCHES_ALL)
     }
 }

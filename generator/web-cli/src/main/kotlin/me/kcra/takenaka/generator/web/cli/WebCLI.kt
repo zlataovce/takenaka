@@ -123,6 +123,7 @@ class WebCLI : CLI {
                 "intermediary" to "Intermediary",
                 "source" to "Obfuscated"
             ),
+            "#94a3b8",
             compositeClassSearchIndexOf(*indexers.toTypedArray())
         )
 

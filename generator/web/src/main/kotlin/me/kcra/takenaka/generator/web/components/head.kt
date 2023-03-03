@@ -22,12 +22,17 @@ import kotlinx.html.*
 /**
  * Appends a head component.
  */
-fun HTML.headComponent(title: String) {
+fun HTML.headComponent(title: String, version: String? = null) {
     head {
         meta(name = "viewport", content = "width=device-width, initial-scale=1")
         link(href = "/assets/main.css", rel = "stylesheet")
         script(src = "/assets/main.js") {}
         script(src = "/assets/components.js") {}
+        if (version != null) {
+            script(src = "/$version/class-index.js") {
+                attributes["async"] = "true"
+            }
+        }
         title(content = title)
     }
 }

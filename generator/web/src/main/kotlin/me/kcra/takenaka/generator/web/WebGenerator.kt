@@ -71,6 +71,7 @@ import kotlin.coroutines.CoroutineContext
  * @param namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @param namespaceBadgeColors a map of namespaces and their colors, defaults to #94a3b8 for all of them
  * @param namespaceFriendlyNames a map of namespaces and their names that will be shown in the documentation, unspecified namespaces will not be shown
+ * @param namespaceDefaultBadgeColor the default namespace badge color, which will be used if not specified in [namespaceBadgeColors]
  * @param index a resolver for foreign class references
  * @author Matouš Kučera
  */
@@ -85,6 +86,7 @@ class WebGenerator(
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaceBadgeColors: Map<String, String> = emptyMap(),
     val namespaceFriendlyNames: Map<String, String> = emptyMap(),
+    val namespaceDefaultBadgeColor: String = "#94a3b8",
     val index: ClassSearchIndex = emptyClassSearchIndex()
 ) : AbstractGenerator(workspace, versions, coroutineDispatcher, skipSynthetics, mappingWorkspace, contributorProvider) {
     /**
@@ -104,16 +106,39 @@ class WebGenerator(
                 val friendlyNameRemapper = ElementRemapper(tree, this::getFriendlyDstName)
                 val classMap = mutableMapOf<String, MutableMap<String, ClassType>>()
 
-                tree.classes.forEach { klass ->
-                    val friendlyName = getFriendlyDstName(klass)
+                // class index format, similar to a CSV:
+                // first line is a "header", this is a tab-delimited string with friendly namespace names + its badge colors, which are delimited by a colon ("namespace:#color")
+                // following lines are tab-separated strings with the mappings, each substring belongs to its column (header.split("\t").get(substringIndex) -> "namespace:#color")
 
-                    launch(coroutineDispatcher) {
-                        classPage(klass, versionWorkspace, friendlyNameRemapper)
-                            .serialize(versionWorkspace, "$friendlyName.html")
+                // example:
+                // Obfuscated:#581C87   Mojang:#4D7C0F  Intermediary:#0369A1
+                // a	com/mojang/math/Matrix3f	net/minecraft/class_4581
+                // b	com/mojang/math/Matrix4f	net/minecraft/class_1159
+                // ... (repeats like this for all classes)
+                val classIndex = buildString {
+                    val namespaces = (0 until tree.maxNamespaceId)
+                        .mapNotNull { nsId ->
+                            val nsName = tree.getNamespaceName(nsId)
+                            if (nsName in namespaceFriendlyNames) nsName to nsId else null
+                        }
+                        .sortedBy { namespaceFriendlinessIndex.indexOf(it.first) }
+                        .toMap()
+
+                    appendLine(namespaces.keys.joinToString("\t") { "${namespaceFriendlyNames[it]}:${getNamespaceBadgeColor(it)}" })
+
+                    tree.classes.forEach { klass ->
+                        val friendlyName = getFriendlyDstName(klass)
+
+                        launch(coroutineDispatcher) {
+                            classPage(klass, versionWorkspace, friendlyNameRemapper)
+                                .serialize(versionWorkspace, "$friendlyName.html")
+                        }
+
+                        classMap.getOrPut(friendlyName.substringBeforeLast('/')) { mutableMapOf() } +=
+                            friendlyName.substringAfterLast('/') to classTypeOf(klass.modifiers)
+
+                        appendLine(namespaces.values.joinToString("\t") { klass.getName(it) ?: "" })
                     }
-
-                    classMap.getOrPut(friendlyName.substringBeforeLast('/')) { mutableMapOf() } +=
-                        friendlyName.substringAfterLast('/') to classTypeOf(klass.modifiers)
                 }
 
                 classMap.forEach { (packageName, classes) ->
@@ -123,6 +148,8 @@ class WebGenerator(
 
                 overviewPage(versionWorkspace, classMap.keys)
                     .serialize(versionWorkspace, "index.html")
+
+                versionWorkspace["class-index.js"].writeText("updateClassIndex(`${classIndex.trim()}`);") // do not minify this file
             }
 
             versionsPage(mappings.entries.associate { (version, tree) -> version to tree.dstNamespaces })
@@ -167,19 +194,25 @@ class WebGenerator(
                 // dynamically find the version in the URL, this is a hack, I know
                 callback = """
                     const link = document.getElementById("overview-link");
+                    const searchInput = document.getElementById("search-input");
+                    
                     const path = window.location.pathname.substring(1);
                     if (path) {
                         const parts = [];
                         for (const part of path.split("/")) {
                             parts.push(part);
                             if (part.includes(".")) {
-                                link.href = "/" + parts.join("/") + "/index.html";
+                                const baseUrl = "/" + parts.join("/");
+                                
+                                link.href = baseUrl + "/index.html";
+                                searchInput.addEventListener("input", (evt) => search(baseUrl, evt.target.value));
                                 return;
                             }
                         }
                     }
                 
                     link.remove();
+                    searchInput.remove();
                 """.trimIndent()
             },
             component {
@@ -236,7 +269,7 @@ class WebGenerator(
         append(
             """
                 const replaceComponent = (tag, component, callback) => {
-                    for (let e of document.getElementsByTagName(tag)) {
+                    for (const e of document.getElementsByTagName(tag)) {
                         if (e.children.length === 0) {
                             e.outerHTML = component;
                             callback(e);
@@ -308,6 +341,14 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
         }
         return (0 until elem.tree.maxNamespaceId).firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
     }
+
+    /**
+     * Gets a CSS color of the supplied namespace.
+     *
+     * @param ns the namespace
+     * @return the color
+     */
+    fun getNamespaceBadgeColor(ns: String) = generator.namespaceBadgeColors[ns] ?: generator.namespaceDefaultBadgeColor
 
     /**
      * Formats a modifier integer into a string.

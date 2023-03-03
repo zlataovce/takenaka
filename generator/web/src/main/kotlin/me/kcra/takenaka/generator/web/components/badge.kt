@@ -27,17 +27,16 @@ import me.kcra.takenaka.generator.web.StyleSupplier
  * @param color the badge color in a CSS compatible format
  */
 fun FlowContent.badgeComponent(content: String, color: String, styleSupplier: StyleSupplier? = null) {
-    val extraClass = if (styleSupplier != null) {
-        " ${styleSupplier("badge-${content.lowercase()}", "background-color:$color")}"
-    } else {
-        ""
-    }
+    if (styleSupplier != null) {
+        val lowercase = content.lowercase()
 
-    p(classes = "badge$extraClass") {
-        if (styleSupplier == null) {
+        p(classes = "badge ${styleSupplier("badge-$lowercase", "background-color:$color;")}")
+        styleSupplier("badge-$lowercase::before", "content:\"$content\";")
+    } else {
+        p(classes = "badge") {
             style = "background-color:$color"
+            +content
         }
-        +content
     }
 }
 
@@ -48,16 +47,15 @@ fun FlowContent.badgeComponent(content: String, color: String, styleSupplier: St
  * @param color the badge color in a CSS compatible format
  */
 fun TR.badgeColumnComponent(content: String, color: String, styleSupplier: StyleSupplier? = null) {
-    val extraClass = if (styleSupplier != null) {
-        " ${styleSupplier("badge-${content.lowercase()}", "background-color:$color")}"
-    } else {
-        ""
-    }
+    if (styleSupplier != null) {
+        val lowercase = content.lowercase()
 
-    td(classes = "badge$extraClass") {
-        if (styleSupplier == null) {
+        td(classes = "badge ${styleSupplier("badge-$lowercase", "background-color:$color;")}")
+        styleSupplier("badge-$lowercase::before", "content:\"$content\";")
+    } else {
+        td(classes = "badge") {
             style = "background-color:$color"
+            +content
         }
-        +content
     }
 }

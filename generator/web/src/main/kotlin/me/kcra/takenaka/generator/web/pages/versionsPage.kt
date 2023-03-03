@@ -62,7 +62,7 @@ fun GenerationContext.versionsPage(versions: Map<Version, List<String>>): Docume
                                 mappings.forEach { mappingType ->
                                     val nsFriendlyName = generator.namespaceFriendlyNames[mappingType]
                                     if (nsFriendlyName != null) {
-                                        badgeComponent(nsFriendlyName, generator.namespaceBadgeColors[mappingType] ?: "#94a3b8", styleSupplier)
+                                        badgeComponent(nsFriendlyName, getNamespaceBadgeColor(mappingType), styleSupplier)
                                     }
                                 }
                             }

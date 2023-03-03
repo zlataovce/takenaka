@@ -46,7 +46,7 @@ import java.lang.reflect.Modifier
 fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: VersionedWorkspace, friendlyNameRemapper: Remapper): Document = createHTMLDocument().html {
     val friendlyName = getFriendlyDstName(klass).fromInternalName()
 
-    headComponent(friendlyName)
+    headComponent(friendlyName, workspace.version.id)
     body {
         navPlaceholderComponent()
         main {
@@ -90,7 +90,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
 
                         val name = klass.getName(id) ?: return@forEach
                         tr {
-                            badgeColumnComponent(nsFriendlyName, generator.namespaceBadgeColors[ns] ?: "#94a3b8", styleSupplier)
+                            badgeColumnComponent(nsFriendlyName, getNamespaceBadgeColor(ns), styleSupplier)
                             td {
                                 p(classes = "mapping-value") {
                                     +name.fromInternalName()
@@ -140,7 +140,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                                     val name = field.getName(id)
                                                     if (name != null) {
                                                         tr {
-                                                            badgeColumnComponent(nsFriendlyName, generator.namespaceBadgeColors[ns] ?: "#94a3b8", styleSupplier)
+                                                            badgeColumnComponent(nsFriendlyName, getNamespaceBadgeColor(ns), styleSupplier)
                                                             td {
                                                                 p(classes = "mapping-value") {
                                                                     +name
@@ -260,7 +260,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                                     val name = method.getName(id)
                                                     if (name != null) {
                                                         tr {
-                                                            badgeColumnComponent(nsFriendlyName, generator.namespaceBadgeColors[ns] ?: "#94a3b8", styleSupplier)
+                                                            badgeColumnComponent(nsFriendlyName, getNamespaceBadgeColor(ns), styleSupplier)
                                                             td {
                                                                 p(classes = "mapping-value") {
                                                                     unsafe {
