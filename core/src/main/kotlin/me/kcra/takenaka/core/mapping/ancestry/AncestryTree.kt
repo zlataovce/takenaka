@@ -18,63 +18,143 @@
 package me.kcra.takenaka.core.mapping.ancestry
 
 import me.kcra.takenaka.core.Version
-import net.fabricmc.mappingio.tree.MappingTree
-import net.fabricmc.mappingio.tree.MappingTreeView
+import me.kcra.takenaka.core.mapping.VersionedMappingMap
+import net.fabricmc.mappingio.tree.MappingTreeView.*
 
 /**
  * A mapping ancestry tree.
  *
- * @property allowedNamespaces namespace IDs that are used in this tree for tracing history, per version
+ * @param nodes the ancestry nodes
+ * @property allowedNamespaces namespace IDs used for computing history, distinguished by version
  * @author Matouš Kučera
  */
-data class AncestryTree<T : MappingTree.ElementMapping, K>(val allowedNamespaces: MutableMap<Version, List<Int>> = mutableMapOf()) : MutableList<AncestryTree<T, K>.Node> by mutableListOf() {
+class AncestryTree<T : ElementMappingView>(nodes: List<Node<T>>, val allowedNamespaces: Map<Version, List<Int>>) : List<AncestryTree.Node<T>> by nodes {
     /**
      * A node in the ancestry tree.
      * This represents one element (class, field, method) in multiple versions.
      *
-     * @property keys a set of multiple mappings from multiple versions, this is used as a unique identifier for the member
-     * @property mappings the class mappings, keyed by the version
+     * @param tree the parent ancestry tree
+     * @param mappings the class mappings, keyed by the version
      */
-    inner class Node(
-        val keys: MutableSet<K> = mutableSetOf(),
-        val mappings: MutableMap<Version, T> = mutableMapOf()
-    ) {
-        /**
-         * The parent tree's allowed namespaces.
-         */
-        val allowedNamespaces by this@AncestryTree::allowedNamespaces
-    }
-
-    /**
-     * Tries to find a node in the tree.
-     * This works by checking if the supplied keys and the node's keys are disjoint, if not, it's the mapping we want.
-     *
-     * @param keys the keys
-     * @return the node, null if not found
-     */
-    operator fun get(keys: List<K>): Node? = find { it.keys.any { k -> k in keys } }
+    class Node<T : ElementMappingView>(val tree: AncestryTree<*>, mappings: Map<Version, T>) : Map<Version, T> by mappings
 }
 
-typealias ElementKey = String
-typealias MemberKey = Pair<String, String>
-
-val Pair<Any?, Any?>.valid
-    get() = first != null && second != null
-
 /**
- * Collects allowed namespace IDs from a mapping tree.
+ * Computes an ancestry tree of all classes in the supplied versions.
  *
- * @param allowedNamespaces the allowed namespaces, all namespaces are considered if empty
- * @return the namespace IDs
+ * @param mappings the joined version mapping files
+ * @param allowedNamespaces namespaces that are used in this tree for tracing history, not distinguished by version; empty if all namespaces should be considered
+ * @return the ancestry tree
  */
-fun MappingTreeView.collectAllowedNamespaces(allowedNamespaces: List<String>): List<Int> {
-    var treeAllowedNamespaces = allowedNamespaces
-        .map(::getNamespaceId)
-        .filter { it != MappingTree.NULL_NAMESPACE_ID }
+fun classAncestryTreeOf(mappings: VersionedMappingMap, allowedNamespaces: List<String> = emptyList()): AncestryTree<ClassMappingView> {
+    val nodes = mutableListOf<MutableMap<Version, ClassMappingView>>()
+    val allAllowedNamespaces = mutableMapOf<Version, List<Int>>()
 
-    if (treeAllowedNamespaces.isEmpty()) {
-        treeAllowedNamespaces = (0 until maxNamespaceId).toList()
+    mappings.forEach { (version, tree) ->
+        var treeAllowedNamespaces = allowedNamespaces
+            .map(tree::getNamespaceId)
+            .filter { it != NULL_NAMESPACE_ID }
+        if (treeAllowedNamespaces.isEmpty()) {
+            treeAllowedNamespaces = (0 until tree.maxNamespaceId).toList()
+        }
+        allAllowedNamespaces[version] = treeAllowedNamespaces
+
+        tree.classes.forEach { klass ->
+            val classMappings = treeAllowedNamespaces.mapNotNull(klass::getDstName)
+            // do we have a node with one or more equal names in the last version?
+            // if we don't, make a new node and append it to the tree
+            val node = nodes.find { node ->
+                val (lastVersion, lastMapping) = node.entries.last()
+                val lastNames = allAllowedNamespaces[lastVersion]?.mapNotNull(lastMapping::getDstName)
+                    ?: error("Version ${version.id} has not been mapped yet, make sure mappings are sorted correctly")
+
+                return@find lastNames.any(classMappings::contains)
+            } ?: mutableMapOf<Version, ClassMappingView>().also(nodes::add)
+
+            // add the entry for this version to the node
+            node[version] = klass
+        }
     }
 
-    return treeAllowedNamespaces
+    val treeNodes = mutableListOf<AncestryTree.Node<ClassMappingView>>()
+    val tree = AncestryTree(treeNodes, allAllowedNamespaces)
+    treeNodes += nodes.map { AncestryTree.Node(tree, it) }
+
+    return tree
+}
+
+/**
+ * Computes an ancestry tree of all fields in the supplied class ancestry node.
+ *
+ * @param klass the class node
+ * @return the ancestry tree
+ */
+fun fieldAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTree<FieldMappingView> {
+    val nodes = mutableListOf<MutableMap<Version, FieldMappingView>>()
+
+    klass.forEach { (version, realKlass) ->
+        val treeAllowedNamespaces = klass.tree.allowedNamespaces[version]
+            ?: error("Version ${version.id} has not been mapped yet")
+
+        realKlass.fields.forEach { field ->
+            val fieldMappings = treeAllowedNamespaces
+                .map { field.getDstName(it) to field.getDstDesc(it) }
+                .filter { it.first != null && it.second != null }
+
+            // do we have a node with one or more equal name-descriptor pairs in the last version?
+            // if we don't, make a new node and append it to the tree
+            val node = nodes.find { node ->
+                val (lastVersion, lastMapping) = node.entries.last()
+                val lastNames = klass.tree.allowedNamespaces[lastVersion]
+                    ?.map { lastMapping.getDstName(it) to lastMapping.getDstDesc(it) }
+                    ?.filter { it.first != null && it.second != null }
+                    ?: error("Version ${version.id} has not been mapped yet")
+
+                return@find lastNames.any(fieldMappings::contains)
+            } ?: mutableMapOf<Version, FieldMappingView>().also(nodes::add)
+
+            // add the entry for this version to the node
+            node[version] = field
+        }
+    }
+
+    return AncestryTree(nodes.map { AncestryTree.Node(klass.tree, it) }, klass.tree.allowedNamespaces)
+}
+
+/**
+ * Computes an ancestry tree of all methods in the supplied class ancestry node.
+ *
+ * @param klass the class node
+ * @return the ancestry tree
+ */
+fun methodAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTree<MethodMappingView> {
+    val nodes = mutableListOf<MutableMap<Version, MethodMappingView>>()
+
+    klass.forEach { (version, realKlass) ->
+        val treeAllowedNamespaces = klass.tree.allowedNamespaces[version]
+            ?: error("Version ${version.id} has not been mapped yet")
+
+        realKlass.methods.forEach { method ->
+            val methodMappings = treeAllowedNamespaces
+                .map { method.getDstName(it) to method.getDstDesc(it) }
+                .filter { it.first != null && it.second != null }
+
+            // do we have a node with one or more equal name-descriptor pairs in the last version?
+            // if we don't, make a new node and append it to the tree
+            val node = nodes.find { node ->
+                val (lastVersion, lastMapping) = node.entries.last()
+                val lastNames = klass.tree.allowedNamespaces[lastVersion]
+                    ?.map { lastMapping.getDstName(it) to lastMapping.getDstDesc(it) }
+                    ?.filter { it.first != null && it.second != null }
+                    ?: error("Version ${version.id} has not been mapped yet")
+
+                return@find lastNames.any(methodMappings::contains)
+            } ?: mutableMapOf<Version, MethodMappingView>().also(nodes::add)
+
+            // add the entry for this version to the node
+            node[version] = method
+        }
+    }
+
+    return AncestryTree(nodes.map { AncestryTree.Node(klass.tree, it) }, klass.tree.allowedNamespaces)
 }

@@ -42,8 +42,8 @@ class ClassAncestryTest {
         val mappings = workspace.resolveMappings(objectMapper, xmlMapper, save = true)
         val tree = classAncestryTreeOf(mappings, allowedNamespaces = listOf("mojang", "searge", "intermediary", "spigot"))
 
-        tree.forEach { node ->
-            println("Node [${node.keys.joinToString(", ")}], ${node.mappings.size} mapped versions")
+        tree.forEachIndexed { index, node ->
+            println("Node $index: ${node.size} mapped versions")
         }
         println("Mapped ${tree.size} classes")
     }

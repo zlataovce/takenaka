@@ -125,6 +125,7 @@ suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper
             filterWithModifiers()
             filterNonSynthetic()
             filterNonStaticInitializer()
+            completeInnerClassNames("spigot")
 
             dstNamespaces.forEach { ns ->
                 if (ns in VanillaMappingContributor.NAMESPACES) return@forEach
