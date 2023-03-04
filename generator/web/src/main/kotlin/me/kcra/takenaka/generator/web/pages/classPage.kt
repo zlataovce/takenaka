@@ -68,7 +68,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                 SignatureReader(signature).accept(visitor)
 
                 classHeader += visitor.formals
-                classDescription = visitor.superTypes
+                classDescription = visitor.superTypes // TODO: filter java/lang/Record, java/lang/Enum and java/lang/annotation/Annotation - those are implicit
             }
 
             p(classes = "class-header") {
@@ -119,7 +119,6 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                     tbody {
                         klass.fields.forEach { field ->
                             val fieldMod = field.modifiers
-                            if (generator.skipSynthetics && (fieldMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach
 
                             tr {
                                 td(classes = "member-modifiers") {
@@ -179,7 +178,6 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                             if (method.srcName != "<init>") return@forEach
 
                             val methodMod = method.modifiers
-                            if (generator.skipSynthetics && (methodMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach
 
                             tr {
                                 td(classes = "member-modifiers") {
@@ -228,7 +226,6 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                             if (method.srcName == "<init>") return@forEach
 
                             val methodMod = method.modifiers
-                            if (generator.skipSynthetics && (methodMod and Opcodes.ACC_SYNTHETIC) != 0) return@forEach
 
                             tr {
                                 td(classes = "member-modifiers") {
@@ -326,7 +323,7 @@ fun GenerationContext.formatClassDescription(klass: MappingTree.ClassMapping, mo
     val superClass = klass.superClass
     val interfaces = klass.interfaces.filter { it != "java/lang/annotation/Annotation" }
 
-    if (superClass != "java/lang/Object" && superClass != "java/lang/Record") {
+    if (superClass != "java/lang/Object" && superClass != "java/lang/Record" && superClass != "java/lang/Enum") {
         append("extends ${nameRemapper.mapTypeAndLink(version, superClass, index)}")
         if (interfaces.isNotEmpty()) {
             append(" ")

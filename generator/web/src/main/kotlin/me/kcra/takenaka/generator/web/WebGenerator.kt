@@ -50,6 +50,7 @@ import org.objectweb.asm.Opcodes
 import org.objectweb.asm.commons.Remapper
 import org.w3c.dom.Document
 import java.io.BufferedReader
+import java.lang.reflect.Modifier
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.concurrent.locks.Lock
@@ -362,7 +363,7 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
      * Formats a modifier integer into a string.
      *
      * @param mod the modifier integer
-     * @param mask the modifier mask (you can get that from the [java.lang.reflect.Modifier] class or use 0)
+     * @param mask the modifier mask (you can get that from the [Modifier] class or use 0)
      * @return the modifier string
      */
     fun formatModifiers(mod: Int, mask: Int): String = buildString {
@@ -375,7 +376,9 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
         // an interface is implicitly abstract
         // we need to check the unmasked modifiers here, since ACC_INTERFACE is not among Modifier#classModifiers
         if ((mMod and Opcodes.ACC_ABSTRACT) != 0 && (mod and Opcodes.ACC_INTERFACE) == 0) append("abstract ")
-        if ((mMod and Opcodes.ACC_FINAL) != 0) append("final ")
+        // an enum is implicitly final
+        // we need to check the unmasked modifiers here, since ACC_ENUM is not among Modifier#classModifiers
+        if ((mMod and Opcodes.ACC_FINAL) != 0 && (mask != Modifier.classModifiers() || (mod and Opcodes.ACC_ENUM) == 0)) append("final ")
         if ((mMod and Opcodes.ACC_NATIVE) != 0) append("native ")
         if ((mMod and Opcodes.ACC_STRICT) != 0) append("strict ")
         if ((mMod and Opcodes.ACC_SYNCHRONIZED) != 0) append("synchronized ")
