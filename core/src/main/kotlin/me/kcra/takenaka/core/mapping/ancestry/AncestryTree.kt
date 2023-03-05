@@ -180,12 +180,6 @@ fun classAncestryTreeOf(mappings: VersionedMappingMap, allowedNamespaces: List<S
     }
 }
 
-fun AncestryTree.Node<ClassMappingView>.getMappingsForVersion(version: Version): List<String> {
-    val klass = this[version] ?: return emptyList()
-
-    return tree.allowedNamespaces[version]?.mapNotNull(klass::getDstName) ?: emptyList()
-}
-
 /**
  * Computes an ancestry tree of all fields in the supplied class ancestry node.
  *

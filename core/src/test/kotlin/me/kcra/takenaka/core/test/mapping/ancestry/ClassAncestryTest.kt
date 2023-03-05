@@ -18,11 +18,13 @@
 package me.kcra.takenaka.core.test.mapping.ancestry
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
+import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.compositeWorkspace
+import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
 import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
-import me.kcra.takenaka.core.mapping.ancestry.getMappingsForVersion
 import me.kcra.takenaka.core.test.mapping.resolve.resolveMappings
 import me.kcra.takenaka.core.util.objectMapper
+import net.fabricmc.mappingio.tree.MappingTreeView
 import kotlin.test.Test
 
 class ClassAncestryTest {
@@ -50,7 +52,13 @@ class ClassAncestryTest {
 
         val klass = tree["net/minecraft/network/protocol/Packet"]
         klass?.forEach { (version, _) ->
-            println("${version.id}: ${klass.getMappingsForVersion(version)}")
+            println("${version.id}: ${klass.getNamesForVersion(version)}")
         }
     }
+}
+
+fun AncestryTree.Node<MappingTreeView.ClassMappingView>.getNamesForVersion(version: Version): List<String> {
+    val klass = this[version] ?: return emptyList()
+
+    return tree.allowedNamespaces[version]?.mapNotNull(klass::getDstName) ?: emptyList()
 }
