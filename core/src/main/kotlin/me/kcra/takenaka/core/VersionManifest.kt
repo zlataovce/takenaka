@@ -111,6 +111,16 @@ data class Version(
      * @return the comparator value, negative if less, positive if greater
      */
     override operator fun compareTo(other: Version): Int = releaseTime.compareTo(other.releaseTime)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Version
+
+        return id == other.id
+    }
+    override fun hashCode(): Int = id.hashCode()
 }
 
 /**

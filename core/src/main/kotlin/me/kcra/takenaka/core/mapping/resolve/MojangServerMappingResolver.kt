@@ -90,7 +90,11 @@ class MojangServerMappingResolver(
      */
     override fun licenseReader(): Reader? {
         // read first line of the mapping file
-        return reader()?.buffered()?.use { it.readLine().removePrefix("# ").reader() }
+        return reader()?.buffered()?.use { bufferedReader ->
+            val line = bufferedReader.readLine()
+
+            if (line.startsWith("# ")) line.drop(2).reader() else null
+        }
     }
 
     /**

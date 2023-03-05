@@ -128,7 +128,7 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
                 MappingUtil.NS_TARGET_FALLBACK to "searge"
             )))
         }
-        licenseReader().buffered().use { visitor.visitMetadata(META_LICENSE, it.lineSequence().joinToString("\\n") { line -> line.replace("\t", "    ") }) }
+        licenseReader().use { visitor.visitMetadata(META_LICENSE, it.readLines().joinToString("\\n") { line -> line.replace("\t", "    ") }) }
     }
 
     /**

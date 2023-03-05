@@ -27,49 +27,51 @@ import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.buildMappingTree
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
+import net.fabricmc.mappingio.format.Tiny2Reader
 import net.fabricmc.mappingio.format.Tiny2Writer
 import net.fabricmc.mappingio.tree.MappingTree
+import net.fabricmc.mappingio.tree.MemoryMappingTree
 import kotlin.system.measureTimeMillis
 import kotlin.test.Test
 
 val VERSIONS = listOf(
     "1.19.3",
-    "1.19.2",
-    /*"1.19.1",
-    "1.19",
+    // "1.19.2",
+    // "1.19.1",
+    // "1.19",
     "1.18.2",
-    "1.18.1",
-    "1.18",
+    // "1.18.1",
+    // "1.18",
     "1.17.1",
-    "1.17",
+    // "1.17",
     "1.16.5",
-    "1.16.4",
-    "1.16.3",
-    "1.16.2",
-    "1.16.1",
+    // "1.16.4",
+    // "1.16.3",
+    // "1.16.2",
+    // "1.16.1",
     "1.15.2",
-    "1.15.1",
-    "1.15",
+    // "1.15.1",
+    // "1.15",
     "1.14.4",
-    "1.14.3",
-    "1.14.2",
-    "1.14.1",
-    "1.14",
+    // "1.14.3",
+    // "1.14.2",
+    // "1.14.1",
+    // "1.14",
     "1.13.2",
-    "1.13.1",
-    "1.13",
+    // "1.13.1",
+    // "1.13",
     "1.12.2",
-    "1.12.1",
-    "1.12",
+    // "1.12.1",
+    // "1.12",
     "1.11.2",
-    "1.11.1",
-    "1.11",
+    // "1.11.1",
+    // "1.11",
     "1.10.2",
-    "1.10",
+    // "1.10",
     "1.9.4",
-    "1.9.2",
-    "1.9",
-    "1.8.8"*/
+    // "1.9.2",
+    // "1.9",
+    "1.8.8"
 )
 
 class MappingResolverTest {
@@ -147,14 +149,19 @@ fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, xmlMapper: Ob
             val workspace by versioned {
                 this.version = version
             }
+            val savedFile = workspace["joined.tiny"]
+            if (save && savedFile.isFile) {
+                return@async version to MemoryMappingTree().apply { Tiny2Reader.read(savedFile.reader(), this) }
+            }
+
             val tree = workspace.resolveVersionMappings(objectMapper, xmlMapper)
 
             if (save) {
-                Tiny2Writer(workspace["joined.tiny"].writer(), false)
+                Tiny2Writer(savedFile.writer(), false)
                     .use { writer -> tree.accept(writer) }
             }
 
-            version to tree
+            return@async version to tree
         }
     }
 

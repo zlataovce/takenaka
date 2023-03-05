@@ -104,7 +104,11 @@ abstract class AbstractSpigotMappingResolver(
      */
     override fun licenseReader(): Reader? {
         // read first line of the mapping file
-        return reader()?.buffered()?.use { it.readLine().removePrefix("# ").reader() }
+        return reader()?.buffered()?.use { bufferedReader ->
+            val line = bufferedReader.readLine()
+
+            if (line.startsWith("# ")) line.drop(2).reader() else null
+        }
     }
 
     /**
@@ -140,14 +144,14 @@ abstract class AbstractSpigotMappingResolver(
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        reader()?.buffered()?.let {
-            // mapping-io doesn't remove comments (it will parse them)
-            it.mark(0)
-            if (!it.readLine().startsWith('#')) {
-                it.reset()
+        reader()?.buffered()?.use { bufferedReader ->
+            // skip license comment, mapping-io doesn't remove comments (it will parse them)
+            if (bufferedReader.readLine().startsWith('#')) {
+                TsrgReader.read(bufferedReader, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor)
+            } else {
+                // we can't seek to the beginning, so we have to make a new reader altogether
+                reader()?.buffered()?.use { TsrgReader.read(it, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor) }
             }
-
-            TsrgReader.read(it, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor)
         }
         licenseReader()?.use { visitor.visitMetadata(META_LICENSE, it.readText()) }
         pomReader()?.use { xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v -> visitor.visitMetadata(META_CB_NMS_VERSION, v) } }

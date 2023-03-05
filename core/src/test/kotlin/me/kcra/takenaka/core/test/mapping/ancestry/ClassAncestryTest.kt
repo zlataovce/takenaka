@@ -20,6 +20,7 @@ package me.kcra.takenaka.core.test.mapping.ancestry
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import me.kcra.takenaka.core.compositeWorkspace
 import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
+import me.kcra.takenaka.core.mapping.ancestry.getMappingsForVersion
 import me.kcra.takenaka.core.test.mapping.resolve.resolveMappings
 import me.kcra.takenaka.core.util.objectMapper
 import kotlin.test.Test
@@ -46,5 +47,10 @@ class ClassAncestryTest {
             println("Node $index: ${node.size} mapped versions")
         }
         println("Mapped ${tree.size} classes")
+
+        val klass = tree["net/minecraft/network/protocol/Packet"]
+        klass?.forEach { (version, _) ->
+            println("${version.id}: ${klass.getMappingsForVersion(version)}")
+        }
     }
 }
