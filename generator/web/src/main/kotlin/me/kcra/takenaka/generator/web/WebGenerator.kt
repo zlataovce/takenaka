@@ -210,7 +210,7 @@ class WebGenerator(
                         const parts = [];
                         for (const part of path.split("/")) {
                             parts.push(part);
-                            if (part.includes(".")) {
+                            if (part !== "index.html" && part.includes(".")) {
                                 const baseUrl = "/" + parts.join("/");
                                 
                                 link.href = baseUrl + "/index.html";
