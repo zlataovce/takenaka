@@ -102,63 +102,65 @@ class WebGenerator(
 
         generationContext(styleSupplier = styleSupplier::apply) {
             mappings.forEach { (version, tree) ->
-                spigotLikeNamespaces.forEach { ns ->
-                    if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
-                        tree.replaceCraftBukkitNMSVersion(ns)
-                        tree.completeInnerClassNames(ns)
-                    }
-                }
-                val versionWorkspace by composite.versioned {
-                    this.version = version
-                }
-
-                val friendlyNameRemapper = ElementRemapper(tree, this::getFriendlyDstName)
-                val classMap = mutableMapOf<String, MutableMap<String, ClassType>>()
-
-                // class index format, similar to a CSV:
-                // first line is a "header", this is a tab-delimited string with friendly namespace names + its badge colors, which are delimited by a colon ("namespace:#color")
-                // following lines are tab-separated strings with the mappings, each substring belongs to its column (header.split("\t").get(substringIndex) -> "namespace:#color")
-
-                // example:
-                // Obfuscated:#581C87   Mojang:#4D7C0F  Intermediary:#0369A1
-                // a	com/mojang/math/Matrix3f	net/minecraft/class_4581
-                // b	com/mojang/math/Matrix4f	net/minecraft/class_1159
-                // ... (repeats like this for all classes)
-                val classIndex = buildString {
-                    val namespaces = (0 until tree.maxNamespaceId)
-                        .mapNotNull { nsId ->
-                            val nsName = tree.getNamespaceName(nsId)
-                            if (nsName in namespaceFriendlyNames) nsName to nsId else null
+                launch(coroutineDispatcher) {
+                    spigotLikeNamespaces.forEach { ns ->
+                        if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
+                            tree.replaceCraftBukkitNMSVersion(ns)
+                            tree.completeInnerClassNames(ns)
                         }
-                        .sortedBy { namespaceFriendlinessIndex.indexOf(it.first) }
-                        .toMap()
-
-                    appendLine(namespaces.keys.joinToString("\t") { "${namespaceFriendlyNames[it]}:${getNamespaceBadgeColor(it)}" })
-
-                    tree.classes.forEach { klass ->
-                        val friendlyName = getFriendlyDstName(klass)
-
-                        launch(coroutineDispatcher) {
-                            classPage(klass, versionWorkspace, friendlyNameRemapper)
-                                .serialize(versionWorkspace, "$friendlyName.html")
-                        }
-
-                        classMap.getOrPut(friendlyName.substringBeforeLast('/')) { mutableMapOf() } +=
-                            friendlyName.substringAfterLast('/') to classTypeOf(klass.modifiers)
-
-                        appendLine(namespaces.values.joinToString("\t") { klass.getName(it) ?: "" })
                     }
+                    val versionWorkspace by composite.versioned {
+                        this.version = version
+                    }
+
+                    val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
+                    val classMap = mutableMapOf<String, MutableMap<String, ClassType>>()
+
+                    // class index format, similar to a CSV:
+                    // first line is a "header", this is a tab-delimited string with friendly namespace names + its badge colors, which are delimited by a colon ("namespace:#color")
+                    // following lines are tab-separated strings with the mappings, each substring belongs to its column (header.split("\t").get(substringIndex) -> "namespace:#color")
+
+                    // example:
+                    // Obfuscated:#581C87   Mojang:#4D7C0F  Intermediary:#0369A1
+                    // a	com/mojang/math/Matrix3f	net/minecraft/class_4581
+                    // b	com/mojang/math/Matrix4f	net/minecraft/class_1159
+                    // ... (repeats like this for all classes)
+                    val classIndex = buildString {
+                        val namespaces = (0 until tree.maxNamespaceId)
+                            .mapNotNull { nsId ->
+                                val nsName = tree.getNamespaceName(nsId)
+                                if (nsName in namespaceFriendlyNames) nsName to nsId else null
+                            }
+                            .sortedBy { namespaceFriendlinessIndex.indexOf(it.first) }
+                            .toMap()
+
+                        appendLine(namespaces.keys.joinToString("\t") { "${namespaceFriendlyNames[it]}:${getNamespaceBadgeColor(it)}" })
+
+                        tree.classes.forEach { klass ->
+                            val friendlyName = getFriendlyDstName(klass)
+
+                            launch(coroutineDispatcher) {
+                                classPage(klass, versionWorkspace, friendlyNameRemapper)
+                                    .serialize(versionWorkspace, "$friendlyName.html")
+                            }
+
+                            classMap.getOrPut(friendlyName.substringBeforeLast('/')) { mutableMapOf() } +=
+                                friendlyName.substringAfterLast('/') to classTypeOf(klass.modifiers)
+
+                            appendLine(namespaces.values.joinToString("\t") { klass.getName(it) ?: "" })
+                        }
+                    }
+
+                    classMap.forEach { (packageName, classes) ->
+                        packagePage(versionWorkspace, packageName, classes)
+                            .serialize(versionWorkspace, "$packageName/index.html")
+                    }
+
+                    overviewPage(versionWorkspace, classMap.keys)
+                        .serialize(versionWorkspace, "index.html")
+
+                    versionWorkspace["class-index.js"].writeText("updateClassIndex(`${classIndex.trim()}`);") // do not minify this file
                 }
-
-                classMap.forEach { (packageName, classes) ->
-                    packagePage(versionWorkspace, packageName, classes)
-                        .serialize(versionWorkspace, "$packageName/index.html")
-                }
-
-                overviewPage(versionWorkspace, classMap.keys)
-                    .serialize(versionWorkspace, "index.html")
-
-                versionWorkspace["class-index.js"].writeText("updateClassIndex(`${classIndex.trim()}`);") // do not minify this file
             }
 
             versionsPage(mappings.entries.associate { (version, tree) -> version to tree.dstNamespaces })

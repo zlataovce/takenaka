@@ -44,8 +44,9 @@ fun MappingTree.completeMethodOverrides(namespace: String) {
 
     var correctionCount = 0
     classes.forEach { klass ->
-        val klassName by lazy { klass.getDstName(namespaceId) }
-        val klassSuperTypes by lazy { klass.superTypes }
+        // perf: turn off thread-safe lazy resolving, only one thread accesses these
+        val klassName by lazy(LazyThreadSafetyMode.NONE) { klass.getDstName(namespaceId) }
+        val klassSuperTypes by lazy(LazyThreadSafetyMode.NONE) { klass.superTypes }
 
         klass.methods.forEach { method ->
             val methodName = method.getDstName(namespaceId)
