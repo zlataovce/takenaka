@@ -19,7 +19,6 @@ package me.kcra.takenaka.core.mapping.adapter
 
 import org.objectweb.asm.Opcodes
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
-import me.kcra.takenaka.core.mapping.resolve.modifiers
 import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTree
 
@@ -36,35 +35,37 @@ fun MappingTree.filterNonSynthetic() {
         error("Mapping tree has not visited modifiers before")
     }
 
-    val classesForRemoval = mutableListOf<String>()
+    fun MappingTree.ElementMapping.getModifiers(): Int = getDstName(namespaceId)?.toIntOrNull() ?: 0
+
+    val classesForRemoval = mutableListOf<MappingTree.ClassMapping>()
     classes.forEach { klass ->
-        if ((Opcodes.ACC_SYNTHETIC and klass.modifiers) != 0) {
+        if ((klass.getModifiers() and Opcodes.ACC_SYNTHETIC) != 0) {
             logger.debug { "removed class ${klass.srcName}, synthetic" }
-            classesForRemoval += klass.srcName
+            classesForRemoval += klass
             return@forEach
         }
 
-        val fieldsForRemoval = mutableMapOf<String, String>()
+        val fieldsForRemoval = mutableListOf<MappingTree.FieldMapping>()
         klass.fields.forEach { field ->
-            if ((Opcodes.ACC_SYNTHETIC and field.modifiers) != 0) {
+            if ((field.getModifiers() and Opcodes.ACC_SYNTHETIC) != 0) {
                 logger.debug { "removed field ${klass.srcName}#${field.srcName} ${field.srcDesc}, synthetic" }
-                fieldsForRemoval += field.srcName to field.srcDesc
+                fieldsForRemoval += field
             }
         }
-        fieldsForRemoval.forEach { (name, desc) -> klass.removeField(name, desc) }
+        fieldsForRemoval.forEach { field -> klass.removeField(field.srcName, field.srcDesc) }
         logger.debug { "removed ${fieldsForRemoval.size} synthetic field(s) in class ${klass.srcName}" }
 
-        val methodsForRemoval = mutableMapOf<String, String>()
+        val methodsForRemoval = mutableListOf<MappingTree.MethodMapping>()
         klass.methods.forEach { method ->
-            if ((Opcodes.ACC_SYNTHETIC and method.modifiers) != 0) {
+            if ((method.getModifiers() and Opcodes.ACC_SYNTHETIC) != 0) {
                 logger.debug { "removed method ${klass.srcName}#${method.srcName}${method.srcDesc}, synthetic" }
-                methodsForRemoval += method.srcName to method.srcDesc
+                methodsForRemoval += method
             }
         }
-        methodsForRemoval.forEach { (name, desc) -> klass.removeMethod(name, desc) }
+        methodsForRemoval.forEach { method -> klass.removeMethod(method.srcName, method.srcDesc) }
         logger.debug { "removed ${methodsForRemoval.size} synthetic method(s) in class ${klass.srcName}" }
     }
 
-    classesForRemoval.forEach { removeClass(it) }
+    classesForRemoval.forEach { klass -> removeClass(klass.srcName) }
     logger.info { "removed ${classesForRemoval.size} synthetic class(es)" }
 }

@@ -35,6 +35,7 @@ package me.kcra.takenaka.generator.web
 import me.kcra.takenaka.core.Version
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.commons.Remapper
+import org.objectweb.asm.signature.SignatureReader
 import org.objectweb.asm.signature.SignatureVisitor
 
 /**
@@ -344,11 +345,12 @@ class SignatureFormatter : SignatureVisitor {
     override fun visitClassType(name: String) {
         classNames.add(name)
 
-        if ("java/lang/Object" == name) {
+        // TODO: omit java/lang/Enum, take into consideration that Enum is generic, so it would visit the formals afterwards
+        if (name == "java/lang/Object" || name == "java/lang/Record") {
             // 'Map<java.lang.Object,java.util.List>' or 'abstract public V get(Object key);' should have
             // Object 'but java.lang.String extends java.lang.Object' is unnecessary.
-            val needObjectClass = argumentStack % 2 != 0 || parameterTypeVisited
-            if (needObjectClass) {
+            val needClass = argumentStack % 2 != 0 || parameterTypeVisited
+            if (needClass) {
                 declaration_.append(separator).append(remapper?.mapTypeAndLink(version!!, name, packageIndex!!, linkRemapper = linkRemapper) ?: name)
             }
         } else {
@@ -359,7 +361,7 @@ class SignatureFormatter : SignatureVisitor {
     }
 
     override fun visitInnerClassType(name: String) {
-        val outerClassName = classNames.removeAt(classNames.size - 1)
+        val outerClassName = classNames.removeLast()
         val className = "$outerClassName$$name"
         classNames += className
         val remappedOuter = (remapper?.mapType(outerClassName) ?: outerClassName) + '$'
@@ -418,7 +420,7 @@ class SignatureFormatter : SignatureVisitor {
         }
         argumentStack /= 2
         endType()
-        classNames.removeAt(classNames.size - 1)
+        classNames.removeLast()
     }
 
     private fun endFormals() {
@@ -472,4 +474,52 @@ class SignatureFormatter : SignatureVisitor {
             'V' to "void",
         )
     }
+}
+
+/**
+ * Makes a new [SignatureFormatter] and immediately visits the signature to it.
+ *
+ * @param options the formatting options
+ * @param remapper the [Remapper] used for remapping names
+ * @param linkRemapper the [Remapper] used for remapping links
+ * @param packageIndex the index used for resolving foreign class references
+ * @param version the mapping's version
+ * @return the formatter
+ * @see SignatureReader.accept
+ */
+fun String.formatSignature(
+    options: FormattingOptions,
+    remapper: Remapper? = null,
+    linkRemapper: Remapper? = null,
+    packageIndex: ClassSearchIndex? = null,
+    version: Version? = null
+): SignatureFormatter {
+    val visitor = SignatureFormatter(options, remapper, linkRemapper, packageIndex, version)
+    SignatureReader(this).accept(visitor)
+
+    return visitor
+}
+
+/**
+ * Makes a new [SignatureFormatter] and immediately visits the signature to it as a type signature.
+ *
+ * @param options the formatting options
+ * @param remapper the [Remapper] used for remapping names
+ * @param linkRemapper the [Remapper] used for remapping links
+ * @param packageIndex the index used for resolving foreign class references
+ * @param version the mapping's version
+ * @return the formatter
+ * @see SignatureReader.acceptType
+ */
+fun String.formatTypeSignature(
+    options: FormattingOptions,
+    remapper: Remapper? = null,
+    linkRemapper: Remapper? = null,
+    packageIndex: ClassSearchIndex? = null,
+    version: Version? = null
+): SignatureFormatter {
+    val visitor = SignatureFormatter(options, remapper, linkRemapper, packageIndex, version)
+    SignatureReader(this).acceptType(visitor)
+
+    return visitor
 }

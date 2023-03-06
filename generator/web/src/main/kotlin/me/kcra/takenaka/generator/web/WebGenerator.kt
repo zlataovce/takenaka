@@ -252,12 +252,7 @@ class WebGenerator(
         if (transformers.isEmpty()) {
             file.writer().use { it.write(this, prettyPrint = false) }
         } else {
-            var content = serialize(prettyPrint = false)
-            transformers.forEach { transformer ->
-                content = transformer.transformHtml(content)
-            }
-
-            file.writeText(content)
+            file.writeText(serialize(prettyPrint = false).transformHtml())
         }
     }
 
@@ -307,6 +302,13 @@ class WebGenerator(
 
         appendLine("});")
     }
+
+    /**
+     * Transforms HTML markup with all transformers in this generator.
+     *
+     * @return the transformed markup
+     */
+    fun String.transformHtml(): String = transformers.fold(this) { content0, transformer -> transformer.transformHtml(content0) }
 
     /**
      * Transforms a JS script with all transformers in this generator.

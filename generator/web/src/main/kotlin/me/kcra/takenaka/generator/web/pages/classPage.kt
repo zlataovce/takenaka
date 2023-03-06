@@ -23,7 +23,10 @@ import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.fromInternalName
-import me.kcra.takenaka.core.mapping.resolve.*
+import me.kcra.takenaka.core.mapping.resolve.interfaces
+import me.kcra.takenaka.core.mapping.resolve.modifiers
+import me.kcra.takenaka.core.mapping.resolve.signature
+import me.kcra.takenaka.core.mapping.resolve.superClass
 import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.components.*
@@ -31,7 +34,6 @@ import net.fabricmc.mappingio.tree.MappingTree
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.objectweb.asm.commons.Remapper
-import org.objectweb.asm.signature.SignatureReader
 import org.w3c.dom.Document
 import java.lang.reflect.Modifier
 
@@ -44,41 +46,26 @@ import java.lang.reflect.Modifier
  * @return the generated document
  */
 fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: VersionedWorkspace, friendlyNameRemapper: Remapper): Document = createHTMLDocument().html {
-    val friendlyName = getFriendlyDstName(klass).fromInternalName()
+    val klassDeclaration = formatClassDescriptor(klass, workspace.version, friendlyNameRemapper)
 
-    headComponent(friendlyName, workspace.version.id)
+    headComponent(klassDeclaration.friendlyName, workspace.version.id)
     body {
         navPlaceholderComponent()
         main {
-            val friendlyPackageName = friendlyName.substringBeforeLast('.')
-            a(href = "/${workspace.version.id}/${friendlyPackageName.replace('.', '/')}/index.html") {
+            val friendlyPackageName = klassDeclaration.friendlyName.substringBeforeLast('.')
+            a(href = "/${workspace.version.id}/${friendlyPackageName.toInternalName()}/index.html") {
                 +friendlyPackageName
-            }
-
-            val mod = klass.modifiers
-            val signature = klass.signature
-
-            var classHeader = formatClassHeader(friendlyName, mod)
-            var classDescription = formatClassDescription(klass, mod, workspace.version, friendlyNameRemapper)
-            if (signature != null) {
-                var formattingOptions = formattingOptionsOf(ESCAPE_HTML_SYMBOLS)
-                if ((mod and Opcodes.ACC_INTERFACE) != 0) formattingOptions = formattingOptions or INTERFACE_SIGNATURE
-
-                val visitor = SignatureFormatter(formattingOptions, friendlyNameRemapper, null, index, workspace.version)
-                SignatureReader(signature).accept(visitor)
-
-                classHeader += visitor.formals
-                classDescription = visitor.superTypes // TODO: filter java/lang/Record, java/lang/Enum and java/lang/annotation/Annotation - those are implicit
             }
 
             p(classes = "class-header") {
                 unsafe {
-                    +classHeader
+                    +klassDeclaration.modifiersAndName
+                    klassDeclaration.formals?.unaryPlus()
                 }
             }
             p(classes = "class-description") {
                 unsafe {
-                    +classDescription
+                    +klassDeclaration.superTypes
                 }
             }
             spacerTopComponent()
@@ -125,7 +112,12 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                     +formatModifiers(fieldMod, Modifier.fieldModifiers())
 
                                     unsafe {
-                                        +formatType(Type.getType(field.srcDesc), workspace.version, friendlyNameRemapper)
+                                        val signature = field.signature
+                                        if (signature != null) {
+                                            +signature.formatTypeSignature(formattingOptionsOf(ESCAPE_HTML_SYMBOLS), friendlyNameRemapper, null, index, workspace.version).declaration
+                                        } else {
+                                            +formatType(Type.getType(field.srcDesc), workspace.version, friendlyNameRemapper)
+                                        }
                                     }
                                 }
                                 td {
@@ -186,16 +178,11 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                 td {
                                     p {
                                         unsafe {
-                                            val declaration = formatMethodDescriptor(method, methodMod, workspace.version, friendlyNameRemapper, linkRemapper = null)
+                                            val ctorDeclaration = formatMethodDescriptor(method, methodMod, workspace.version, friendlyNameRemapper, linkRemapper = null)
 
-                                            if (declaration.formals != null) {
-                                                +declaration.formals
-                                            }
-                                            +declaration.args
-                                            if (declaration.exceptions != null) {
-                                                +" throws "
-                                                +declaration.exceptions
-                                            }
+                                            ctorDeclaration.formals?.unaryPlus()
+                                            +ctorDeclaration.args
+                                            ctorDeclaration.exceptions?.let { +" throws $it" }
                                         }
                                     }
                                 }
@@ -231,19 +218,16 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                 td(classes = "member-modifiers") {
                                     unsafe {
                                         var mask = Modifier.methodModifiers()
-                                        // remove public modifiers on interface members, they are implicit
-                                        if ((mod and Opcodes.ACC_INTERFACE) != 0) {
-                                            mask = mask and Modifier.PUBLIC.inv()
+                                        // remove public and abstract modifiers on interface members, they are implicit
+                                        if ((klassDeclaration.modifiers and Opcodes.ACC_INTERFACE) != 0) {
+                                            mask = mask and Modifier.PUBLIC.inv() and Modifier.ABSTRACT.inv()
                                         }
 
                                         +formatModifiers(methodMod, mask)
 
-                                        val declaration = formatMethodDescriptor(method, methodMod, workspace.version, friendlyNameRemapper)
-
-                                        if (declaration.formals != null) {
-                                            +"${declaration.formals} "
-                                        }
-                                        +declaration.returnType
+                                        val methodDeclaration = formatMethodDescriptor(method, methodMod, workspace.version, friendlyNameRemapper)
+                                        methodDeclaration.formals?.let { +"$it " }
+                                        +methodDeclaration.returnType
                                     }
                                 }
                                 td {
@@ -254,22 +238,19 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                                 val nsFriendlyName = generator.namespaceFriendlyNames[ns]
 
                                                 if (nsFriendlyName != null) {
-                                                    val name = method.getName(id)
-                                                    if (name != null) {
+                                                    val methodName = method.getName(id)
+                                                    if (methodName != null) {
                                                         tr {
                                                             badgeColumnComponent(nsFriendlyName, getNamespaceBadgeColor(ns), styleSupplier)
                                                             td {
                                                                 p(classes = "mapping-value") {
                                                                     unsafe {
                                                                         val remapper = ElementRemapper(method.tree) { it.getName(id) }
-                                                                        val declaration = formatMethodDescriptor(method, methodMod, workspace.version, remapper, linkRemapper = friendlyNameRemapper)
+                                                                        val methodDeclaration = formatMethodDescriptor(method, methodMod, workspace.version, remapper, linkRemapper = friendlyNameRemapper)
 
-                                                                        +name
-                                                                        +declaration.args
-                                                                        if (declaration.exceptions != null) {
-                                                                            +" throws "
-                                                                            +declaration.exceptions
-                                                                        }
+                                                                        +methodName
+                                                                        +methodDeclaration.args
+                                                                        methodDeclaration.exceptions?.let { +" throws $it" }
                                                                     }
                                                                 }
                                                             }
@@ -291,53 +272,82 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
 }
 
 /**
- * Formats a class mapping to a class header (e.g. "public class HelloWorld").
+ * A formatted class descriptor.
  *
- * @param friendlyName the class friendly name
- * @param mod the class modifiers
- * @return the class header
+ * @property friendlyName the class's name, remapped as per the [formatClassDescriptor] `nameRemapper` parameter
+ * @property modifiers the class's modifiers
+ * @property modifiersAndName the stringified modifiers with the package-less class name
+ * @property formals the formal generic type arguments of the class itself
+ * @property superTypes the superclass and superinterfaces, including `extends` and `implements`, implicit ones are omitted
  */
-fun GenerationContext.formatClassHeader(friendlyName: String, mod: Int): String = buildString {
-    append(formatModifiers(mod, Modifier.classModifiers()))
-    when {
-        (mod and Opcodes.ACC_ANNOTATION) != 0 -> append("@interface ") // annotations are interfaces, so this must be before ACC_INTERFACE
-        (mod and Opcodes.ACC_INTERFACE) != 0 -> append("interface ")
-        (mod and Opcodes.ACC_ENUM) != 0 -> append("enum ")
-        (mod and Opcodes.ACC_MODULE) != 0 -> append("module ")
-        (mod and Opcodes.ACC_RECORD) != 0 -> append("record ")
-        else -> append("class ")
-    }
-    append(friendlyName.substringAfterLast('.'))
-}
+data class ClassDeclaration(
+    val friendlyName: String,
+    val modifiers: Int,
+    val modifiersAndName: String,
+    val formals: String?,
+    val superTypes: String
+)
 
 /**
- * Formats a class mapping to a class description (e.g. "implements net.minecraft.protocol.Packet").
+ * Formats a class descriptor and its generic signature.
  *
  * @param klass the class mapping
- * @param mod the class modifiers
  * @param version the mapping's version
  * @param nameRemapper the remapper for remapping signatures
- * @return the class description
+ * @return the formatted descriptor
  */
-fun GenerationContext.formatClassDescription(klass: MappingTree.ClassMapping, mod: Int, version: Version, nameRemapper: Remapper): String = buildString {
-    val superClass = klass.superClass
-    val interfaces = klass.interfaces.filter { it != "java/lang/annotation/Annotation" }
+fun GenerationContext.formatClassDescriptor(klass: MappingTree.ClassMapping, version: Version, nameRemapper: Remapper): ClassDeclaration {
+    val friendlyName = getFriendlyDstName(klass).fromInternalName()
+    val mod = klass.modifiers
 
-    if (superClass != "java/lang/Object" && superClass != "java/lang/Record" && superClass != "java/lang/Enum") {
-        append("extends ${nameRemapper.mapTypeAndLink(version, superClass, index)}")
-        if (interfaces.isNotEmpty()) {
-            append(" ")
+    val modifiersAndName = buildString {
+        append(formatModifiers(mod, Modifier.classModifiers()))
+        when {
+            (mod and Opcodes.ACC_ANNOTATION) != 0 -> append("@interface ") // annotations are interfaces, so this must be before ACC_INTERFACE
+            (mod and Opcodes.ACC_INTERFACE) != 0 -> append("interface ")
+            (mod and Opcodes.ACC_ENUM) != 0 -> append("enum ")
+            (mod and Opcodes.ACC_MODULE) != 0 -> append("module ")
+            (mod and Opcodes.ACC_RECORD) != 0 -> append("record ")
+            else -> append("class ")
+        }
+        append(friendlyName.substringAfterLast('.'))
+    }
+
+    var formals: String? = null
+    lateinit var superTypes: String
+
+    val signature = klass.signature
+    if (signature != null) {
+        var formattingOptions = formattingOptionsOf(ESCAPE_HTML_SYMBOLS)
+        if ((mod and Opcodes.ACC_INTERFACE) != 0) formattingOptions = formattingOptions or INTERFACE_SIGNATURE
+
+        val formatter = signature.formatSignature(formattingOptions, nameRemapper, null, index, version)
+        formals = formatter.formals
+        superTypes = formatter.superTypes
+    } else {
+        val superClass = klass.superClass
+        val interfaces = klass.interfaces.filter { it != "java/lang/annotation/Annotation" }
+
+        superTypes = buildString {
+            if (superClass != "java/lang/Object" && superClass != "java/lang/Record" && superClass != "java/lang/Enum") {
+                append("extends ${nameRemapper.mapTypeAndLink(version, superClass, index)}")
+                if (interfaces.isNotEmpty()) {
+                    append(" ")
+                }
+            }
+            if (interfaces.isNotEmpty()) {
+                append(
+                    when {
+                        (mod and Opcodes.ACC_INTERFACE) != 0 -> "extends"
+                        else -> "implements"
+                    }
+                )
+                append(" ${interfaces.joinToString(", ") { nameRemapper.mapTypeAndLink(version, it, index) }}")
+            }
         }
     }
-    if (interfaces.isNotEmpty()) {
-        append(
-            when {
-                (mod and Opcodes.ACC_INTERFACE) != 0 -> "extends"
-                else -> "implements"
-            }
-        )
-        append(" ${interfaces.joinToString(", ") { nameRemapper.mapTypeAndLink(version, it, index) }}")
-    }
+
+    return ClassDeclaration(friendlyName, mod, modifiersAndName, formals, superTypes)
 }
 
 /**
@@ -348,7 +358,7 @@ fun GenerationContext.formatClassDescription(klass: MappingTree.ClassMapping, mo
  * @property returnType the method return type
  * @property exceptions the throws clause
  */
-data class MethodDescriptorDeclaration(
+data class MethodDeclaration(
     val formals: String?,
     val args: String,
     val returnType: String,
@@ -356,7 +366,7 @@ data class MethodDescriptorDeclaration(
 )
 
 /**
- * Formats a method descriptor (e.g. "(String arg0, Throwable arg1)").
+ * Formats a method descriptor and its generic signature.
  *
  * @param method the method mapping
  * @param mod the method modifiers
@@ -365,7 +375,7 @@ data class MethodDescriptorDeclaration(
  * @param linkRemapper the remapper used for remapping link addresses
  * @return the formatted descriptor
  */
-fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, mod: Int, version: Version, nameRemapper: Remapper, linkRemapper: Remapper? = null): MethodDescriptorDeclaration {
+fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, mod: Int, version: Version, nameRemapper: Remapper, linkRemapper: Remapper? = null): MethodDeclaration {
     // example:
     // descriptor: ([Ldyl;Ljava/util/Map;Z)V
     // signature: ([Ldyl;Ljava/util/Map<Lchq;Ldzg;>;Z)V
@@ -376,14 +386,12 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
         var options = formattingOptionsOf(ESCAPE_HTML_SYMBOLS, GENERATE_NAMED_PARAMETERS)
         if ((mod and Opcodes.ACC_VARARGS) != 0) options = options or VARIADIC_PARAMETER
 
-        val visitor = SignatureFormatter(options, nameRemapper, linkRemapper, index, version)
-        SignatureReader(signature).accept(visitor)
-
-        return MethodDescriptorDeclaration(
-            visitor.formals.ifEmpty { null },
-            visitor.args,
-            visitor.returnType ?: error("Method signature without a return type"),
-            visitor.exceptions
+        val formatter = signature.formatSignature(options, nameRemapper, linkRemapper, index, version)
+        return MethodDeclaration(
+            formatter.formals.ifEmpty { null },
+            formatter.args,
+            formatter.returnType ?: error("Method signature without a return type"),
+            formatter.exceptions
         )
     }
 
@@ -404,7 +412,7 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
         append(')')
     }
 
-    return MethodDescriptorDeclaration(
+    return MethodDeclaration(
         null,
         args,
         formatType(type.returnType, version, nameRemapper, linkRemapper),
@@ -413,7 +421,7 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
 }
 
 /**
- * Formats a type with links and remaps any class names in it.
+ * Formats a **non-generic** type with links and remaps any class names in it.
  *
  * @param type the type
  * @param version the version of the mappings
@@ -428,7 +436,7 @@ fun GenerationContext.formatType(type: Type, version: Version, nameRemapper: Rem
             append(nameRemapper.mapTypeAndLink(version, type.elementType.className.toInternalName(), index, linkRemapper))
             var arrayDimensions = "[]".repeat(type.dimensions)
             if (isVarargs) {
-                arrayDimensions =  "${arrayDimensions.substringBeforeLast("[]")}..."
+                arrayDimensions =  "${arrayDimensions.drop(2)}..."
             }
             append(arrayDimensions)
         }
