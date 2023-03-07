@@ -21,9 +21,11 @@ import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import me.kcra.takenaka.core.*
+import me.kcra.takenaka.core.util.readValue
 import mu.KotlinLogging
 import java.net.URL
 import kotlin.concurrent.withLock
+import kotlin.io.path.writeText
 
 private val logger = KotlinLogging.logger {}
 
@@ -55,7 +57,7 @@ open class SpigotManifestConsumer(
         workspace.spigotManifestLock.withLock {
             val file = workspace[MANIFEST]
 
-            if (RELAXED_CACHE in workspace.resolverOptions && MANIFEST in workspace) {
+            if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && MANIFEST in workspace) {
                 try {
                     return objectMapper.readValue<SpigotVersionManifest>(file).apply {
                         logger.info { "read cached ${workspace.version.id} Spigot manifest" }
@@ -82,7 +84,7 @@ open class SpigotManifestConsumer(
         workspace.spigotManifestLock.withLock {
             val file = workspace[BUILDDATA_INFO]
 
-            if (RELAXED_CACHE in workspace.resolverOptions && BUILDDATA_INFO in workspace) {
+            if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && BUILDDATA_INFO in workspace) {
                 try {
                     return objectMapper.readValue<SpigotVersionAttributes>(file).apply {
                         logger.info { "read cached ${workspace.version.id} Spigot attributes" }

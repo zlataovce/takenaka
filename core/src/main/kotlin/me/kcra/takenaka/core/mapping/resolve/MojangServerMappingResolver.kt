@@ -29,6 +29,7 @@ import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch
 import net.fabricmc.mappingio.format.ProGuardReader
 import java.io.Reader
 import java.net.URL
+import kotlin.io.path.reader
 
 private val logger = KotlinLogging.logger {}
 
@@ -71,7 +72,7 @@ class MojangServerMappingResolver(
 
         URL(attributes.downloads.serverMappings?.url).httpRequest {
             if (it.ok) {
-                it.copyTo(file.toPath())
+                it.copyTo(file)
 
                 logger.info { "fetched ${version.id} Mojang mappings" }
                 return file.reader()

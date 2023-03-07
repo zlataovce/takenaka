@@ -31,6 +31,8 @@ import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import java.io.Reader
 import java.net.URL
+import kotlin.io.path.fileSize
+import kotlin.io.path.reader
 
 private val logger = KotlinLogging.logger {}
 
@@ -61,7 +63,7 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
         }
 
         if (MAPPINGS in workspace) {
-            if (file.length() == length) {
+            if (file.fileSize() == length) {
                 logger.info { "matched same length for cached ${version.id} Intermediary mappings" }
                 return file.reader()
             }
@@ -71,7 +73,7 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
 
         url.httpRequest {
             if (it.ok) {
-                it.copyTo(file.toPath())
+                it.copyTo(file)
 
                 logger.info { "fetched ${version.id} Intermediary mappings" }
                 return file.reader()
@@ -96,8 +98,7 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
             return file.reader()
         }
 
-        URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/LICENSE")
-            .copyTo(file.toPath())
+        URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/LICENSE").copyTo(file)
 
         return file.reader()
     }

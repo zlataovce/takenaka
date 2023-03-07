@@ -87,26 +87,26 @@ abstract class AbstractGenerator(
         return@runBlocking versions
             .map { manifest[it] ?: error("did not find version $it in manifest") }
             .parallelMap { version ->
-                val versionWorkspace by mappingWorkspace.versioned {
+                val versionWorkspace by mappingWorkspace.createVersioned {
                     this.version = version
                 }
 
                 return@parallelMap version to buildMappingTree {
                     contributor(contributorProvider(versionWorkspace))
 
-                    mutateAfter {
-                        filterWithModifiers()
+                    interceptAfter { tree ->
+                        tree.filterWithModifiers()
 
                         if (skipSynthetics) {
-                            filterNonSynthetic()
+                            tree.filterNonSynthetic()
                         }
 
-                        filterNonStaticInitializer()
+                        tree.filterNonStaticInitializer()
 
-                        dstNamespaces.forEach { ns ->
+                        tree.dstNamespaces.forEach { ns ->
                             if (ns in VanillaMappingContributor.NAMESPACES) return@forEach
 
-                            completeMethodOverrides(ns)
+                            tree.completeMethodOverrides(ns)
                         }
                     }
                 }

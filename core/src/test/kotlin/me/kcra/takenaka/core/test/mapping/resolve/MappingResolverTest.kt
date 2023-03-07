@@ -31,6 +31,9 @@ import net.fabricmc.mappingio.format.Tiny2Reader
 import net.fabricmc.mappingio.format.Tiny2Writer
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MemoryMappingTree
+import kotlin.io.path.isRegularFile
+import kotlin.io.path.reader
+import kotlin.io.path.writer
 import kotlin.system.measureTimeMillis
 import kotlin.test.Test
 
@@ -82,7 +85,7 @@ class MappingResolverTest {
     @Test
     fun `resolve mappings for supported versions`() {
         val workspace = compositeWorkspace {
-            rootDirectory = workspaceDir
+            rootDirectory(workspaceDir)
 
             resolverOptions {
                 relaxedCache()
@@ -119,20 +122,20 @@ suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper
             VanillaMappingContributor(this@resolveVersionMappings, objectMapper)
         ))
 
-        mutateBefore { tree ->
+        interceptBefore { tree ->
             NamespaceFilter(MissingDescriptorFilter(tree), "searge_id")
         }
 
-        mutateAfter {
-            filterWithModifiers()
-            filterNonSynthetic()
-            filterNonStaticInitializer()
-            completeInnerClassNames("spigot")
+        interceptAfter { tree ->
+            tree.filterWithModifiers()
+            tree.filterNonSynthetic()
+            tree.filterNonStaticInitializer()
+            tree.completeInnerClassNames("spigot")
 
-            dstNamespaces.forEach { ns ->
+            tree.dstNamespaces.forEach { ns ->
                 if (ns in VanillaMappingContributor.NAMESPACES) return@forEach
 
-                completeMethodOverrides(ns)
+                tree.completeMethodOverrides(ns)
             }
         }
     }
@@ -146,11 +149,11 @@ fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, xmlMapper: Ob
         val version = manifest[it] ?: error("did not find $it in manifest")
 
         jobs += async {
-            val workspace by versioned {
+            val workspace by createVersioned {
                 this.version = version
             }
             val savedFile = workspace["joined.tiny"]
-            if (save && savedFile.isFile) {
+            if (save && savedFile.isRegularFile()) {
                 return@async version to MemoryMappingTree().apply { Tiny2Reader.read(savedFile.reader(), this) }
             }
 

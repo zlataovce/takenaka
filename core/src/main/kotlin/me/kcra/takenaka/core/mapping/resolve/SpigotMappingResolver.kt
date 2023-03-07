@@ -18,7 +18,7 @@
 package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.RELAXED_CACHE
+import me.kcra.takenaka.core.DefaultResolverOptions
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
@@ -36,6 +36,8 @@ import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 import java.io.Reader
 import java.net.URL
+import kotlin.io.path.isRegularFile
+import kotlin.io.path.reader
 
 private val logger = KotlinLogging.logger {}
 
@@ -78,14 +80,14 @@ abstract class AbstractSpigotMappingResolver(
         val file = workspace[mappingAttribute0]
 
         // Spigot's stash doesn't seem to support sending Content-Length headers
-        if (RELAXED_CACHE in workspace.resolverOptions && file.isFile) {
+        if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && file.isRegularFile()) {
             logger.info { "found cached ${version.id} Spigot mappings ($mappingAttribute)" }
             return file.reader()
         }
 
         URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${manifest.refs["BuildData"]}").httpRequest {
             if (it.ok) {
-                it.copyTo(file.toPath())
+                it.copyTo(file)
 
                 logger.info { "fetched ${version.id} Spigot mappings ($mappingAttribute)" }
                 return file.reader()
@@ -119,14 +121,14 @@ abstract class AbstractSpigotMappingResolver(
     fun pomReader(): Reader? {
         val file = workspace[CRAFTBUKKIT_POM]
 
-        if (RELAXED_CACHE in workspace.resolverOptions && file.isFile) {
+        if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && file.isRegularFile()) {
             logger.info { "found cached ${version.id} CraftBukkit pom.xml ($mappingAttribute)" }
             return file.reader()
         }
 
         URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/raw/pom.xml?at=${manifest.refs["CraftBukkit"]}").httpRequest {
             if (it.ok) {
-                it.copyTo(file.toPath())
+                it.copyTo(file)
 
                 logger.info { "fetched ${version.id} CraftBukkit pom.xml" }
                 return file.reader()

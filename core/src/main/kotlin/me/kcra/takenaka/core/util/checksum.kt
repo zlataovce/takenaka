@@ -17,9 +17,9 @@
 
 package me.kcra.takenaka.core.util
 
-import java.io.File
-import java.io.FileInputStream
+import java.nio.file.Path
 import java.security.MessageDigest
+import kotlin.io.path.inputStream
 import kotlin.reflect.KProperty
 
 /**
@@ -50,8 +50,8 @@ val sha1Digest by threadLocalMessageDigest("SHA-1")
  * @param digest the digest
  * @return the checksum
  */
-fun File.getChecksum(digest: MessageDigest): String {
-    FileInputStream(this).use {
+fun Path.getChecksum(digest: MessageDigest): String {
+    inputStream().use {
         val buffer = ByteArray(1024)
         var bytesCount: Int
         while (it.read(buffer).also { b -> bytesCount = b } != -1) {

@@ -22,14 +22,14 @@ import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MemoryMappingTree
 
 /**
- * A function that wraps a mapping tree before contributors visit it.
+ * A function that wraps a mapping tree (maybe already wrapped) before contributors visit it.
  */
-typealias TreePreMutator = (MemoryMappingTree) -> MappingVisitor
+typealias InterceptBefore = (MappingVisitor) -> MappingVisitor
 
 /**
  * A function that mutates a mapping tree.
  */
-typealias TreePostMutator = MappingTree.() -> Unit
+typealias InterceptAfter = (MemoryMappingTree) -> Unit
 
 /**
  * A mapping tree builder.
@@ -43,14 +43,14 @@ class MappingTreeBuilder {
     val contributors: MutableList<MappingContributor> = mutableListOf()
 
     /**
-     * Functions that mutate the finalized tree, maintains insertion order.
+     * Functions that wrap the tree into a mapping visitor, maintains insertion order.
      */
-    val mutators: MutableList<TreePostMutator> = mutableListOf()
+    val interceptorsBefore: MutableList<InterceptBefore> = mutableListOf()
 
     /**
-     * A function that wraps the tree before it's visited by contributors.
+     * Functions that mutate the finalized tree, maintains insertion order.
      */
-    var treeAdapter: TreePreMutator = { it }
+    val interceptorsAfter: MutableList<InterceptAfter> = mutableListOf()
 
     /**
      * Appends mapping contributors.
@@ -81,12 +81,12 @@ class MappingTreeBuilder {
     }
 
     /**
-     * Sets a tree pre-mutation action.
+     * Appends a new tree wrapping function.
      *
      * @param block the wrapping function
      */
-    fun mutateBefore(block: TreePreMutator) {
-        treeAdapter = block
+    fun interceptBefore(block: InterceptBefore) {
+        interceptorsBefore += block
     }
 
     /**
@@ -94,8 +94,8 @@ class MappingTreeBuilder {
      *
      * @param block the mutator
      */
-    fun mutateAfter(block: TreePostMutator) {
-        mutators += block
+    fun interceptAfter(block: InterceptAfter) {
+        interceptorsAfter += block
     }
 
     /**
@@ -103,11 +103,14 @@ class MappingTreeBuilder {
      *
      * @return the mapping tree
      */
-    fun toMappingTree(): MappingTree = MemoryMappingTree().apply {
-        val wrapped = treeAdapter(this)
+    fun toMappingTree(): MappingTree {
+        val tree = MemoryMappingTree()
+        val wrappedTree = interceptorsBefore.fold<InterceptBefore, MappingVisitor>(tree) { v, interceptor -> interceptor(v) }
 
-        contributors.forEach { it.accept(wrapped) }
-        mutators.forEach { it(this) }
+        contributors.forEach { contributor -> contributor.accept(wrappedTree) }
+        interceptorsBefore.forEach { interceptor -> interceptor(tree) }
+
+        return tree
     }
 }
 

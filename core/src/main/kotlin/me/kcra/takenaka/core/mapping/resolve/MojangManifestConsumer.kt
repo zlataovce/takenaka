@@ -20,13 +20,15 @@ package me.kcra.takenaka.core.mapping.resolve
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import me.kcra.takenaka.core.RELAXED_CACHE
+import me.kcra.takenaka.core.DefaultResolverOptions
 import me.kcra.takenaka.core.VersionAttributes
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
+import me.kcra.takenaka.core.util.readValue
 import mu.KotlinLogging
 import java.net.URL
 import kotlin.concurrent.withLock
+import kotlin.io.path.writeText
 
 private val logger = KotlinLogging.logger {}
 
@@ -53,7 +55,7 @@ open class MojangManifestConsumer(
         workspace.mojangManifestLock.withLock {
             val file = workspace[ATTRIBUTES]
 
-            if (RELAXED_CACHE in workspace.resolverOptions && ATTRIBUTES in workspace) {
+            if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && ATTRIBUTES in workspace) {
                 try {
                     return objectMapper.readValue<VersionAttributes>(file).apply {
                         logger.info { "read cached ${workspace.version.id} attributes" }

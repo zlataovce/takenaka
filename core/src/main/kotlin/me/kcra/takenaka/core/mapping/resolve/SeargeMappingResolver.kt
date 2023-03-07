@@ -17,7 +17,7 @@
 
 package me.kcra.takenaka.core.mapping.resolve
 
-import me.kcra.takenaka.core.RELAXED_CACHE
+import me.kcra.takenaka.core.DefaultResolverOptions
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
@@ -28,12 +28,14 @@ import net.fabricmc.mappingio.MappingReader
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
-import java.io.File
 import java.io.Reader
 import java.net.URL
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.zip.ZipFile
+import kotlin.io.path.isRegularFile
+import kotlin.io.path.reader
 
 private val logger = KotlinLogging.logger {}
 
@@ -68,7 +70,7 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
                 logger.warn { "checksum mismatch for ${version.id} Searge mapping cache, fetching them again" }
             }
 
-            URL(url.toString().removeSuffix(".sha1")).copyTo(file.toPath())
+            URL(url.toString().removeSuffix(".sha1")).copyTo(file)
 
             logger.info { "fetched ${version.id} Searge mappings" }
             return findMappingFile(file).reader()
@@ -106,8 +108,7 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
             return file.reader()
         }
 
-        URL("https://raw.githubusercontent.com/MinecraftForge/MCPConfig/master/LICENSE")
-            .copyTo(file.toPath())
+        URL("https://raw.githubusercontent.com/MinecraftForge/MCPConfig/master/LICENSE").copyTo(file)
 
         return file.reader()
     }
@@ -137,17 +138,17 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
      * @param file the zip file
      * @return the file
      */
-    private fun findMappingFile(file: File): File {
+    private fun findMappingFile(file: Path): Path {
         val mappingFile = workspace[MAPPINGS]
 
-        if (RELAXED_CACHE !in workspace.resolverOptions || !mappingFile.isFile) {
-            ZipFile(file).use {
+        if (DefaultResolverOptions.RELAXED_CACHE !in workspace.resolverOptions || !mappingFile.isRegularFile()) {
+            ZipFile(file.toFile()).use {
                 val entry = it.stream()
                     .filter { e -> e.name == "config/joined.tsrg" || e.name == "joined.srg" }
                     .findFirst()
                     .orElseThrow { RuntimeException("Could not find mapping file in zip file (Searge, ${version.id})") }
 
-                Files.copy(it.getInputStream(entry), mappingFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                Files.copy(it.getInputStream(entry), mappingFile, StandardCopyOption.REPLACE_EXISTING)
             }
         }
 

@@ -18,7 +18,7 @@
 package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.RELAXED_CACHE
+import me.kcra.takenaka.core.DefaultResolverOptions
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
@@ -30,12 +30,14 @@ import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.tree.ClassNode
-import java.io.File
 import java.net.URL
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.stream.Collectors
 import java.util.zip.ZipFile
+import kotlin.io.path.isRegularFile
+import kotlin.io.path.nameWithoutExtension
 
 private val logger = KotlinLogging.logger {}
 
@@ -125,18 +127,18 @@ class VanillaMappingContributor(
                 .collect(Collectors.toList())
         }
 
-        ZipFile(file).use { zf ->
+        ZipFile(file.toFile()).use { zf ->
             if (zf.getEntry("net/minecraft/bundler/Main.class") != null) {
                 file = file.resolveSibling(file.nameWithoutExtension + "-bundled.jar")
 
-                if (RELAXED_CACHE !in workspace.resolverOptions || !file.isFile) {
+                if (DefaultResolverOptions.RELAXED_CACHE !in workspace.resolverOptions || !file.isRegularFile()) {
                     zf.getInputStream(zf.getEntry("META-INF/versions/${workspace.version.id}/server-${workspace.version.id}.jar")).use {
-                        Files.copy(it, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                        Files.copy(it, file, StandardCopyOption.REPLACE_EXISTING)
                     }
                     logger.info { "extracted ${workspace.version.id} bundled JAR" }
                 }
 
-                return ZipFile(file).use(::readJar)
+                return ZipFile(file.toFile()).use(::readJar)
             }
 
             return readJar(zf)
@@ -148,7 +150,7 @@ class VanillaMappingContributor(
      *
      * @return the file, null if an error occurred
      */
-    private fun fetchServerJar(): File? {
+    private fun fetchServerJar(): Path? {
         val file = workspace[SERVER]
 
         if (SERVER in workspace) {
@@ -164,7 +166,7 @@ class VanillaMappingContributor(
 
         URL(attributes.downloads.server.url).httpRequest {
             if (it.ok) {
-                it.copyTo(file.toPath())
+                it.copyTo(file)
 
                 logger.info { "fetched ${workspace.version.id} vanilla JAR" }
                 return file

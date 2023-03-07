@@ -1,6 +1,5 @@
 plugins {
     id("takenaka.base-conventions")
-    alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.shadow)
     application
 }

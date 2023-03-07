@@ -57,6 +57,9 @@ import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.coroutines.CoroutineContext
+import kotlin.io.path.createDirectories
+import kotlin.io.path.writeText
+import kotlin.io.path.writer
 
 /**
  * A generator that generates documentation in an HTML format.
@@ -109,7 +112,7 @@ class WebGenerator(
                             tree.completeInnerClassNames(ns)
                         }
                     }
-                    val versionWorkspace by composite.versioned {
+                    val versionWorkspace by composite.createVersioned {
                         this.version = version
                     }
 
@@ -167,7 +170,7 @@ class WebGenerator(
                 .serialize(workspace, "index.html")
         }
 
-        workspace["assets"].mkdirs()
+        workspace["assets"].createDirectories()
 
         fun copyAsset(name: String) {
             val inputStream = javaClass.getResourceAsStream("/assets/$name")
@@ -188,9 +191,7 @@ class WebGenerator(
 
                 destination.writeText(content)
             } else {
-                inputStream.use {
-                    Files.copy(it, destination.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                }
+                inputStream.use { Files.copy(it, destination, StandardCopyOption.REPLACE_EXISTING) }
             }
         }
 
@@ -247,7 +248,7 @@ class WebGenerator(
      */
     fun Document.serialize(workspace: Workspace, path: String) {
         val file = workspace[path]
-        file.parentFile.mkdirs()
+        file.parent.createDirectories()
 
         if (transformers.isEmpty()) {
             file.writer().use { it.write(this, prettyPrint = false) }

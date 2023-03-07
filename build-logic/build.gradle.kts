@@ -9,6 +9,7 @@ repositories {
 
 dependencies {
     implementation(libs.build.licenser)
+    implementation(libs.build.gradle.versions)
 }
 
 dependencies {

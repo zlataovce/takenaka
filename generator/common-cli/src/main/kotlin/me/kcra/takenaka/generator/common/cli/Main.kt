@@ -44,18 +44,18 @@ fun main(args: Array<String>) {
     parser.parse(args)
 
     val versionList = versions.split(',')
-    val options = mutableResolverOptions {
+    val options = buildOptions {
         if (!strictCache) {
             relaxedCache()
         }
     }
 
     val workspace = workspace {
-        rootDirectory = output
+        rootDirectory(output)
         resolverOptions = options
     }
     val mappingWorkspace = compositeWorkspace {
-        rootDirectory = mappingCache
+        rootDirectory(mappingCache)
         resolverOptions = options
     }
 

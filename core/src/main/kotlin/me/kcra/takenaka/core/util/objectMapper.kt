@@ -20,8 +20,11 @@ package me.kcra.takenaka.core.util
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import com.fasterxml.jackson.module.kotlin.jsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
+import java.nio.file.Path
+import kotlin.io.path.reader
 
 /**
  * Creates a new ObjectMapper with all modules necessary for deserializing manifests.
@@ -33,3 +36,5 @@ fun objectMapper(): ObjectMapper = jsonMapper {
     addModule(JavaTimeModule())
     enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
 }
+
+inline fun <reified T> ObjectMapper.readValue(src: Path): T = readValue(src.reader(), jacksonTypeRef<T>())

@@ -1,5 +1,5 @@
 [versions]
-kotlin = "1.8.0"
+kotlin = "1.8.10"
 asm = "9.4"
 jackson = "2.14.2"
 
@@ -14,12 +14,13 @@ jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackso
 jackson-datatype-jsr310 = { group = "com.fasterxml.jackson.datatype", name = "jackson-datatype-jsr310", version.ref = "jackson" }
 jackson-dataformat-xml = { group = "com.fasterxml.jackson.dataformat", name = "jackson-dataformat-xml", version.ref = "jackson" }
 mapping-io = { group = "net.fabricmc", name = "mapping-io", version = "0.3.0" }
-kotlin-logging-jvm = { group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.4" }
+kotlin-logging-jvm = { group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.5" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version = "2.0.6" }
 kotlinx-coroutines-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core-jvm", version = "1.6.4" }
 kotlinx-html-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-html-jvm", version = "0.8.1" }
 kotlinx-cli-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-cli-jvm", version = "0.3.5" }
 build-licenser = { group = "org.cadixdev.licenser", name = "org.cadixdev.licenser.gradle.plugin", version = "0.6.1" }
+build-gradle-versions = { group = "com.github.ben-manes", name = "gradle-versions-plugin", version = "0.46.0" }
 
 [bundles]
 kotlin = ["kotlin-stdlib-jdk8", "kotlin-reflect"]
@@ -28,4 +29,4 @@ jackson = ["jackson-module-kotlin", "jackson-datatype-jsr310", "jackson-dataform
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-shadow = { id = "com.github.johnrengelman.shadow", version = "7.1.2" }
+shadow = { id = "com.github.johnrengelman.shadow", version = "8.1.0" }
