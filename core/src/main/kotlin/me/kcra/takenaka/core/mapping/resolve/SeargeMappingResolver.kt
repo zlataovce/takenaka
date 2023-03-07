@@ -47,6 +47,7 @@ private val logger = KotlinLogging.logger {}
  */
 class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver, MappingContributor {
     override val version: Version by workspace::version
+    override val licenseSource: String = "https://raw.githubusercontent.com/MinecraftForge/MCPConfig/master/LICENSE"
     override val targetNamespace: String = "searge"
 
     /**
@@ -108,8 +109,9 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
             return file.reader()
         }
 
-        URL("https://raw.githubusercontent.com/MinecraftForge/MCPConfig/master/LICENSE").copyTo(file)
+        URL(licenseSource).copyTo(file)
 
+        logger.info { "fetched Searge license file" }
         return file.reader()
     }
 
@@ -130,6 +132,7 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
             )))
         }
         licenseReader().use { visitor.visitMetadata(META_LICENSE, it.readLines().joinToString("\\n") { line -> line.replace("\t", "    ") }) }
+        visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
     }
 
     /**
@@ -175,5 +178,10 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
          * The license metadata key.
          */
         const val META_LICENSE = "searge_license"
+
+        /**
+         * The license source metadata key.
+         */
+        const val META_LICENSE_SOURCE = "searge_license_source"
     }
 }

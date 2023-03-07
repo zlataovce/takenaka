@@ -108,10 +108,16 @@ class MappingTreeBuilder {
         val wrappedTree = interceptorsBefore.fold<InterceptBefore, MappingVisitor>(tree) { v, interceptor -> interceptor(v) }
 
         contributors.forEach { contributor -> contributor.accept(wrappedTree) }
-        interceptorsBefore.forEach { interceptor -> interceptor(tree) }
+        interceptorsAfter.forEach { interceptor -> interceptor(tree) }
 
         return tree
     }
 }
 
+/**
+ * Builds a mapping tree with a builder.
+ *
+ * @param block the builder action
+ * @return the tree
+ */
 inline fun buildMappingTree(block: MappingTreeBuilder.() -> Unit): MappingTree = MappingTreeBuilder().apply(block).toMappingTree()

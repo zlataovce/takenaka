@@ -35,7 +35,7 @@ class ClassAncestryTest {
     @Test
     fun `resolve mappings for supported versions and make an ancestry tree`() {
         val workspace = compositeWorkspace {
-            rootDirectory = workspaceDir
+            rootDirectory(workspaceDir)
 
             resolverOptions {
                 relaxedCache()

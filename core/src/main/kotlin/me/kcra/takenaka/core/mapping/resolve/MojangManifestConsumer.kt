@@ -19,16 +19,15 @@ package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import me.kcra.takenaka.core.DefaultResolverOptions
 import me.kcra.takenaka.core.VersionAttributes
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
+import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.readValue
 import mu.KotlinLogging
 import java.net.URL
 import kotlin.concurrent.withLock
-import kotlin.io.path.writeText
 
 private val logger = KotlinLogging.logger {}
 
@@ -65,11 +64,10 @@ open class MojangManifestConsumer(
                 }
             }
 
-            val content = URL(workspace.version.url).readText()
-            file.writeText(content)
+            URL(workspace.version.url).copyTo(file)
 
             logger.info { "fetched ${workspace.version.id} attributes" }
-            return objectMapper.readValue(content)
+            return objectMapper.readValue(file)
         }
     }
 

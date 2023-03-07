@@ -19,13 +19,12 @@ package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import me.kcra.takenaka.core.*
+import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.readValue
 import mu.KotlinLogging
 import java.net.URL
 import kotlin.concurrent.withLock
-import kotlin.io.path.writeText
 
 private val logger = KotlinLogging.logger {}
 
@@ -67,11 +66,10 @@ open class SpigotManifestConsumer(
                 }
             }
 
-            val content = URL("https://hub.spigotmc.org/versions/${workspace.version.id}.json").readText()
-            file.writeText(content)
+            URL("https://hub.spigotmc.org/versions/${workspace.version.id}.json").copyTo(file)
 
             logger.info { "fetched ${workspace.version.id} Spigot manifest" }
-            return objectMapper.readValue(content)
+            return objectMapper.readValue(file)
         }
     }
 
@@ -94,11 +92,10 @@ open class SpigotManifestConsumer(
                 }
             }
 
-            val content = URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/info.json?at=${manifest.refs["BuildData"]}").readText()
-            file.writeText(content)
+            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/info.json?at=${manifest.refs["BuildData"]}").copyTo(file)
 
             logger.info { "fetched ${workspace.version.id} Spigot attributes" }
-            return objectMapper.readValue(content)
+            return objectMapper.readValue(file)
         }
     }
 

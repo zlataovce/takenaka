@@ -19,6 +19,7 @@ package me.kcra.takenaka.core.mapping.ancestry
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
+import me.kcra.takenaka.core.util.firstEntryUnsafe
 import me.kcra.takenaka.core.util.lastEntryUnsafe
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 
@@ -43,7 +44,7 @@ class AncestryTree<T : ElementMappingView>(nodes: List<Node<T>>, val allowedName
          *
          * @return the version entry
          */
-        fun first() = entries.first()
+        fun first() = delegate.firstEntryUnsafe()
 
         /**
          * Returns the last inserted version mapping (oldest).
@@ -126,7 +127,7 @@ class AncestryTreeBuilder<T : ElementMappingView> {
          *
          * @return the version entry
          */
-        fun first() = entries.first()
+        fun first() = delegate.firstEntryUnsafe()
 
         /**
          * Returns the last inserted version mapping (oldest).

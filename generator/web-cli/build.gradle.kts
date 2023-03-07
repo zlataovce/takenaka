@@ -4,6 +4,8 @@ plugins {
     application
 }
 
+apply(plugin = "org.jetbrains.kotlin.jvm")
+
 dependencies {
     implementation(project(":generator-common-cli"))
     implementation(project(":generator-web"))

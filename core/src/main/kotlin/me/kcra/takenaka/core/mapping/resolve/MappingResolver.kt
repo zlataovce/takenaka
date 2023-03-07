@@ -30,6 +30,11 @@ interface MappingResolver {
     val version: Version
 
     /**
+     * The source where the license was acquired (a URL, a file path, ...).
+     */
+    val licenseSource: String?
+
+    /**
      * Creates a new mapping file reader.
      *
      * @return the reader, null if this resolver doesn't support the version

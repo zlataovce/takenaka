@@ -17,27 +17,61 @@
 
 package me.kcra.takenaka.core.util
 
+import java.lang.reflect.Field
+import kotlin.reflect.KClass
+
 /**
- * The field of [java.util.LinkedHashMap] holding the last entry.
+ * The field of [java.util.LinkedHashMap] holding the first (eldest) entry.
  */
-private val TAIL_FIELD = LinkedHashMap::class.java.getDeclaredField("tail").apply { isAccessible = true }
+private val HEAD_FIELD = LinkedHashMap::class.getDeclaredField("head")
+
+/**
+ * The field of [java.util.LinkedHashMap] holding the last (youngest) entry.
+ */
+private val TAIL_FIELD = LinkedHashMap::class.getDeclaredField("tail")
+
+/**
+ * Finds a declared field in a class and makes it accessible.
+ *
+ * @param name the field name, null if an error occurred
+ * @see Class.getDeclaredField
+ */
+fun KClass<*>.getDeclaredField(name: String): Field? = try { java.getDeclaredField(name).apply { isAccessible = true } } catch (_: Exception) { null }
+
+/**
+ * Returns the first entry, utilizing implementation details of the underlying map to improve performance, if possible.
+ *
+ * @return the entry
+ * @throws NoSuchElementException if the collection is empty
+ */
+fun <K, V> Map<K, V>.firstEntryUnsafe(): Map.Entry<K, V> {
+    if (HEAD_FIELD != null && this is LinkedHashMap) {
+        try {
+            @Suppress("UNCHECKED_CAST")
+            return (HEAD_FIELD.get(this) as Map.Entry<K, V>?)
+                ?: throw NoSuchElementException("Collection is empty.")
+        } catch (_: Exception) {
+        }
+    }
+
+    return this.entries.first()
+}
 
 /**
  * Returns the last entry, utilizing implementation details of the underlying map to improve performance, if possible.
  *
+ * @return the entry
  * @throws NoSuchElementException if the collection is empty
  */
 fun <K, V> Map<K, V>.lastEntryUnsafe(): Map.Entry<K, V> {
-    @Suppress("UNCHECKED_CAST")
-    return when (this) {
-        is LinkedHashMap -> {
-            try {
-                (TAIL_FIELD.get(this) as Map.Entry<K, V>?)
-                    ?: throw NoSuchElementException("Collection is empty.")
-            } catch (_: Exception) {
-                this.entries.last()
-            }
+    if (TAIL_FIELD != null && this is LinkedHashMap) {
+        try {
+            @Suppress("UNCHECKED_CAST")
+            return (TAIL_FIELD.get(this) as Map.Entry<K, V>?)
+                ?: throw NoSuchElementException("Collection is empty.")
+        } catch (_: Exception) {
         }
-        else -> this.entries.last()
     }
+
+    return this.entries.last()
 }

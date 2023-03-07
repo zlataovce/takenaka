@@ -24,6 +24,7 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.util.copyTo
+import me.kcra.takenaka.core.util.getDeclaredField
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
 import mu.KotlinLogging
@@ -53,6 +54,8 @@ abstract class AbstractSpigotMappingResolver(
     val xmlMapper: ObjectMapper
 ) : SpigotManifestConsumer(workspace, objectMapper), MappingResolver, MappingContributor {
     override val version: Version by workspace::version
+    override val licenseSource: String
+        get() = "https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${manifest.refs["BuildData"]}"
     override val targetNamespace: String = "spigot"
 
     /**
@@ -81,19 +84,19 @@ abstract class AbstractSpigotMappingResolver(
 
         // Spigot's stash doesn't seem to support sending Content-Length headers
         if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && file.isRegularFile()) {
-            logger.info { "found cached ${version.id} Spigot mappings ($mappingAttribute)" }
+            logger.info { "found cached ${version.id} Spigot mappings ($mappingAttribute0)" }
             return file.reader()
         }
 
-        URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${manifest.refs["BuildData"]}").httpRequest {
+        URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute0?at=${manifest.refs["BuildData"]}").httpRequest {
             if (it.ok) {
                 it.copyTo(file)
 
-                logger.info { "fetched ${version.id} Spigot mappings ($mappingAttribute)" }
+                logger.info { "fetched ${version.id} Spigot mappings ($mappingAttribute0)" }
                 return file.reader()
             }
 
-            logger.warn { "failed to fetch ${version.id} Spigot mappings ($mappingAttribute), received ${it.responseCode}" }
+            logger.warn { "failed to fetch ${version.id} Spigot mappings ($mappingAttribute0), received ${it.responseCode}" }
         }
 
         return null
@@ -156,6 +159,7 @@ abstract class AbstractSpigotMappingResolver(
             }
         }
         licenseReader()?.use { visitor.visitMetadata(META_LICENSE, it.readText()) }
+        visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
         pomReader()?.use { xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v -> visitor.visitMetadata(META_CB_NMS_VERSION, v) } }
     }
 
@@ -169,6 +173,11 @@ abstract class AbstractSpigotMappingResolver(
          * The license metadata key.
          */
         const val META_LICENSE = "spigot_license"
+
+        /**
+         * The license source metadata key.
+         */
+        const val META_LICENSE_SOURCE = "spigot_license_source"
 
         /**
          * The CraftBukkit NMS version metadata key.
@@ -242,9 +251,19 @@ class SpigotMemberMappingResolver(
                         return@forEachLine // skip comments
                     }
 
-                    val columns = line.split(' ', limit = 4)
+                    val columns = line.split(' ', limit = 4).toMutableList()
                     val owner = columns[0]
-                    val srcName = columns[1]
+                    var srcName = columns[1]
+
+                    // this is needed for mangled mappings,
+                    // which have the method name and descriptor without a space between them
+                    val parenthesisIndex = srcName.indexOf('(')
+                    if (parenthesisIndex != -1) {
+                        srcName = srcName.substring(0, parenthesisIndex)
+
+                        val srcNameCol = columns.set(1, srcName)
+                        columns.add(2, srcNameCol.substring(parenthesisIndex))
+                    }
 
                     fun getPrefixedClass(name: String): MappingTreeView.ClassMappingView? =
                         visitor0.getClass("net/minecraft/server/VVV/${name.substringAfterLast('/')}", namespaceId)?.also { expectPrefixedClassNames = true }
@@ -298,7 +317,7 @@ class SpigotMemberMappingResolver(
 
     companion object {
         // HACK!
-        private val NEXT_VISITOR_FIELD = ForwardingMappingVisitor::class.java.getDeclaredField("next").apply { isAccessible = true }
+        private val NEXT_VISITOR_FIELD = ForwardingMappingVisitor::class.getDeclaredField("next") ?: error("ForwardingMappingVisitor#next not found")
 
         /**
          * Gets the delegate visitor.

@@ -44,6 +44,8 @@ class MojangServerMappingResolver(
     objectMapper: ObjectMapper
 ) : MojangManifestConsumer(workspace, objectMapper), MappingResolver, MappingContributor {
     override val version: Version by workspace::version
+    override val licenseSource: String?
+        get() = attributes.downloads.serverMappings?.url
     override val targetNamespace: String = "mojang"
 
     /**
@@ -107,6 +109,7 @@ class MojangServerMappingResolver(
         // Mojang maps are original -> obfuscated, so we need to switch it beforehand
         reader()?.let { ProGuardReader.read(it, targetNamespace, MappingUtil.NS_SOURCE_FALLBACK, MappingSourceNsSwitch(visitor, MappingUtil.NS_SOURCE_FALLBACK)) }
         licenseReader()?.use { visitor.visitMetadata(META_LICENSE, it.readText()) }
+        visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
     }
 
     companion object {
@@ -119,5 +122,10 @@ class MojangServerMappingResolver(
          * The license metadata key.
          */
         const val META_LICENSE = "mojang_license"
+
+        /**
+         * The license source metadata key.
+         */
+        const val META_LICENSE_SOURCE = "mojang_license_source"
     }
 }

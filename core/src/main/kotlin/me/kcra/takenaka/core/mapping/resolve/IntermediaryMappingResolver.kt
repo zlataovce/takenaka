@@ -44,6 +44,7 @@ private val logger = KotlinLogging.logger {}
  */
 class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingResolver, MappingContributor {
     override val version: Version by workspace::version
+    override val licenseSource: String = "https://raw.githubusercontent.com/FabricMC/intermediary/master/LICENSE"
     override val targetNamespace: String = "intermediary"
 
     /**
@@ -98,8 +99,9 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
             return file.reader()
         }
 
-        URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/LICENSE").copyTo(file)
+        URL(licenseSource).copyTo(file)
 
+        logger.info { "fetched Intermediary license file" }
         return file.reader()
     }
 
@@ -114,6 +116,7 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
         reader()?.use { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK))) }
         // limit the license file to 12 lines for conciseness
         licenseReader().buffered().use { visitor.visitMetadata(META_LICENSE, it.lineSequence().take(12).joinToString("\\n") { line -> line.replace("\t", "    ") }) }
+        visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
     }
 
     companion object {
@@ -131,5 +134,10 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
          * The license metadata key.
          */
         const val META_LICENSE = "intermediary_license"
+
+        /**
+         * The license source metadata key.
+         */
+        const val META_LICENSE_SOURCE = "intermediary_license_source"
     }
 }

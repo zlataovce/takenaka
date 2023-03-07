@@ -68,7 +68,7 @@ inline val URL.contentLength: Long
 /**
  * Returns whether the request's status code is in the 2xx range.
  */
-val HttpURLConnection.ok: Boolean
+inline val HttpURLConnection.ok: Boolean
     get() = responseCode in 200..299
 
 /**

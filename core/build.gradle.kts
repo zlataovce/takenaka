@@ -1,7 +1,8 @@
 plugins {
     id("takenaka.base-conventions")
-    alias(libs.plugins.kotlin.jvm)
 }
+
+apply(plugin = "org.jetbrains.kotlin.jvm")
 
 dependencies {
     api(libs.bundles.asm)
