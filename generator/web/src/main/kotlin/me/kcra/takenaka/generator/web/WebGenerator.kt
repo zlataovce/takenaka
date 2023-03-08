@@ -40,10 +40,7 @@ import me.kcra.takenaka.generator.common.AbstractGenerator
 import me.kcra.takenaka.generator.common.ContributorProvider
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
-import me.kcra.takenaka.generator.web.pages.classPage
-import me.kcra.takenaka.generator.web.pages.overviewPage
-import me.kcra.takenaka.generator.web.pages.packagePage
-import me.kcra.takenaka.generator.web.pages.versionsPage
+import me.kcra.takenaka.generator.web.pages.*
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import net.fabricmc.mappingio.tree.MappingTree
 import org.objectweb.asm.Opcodes
@@ -79,6 +76,7 @@ import kotlin.io.path.writer
  * @param namespaceDefaultBadgeColor the default namespace badge color, which will be used if not specified in [namespaceBadgeColors]
  * @param index a resolver for foreign class references
  * @param spigotLikeNamespaces the namespaces that should have [replaceCraftBukkitNMSVersion] and [completeInnerClassNames] applied
+ * @param licenseMetaKeys a map of namespaces and their license metadata keys
  * @author Matouš Kučera
  */
 class WebGenerator(
@@ -94,7 +92,8 @@ class WebGenerator(
     val namespaceFriendlyNames: Map<String, String> = emptyMap(),
     val namespaceDefaultBadgeColor: String = "#94a3b8",
     val index: ClassSearchIndex = emptyClassSearchIndex(),
-    val spigotLikeNamespaces: List<String> = emptyList()
+    val spigotLikeNamespaces: List<String> = emptyList(),
+    val licenseMetaKeys: Map<String, LicenseReference> = emptyMap()
 ) : AbstractGenerator(workspace, versions, coroutineDispatcher, skipSynthetics, mappingWorkspace, contributorProvider) {
     /**
      * Launches the generator.
@@ -159,6 +158,18 @@ class WebGenerator(
                             .serialize(versionWorkspace, "$packageName/index.html")
                     }
 
+                    val licenses = licenseMetaKeys
+                        .mapNotNull { (ns, ref) ->
+                            val content = tree.getMetadata(ref.content) ?: return@mapNotNull null
+                            val source = tree.getMetadata(ref.source) ?: return@mapNotNull null
+
+                            return@mapNotNull ns to licenseOf(content, source)
+                        }
+                        .toMap()
+
+                    licensePage(versionWorkspace, licenses)
+                        .serialize(versionWorkspace, "licenses.html")
+
                     overviewPage(versionWorkspace, classMap.keys)
                         .serialize(versionWorkspace, "index.html")
 
@@ -205,7 +216,8 @@ class WebGenerator(
                 }
                 // dynamically find the version in the URL, this is a hack, I know
                 callback = """
-                    const link = document.getElementById("overview-link");
+                    const overviewLink = document.getElementById("overview-link");
+                    const licensesLink = document.getElementById("licenses-link");
                     const searchInput = document.getElementById("search-input");
                     
                     const path = window.location.pathname.substring(1);
@@ -213,17 +225,19 @@ class WebGenerator(
                         const parts = [];
                         for (const part of path.split("/")) {
                             parts.push(part);
-                            if (part !== "index.html" && part.includes(".")) {
+                            if (!part.endsWith(".html") && part.includes(".")) {
                                 const baseUrl = "/" + parts.join("/");
                                 
-                                link.href = baseUrl + "/index.html";
+                                overviewLink.href = baseUrl + "/index.html";
+                                licensesLink.href = baseUrl + "/licenses.html";
                                 searchInput.addEventListener("input", (evt) => search(baseUrl, evt.target.value));
                                 return;
                             }
                         }
                     }
                 
-                    link.remove();
+                    overviewLink.remove();
+                    licensesLink.remove();
                     searchInput.remove();
                 """.trimIndent()
             },
@@ -508,3 +522,37 @@ class MutableComponentDefinition {
      */
     fun toComponent() = ComponentDefinition(tag, content, callback)
 }
+
+/**
+ * A license metadata key pair.
+ *
+ * @property content the license content metadata key
+ * @property source the license source metadata key
+ */
+data class LicenseReference(val content: String, val source: String)
+
+/**
+ * Creates a new license metadata key pair.
+ *
+ * @param content the license content metadata key
+ * @param source the license source metadata key
+ * @return the license metadata key pair
+ */
+fun licenseReferenceOf(content: String, source: String) = LicenseReference(content, source)
+
+/**
+ * A license declaration.
+ *
+ * @property content the license content
+ * @property source the license source, probably a link
+ */
+data class License(val content: String, val source: String)
+
+/**
+ * Creates a new license declaration.
+ *
+ * @param content the license content
+ * @param source the license source, probably a link
+ * @return the license declaration
+ */
+fun licenseOf(content: String, source: String) = License(content, source)

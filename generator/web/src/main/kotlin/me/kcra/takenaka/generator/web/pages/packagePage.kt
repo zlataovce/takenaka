@@ -40,7 +40,7 @@ import org.w3c.dom.Document
 fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: String, classes: Map<String, ClassType>): Document = createHTMLDocument().html {
     val packageName0 = packageName.fromInternalName()
 
-    headComponent(packageName0, workspace.version.id)
+    headComponent("${workspace.version.id} - $packageName0", workspace.version.id)
     body {
         navPlaceholderComponent()
         main {

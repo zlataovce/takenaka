@@ -125,7 +125,25 @@ class WebCLI : CLI {
             ),
             "#94a3b8",
             compositeClassSearchIndexOf(*indexers.toTypedArray()),
-            listOf("spigot")
+            listOf("spigot"),
+            mapOf(
+                "mojang" to licenseReferenceOf(
+                    MojangServerMappingResolver.META_LICENSE,
+                    MojangServerMappingResolver.META_LICENSE_SOURCE
+                ),
+                "spigot" to licenseReferenceOf(
+                    AbstractSpigotMappingResolver.META_LICENSE,
+                    AbstractSpigotMappingResolver.META_LICENSE_SOURCE
+                ),
+                "searge" to licenseReferenceOf(
+                    SeargeMappingResolver.META_LICENSE,
+                    SeargeMappingResolver.META_LICENSE_SOURCE
+                ),
+                "intermediary" to licenseReferenceOf(
+                    IntermediaryMappingResolver.META_LICENSE,
+                    IntermediaryMappingResolver.META_LICENSE_SOURCE
+                )
+            )
         )
 
         generator.generate()

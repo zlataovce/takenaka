@@ -32,3 +32,10 @@ fun FlowContent.spacerTopComponent() {
 fun FlowContent.spacerBottomComponent() {
     p(classes = "spacer-bottom")
 }
+
+/**
+ * Appends a spacer component with a top and bottom margin.
+ */
+fun FlowContent.spacerYComponent() {
+    p(classes = "spacer-y")
+}

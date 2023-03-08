@@ -48,7 +48,7 @@ import java.lang.reflect.Modifier
 fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: VersionedWorkspace, friendlyNameRemapper: Remapper): Document = createHTMLDocument().html {
     val klassDeclaration = formatClassDescriptor(klass, workspace.version, friendlyNameRemapper)
 
-    headComponent(klassDeclaration.friendlyName, workspace.version.id)
+    headComponent("${workspace.version.id} - ${klassDeclaration.friendlyName}", workspace.version.id)
     body {
         navPlaceholderComponent()
         main {
@@ -114,7 +114,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                     unsafe {
                                         val signature = field.signature
                                         if (signature != null) {
-                                            +signature.formatTypeSignature(formattingOptionsOf(ESCAPE_HTML_SYMBOLS), friendlyNameRemapper, null, index, workspace.version).declaration
+                                            +signature.formatTypeSignature(DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS, friendlyNameRemapper, null, index, workspace.version).declaration
                                         } else {
                                             +formatType(Type.getType(field.srcDesc), workspace.version, friendlyNameRemapper)
                                         }
@@ -318,10 +318,15 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTree.ClassMapping, ver
 
     val signature = klass.signature
     if (signature != null) {
-        var formattingOptions = formattingOptionsOf(ESCAPE_HTML_SYMBOLS)
-        if ((mod and Opcodes.ACC_INTERFACE) != 0) formattingOptions = formattingOptions or INTERFACE_SIGNATURE
+        val options = buildFormattingOptions {
+            escapeHtmlSymbols()
 
-        val formatter = signature.formatSignature(formattingOptions, nameRemapper, null, index, version)
+            if ((mod and Opcodes.ACC_INTERFACE) != 0) {
+                interfaceSignature()
+            }
+        }
+
+        val formatter = signature.formatSignature(options, nameRemapper, null, index, version)
         formals = formatter.formals
         superTypes = formatter.superTypes
     } else {
@@ -383,8 +388,14 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
 
     val signature = method.signature
     if (signature != null) {
-        var options = formattingOptionsOf(ESCAPE_HTML_SYMBOLS, GENERATE_NAMED_PARAMETERS)
-        if ((mod and Opcodes.ACC_VARARGS) != 0) options = options or VARIADIC_PARAMETER
+        val options = buildFormattingOptions {
+            escapeHtmlSymbols()
+            generateNamedParameters()
+
+            if ((mod and Opcodes.ACC_VARARGS) != 0) {
+                variadicParameter()
+            }
+        }
 
         val formatter = signature.formatSignature(options, nameRemapper, linkRemapper, index, version)
         return MethodDeclaration(

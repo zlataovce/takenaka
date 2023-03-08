@@ -28,10 +28,17 @@ fun FlowContent.navComponent() {
             a(classes = "nav-brand", href = "/index.html") {
                 +"mappings"
             }
-            a(classes = "nav-link", href = "#") {
-                id = "overview-link"
+            div(classes = "nav-links") {
+                a(classes = "nav-link", href = "#") {
+                    id = "overview-link"
 
-                +"Overview"
+                    +"Overview"
+                }
+                a(classes = "nav-link", href = "#") {
+                    id = "licenses-link"
+
+                    +"Licenses"
+                }
             }
         }
         div(classes = "search-box") {

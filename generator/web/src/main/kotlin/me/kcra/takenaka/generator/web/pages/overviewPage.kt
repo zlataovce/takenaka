@@ -36,7 +36,7 @@ import org.w3c.dom.Document
  * @return the generated document
  */
 fun GenerationContext.overviewPage(workspace: VersionedWorkspace, packages: Set<String>): Document = createHTMLDocument().html {
-    headComponent(workspace.version.id, workspace.version.id)
+    headComponent("${workspace.version.id} - overview", workspace.version.id)
     body {
         navPlaceholderComponent()
         main {

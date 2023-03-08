@@ -60,24 +60,88 @@ operator fun FormattingOptions.contains(option: Int): Boolean = (this and option
 fun formattingOptionsOf(vararg options: Int): FormattingOptions = options.reduceOrNull { v1, v2 -> v1 or v2 } ?: 0
 
 /**
- * Requests the formatter to escape less than and greater than signs (formal type parameter declaration) to HTML format.
+ * A builder for [FormattingOptions].
+ *
+ * @property value the integer value, internal use only (for adding additional options)
+ * @author Matouš Kučera
  */
-const val ESCAPE_HTML_SYMBOLS = 0x00000001
+class FormattingOptionsBuilder(var value: FormattingOptions = 0) {
+    /**
+     * Appends the [DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS] option.
+     */
+    fun escapeHtmlSymbols() {
+        value = value or DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS
+    }
+
+    /**
+     * Appends the [DefaultFormattingOptions.INTERFACE_SIGNATURE] option.
+     */
+    fun interfaceSignature() {
+        value = value or DefaultFormattingOptions.INTERFACE_SIGNATURE
+    }
+
+    /**
+     * Appends the [DefaultFormattingOptions.GENERATE_NAMED_PARAMETERS] option.
+     */
+    fun generateNamedParameters() {
+        value = value or DefaultFormattingOptions.GENERATE_NAMED_PARAMETERS
+    }
+
+    /**
+     * Appends the [DefaultFormattingOptions.VARIADIC_PARAMETER] option.
+     */
+    fun variadicParameter() {
+        value = value or DefaultFormattingOptions.VARIADIC_PARAMETER
+    }
+
+    /**
+     * Checks if the options contain an option.
+     *
+     * @param option the option to check
+     * @return do the options contain the option?
+     */
+    operator fun contains(option: Int): Boolean = (value and option) != 0
+
+    /**
+     * Returns the formatting options.
+     *
+     * @return the value
+     */
+    fun toFormattingOptions(): FormattingOptions = value
+}
 
 /**
- * Requests the formatter to use the `extends` separator for superinterfaces, most likely because the visited signature belongs to an interface.
+ * Creates formatting options from a builder.
+ *
+ * @param block the builder action
+ * @return the formatting options
  */
-const val INTERFACE_SIGNATURE = 0x00000010
+inline fun buildFormattingOptions(block: FormattingOptionsBuilder.() -> Unit): FormattingOptions = FormattingOptionsBuilder().apply(block).toFormattingOptions()
 
 /**
- * Requests the formatter to generate argument names in the form of `arg%argument index%`.
+ * A group of formatting options used by [SignatureFormatter].
  */
-const val GENERATE_NAMED_PARAMETERS = 0x00000100
+object DefaultFormattingOptions {
+    /**
+     * Requests the formatter to escape less than and greater than signs (formal type parameter declaration) to HTML format.
+     */
+    const val ESCAPE_HTML_SYMBOLS = 0x00000001
 
-/**
- * Requests the formatter to make the last argument a variadic one, if it's an array.
- */
-const val VARIADIC_PARAMETER = 0x00001000
+    /**
+     * Requests the formatter to use the `extends` separator for superinterfaces, most likely because the visited signature belongs to an interface.
+     */
+    const val INTERFACE_SIGNATURE = 0x00000010
+
+    /**
+     * Requests the formatter to generate argument names in the form of `arg%argument index%`.
+     */
+    const val GENERATE_NAMED_PARAMETERS = 0x00000100
+
+    /**
+     * Requests the formatter to make the last argument a variadic one, if it's an array.
+     */
+    const val VARIADIC_PARAMETER = 0x00001000
+}
 
 /**
  * A [SignatureVisitor] implementation that builds the Java generic type declaration corresponding to the signature it visits.
@@ -213,9 +277,9 @@ class SignatureFormatter : SignatureVisitor {
         }
 
     private val formalStartStr: String
-        get() = if (ESCAPE_HTML_SYMBOLS in options) "&lt;" else "<"
+        get() = if (DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS in options) "&lt;" else "<"
     private val formalEndStr: String
-        get() = if (ESCAPE_HTML_SYMBOLS in options) "&gt;" else ">"
+        get() = if (DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS in options) "&gt;" else ">"
 
     /**
      * Constructs a new [SignatureFormatter].
@@ -229,7 +293,7 @@ class SignatureFormatter : SignatureVisitor {
         packageIndex: ClassSearchIndex? = null,
         version: Version? = null
     ) : super(Opcodes.ASM9) {
-        isInterface = INTERFACE_SIGNATURE in options
+        isInterface = DefaultFormattingOptions.INTERFACE_SIGNATURE in options
         declaration_ = StringBuilder()
 
         this.options = options
@@ -449,8 +513,8 @@ class SignatureFormatter : SignatureVisitor {
     }
 
     private fun appendArgumentName() {
-        if (GENERATE_NAMED_PARAMETERS in options) {
-            if (!parameterTypeVisited && VARIADIC_PARAMETER in options && declaration_.endsWith("[]")) {
+        if (DefaultFormattingOptions.GENERATE_NAMED_PARAMETERS in options) {
+            if (!parameterTypeVisited && DefaultFormattingOptions.VARIADIC_PARAMETER in options && declaration_.endsWith("[]")) {
                 declaration_.setLength(declaration_.length - 2)
                 declaration_.append("...")
             }

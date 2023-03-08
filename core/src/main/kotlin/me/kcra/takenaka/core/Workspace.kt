@@ -81,7 +81,7 @@ class ResolverOptionsBuilder(var value: ResolverOptions = 0) {
  * @param block the builder action
  * @return the resolver options
  */
-inline fun buildOptions(block: ResolverOptionsBuilder.() -> Unit): ResolverOptions = ResolverOptionsBuilder().apply(block).toResolverOptions()
+inline fun buildResolverOptions(block: ResolverOptionsBuilder.() -> Unit): ResolverOptions = ResolverOptionsBuilder().apply(block).toResolverOptions()
 
 /**
  * A group of resolver options used in the core library.
@@ -173,7 +173,7 @@ open class WorkspaceBuilder {
      * @param block the builder action
      */
     inline fun resolverOptions(block: ResolverOptionsBuilder.() -> Unit) {
-        resolverOptions = buildOptions(block)
+        resolverOptions = buildResolverOptions(block)
     }
 
     /**
