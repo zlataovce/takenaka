@@ -22,6 +22,7 @@ import me.kcra.takenaka.core.mapping.VersionedMappingMap
 import me.kcra.takenaka.core.util.firstEntryUnsafe
 import me.kcra.takenaka.core.util.lastEntryUnsafe
 import net.fabricmc.mappingio.tree.MappingTreeView.*
+import java.util.Collections
 
 /**
  * A mapping ancestry tree.
@@ -54,6 +55,12 @@ class AncestryTree<T : ElementMappingView>(nodes: List<Node<T>>, val allowedName
         fun last() = delegate.lastEntryUnsafe()
     }
 
+    /**
+     * Tries to find a node with [key] as a mapping in the last mapped version.
+     *
+     * @param key the mapping
+     * @return the node, null if not found
+     */
     operator fun get(key: String): Node<T>? = find { node ->
         val (lastVersion, lastMapping) = node.first()
         val lastNames = allowedNamespaces[lastVersion]?.mapNotNull(lastMapping::getDstName)
@@ -172,7 +179,7 @@ fun classAncestryTreeOf(mappings: VersionedMappingMap, allowedNamespaces: List<S
                 val lastNames = this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNull(lastMapping::getDstName)
                     ?: error("Version ${version.id} has not been mapped yet, make sure mappings are sorted correctly")
 
-                return@resolveNode lastNames.any(classMappings::contains)
+                return@resolveNode !Collections.disjoint(lastNames, classMappings)
             }
 
             // add the entry for this version to the node
@@ -208,7 +215,7 @@ fun fieldAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTre
                     ?.filter { it.first != null && it.second != null }
                     ?: error("Version ${version.id} has not been mapped yet")
 
-                return@resolveNode lastNames.any(fieldMappings::contains)
+                return@resolveNode !Collections.disjoint(lastNames, fieldMappings)
             }
 
             // add the entry for this version to the node
@@ -244,7 +251,7 @@ fun methodAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTr
                     ?.filter { it.first != null && it.second != null }
                     ?: error("Version ${version.id} has not been mapped yet")
 
-                return@resolveNode lastNames.any(methodMappings::contains)
+                return@resolveNode !Collections.disjoint(lastNames, methodMappings)
             }
 
             // add the entry for this version to the node

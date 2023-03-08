@@ -317,8 +317,7 @@ class SpigotMemberMappingResolver(
 
     companion object {
         // HACK!
-        private val NEXT_VISITOR_FIELD = MethodHandles.lookup().`in`(ForwardingMappingVisitor::class.java)
-            .findGetter(ForwardingMappingVisitor::class.java, "next", MappingVisitor::class.java)
+        private val NEXT_VISITOR_FIELD = MethodHandles.lookup().findGetter(ForwardingMappingVisitor::class.java, "next", MappingVisitor::class.java)
 
         /**
          * Gets the delegate visitor.
