@@ -358,8 +358,7 @@ footer {
 code {
     display: block;
     padding: 0.75rem;
-    white-space: pre;
-    overflow-x: scroll;
+    white-space: pre-wrap;
     color: var(--text-description);
     background-color: var(--code-block);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
