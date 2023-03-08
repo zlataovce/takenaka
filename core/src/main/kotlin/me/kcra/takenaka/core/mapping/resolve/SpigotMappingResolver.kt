@@ -24,7 +24,6 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.util.copyTo
-import me.kcra.takenaka.core.util.getDeclaredField
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
 import mu.KotlinLogging
@@ -36,6 +35,7 @@ import net.fabricmc.mappingio.format.TsrgReader
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 import java.io.Reader
+import java.lang.invoke.MethodHandles
 import java.net.URL
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.reader
@@ -317,12 +317,13 @@ class SpigotMemberMappingResolver(
 
     companion object {
         // HACK!
-        private val NEXT_VISITOR_FIELD = ForwardingMappingVisitor::class.getDeclaredField("next") ?: error("ForwardingMappingVisitor#next not found")
+        private val NEXT_VISITOR_FIELD = MethodHandles.lookup().`in`(ForwardingMappingVisitor::class.java)
+            .findGetter(ForwardingMappingVisitor::class.java, "next", MappingVisitor::class.java)
 
         /**
          * Gets the delegate visitor.
          */
         val ForwardingMappingVisitor.next: MappingVisitor
-            get() = NEXT_VISITOR_FIELD.get(this) as MappingVisitor
+            get() = NEXT_VISITOR_FIELD.invokeExact(this) as MappingVisitor
     }
 }

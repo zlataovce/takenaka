@@ -17,26 +17,28 @@
 
 package me.kcra.takenaka.core.util
 
-import java.lang.reflect.Field
+import java.lang.invoke.MethodHandle
+import java.lang.invoke.MethodHandles
 import kotlin.reflect.KClass
 
 /**
  * The field of [java.util.LinkedHashMap] holding the first (eldest) entry.
  */
-private val HEAD_FIELD = LinkedHashMap::class.getDeclaredField("head")
+private val HEAD_FIELD = LinkedHashMap::class.getFieldHandle("head")
 
 /**
  * The field of [java.util.LinkedHashMap] holding the last (youngest) entry.
  */
-private val TAIL_FIELD = LinkedHashMap::class.getDeclaredField("tail")
+private val TAIL_FIELD = LinkedHashMap::class.getFieldHandle("tail")
 
 /**
- * Finds a declared field in a class and makes it accessible.
+ * Gets a field handle in a class.
  *
- * @param name the field name, null if an error occurred
- * @see Class.getDeclaredField
+ * @param name the field name
+ * @return the field handle, null if an error occurred
  */
-fun KClass<*>.getDeclaredField(name: String): Field? = try { java.getDeclaredField(name).apply { isAccessible = true } } catch (_: Exception) { null }
+private fun KClass<*>.getFieldHandle(name: String): MethodHandle? =
+    try { MethodHandles.lookup().unreflectGetter(java.getDeclaredField(name).apply { isAccessible = true }) } catch (_: Exception) { null }
 
 /**
  * Returns the first entry, utilizing implementation details of the underlying map to improve performance, if possible.
@@ -46,12 +48,9 @@ fun KClass<*>.getDeclaredField(name: String): Field? = try { java.getDeclaredFie
  */
 fun <K, V> Map<K, V>.firstEntryUnsafe(): Map.Entry<K, V> {
     if (HEAD_FIELD != null && this is LinkedHashMap) {
-        try {
-            @Suppress("UNCHECKED_CAST")
-            return (HEAD_FIELD.get(this) as Map.Entry<K, V>?)
-                ?: throw NoSuchElementException("Collection is empty.")
-        } catch (_: Exception) {
-        }
+        @Suppress("UNCHECKED_CAST")
+        return (HEAD_FIELD.invoke(this) as Map.Entry<K, V>?)
+            ?: throw NoSuchElementException("Collection is empty.")
     }
 
     return this.entries.first()
@@ -65,12 +64,9 @@ fun <K, V> Map<K, V>.firstEntryUnsafe(): Map.Entry<K, V> {
  */
 fun <K, V> Map<K, V>.lastEntryUnsafe(): Map.Entry<K, V> {
     if (TAIL_FIELD != null && this is LinkedHashMap) {
-        try {
-            @Suppress("UNCHECKED_CAST")
-            return (TAIL_FIELD.get(this) as Map.Entry<K, V>?)
-                ?: throw NoSuchElementException("Collection is empty.")
-        } catch (_: Exception) {
-        }
+        @Suppress("UNCHECKED_CAST")
+        return (TAIL_FIELD.invoke(this) as Map.Entry<K, V>?)
+            ?: throw NoSuchElementException("Collection is empty.")
     }
 
     return this.entries.last()
