@@ -111,12 +111,15 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        // Intermediary has official and intermediary namespaces
-        // official is the obfuscated one
-        reader()?.use { MappingReader.read(it, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK))) }
-        // limit the license file to 12 lines for conciseness
-        licenseReader().buffered().use { visitor.visitMetadata(META_LICENSE, it.lineSequence().take(12).joinToString("\\n") { line -> line.replace("\t", "    ") }) }
-        visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
+        reader()?.use { reader ->
+            // Intermediary has official and intermediary namespaces
+            // official is the obfuscated one
+            MappingReader.read(reader, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK)))
+
+            // limit the license file to 12 lines for conciseness
+            licenseReader().buffered().use { visitor.visitMetadata(META_LICENSE, it.lineSequence().take(12).joinToString("\\n") { line -> line.replace("\t", "    ") }) }
+            visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
+        }
     }
 
     companion object {

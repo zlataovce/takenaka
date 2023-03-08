@@ -121,18 +121,19 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        // Searge has obf, srg and id namespaces; obf is the obfuscated one
-        reader()?.let {
-            MappingReader.read(it, MappingNsRenamer(visitor, mapOf(
+        reader()?.use { reader ->
+            // Searge has obf, srg and id namespaces; obf is the obfuscated one
+            MappingReader.read(reader, MappingNsRenamer(visitor, mapOf(
                 "obf" to MappingUtil.NS_SOURCE_FALLBACK,
                 "srg" to "searge",
                 "id" to "searge_id",
                 // in older versions, there weren't any namespaces, so make sure to rename the fallback too
                 MappingUtil.NS_TARGET_FALLBACK to "searge"
             )))
+
+            licenseReader().use { visitor.visitMetadata(META_LICENSE, it.readLines().joinToString("\\n") { line -> line.replace("\t", "    ") }) }
+            visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
         }
-        licenseReader().use { visitor.visitMetadata(META_LICENSE, it.readLines().joinToString("\\n") { line -> line.replace("\t", "    ") }) }
-        visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
     }
 
     /**
