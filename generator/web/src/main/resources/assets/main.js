@@ -76,14 +76,14 @@ const search = (baseUrl, query) => {
             }
         }
 
-        newQuery = newQuery.replaceAll(".", "/");
+        newQuery = newQuery.replaceAll(".", "/").toLowerCase();
 
         for (const klass of classIndex) {
             for (const ns in klass) {
                 const klassName = klass[ns];
 
                 // limit to 5 results
-                if (results.length <= 5 && klassName && klassName.includes(newQuery) && (!targetedNamespace || targetedNamespace === ns.toLowerCase())) {
+                if (results.length <= 5 && klassName && klassName.toLowerCase().includes(newQuery) && (!targetedNamespace || targetedNamespace === ns.toLowerCase())) {
                     const elem = document.createElement("div");
                     elem.classList.add("search-result");
                     elem.addEventListener("click", () => {

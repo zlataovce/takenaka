@@ -48,7 +48,7 @@ fun FlowContent.navComponent() {
 
                     placeholder = "Type a package name..."
                 }
-                p(classes = "button-icon") {
+                p(classes = "icon-button") {
                     onClick = "toggleTheme()"
                     unsafe {
                         +"""

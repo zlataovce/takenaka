@@ -57,7 +57,7 @@ fun GenerationContext.versionsPage(versions: Map<Version, List<String>>): Docume
                                     +version.id
                                 }
                             }
-                            td(classes = "mapping-badges-col") {
+                            td(classes = "mapping-badges") {
                                 mappings.forEach { mappingType ->
                                     val nsFriendlyName = generator.namespaceFriendlyNames[mappingType]
                                     if (nsFriendlyName != null) {
