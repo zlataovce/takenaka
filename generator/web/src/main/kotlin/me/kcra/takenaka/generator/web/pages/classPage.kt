@@ -45,7 +45,7 @@ import java.lang.reflect.Modifier
  * @param friendlyNameRemapper the remapper for remapping signatures
  * @return the generated document
  */
-fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: VersionedWorkspace, friendlyNameRemapper: Remapper): Document = createHTMLDocument().html {
+fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: VersionedWorkspace, friendlyNameRemapper: ElementRemapper): Document = createHTMLDocument().html {
     val klassDeclaration = formatClassDescriptor(klass, workspace.version, friendlyNameRemapper)
 
     headComponent("${workspace.version.id} - ${klassDeclaration.friendlyName}", workspace.version.id)
@@ -296,7 +296,7 @@ data class ClassDeclaration(
  * @param nameRemapper the remapper for remapping signatures
  * @return the formatted descriptor
  */
-fun GenerationContext.formatClassDescriptor(klass: MappingTree.ClassMapping, version: Version, nameRemapper: Remapper): ClassDeclaration {
+fun GenerationContext.formatClassDescriptor(klass: MappingTree.ClassMapping, version: Version, nameRemapper: ElementRemapper): ClassDeclaration {
     val friendlyName = getFriendlyDstName(klass).fromInternalName()
     val mod = klass.modifiers
 
@@ -335,7 +335,7 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTree.ClassMapping, ver
 
         superTypes = buildString {
             if (superClass != "java/lang/Object" && superClass != "java/lang/Record" && superClass != "java/lang/Enum") {
-                append("extends ${nameRemapper.mapTypeAndLink(version, superClass, index)}")
+                append("extends ${nameRemapper.mapAndLink(superClass, version, index)}")
                 if (interfaces.isNotEmpty()) {
                     append(" ")
                 }
@@ -347,7 +347,7 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTree.ClassMapping, ver
                         else -> "implements"
                     }
                 )
-                append(" ${interfaces.joinToString(", ") { nameRemapper.mapTypeAndLink(version, it, index) }}")
+                append(" ${interfaces.joinToString(", ") { nameRemapper.mapAndLink(it, version, index) }}")
             }
         }
     }
@@ -380,7 +380,7 @@ data class MethodDeclaration(
  * @param linkRemapper the remapper used for remapping link addresses
  * @return the formatted descriptor
  */
-fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, mod: Int, version: Version, nameRemapper: Remapper, linkRemapper: Remapper? = null): MethodDeclaration {
+fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, mod: Int, version: Version, nameRemapper: ElementRemapper, linkRemapper: Remapper? = null): MethodDeclaration {
     // example:
     // descriptor: ([Ldyl;Ljava/util/Map;Z)V
     // signature: ([Ldyl;Ljava/util/Map<Lchq;Ldzg;>;Z)V
@@ -441,19 +441,19 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
  * @param isVarargs whether this is the last parameter of a method and the last array dimension should be made into a variadic parameter
  * @return the formatted type
  */
-fun GenerationContext.formatType(type: Type, version: Version, nameRemapper: Remapper, linkRemapper: Remapper? = null, isVarargs: Boolean = false): String {
+fun GenerationContext.formatType(type: Type, version: Version, nameRemapper: ElementRemapper, linkRemapper: Remapper? = null, isVarargs: Boolean = false): String {
     return when (type.sort) {
         Type.ARRAY -> buildString {
-            append(nameRemapper.mapTypeAndLink(version, type.elementType.className.toInternalName(), index, linkRemapper))
-            var arrayDimensions = "[]".repeat(type.dimensions)
-            if (isVarargs) {
-                arrayDimensions =  "${arrayDimensions.drop(2)}..."
-            }
-            append(arrayDimensions)
+            append(nameRemapper.mapAndLink(type.elementType.className.toInternalName(), version, index, linkRemapper))
+
+            var arrayDimensions = type.dimensions
+            if (isVarargs) arrayDimensions--
+
+            append("[]".repeat(arrayDimensions))
         }
 
         // Type#INTERNAL, it's private, so we need to use the value directly
-        Type.OBJECT, 12 -> nameRemapper.mapTypeAndLink(version, type.internalName, index, linkRemapper)
+        Type.OBJECT, 12 -> nameRemapper.mapAndLink(type.internalName, version, index, linkRemapper)
         else -> type.className
     }
 }

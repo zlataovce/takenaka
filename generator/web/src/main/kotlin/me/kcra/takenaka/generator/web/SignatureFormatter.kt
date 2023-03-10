@@ -33,6 +33,7 @@
 package me.kcra.takenaka.generator.web
 
 import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.core.mapping.ElementRemapper
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.commons.Remapper
 import org.objectweb.asm.signature.SignatureReader
@@ -199,7 +200,7 @@ class SignatureFormatter : SignatureVisitor {
     /**
      * The class name remapper.
      */
-    private val remapper: Remapper?
+    private val remapper: ElementRemapper?
 
     /**
      * The link remapper.
@@ -288,7 +289,7 @@ class SignatureFormatter : SignatureVisitor {
      */
     constructor(
         options: FormattingOptions,
-        remapper: Remapper? = null,
+        remapper: ElementRemapper? = null,
         linkRemapper: Remapper? = null,
         packageIndex: ClassSearchIndex? = null,
         version: Version? = null
@@ -305,7 +306,7 @@ class SignatureFormatter : SignatureVisitor {
 
     private constructor(
         options: FormattingOptions,
-        remapper: Remapper?,
+        remapper: ElementRemapper?,
         linkRemapper: Remapper?,
         packageIndex: ClassSearchIndex?,
         version: Version?,
@@ -415,10 +416,10 @@ class SignatureFormatter : SignatureVisitor {
             // Object 'but java.lang.String extends java.lang.Object' is unnecessary.
             val needClass = argumentStack % 2 != 0 || parameterTypeVisited
             if (needClass) {
-                declaration_.append(separator).append(remapper?.mapTypeAndLink(version!!, name, packageIndex!!, linkRemapper = linkRemapper) ?: name)
+                declaration_.append(separator).append(remapper?.mapAndLink(name, version!!, packageIndex, linkRemapper) ?: name)
             }
         } else {
-            declaration_.append(separator).append(remapper?.mapTypeAndLink(version!!, name, packageIndex!!, linkRemapper = linkRemapper) ?: name)
+            declaration_.append(separator).append(remapper?.mapAndLink(name, version!!, packageIndex, linkRemapper) ?: name)
         }
         separator = ""
         argumentStack *= 2
@@ -544,7 +545,7 @@ class SignatureFormatter : SignatureVisitor {
  * Makes a new [SignatureFormatter] and immediately visits the signature to it.
  *
  * @param options the formatting options
- * @param remapper the [Remapper] used for remapping names
+ * @param remapper the [ElementRemapper] used for remapping names
  * @param linkRemapper the [Remapper] used for remapping links
  * @param packageIndex the index used for resolving foreign class references
  * @param version the mapping's version
@@ -553,7 +554,7 @@ class SignatureFormatter : SignatureVisitor {
  */
 fun String.formatSignature(
     options: FormattingOptions,
-    remapper: Remapper? = null,
+    remapper: ElementRemapper? = null,
     linkRemapper: Remapper? = null,
     packageIndex: ClassSearchIndex? = null,
     version: Version? = null
@@ -568,7 +569,7 @@ fun String.formatSignature(
  * Makes a new [SignatureFormatter] and immediately visits the signature to it as a type signature.
  *
  * @param options the formatting options
- * @param remapper the [Remapper] used for remapping names
+ * @param remapper the [ElementRemapper] used for remapping names
  * @param linkRemapper the [Remapper] used for remapping links
  * @param packageIndex the index used for resolving foreign class references
  * @param version the mapping's version
@@ -577,7 +578,7 @@ fun String.formatSignature(
  */
 fun String.formatTypeSignature(
     options: FormattingOptions,
-    remapper: Remapper? = null,
+    remapper: ElementRemapper? = null,
     linkRemapper: Remapper? = null,
     packageIndex: ClassSearchIndex? = null,
     version: Version? = null

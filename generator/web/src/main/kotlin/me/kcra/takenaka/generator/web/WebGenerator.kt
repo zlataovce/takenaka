@@ -407,27 +407,24 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
 }
 
 /**
- * Remaps a type and creates a link if a mapping has been found.
+ * Remaps a class name and creates a link if a mapping has been found.
  *
- * @param version the mapping version
  * @param internalName the internal name of the class to be remapped
+ * @param version the mapping version
  * @param packageIndex the index used for looking up foreign class references
- * @return the remapped type, a link if it was found
+ * @return the remapped class name, a link if it was found
  */
-fun Remapper.mapTypeAndLink(version: Version, internalName: String, packageIndex: ClassSearchIndex, linkRemapper: Remapper? = null): String {
-    val foreignUrl = packageIndex.linkClass(internalName)
+fun ElementRemapper.mapAndLink(internalName: String, version: Version, packageIndex: ClassSearchIndex? = null, linkRemapper: Remapper? = null): String {
+    val foreignUrl = packageIndex?.linkClass(internalName)
     if (foreignUrl != null) {
         return """<a href="$foreignUrl">${internalName.substringAfterLast('/')}</a>"""
     }
 
-    val remappedName = mapType(internalName)
-    val linkName = linkRemapper?.mapType(internalName) ?: remappedName
+    val remappedName = tree.getClass(internalName)?.let(elementMapper)
+        ?: return internalName.fromInternalName()
+    val linkName = linkRemapper?.map(internalName) ?: remappedName
 
-    return if (remappedName != internalName || linkName != remappedName) {
-        """<a href="/${version.id}/$linkName.html">${remappedName.substringAfterLast('/')}</a>"""
-    } else {
-        remappedName.fromInternalName()
-    }
+    return """<a href="/${version.id}/$linkName.html">${remappedName.substringAfterLast('/')}</a>"""
 }
 
 /**
