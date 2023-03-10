@@ -71,6 +71,10 @@ nav {
     background-color: var(--nav);
 }
 
+nav[data-collapsed="yes"] {
+    flex-direction: row;
+}
+
 @media (min-width: 640px) {
     nav {
         flex-direction: row;

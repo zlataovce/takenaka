@@ -121,14 +121,16 @@ class WebGenerator(
                     // class index format, similar to a CSV:
                     // first line is a "header", this is a tab-delimited string with friendly namespace names + its badge colors, which are delimited by a colon ("namespace:#color")
                     // following lines are tab-separated strings with the mappings, each substring belongs to its column (header.split("\t").get(substringIndex) -> "namespace:#color")
+                    // the column order is based on namespaceFriendlinessIndex, so the first non-null column is the friendly name
+                    // "net/minecraft" and "com/mojang" are replaced with "%nm" and "%cm" to reduce duplication
 
                     // example:
-                    // Obfuscated:#581C87   Mojang:#4D7C0F  Intermediary:#0369A1
-                    // a	com/mojang/math/Matrix3f	net/minecraft/class_4581
-                    // b	com/mojang/math/Matrix4f	net/minecraft/class_1159
+                    // Mojang:#4D7C0F   Intermediary:#0369A1    Obfuscated:#581C87
+                    // %cm/math/Matrix3f %nm/class_4581    a
+                    // %cm/math/Matrix4f %nm/class_1159    b
                     // ... (repeats like this for all classes)
                     val classIndex = buildString {
-                        val namespaces = (0 until tree.maxNamespaceId)
+                        val namespaces = (MappingTree.SRC_NAMESPACE_ID until tree.maxNamespaceId)
                             .mapNotNull { nsId ->
                                 val nsName = tree.getNamespaceName(nsId)
                                 if (nsName in namespaceFriendlyNames) nsName to nsId else null
@@ -149,7 +151,14 @@ class WebGenerator(
                             classMap.getOrPut(friendlyName.substringBeforeLast('/')) { mutableMapOf() } +=
                                 friendlyName.substringAfterLast('/') to classTypeOf(klass.modifiers)
 
-                            appendLine(namespaces.values.joinToString("\t") { klass.getName(it) ?: "" })
+                            appendLine(
+                                namespaces.values.joinToString("\t") { ns ->
+                                    klass.getName(ns)
+                                        ?.replace("net/minecraft", "%nm")
+                                        ?.replace("com/mojang", "%cm")
+                                        ?: ""
+                                }
+                            )
                         }
                     }
 
@@ -214,31 +223,21 @@ class WebGenerator(
                 content {
                     navComponent()
                 }
-                // dynamically find the version in the URL, this is a hack, I know
                 callback = """
                     const overviewLink = document.getElementById("overview-link");
                     const licensesLink = document.getElementById("licenses-link");
                     const searchInput = document.getElementById("search-input");
                     
-                    const path = window.location.pathname.substring(1);
-                    if (path) {
-                        const parts = [];
-                        for (const part of path.split("/")) {
-                            parts.push(part);
-                            if (!part.endsWith(".html") && part.includes(".")) {
-                                const baseUrl = "/" + parts.join("/");
-                                
-                                overviewLink.href = baseUrl + "/index.html";
-                                licensesLink.href = baseUrl + "/licenses.html";
-                                searchInput.addEventListener("input", (evt) => search(baseUrl, evt.target.value));
-                                return;
-                            }
-                        }
+                    if (baseUrl) {
+                        overviewLink.href = baseUrl + "/index.html";
+                        licensesLink.href = baseUrl + "/licenses.html";
+                        searchInput.addEventListener("input", (evt) => search(evt.target.value));
+                    } else {
+                        overviewLink.remove();
+                        licensesLink.remove();
+                        searchInput.remove();
+                        e.dataset.collapsed = "yes";
                     }
-                
-                    overviewLink.remove();
-                    licensesLink.remove();
-                    searchInput.remove();
                 """.trimIndent()
             },
             component {
@@ -292,8 +291,12 @@ class WebGenerator(
                 const replaceComponent = (tag, component, callback) => {
                     for (const e of document.getElementsByTagName(tag)) {
                         if (e.children.length === 0) {
-                            e.outerHTML = component;
-                            callback(e);
+                            const template = document.createElement("template");
+                            template.innerHTML = component;
+                            
+                            const newElem = template.content.firstElementChild.cloneNode(true);
+                            e.replaceWith(newElem);
+                            callback(newElem);
                         }
                     }
                 };

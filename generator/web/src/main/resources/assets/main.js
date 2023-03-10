@@ -26,12 +26,31 @@ const setTheme = (theme) => {
 
 window.addEventListener("load", () => document.documentElement.setAttribute("data-theme", getTheme()));
 
+const getVersionBaseUrl = () => {
+    const path = window.location.pathname.substring(1);
+    if (path) {
+        const parts = [];
+        for (const part of path.split("/")) {
+            parts.push(part);
+            if (!part.endsWith(".html") && part.includes(".")) {
+                return "/" + parts.join("/");
+            }
+        }
+    }
+
+    return null;
+};
+
+const baseUrl = getVersionBaseUrl();
+
 // a map of "<namespace>" to "<namespace badge color>"
 let colors = {};
 // a list of { "<namespace>": <mapping string or null> }
 let classIndex = [];
 
 const updateClassIndex = (indexString) => {
+    indexString = indexString.replaceAll("%nm", "net/minecraft").replaceAll("%cm", "com/mojang");
+
     const header = [];
     for (const line of indexString.match(/[^\r\n]+/g)) {
         if (header.length === 0) {
@@ -53,13 +72,14 @@ const updateClassIndex = (indexString) => {
     }
 };
 
-const search = (baseUrl, query) => {
-    query = query.trim();
+const search = (query) => {
     const resultsBox = document.getElementById("search-results-box");
 
-    let results = [];
+    query = query.trim();
+
+    const results = [];
     if (query) {
-        let targetedNamespace = null;
+        const predicates = [];
 
         let newQuery = "";
         for (const option of query.split(" ")) {
@@ -67,9 +87,13 @@ const search = (baseUrl, query) => {
             if (optionParts.length === 2) {
                 switch (optionParts[0]) {
                     case "namespace":
+                    case "type":
                     case "ns":
-                        targetedNamespace = optionParts[1].toLowerCase();
+                        const namespaceTarget = optionParts[1].toLowerCase();
+                        predicates.push((klass, ns, klassName) => ns.toLowerCase() === namespaceTarget);
                         break;
+
+                    // add more search options here
                 }
             } else {
                 newQuery = newQuery + option;
@@ -83,33 +107,38 @@ const search = (baseUrl, query) => {
                 const klassName = klass[ns];
 
                 // limit to 5 results
-                if (results.length <= 5 && klassName && klassName.toLowerCase().includes(newQuery) && (!targetedNamespace || targetedNamespace === ns.toLowerCase())) {
-                    const elem = document.createElement("div");
-                    elem.classList.add("search-result");
-                    elem.addEventListener("click", () => {
+                if (results.length <= 5 && klassName) {
+                    if (!klassName.toLowerCase().includes(newQuery)) continue;
+                    if (!predicates.every((p) => p(klass, ns, klassName))) continue;
+
+                    const resultElem = document.createElement("div");
+                    resultElem.classList.add("search-result");
+                    resultElem.addEventListener("click", () => {
                         window.location.pathname = `${baseUrl}/${Object.values(klass).find((e) => e != null)}.html`;
                     });
 
                     const lastSlashIndex = klassName.lastIndexOf("/");
-                    const simpleKlassName = klassName.substring(lastSlashIndex + 1);
-                    const klassPackage = klassName.substring(0, lastSlashIndex).replaceAll("/", ".");
+                    const klassPackage = lastSlashIndex !== -1 ? klassName.substring(0, lastSlashIndex).replaceAll("/", ".") : null;
+                    const simpleKlassName = lastSlashIndex !== -1 ? klassName.substring(lastSlashIndex + 1) : klassName;
 
                     const title = document.createElement("p");
                     title.classList.add("search-result-title");
                     title.innerText = simpleKlassName;
-                    elem.appendChild(title);
+                    resultElem.appendChild(title);
 
-                    const subtitle0 = document.createElement("p");
-                    subtitle0.classList.add("search-result-subtitle");
-                    subtitle0.innerText = `package: ${klassPackage}`;
-                    elem.appendChild(subtitle0);
+                    if (klassPackage) {
+                        const packageSubtitle = document.createElement("p");
+                        packageSubtitle.classList.add("search-result-subtitle");
+                        packageSubtitle.innerText = `package: ${klassPackage}`;
+                        resultElem.appendChild(packageSubtitle);
+                    }
 
-                    const subtitle1 = document.createElement("p");
-                    subtitle1.classList.add("search-result-subtitle");
-                    subtitle1.innerHTML = `namespace: <span style="color:${colors[ns]}">${ns}</span>`;
-                    elem.appendChild(subtitle1);
+                    const nsSubtitle = document.createElement("p");
+                    nsSubtitle.classList.add("search-result-subtitle");
+                    nsSubtitle.innerHTML = `namespace: <span style="color:${colors[ns]}">${ns}</span>`;
+                    resultElem.appendChild(nsSubtitle);
 
-                    results.push(elem);
+                    results.push(resultElem);
                 }
             }
         }

@@ -108,7 +108,7 @@ class WebCLI : CLI {
             coroutineDispatcher,
             skipSynthetics,
             transformers,
-            listOf("mojang", "spigot", "searge", "intermediary"),
+            listOf("mojang", "spigot", "searge", "intermediary", "source"),
             mapOf(
                 "mojang" to "#4D7C0F",
                 "spigot" to "#CA8A04",
