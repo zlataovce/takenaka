@@ -31,6 +31,7 @@ import me.kcra.takenaka.generator.common.ContributorProvider
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
+import me.kcra.takenaka.generator.web.transformers.Minifier
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import net.fabricmc.mappingio.tree.MappingTree
 import org.w3c.dom.Document
@@ -74,6 +75,7 @@ class WebGenerator(
     val spigotLikeNamespaces: List<String> = emptyList()
 ) : AbstractGenerator(workspace, versions, coroutineDispatcher, skipSynthetics, mappingWorkspace, contributorProvider) {
     private val namespaceFriendlyNames = namespaces.mapValues { it.value.friendlyName }
+    private val hasMinifier = transformers.any { it is Minifier }
 
     /**
      * Launches the generator.
@@ -246,9 +248,9 @@ class WebGenerator(
         file.parent.createDirectories()
 
         if (transformers.isEmpty()) {
-            file.writer().use { it.write(this, prettyPrint = false) }
+            file.writer().use { it.write(this) }
         } else {
-            file.writeText(serialize(prettyPrint = false).transformHtml())
+            file.writeText(serialize(prettyPrint = !hasMinifier).transformHtml())
         }
     }
 
