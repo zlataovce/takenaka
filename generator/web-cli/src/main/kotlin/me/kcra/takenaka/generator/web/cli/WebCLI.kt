@@ -29,6 +29,7 @@ import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.generator.common.cli.CLI
 import me.kcra.takenaka.generator.web.*
+import me.kcra.takenaka.generator.web.transformers.DeterministicMinifier
 import me.kcra.takenaka.generator.web.transformers.Minifier
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import mu.KotlinLogging
@@ -49,12 +50,16 @@ class WebCLI : CLI {
      * @param mappingWorkspace the workspace where the generator can cache mappings
      */
     override fun generate(output: Workspace, versions: List<String>, mappingWorkspace: CompositeWorkspace) {
-        val isProduction = System.getProperty("me.kcra.takenaka.generator.web.env", "development").lowercase() == "production"
-        logger.info { "Building in ${if (isProduction) "production" else "development"} mode" }
-
         val transformers = mutableListOf<Transformer>()
-        if (isProduction) {
-            transformers += Minifier()
+
+        val minify = System.getProperty("me.kcra.takenaka.generator.web.minify", "true").toBoolean()
+        if (minify) {
+            val deterministic = System.getProperty("me.kcra.takenaka.generator.web.minify.deterministic", "true").toBoolean()
+            if (deterministic) {
+                transformers += DeterministicMinifier()
+            } else {
+                transformers += Minifier()
+            }
         }
 
         val concurrencyLimit = System.getProperty("me.kcra.takenaka.generator.web.concurrencyLimit", "-1").toInt()

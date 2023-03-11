@@ -6,7 +6,8 @@ Refer to the [generator-common-cli README](../common-cli/README.md) for command-
 
 ## Properties
 
-* `me.kcra.takenaka.generator.web.env` (`development` (default/fallback) or `production`) - The generator environment, `production` minifies all files to decrease file size.
+* `me.kcra.takenaka.generator.web.minify` (boolean, defaults to `true`) - Whether all files should be minified to decrease file size.
+* `me.kcra.takenaka.generator.web.minify.deterministic` (boolean, defaults to `true`) - Whether the output of the minifier should be consistent across runs (useful for diffing the output, but increases file size).
 * `me.kcra.takenaka.generator.web.concurrencyLimit` (integer, defaults to `-1` [no limit]) - The parallelism limit for the coroutine dispatcher, an appropriate value is chosen by default.
 * `me.kcra.takenaka.generator.web.index.foreign` (a complex expression) - Javadoc sites to be linked to in the generated output.
   * the value is a comma-separated (no space after the comma) list of strings, and the string can be:
