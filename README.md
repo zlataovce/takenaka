@@ -8,12 +8,11 @@ The goal of this project is to improve the maintainability and performance of th
 
 * fetching and deserialization of various mappings
 * parsing of the server JAR (modifiers, superclasses, superinterfaces and more)
-* cross-version mapping ancestry comparison
+* cross-version mapping history comparison
 * web documentation generation (including generics!)
 
 ### Planned features
 
-- [ ] cross-version history comparison for class members (fields and methods)
 - [ ] history page for the web documentation
 - [ ] reflective accessor generation
 
