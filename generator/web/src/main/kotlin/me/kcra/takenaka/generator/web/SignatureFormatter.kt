@@ -34,6 +34,7 @@ package me.kcra.takenaka.generator.web
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ElementRemapper
+import me.kcra.takenaka.core.mapping.fromInternalName
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.commons.Remapper
 import org.objectweb.asm.signature.SignatureReader
@@ -539,6 +540,27 @@ class SignatureFormatter : SignatureVisitor {
             'V' to "void",
         )
     }
+}
+
+/**
+ * Remaps a class name and creates a link if a mapping has been found.
+ *
+ * @param internalName the internal name of the class to be remapped
+ * @param version the mapping version
+ * @param packageIndex the index used for looking up foreign class references
+ * @return the remapped class name, a link if it was found
+ */
+fun ElementRemapper.mapAndLink(internalName: String, version: Version, packageIndex: ClassSearchIndex? = null, linkRemapper: Remapper? = null): String {
+    val foreignUrl = packageIndex?.linkClass(internalName)
+    if (foreignUrl != null) {
+        return """<a href="$foreignUrl">${internalName.substringAfterLast('/')}</a>"""
+    }
+
+    val remappedName = tree.getClass(internalName)?.let(elementMapper)
+        ?: return internalName.fromInternalName()
+    val linkName = linkRemapper?.map(internalName) ?: remappedName
+
+    return """<a href="/${version.id}/$linkName.html">${remappedName.substringAfterLast('/')}</a>"""
 }
 
 /**

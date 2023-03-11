@@ -70,7 +70,7 @@ class WebCLI : CLI {
                     val options = indexerDef.split('+', limit = 2)
 
                     if (options.size == 2) {
-                        classSearchIndexOf(options[0], options[1])
+                        classSearchIndexOf(options[1], options[0])
                     } else {
                         indexerMapper.modularClassSearchIndexOf(options[0])
                     }
@@ -110,40 +110,30 @@ class WebCLI : CLI {
             transformers,
             listOf("mojang", "spigot", "searge", "intermediary", "source"),
             mapOf(
-                "mojang" to "#4D7C0F",
-                "spigot" to "#CA8A04",
-                "searge" to "#B91C1C",
-                "intermediary" to "#0369A1",
-                "source" to "#581C87"
+                "mojang" to namespaceDescOf(
+                    "Mojang",
+                    "#4D7C0F",
+                    MojangServerMappingResolver.META_LICENSE
+                ),
+                "spigot" to namespaceDescOf(
+                    "Spigot",
+                    "#CA8A04",
+                    AbstractSpigotMappingResolver.META_LICENSE
+                ),
+                "searge" to namespaceDescOf(
+                    "Searge",
+                    "#B91C1C",
+                    SeargeMappingResolver.META_LICENSE
+                ),
+                "intermediary" to namespaceDescOf(
+                    "Intermediary",
+                    "#0369A1",
+                    IntermediaryMappingResolver.META_LICENSE
+                ),
+                "source" to namespaceDescOf("Obfuscated", "#581C87")
             ),
-            mapOf(
-                "mojang" to "Mojang",
-                "spigot" to "Spigot",
-                "searge" to "Searge",
-                "intermediary" to "Intermediary",
-                "source" to "Obfuscated"
-            ),
-            "#94a3b8",
             compositeClassSearchIndexOf(*indexers.toTypedArray()),
-            listOf("spigot"),
-            mapOf(
-                "mojang" to licenseReferenceOf(
-                    MojangServerMappingResolver.META_LICENSE,
-                    MojangServerMappingResolver.META_LICENSE_SOURCE
-                ),
-                "spigot" to licenseReferenceOf(
-                    AbstractSpigotMappingResolver.META_LICENSE,
-                    AbstractSpigotMappingResolver.META_LICENSE_SOURCE
-                ),
-                "searge" to licenseReferenceOf(
-                    SeargeMappingResolver.META_LICENSE,
-                    SeargeMappingResolver.META_LICENSE_SOURCE
-                ),
-                "intermediary" to licenseReferenceOf(
-                    IntermediaryMappingResolver.META_LICENSE,
-                    IntermediaryMappingResolver.META_LICENSE_SOURCE
-                )
-            )
+            listOf("spigot")
         )
 
         generator.generate()

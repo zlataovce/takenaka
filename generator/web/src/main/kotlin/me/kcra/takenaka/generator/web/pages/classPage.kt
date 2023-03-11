@@ -73,11 +73,11 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                 tbody {
                     (MappingTree.SRC_NAMESPACE_ID until klass.tree.maxNamespaceId).forEach { id ->
                         val ns = klass.tree.getNamespaceName(id)
-                        val nsFriendlyName = generator.namespaceFriendlyNames[ns] ?: return@forEach
+                        val namespace = generator.namespaces[ns] ?: return@forEach
 
                         val name = klass.getName(id) ?: return@forEach
                         tr {
-                            badgeColumnComponent(nsFriendlyName, getNamespaceBadgeColor(ns), styleSupplier)
+                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
                             td {
                                 p(classes = "mapping-value") {
                                     +name.fromInternalName()
@@ -125,13 +125,13 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                         tbody {
                                             (MappingTree.SRC_NAMESPACE_ID until klass.tree.maxNamespaceId).forEach { id ->
                                                 val ns = klass.tree.getNamespaceName(id)
-                                                val nsFriendlyName = generator.namespaceFriendlyNames[ns]
+                                                val namespace = generator.namespaces[ns]
 
-                                                if (nsFriendlyName != null) {
+                                                if (namespace != null) {
                                                     val name = field.getName(id)
                                                     if (name != null) {
                                                         tr {
-                                                            badgeColumnComponent(nsFriendlyName, getNamespaceBadgeColor(ns), styleSupplier)
+                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
                                                             td {
                                                                 p(classes = "mapping-value") {
                                                                     +name
@@ -235,13 +235,13 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                         tbody {
                                             (MappingTree.SRC_NAMESPACE_ID until method.tree.maxNamespaceId).forEach { id ->
                                                 val ns = method.tree.getNamespaceName(id)
-                                                val nsFriendlyName = generator.namespaceFriendlyNames[ns]
+                                                val namespace = generator.namespaces[ns]
 
-                                                if (nsFriendlyName != null) {
+                                                if (namespace != null) {
                                                     val methodName = method.getName(id)
                                                     if (methodName != null) {
                                                         tr {
-                                                            badgeColumnComponent(nsFriendlyName, getNamespaceBadgeColor(ns), styleSupplier)
+                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
                                                             td {
                                                                 p(classes = "mapping-value") {
                                                                     unsafe {

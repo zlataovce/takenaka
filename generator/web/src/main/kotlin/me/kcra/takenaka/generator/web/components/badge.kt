@@ -18,7 +18,7 @@
 package me.kcra.takenaka.generator.web.components
 
 import kotlinx.html.*
-import me.kcra.takenaka.generator.web.StyleSupplier
+import me.kcra.takenaka.generator.web.StyleProvider
 
 /**
  * Appends a namespace badge component.
@@ -26,12 +26,12 @@ import me.kcra.takenaka.generator.web.StyleSupplier
  * @param content the namespace name
  * @param color the badge color in a CSS compatible format
  */
-fun FlowContent.badgeComponent(content: String, color: String, styleSupplier: StyleSupplier? = null) {
-    if (styleSupplier != null) {
+fun FlowContent.badgeComponent(content: String, color: String, styleProvider: StyleProvider? = null) {
+    if (styleProvider != null) {
         val lowercase = content.lowercase()
 
-        p(classes = "badge ${styleSupplier("badge-$lowercase", "background-color:$color;")}")
-        styleSupplier("badge-$lowercase::before", "content:\"$content\";")
+        p(classes = "badge ${styleProvider("badge-$lowercase", "background-color:$color;")}")
+        styleProvider("badge-$lowercase::before", "content:\"$content\";")
     } else {
         p(classes = "badge") {
             style = "background-color:$color"
@@ -46,12 +46,12 @@ fun FlowContent.badgeComponent(content: String, color: String, styleSupplier: St
  * @param content the namespace name
  * @param color the badge color in a CSS compatible format
  */
-fun TR.badgeColumnComponent(content: String, color: String, styleSupplier: StyleSupplier? = null) {
-    if (styleSupplier != null) {
+fun TR.badgeColumnComponent(content: String, color: String, styleProvider: StyleProvider? = null) {
+    if (styleProvider != null) {
         val lowercase = content.lowercase()
 
-        td(classes = "badge ${styleSupplier("badge-$lowercase", "background-color:$color;")}")
-        styleSupplier("badge-$lowercase::before", "content:\"$content\";")
+        td(classes = "badge ${styleProvider("badge-$lowercase", "background-color:$color;")}")
+        styleProvider("badge-$lowercase::before", "content:\"$content\";")
     } else {
         td(classes = "badge") {
             style = "background-color:$color"

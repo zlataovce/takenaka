@@ -17,24 +17,14 @@
 
 package me.kcra.takenaka.generator.web
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.html.BODY
-import kotlinx.html.body
-import kotlinx.html.consumers.filter
-import kotlinx.html.dom.append
-import kotlinx.html.dom.document
 import kotlinx.html.dom.serialize
 import kotlinx.html.dom.write
-import kotlinx.html.html
 import me.kcra.takenaka.core.CompositeWorkspace
-import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.adapter.completeInnerClassNames
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
-import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.generator.common.AbstractGenerator
 import me.kcra.takenaka.generator.common.ContributorProvider
@@ -43,16 +33,10 @@ import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import net.fabricmc.mappingio.tree.MappingTree
-import org.objectweb.asm.Opcodes
-import org.objectweb.asm.commons.Remapper
 import org.w3c.dom.Document
 import java.io.BufferedReader
-import java.lang.reflect.Modifier
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.util.concurrent.locks.Lock
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
@@ -71,12 +55,9 @@ import kotlin.io.path.writer
  * @param skipSynthetics whether synthetic classes and their members should be skipped
  * @param transformers a list of transformers that transform the output
  * @param namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
- * @param namespaceBadgeColors a map of namespaces and their colors, defaults to #94a3b8 for all of them
- * @param namespaceFriendlyNames a map of namespaces and their names that will be shown in the documentation, unspecified namespaces will not be shown
- * @param namespaceDefaultBadgeColor the default namespace badge color, which will be used if not specified in [namespaceBadgeColors]
+ * @param namespaces a map of namespaces and their descriptions, unspecified namespaces will not be shown
  * @param index a resolver for foreign class references
  * @param spigotLikeNamespaces the namespaces that should have [replaceCraftBukkitNMSVersion] and [completeInnerClassNames] applied
- * @param licenseMetaKeys a map of namespaces and their license metadata keys
  * @author Matouš Kučera
  */
 class WebGenerator(
@@ -88,21 +69,20 @@ class WebGenerator(
     skipSynthetics: Boolean,
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
-    val namespaceBadgeColors: Map<String, String> = emptyMap(),
-    val namespaceFriendlyNames: Map<String, String> = emptyMap(),
-    val namespaceDefaultBadgeColor: String = "#94a3b8",
+    val namespaces: Map<String, NamespaceDescription> = emptyMap(),
     val index: ClassSearchIndex = emptyClassSearchIndex(),
-    val spigotLikeNamespaces: List<String> = emptyList(),
-    val licenseMetaKeys: Map<String, LicenseReference> = emptyMap()
+    val spigotLikeNamespaces: List<String> = emptyList()
 ) : AbstractGenerator(workspace, versions, coroutineDispatcher, skipSynthetics, mappingWorkspace, contributorProvider) {
+    private val namespaceFriendlyNames = namespaces.mapValues { it.value.friendlyName }
+
     /**
      * Launches the generator.
      */
     override fun generate() {
         val composite: CompositeWorkspace by workspace
-        val styleSupplier = DefaultStyleSupplier()
+        val styleSupplier = DefaultStyleProvider()
 
-        generationContext(styleSupplier = styleSupplier::apply) {
+        generationContext(styleProvider = styleSupplier::apply) {
             mappings.forEach { (version, tree) ->
                 launch(coroutineDispatcher) {
                     spigotLikeNamespaces.forEach { ns ->
@@ -167,10 +147,12 @@ class WebGenerator(
                             .serialize(versionWorkspace, "$packageName/index.html")
                     }
 
-                    val licenses = licenseMetaKeys
-                        .mapNotNull { (ns, ref) ->
-                            val content = tree.getMetadata(ref.content) ?: return@mapNotNull null
-                            val source = tree.getMetadata(ref.source) ?: return@mapNotNull null
+                    val licenses = namespaces
+                        .mapNotNull { (ns, nsDesc) ->
+                            if (nsDesc.license == null) return@mapNotNull null
+
+                            val content = nsDesc.license.content.let(tree::getMetadata) ?: return@mapNotNull null
+                            val source = nsDesc.license.source.let(tree::getMetadata) ?: return@mapNotNull null
 
                             return@mapNotNull ns to licenseOf(content, source)
                         }
@@ -186,7 +168,7 @@ class WebGenerator(
                 }
             }
 
-            versionsPage(mappings.entries.associate { (version, tree) -> version to tree.dstNamespaces })
+            versionsPage(mappings.mapValues { it.value.dstNamespaces })
                 .serialize(workspace, "index.html")
         }
 
@@ -342,217 +324,3 @@ class WebGenerator(
      */
     fun String.transformCss(): String = transformers.fold(this) { content0, transformer -> transformer.transformCss(content0) }
 }
-
-/**
- * Opens a generation context.
- *
- * @param styleSupplier the style supplier that will be used in the context
- * @param block the context user
- */
-inline fun <R> WebGenerator.generationContext(noinline styleSupplier: StyleSupplier, crossinline block: suspend GenerationContext.() -> R): R =
-    runBlocking(coroutineDispatcher) { block(GenerationContext(this, this@generationContext, styleSupplier)) }
-
-/**
- * A generation context.
- *
- * @author Matouš Kučera
- */
-class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenerator, val styleSupplier: StyleSupplier) : CoroutineScope by coroutineScope {
-    val index: ClassSearchIndex by generator::index
-
-    /**
-     * Gets a "friendly" destination name of an element.
-     *
-     * @param elem the element
-     * @return the name
-     */
-    fun getFriendlyDstName(elem: MappingTree.ElementMapping): String {
-        generator.namespaceFriendlinessIndex.forEach { ns ->
-            elem.getName(ns)?.let { return it }
-        }
-        return (0 until elem.tree.maxNamespaceId).firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
-    }
-
-    /**
-     * Gets a CSS color of the supplied namespace.
-     *
-     * @param ns the namespace
-     * @return the color
-     */
-    fun getNamespaceBadgeColor(ns: String) = generator.namespaceBadgeColors[ns] ?: generator.namespaceDefaultBadgeColor
-
-    /**
-     * Formats a modifier integer into a string.
-     *
-     * @param mod the modifier integer
-     * @param mask the modifier mask (you can get that from the [Modifier] class or use 0)
-     * @return the modifier string
-     */
-    fun formatModifiers(mod: Int, mask: Int): String = buildString {
-        val mMod = mod and mask
-
-        if ((mMod and Opcodes.ACC_PUBLIC) != 0) append("public ")
-        if ((mMod and Opcodes.ACC_PRIVATE) != 0) append("private ")
-        if ((mMod and Opcodes.ACC_PROTECTED) != 0) append("protected ")
-        if ((mMod and Opcodes.ACC_STATIC) != 0) append("static ")
-        // an interface is implicitly abstract
-        // we need to check the unmasked modifiers here, since ACC_INTERFACE is not among Modifier#classModifiers
-        if ((mMod and Opcodes.ACC_ABSTRACT) != 0 && (mod and Opcodes.ACC_INTERFACE) == 0) append("abstract ")
-        // an enum is implicitly final
-        // we need to check the unmasked modifiers here, since ACC_ENUM is not among Modifier#classModifiers
-        if ((mMod and Opcodes.ACC_FINAL) != 0 && (mask != Modifier.classModifiers() || (mod and Opcodes.ACC_ENUM) == 0)) append("final ")
-        if ((mMod and Opcodes.ACC_NATIVE) != 0) append("native ")
-        if ((mMod and Opcodes.ACC_STRICT) != 0) append("strict ")
-        if ((mMod and Opcodes.ACC_SYNCHRONIZED) != 0) append("synchronized ")
-        if ((mMod and Opcodes.ACC_TRANSIENT) != 0) append("transient ")
-        if ((mMod and Opcodes.ACC_VOLATILE) != 0) append("volatile ")
-    }
-}
-
-/**
- * Remaps a class name and creates a link if a mapping has been found.
- *
- * @param internalName the internal name of the class to be remapped
- * @param version the mapping version
- * @param packageIndex the index used for looking up foreign class references
- * @return the remapped class name, a link if it was found
- */
-fun ElementRemapper.mapAndLink(internalName: String, version: Version, packageIndex: ClassSearchIndex? = null, linkRemapper: Remapper? = null): String {
-    val foreignUrl = packageIndex?.linkClass(internalName)
-    if (foreignUrl != null) {
-        return """<a href="$foreignUrl">${internalName.substringAfterLast('/')}</a>"""
-    }
-
-    val remappedName = tree.getClass(internalName)?.let(elementMapper)
-        ?: return internalName.fromInternalName()
-    val linkName = linkRemapper?.map(internalName) ?: remappedName
-
-    return """<a href="/${version.id}/$linkName.html">${remappedName.substringAfterLast('/')}</a>"""
-}
-
-/**
- * A function that provides a CSS class name from a key and the style content.
- */
-typealias StyleSupplier = (String, String) -> String
-
-/**
- * A synchronized [StyleSupplier] implementation.
- */
-class DefaultStyleSupplier(val styles: MutableMap<String, String> = mutableMapOf()) {
-    private val supplierLock: Lock = ReentrantLock()
-
-    /**
-     * The [StyleSupplier].
-     */
-    fun apply(k: String, s: String): String = supplierLock.withLock {
-        styles.putIfAbsent(k, s); k
-    }
-
-    /**
-     * Generates a stylesheet from gathered classes.
-     *
-     * @return the stylesheet content
-     */
-    fun generateStyleSheet(): String = buildString {
-        styles.forEach { (k, s) ->
-            append(
-                """
-                    .$k {
-                        $s
-                    }
-                """.trimIndent()
-            )
-        }
-    }
-}
-
-/**
- * A HTML component.
- *
- * @property tag the main tag of the component, any tag that is empty and has the same name, will be replaced with the component
- * @property content the component content/body
- * @property callback a raw JS script that is called after the component has been loaded onto the site, an `e` variable of type `HTMLElement` is available
- */
-data class ComponentDefinition(
-    val tag: String,
-    val content: Document,
-    val callback: String?
-)
-
-/**
- * Builds an HTML component.
- *
- * @param block the builder action
- * @return the component
- */
-inline fun component(block: MutableComponentDefinition.() -> Unit): ComponentDefinition = MutableComponentDefinition().apply(block).toComponent()
-
-/**
- * An HTML component builder.
- *
- * @property tag the main tag of the component, any tag that is empty and has the same name, will be replaced with the component
- * @property content the component content/body
- * @property callback a raw JS script that is called after the component has been loaded onto the site, an `e` variable of type `HTMLElement` is available
- */
-class MutableComponentDefinition {
-    lateinit var tag: String
-    lateinit var content: Document
-    var callback: String? = null
-
-    /**
-     * Builds and sets the content of this component.
-     *
-     * @param block the builder action
-     */
-    inline fun content(crossinline block: BODY.() -> Unit) {
-        content = document {
-            append.filter { if (it.tagName in listOf("html", "body")) SKIP else PASS }
-                .html {
-                    body {
-                        block()
-                    }
-                }
-        }
-    }
-
-    /**
-     * Creates an immutable component out of this builder.
-     *
-     * @return the component
-     */
-    fun toComponent() = ComponentDefinition(tag, content, callback)
-}
-
-/**
- * A license metadata key pair.
- *
- * @property content the license content metadata key
- * @property source the license source metadata key
- */
-data class LicenseReference(val content: String, val source: String)
-
-/**
- * Creates a new license metadata key pair.
- *
- * @param content the license content metadata key
- * @param source the license source metadata key
- * @return the license metadata key pair
- */
-fun licenseReferenceOf(content: String, source: String) = LicenseReference(content, source)
-
-/**
- * A license declaration.
- *
- * @property content the license content
- * @property source the license source, probably a link
- */
-data class License(val content: String, val source: String)
-
-/**
- * Creates a new license declaration.
- *
- * @param content the license content
- * @param source the license source, probably a link
- * @return the license declaration
- */
-fun licenseOf(content: String, source: String) = License(content, source)

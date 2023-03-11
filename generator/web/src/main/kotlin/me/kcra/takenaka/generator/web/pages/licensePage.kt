@@ -43,11 +43,11 @@ fun GenerationContext.licensePage(workspace: VersionedWorkspace, licenses: Map<S
                 +"Licenses - ${workspace.version.id}"
             }
             spacerBottomComponent()
-            licenses.entries.forEachIndexed { index, (mappingType, license) ->
-                val nsFriendlyName = generator.namespaceFriendlyNames[mappingType]
-                if (nsFriendlyName != null) {
+            licenses.entries.forEachIndexed { index, (ns, license) ->
+                val namespace = generator.namespaces[ns]
+                if (namespace != null) {
                     div(classes = "license-header") {
-                        badgeComponent(nsFriendlyName, getNamespaceBadgeColor(mappingType), styleSupplier)
+                        badgeComponent(namespace.friendlyName, namespace.color, styleProvider)
                         if (license.source.matches(PROTOCOL_REGEX)) {
                             a(href = license.source) {
                                 +license.source

@@ -1,0 +1,58 @@
+/*
+ * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
+ *
+ * Copyright (c) 2023 Matous Kucera
+ *
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.kcra.takenaka.generator.web
+
+import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
+
+/**
+ * A function that provides a CSS class name from a key and the style content.
+ */
+typealias StyleProvider = (String, String) -> String
+
+/**
+ * A synchronized [StyleProvider] implementation.
+ */
+class DefaultStyleProvider(val styles: MutableMap<String, String> = mutableMapOf()) {
+    private val supplierLock: Lock = ReentrantLock()
+
+    /**
+     * The [StyleProvider].
+     */
+    fun apply(k: String, s: String): String = supplierLock.withLock {
+        styles.putIfAbsent(k, s); k
+    }
+
+    /**
+     * Generates a stylesheet from gathered classes.
+     *
+     * @return the stylesheet content
+     */
+    fun generateStyleSheet(): String = buildString {
+        styles.forEach { (k, s) ->
+            append(
+                """
+                    .$k {
+                        $s
+                    }
+                """.trimIndent()
+            )
+        }
+    }
+}
