@@ -17,27 +17,24 @@
 
 package me.kcra.takenaka.generator.web.transformers
 
-import mu.KotlinLogging
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * A transformer that minifies web resources.
  *
  * @author Matouš Kučera
  */
-class Minifier : Transformer {
+open class Minifier : Transformer {
     /**
      * The transformation lock.
      */
-    private val lock = ReentrantLock()
+    protected val lock = ReentrantLock()
 
     /**
      * Amount of unique visited class names, used as an entropy for generating a class name.
      */
-    private var classIndex = 0
+    protected var classIndex = 0
 
     /**
      * A mapping of original -> minified CSS class names.
@@ -50,14 +47,9 @@ class Minifier : Transformer {
      * @param content the raw HTML markup
      * @return the transformed markup
      */
-    override fun transformHtml(content: String): String {
-        lock.withLock {
-            return content.replace(CLASS_ATTR_REGEX) { m ->
-                """class="${m.groups[1]!!.value.split(' ').joinToString(" ") {
-                    logger.debug { "Minifying CSS class $it in markup" }
-                    classes.computeIfAbsent(it) { nextMinifiedClass() }
-                }}""""
-            }
+    override fun transformHtml(content: String): String = lock.withLock {
+        content.replace(CLASS_ATTR_REGEX) { m ->
+            """class="${m.groups[1]?.value?.split(' ')?.joinToString(" ") { classes.computeIfAbsent(it) { nextMinifiedClass() } } ?: ""}""""
         }
     }
 
@@ -67,10 +59,7 @@ class Minifier : Transformer {
      *
      * @return the class name
      */
-    fun nextMinifiedClass(): String = nextMinifiedClass(classIndex++)
-
-    private fun nextMinifiedClass(i: Int): String =
-        if (i < 0) "" else nextMinifiedClass(i / 26 - 1) + (65 + i % 26).toChar()
+    fun nextMinifiedClass(): String = minifiedClass(classIndex++)
 
     /**
      * Minifies raw CSS styles.
@@ -79,17 +68,17 @@ class Minifier : Transformer {
      * @return the transformed stylesheet
      */
     override fun transformCss(content: String): String {
+        var remappedContent = content.split("\r\n", "\n")
+            .joinToString("") { it.trim() }
+            .replace(COMMENT_REGEX, "")
+
         lock.withLock {
-            var remappedContent = content.split("\r\n", "\n")
-                .joinToString("") { it.trim() }
-                .replace(COMMENT_REGEX, "")
             classes.forEach { (original, minified) ->
-                logger.debug { "Minifying CSS class $original to $minified in a stylesheet" }
                 remappedContent = remappedContent.replace("\\.$original([ :])".toRegex()) { ".$minified${it.groups[1]?.value}" }
             }
-
-            return remappedContent
         }
+
+        return remappedContent
     }
 
     /**
@@ -99,17 +88,24 @@ class Minifier : Transformer {
      * @return the transformed code
      */
     override fun transformJs(content: String): String {
-        lock.withLock {
-            return content.replace(COMMENT_REGEX, "")
-                .split("\r\n", "\n")
-                .map(String::trim)
-                .filter { !it.startsWith("//") }
-                .joinToString("")
-        }
+        // doesn't need to be synchronized, it's not touching any CSS classes
+        return content.replace(COMMENT_REGEX, "")
+            .split("\r\n", "\n")
+            .map(String::trim)
+            .filter { !it.startsWith("//") }
+            .joinToString("")
     }
 
     companion object {
-        private val CLASS_ATTR_REGEX = """class="([a-z- ]+?)"""".toRegex()
-        private val COMMENT_REGEX = "/\\*.*?\\*/".toRegex(RegexOption.DOT_MATCHES_ALL)
+        val CLASS_ATTR_REGEX = """class="([a-z- ]+?)"""".toRegex()
+        val COMMENT_REGEX = "/\\*.*?\\*/".toRegex(RegexOption.DOT_MATCHES_ALL)
     }
 }
+
+/**
+ * Generates an alphabetical string based on an integer value.
+ *
+ * @param i the integer
+ * @return the string
+ */
+fun minifiedClass(i: Int): String = if (i < 0) "" else minifiedClass(i / 26 - 1) + (65 + i % 26).toChar()

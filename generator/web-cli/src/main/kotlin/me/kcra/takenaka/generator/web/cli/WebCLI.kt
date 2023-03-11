@@ -29,7 +29,7 @@ import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.generator.common.cli.CLI
 import me.kcra.takenaka.generator.web.*
-import me.kcra.takenaka.generator.web.transformers.Minifier
+import me.kcra.takenaka.generator.web.transformers.DeterministicMinifier
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import mu.KotlinLogging
 
@@ -54,7 +54,7 @@ class WebCLI : CLI {
 
         val transformers = mutableListOf<Transformer>()
         if (isProduction) {
-            transformers += Minifier()
+            transformers += DeterministicMinifier()
         }
 
         val concurrencyLimit = System.getProperty("me.kcra.takenaka.generator.web.concurrencyLimit", "-1").toInt()
