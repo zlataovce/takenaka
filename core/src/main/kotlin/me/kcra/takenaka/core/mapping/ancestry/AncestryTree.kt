@@ -22,7 +22,7 @@ import me.kcra.takenaka.core.mapping.VersionedMappingMap
 import me.kcra.takenaka.core.util.firstEntryUnsafe
 import me.kcra.takenaka.core.util.lastEntryUnsafe
 import net.fabricmc.mappingio.tree.MappingTreeView.*
-import java.util.Collections
+import java.util.*
 
 /**
  * A mapping ancestry tree.
@@ -31,28 +31,30 @@ import java.util.Collections
  * @property allowedNamespaces namespace IDs used for computing history, distinguished by version
  * @author Matouš Kučera
  */
-class AncestryTree<T : ElementMappingView>(nodes: List<Node<T>>, val allowedNamespaces: Map<Version, List<Int>>) : List<AncestryTree.Node<T>> by nodes {
+class AncestryTree<T : ElementMappingView>(
+    nodes: List<Node<T>>,
+    val allowedNamespaces: Map<Version, List<Int>>
+) : List<AncestryTree.Node<T>> by nodes {
     /**
-     * A node in the ancestry tree.
+     * A node in the ancestry tree, immutable.
      * This represents one element (class, field, method) in multiple versions.
      *
      * @param tree the tree that this node belongs to
      * @property delegate the map that operations are delegated to
      */
-    class Node<T : ElementMappingView>(val tree: AncestryTree<T>, internal val delegate: Map<Version, T>) : Map<Version, T> by delegate {
+    class Node<T : ElementMappingView>(
+        val tree: AncestryTree<T>,
+        internal val delegate: Map<Version, T>
+    ) : Map<Version, T> by delegate {
         /**
-         * Returns the first inserted version mapping (newest).
-         *
-         * @return the version entry
+         * The first version mapping (oldest).
          */
-        fun first() = delegate.firstEntryUnsafe()
+        val first by lazy(delegate::firstEntryUnsafe)
 
         /**
-         * Returns the last inserted version mapping (oldest).
-         *
-         * @return the version entry
+         * The last version mapping (newest).
          */
-        fun last() = delegate.lastEntryUnsafe()
+        val last by lazy(delegate::lastEntryUnsafe)
     }
 
     /**
@@ -62,8 +64,9 @@ class AncestryTree<T : ElementMappingView>(nodes: List<Node<T>>, val allowedName
      * @return the node, null if not found
      */
     operator fun get(key: String): Node<T>? = find { node ->
-        val (lastVersion, lastMapping) = node.first()
-        val lastNames = allowedNamespaces[lastVersion]?.mapNotNull(lastMapping::getDstName)
+        val (lastVersion, lastMapping) = node.last
+        val lastNames = allowedNamespaces[lastVersion]
+            ?.mapNotNull(lastMapping::getDstName)
             ?: return@find false
 
         return@find lastNames.any(key::equals)
@@ -92,7 +95,7 @@ class AncestryTreeBuilder<T : ElementMappingView> {
      * @param block the search predicate
      * @return the node
      */
-    fun resolveNode(block: (MutableNode<T>) -> Boolean): MutableNode<T> = nodes.find(block) ?: emptyNode()
+    fun findOrEmpty(block: (MutableNode<T>) -> Boolean): MutableNode<T> = nodes.find(block) ?: emptyNode()
 
     /**
      * Creates a new empty node and appends it to the builder.
@@ -125,23 +128,44 @@ class AncestryTreeBuilder<T : ElementMappingView> {
     /**
      * A node in the ancestry tree, mutable.
      *
+     * **NOTE:** this implementation keeps track of the head and tail entries,
+     * unlike [AncestryTree.Node], which delegates these operations to the underlying map.
+     *
      * @property delegate the map that operations are delegated to
      * @see AncestryTree.Node
      */
-    class MutableNode<T : ElementMappingView>(internal val delegate: MutableMap<Version, T> = mutableMapOf()) : MutableMap<Version, T> by delegate {
+    class MutableNode<T : ElementMappingView>(
+        internal val delegate: MutableMap<Version, T> = mutableMapOf()
+    ) : MutableMap<Version, T> by delegate {
         /**
-         * Returns the first inserted version mapping (newest).
-         *
-         * @return the version entry
+         * The first version mapping (oldest).
          */
-        fun first() = delegate.firstEntryUnsafe()
+        lateinit var first: Pair<Version, T>
 
         /**
-         * Returns the last inserted version mapping (oldest).
-         *
-         * @return the version entry
+         * The last version mapping (newest).
          */
-        fun last() = delegate.lastEntryUnsafe()
+        lateinit var last: Pair<Version, T>
+
+        init {
+            if (delegate.isNotEmpty()) {
+                first = delegate.firstEntryUnsafe().toPair()
+                last = delegate.lastEntryUnsafe().toPair()
+            }
+        }
+
+        override fun put(key: Version, value: T): T? {
+            val oldValue = delegate.put(key, value)
+
+            if (!::first.isInitialized) {
+                first = key to value
+            }
+            if (oldValue == null) {
+                last = key to value
+            }
+
+            return oldValue
+        }
     }
 }
 
@@ -162,7 +186,8 @@ inline fun <T : ElementMappingView> buildAncestryTree(block: AncestryTreeBuilder
  * @return the ancestry tree
  */
 fun classAncestryTreeOf(mappings: VersionedMappingMap, allowedNamespaces: List<String> = emptyList()): AncestryTree<ClassMappingView> = buildAncestryTree {
-    mappings.forEach { (version, tree) ->
+    // convert to sorted map to ensure proper ordering
+    mappings.toSortedMap().forEach { (version, tree) ->
         val treeAllowedNamespaces = allowedNamespaces
             .map(tree::getNamespaceId)
             .filter { it != NULL_NAMESPACE_ID }
@@ -174,12 +199,12 @@ fun classAncestryTreeOf(mappings: VersionedMappingMap, allowedNamespaces: List<S
             val classMappings = treeAllowedNamespaces.mapNotNull(klass::getDstName)
             // do we have a node with one or more equal names in the last version?
             // if we don't, make a new node and append it to the tree
-            val node = resolveNode { node ->
-                val (lastVersion, lastMapping) = node.last()
+            val node = findOrEmpty { node ->
+                val (lastVersion, lastMapping) = node.last
                 val lastNames = this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNull(lastMapping::getDstName)
                     ?: error("Version ${version.id} has not been mapped yet, make sure mappings are sorted correctly")
 
-                return@resolveNode !Collections.disjoint(lastNames, classMappings)
+                return@findOrEmpty !Collections.disjoint(lastNames, classMappings)
             }
 
             // add the entry for this version to the node
@@ -208,14 +233,14 @@ fun fieldAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTre
 
             // do we have a node with one or more equal name-descriptor pairs in the last version?
             // if we don't, make a new node and append it to the tree
-            val node = resolveNode { node ->
-                val (lastVersion, lastMapping) = node.last()
+            val node = findOrEmpty { node ->
+                val (lastVersion, lastMapping) = node.last
                 val lastNames = klass.tree.allowedNamespaces[lastVersion]
                     ?.map { lastMapping.getDstName(it) to lastMapping.getDstDesc(it) }
                     ?.filter { it.first != null && it.second != null }
                     ?: error("Version ${version.id} has not been mapped yet")
 
-                return@resolveNode !Collections.disjoint(lastNames, fieldMappings)
+                return@findOrEmpty !Collections.disjoint(lastNames, fieldMappings)
             }
 
             // add the entry for this version to the node
@@ -244,14 +269,14 @@ fun methodAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTr
 
             // do we have a node with one or more equal name-descriptor pairs in the last version?
             // if we don't, make a new node and append it to the tree
-            val node = resolveNode { node ->
-                val (lastVersion, lastMapping) = node.last()
+            val node = findOrEmpty { node ->
+                val (lastVersion, lastMapping) = node.last
                 val lastNames = klass.tree.allowedNamespaces[lastVersion]
                     ?.map { lastMapping.getDstName(it) to lastMapping.getDstDesc(it) }
                     ?.filter { it.first != null && it.second != null }
                     ?: error("Version ${version.id} has not been mapped yet")
 
-                return@resolveNode !Collections.disjoint(lastNames, methodMappings)
+                return@findOrEmpty !Collections.disjoint(lastNames, methodMappings)
             }
 
             // add the entry for this version to the node
