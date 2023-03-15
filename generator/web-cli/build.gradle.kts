@@ -7,22 +7,17 @@ plugins {
 apply(plugin = "org.jetbrains.kotlin.jvm")
 
 dependencies {
-    implementation(project(":generator-common-cli"))
     implementation(project(":generator-web"))
+    implementation(libs.kotlinx.cli.jvm)
+    runtimeOnly(libs.slf4j.simple)
 }
 
 application {
-    mainClass.set("me.kcra.takenaka.generator.common.cli.Main")
-}
-
-tasks.withType<JavaExec> {
-    System.getProperties().forEach { k, v ->
-        systemProperty(k.toString(), v)
-    }
+    mainClass.set("me.kcra.takenaka.generator.web.cli.Main")
 }
 
 tasks.withType<Jar> {
     manifest {
-        attributes["Main-Class"] = "me.kcra.takenaka.generator.common.cli.Main"
+        attributes["Main-Class"] = "me.kcra.takenaka.generator.web.cli.Main"
     }
 }

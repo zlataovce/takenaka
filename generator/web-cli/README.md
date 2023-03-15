@@ -2,16 +2,28 @@
 
 This is the CLI interface for the web documentation generator.
 
-Refer to the [generator-common-cli README](../common-cli/README.md) for command-line options.
+## Options
 
-## Properties
+```bash
+$ java -jar generator-web-cli-0.0.1-SNAPSHOT-all.jar --help
+Usage: web-cli options_list
+Options:
+    --output, -o [output] -> Output directory { String }
+    --version, -v -> Target Minecraft version, can be specified multiple times (always required) { String }
+    --cache, -c [mapping-cache] -> Caching directory for mappings { String }
+    --strictCache [false] -> Enforces strict cache validation
+    --clean [false] -> Removes previous build output and cache before launching
+    --minifier, -m [DETERMINISTIC] -> The minifier implementation used for minifying the documentation { Value should be one of [deterministic, normal, none] }
+    --parallelismLimit [-1] -> Parallelism limit of the coroutine context { Int }
+    --javadoc, -j -> Javadoc site that should be referenced in the documentation, can be specified multiple times { String }
+    --skipSynthetic [true] -> Excludes synthetic classes and class members from the documentation
+    --help, -h -> Usage info
+```
 
-* `me.kcra.takenaka.generator.web.minify` (boolean, defaults to `true`) - Whether all files should be minified to decrease file size.
-* `me.kcra.takenaka.generator.web.minify.deterministic` (boolean, defaults to `true`) - Whether the output of the minifier should be consistent across runs (useful for diffing the output, but increases file size).
-* `me.kcra.takenaka.generator.web.concurrencyLimit` (integer, defaults to `-1` [no limit]) - The parallelism limit for the coroutine dispatcher, an appropriate value is chosen by default.
-* `me.kcra.takenaka.generator.web.index.foreign` (a complex expression) - Javadoc sites to be linked to in the generated output.
-  * the value is a comma-separated (no space after the comma) list of strings, and the string can be:
-    * a plus-sign delimited pair of a supported package and a link to the Javadoc root (Javadoc sites _with no modules_): `org.slf4j+https://www.slf4j.org/api`
-    * a link to the Javadoc root (Javadoc sites _with modules_): `https://docs.oracle.com/en/java/javase/17/docs/api`
-* `me.kcra.takenaka.generator.web.index.jdk` (boolean, defaults to `true`) - Whether the JDK 17 site should be indexed for linking.
-* `me.kcra.takenaka.generator.web.skipSynthetics` (boolean, defaults to `true`) - Whether synthetic classes and their members should be skipped.
+### javadoc
+
+The value can be:
+* a plus-sign delimited pair of a supported package and a link to the Javadoc root (Javadoc sites _with no modules_): `org.slf4j+https://www.slf4j.org/api`
+* a link to the Javadoc root (Javadoc sites _with modules_): `https://docs.oracle.com/en/java/javase/17/docs/api`
+
+**Java 17 API is included automatically for indexing.**

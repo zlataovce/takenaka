@@ -53,7 +53,7 @@ import kotlin.io.path.writer
  * @param mappingWorkspace the workspace in which the mappings are stored
  * @param contributorProvider a function that provides mapping contributors to be processed
  * @param coroutineDispatcher the Kotlin Coroutines context
- * @param skipSynthetics whether synthetic classes and their members should be skipped
+ * @param skipSynthetic whether synthetic classes and their members should be skipped
  * @param transformers a list of transformers that transform the output
  * @param namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @param namespaces a map of namespaces and their descriptions, unspecified namespaces will not be shown
@@ -67,13 +67,13 @@ class WebGenerator(
     mappingWorkspace: CompositeWorkspace,
     contributorProvider: ContributorProvider,
     coroutineDispatcher: CoroutineContext,
-    skipSynthetics: Boolean,
+    skipSynthetic: Boolean,
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaces: Map<String, NamespaceDescription> = emptyMap(),
     val index: ClassSearchIndex = emptyClassSearchIndex(),
     val spigotLikeNamespaces: List<String> = emptyList()
-) : AbstractGenerator(workspace, versions, coroutineDispatcher, skipSynthetics, mappingWorkspace, contributorProvider) {
+) : AbstractGenerator(workspace, versions, coroutineDispatcher, skipSynthetic, mappingWorkspace, contributorProvider) {
     private val namespaceFriendlyNames = namespaces.mapValues { it.value.friendlyName }
     private val hasMinifier = transformers.any { it is Minifier }
 

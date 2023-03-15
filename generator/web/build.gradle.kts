@@ -4,8 +4,8 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":generator-common"))
-    implementation(libs.kotlinx.html.jvm)
+    api(project(":generator-common"))
+    api(libs.kotlinx.html.jvm)
     testImplementation(kotlin("test"))
     testRuntimeOnly(libs.slf4j.simple)
 }

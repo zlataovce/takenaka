@@ -43,7 +43,7 @@ typealias ContributorProvider = AbstractGenerator.(VersionedWorkspace) -> List<M
  * @param workspace the workspace in which this generator can move around
  * @param versions the Minecraft versions that this generator will process
  * @param coroutineDispatcher the Kotlin Coroutines context
- * @param skipSynthetics whether synthetic classes and their members should be skipped
+ * @param skipSynthetic whether synthetic classes and their members should be skipped
  * @param mappingWorkspace the workspace in which the mappings are stored
  * @param contributorProvider a function that provides mapping contributors to be processed
  * @author Matouš Kučera
@@ -52,7 +52,7 @@ abstract class AbstractGenerator(
     val workspace: Workspace,
     val versions: List<String>,
     val coroutineDispatcher: CoroutineContext = Dispatchers.IO,
-    val skipSynthetics: Boolean = false,
+    val skipSynthetic: Boolean = false,
     private val mappingWorkspace: CompositeWorkspace,
     private val contributorProvider: ContributorProvider
 ) {
@@ -97,7 +97,7 @@ abstract class AbstractGenerator(
                     interceptAfter { tree ->
                         tree.filterWithModifiers()
 
-                        if (skipSynthetics) {
+                        if (skipSynthetic) {
                             tree.filterNonSynthetic()
                         }
 
