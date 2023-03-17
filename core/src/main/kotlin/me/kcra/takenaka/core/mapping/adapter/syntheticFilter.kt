@@ -29,7 +29,7 @@ private val logger = KotlinLogging.logger {}
  *
  * This filter relies on the presence of [VanillaMappingContributor.NS_MODIFIERS], so make sure you visit [VanillaMappingContributor] beforehand.
  */
-fun MappingTree.filterNonSynthetic() {
+fun MappingTree.removeSyntheticElements() {
     val namespaceId = getNamespaceId(VanillaMappingContributor.NS_MODIFIERS)
     if (namespaceId == MappingTree.NULL_NAMESPACE_ID) {
         error("Mapping tree has not visited modifiers before")
@@ -37,35 +37,41 @@ fun MappingTree.filterNonSynthetic() {
 
     fun MappingTree.ElementMapping.getModifiers(): Int = getDstName(namespaceId)?.toIntOrNull() ?: 0
 
-    val classesForRemoval = mutableListOf<MappingTree.ClassMapping>()
-    classes.forEach { klass ->
+    var removedClasses = 0
+    classes.removeIf klassRemove@ { klass ->
         if ((klass.getModifiers() and Opcodes.ACC_SYNTHETIC) != 0) {
             logger.debug { "removed class ${klass.srcName}, synthetic" }
-            classesForRemoval += klass
-            return@forEach
+            removedClasses++
+
+            return@klassRemove true
         }
 
-        val fieldsForRemoval = mutableListOf<MappingTree.FieldMapping>()
-        klass.fields.forEach { field ->
-            if ((field.getModifiers() and Opcodes.ACC_SYNTHETIC) != 0) {
+        var removedFields = 0
+        klass.fields.removeIf fieldRemove@ { field ->
+            val removed = (field.getModifiers() and Opcodes.ACC_SYNTHETIC) != 0
+            if (removed) {
                 logger.debug { "removed field ${klass.srcName}#${field.srcName} ${field.srcDesc}, synthetic" }
-                fieldsForRemoval += field
+                removedFields++
             }
-        }
-        fieldsForRemoval.forEach { field -> klass.removeField(field.srcName, field.srcDesc) }
-        logger.debug { "removed ${fieldsForRemoval.size} synthetic field(s) in class ${klass.srcName}" }
 
-        val methodsForRemoval = mutableListOf<MappingTree.MethodMapping>()
-        klass.methods.forEach { method ->
-            if ((method.getModifiers() and Opcodes.ACC_SYNTHETIC) != 0) {
-                logger.debug { "removed method ${klass.srcName}#${method.srcName}${method.srcDesc}, synthetic" }
-                methodsForRemoval += method
-            }
+            return@fieldRemove removed
         }
-        methodsForRemoval.forEach { method -> klass.removeMethod(method.srcName, method.srcDesc) }
-        logger.debug { "removed ${methodsForRemoval.size} synthetic method(s) in class ${klass.srcName}" }
+        logger.debug { "removed $removedFields synthetic field(s) in class ${klass.srcName}" }
+
+        var removedMethods = 0
+        klass.methods.removeIf methodRemove@ { method ->
+            val removed = (method.getModifiers() and Opcodes.ACC_SYNTHETIC) != 0
+            if (removed) {
+                logger.debug { "removed method ${klass.srcName}#${method.srcName}${method.srcDesc}, synthetic" }
+                removedMethods++
+            }
+
+            return@methodRemove removed
+        }
+        logger.debug { "removed $removedMethods synthetic method(s) in class ${klass.srcName}" }
+
+        return@klassRemove false
     }
 
-    classesForRemoval.forEach { klass -> removeClass(klass.srcName) }
-    logger.info { "removed ${classesForRemoval.size} synthetic class(es)" }
+    logger.info { "removed $removedClasses synthetic class(es)" }
 }

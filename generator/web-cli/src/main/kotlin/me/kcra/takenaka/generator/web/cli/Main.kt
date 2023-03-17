@@ -153,6 +153,8 @@ fun main(args: Array<String>) {
         },
         coroutineDispatcher,
         skipSynthetic,
+        // Searge adds their ID namespace sometimes, so don't perform any corrections on that
+        VanillaMappingContributor.NAMESPACES + "searge_id",
         transformers,
         listOf("mojang", "spigot", "searge", "intermediary", "source"),
         mapOf(
@@ -178,7 +180,7 @@ fun main(args: Array<String>) {
             ),
             "source" to namespaceDescOf("Obfuscated", "#581C87")
         ),
-        compositeClassSearchIndexOf(*indexers.toTypedArray()),
+        CompositeClassSearchIndex(indexers),
         listOf("spigot")
     )
 

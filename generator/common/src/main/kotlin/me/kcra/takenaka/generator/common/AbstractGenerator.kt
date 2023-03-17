@@ -42,19 +42,21 @@ typealias ContributorProvider = AbstractGenerator.(VersionedWorkspace) -> List<M
  *
  * @param workspace the workspace in which this generator can move around
  * @param versions the Minecraft versions that this generator will process
- * @param coroutineDispatcher the Kotlin Coroutines context
- * @param skipSynthetic whether synthetic classes and their members should be skipped
  * @param mappingWorkspace the workspace in which the mappings are stored
  * @param contributorProvider a function that provides mapping contributors to be processed
+ * @param coroutineDispatcher the Kotlin Coroutines context
+ * @param skipSynthetic whether synthetic classes and their members should be skipped
+ * @param correctNamespaces namespaces excluded from any correction, these are artificial (non-mapping) namespaces defined in the core library by default
  * @author Matouš Kučera
  */
 abstract class AbstractGenerator(
     val workspace: Workspace,
     val versions: List<String>,
+    val mappingWorkspace: CompositeWorkspace,
+    val contributorProvider: ContributorProvider,
     val coroutineDispatcher: CoroutineContext = Dispatchers.IO,
     val skipSynthetic: Boolean = false,
-    private val mappingWorkspace: CompositeWorkspace,
-    private val contributorProvider: ContributorProvider
+    val correctNamespaces: List<String> = VanillaMappingContributor.NAMESPACES
 ) {
     /**
      * An object mapper instance for this generator.
@@ -95,16 +97,16 @@ abstract class AbstractGenerator(
                     contributor(contributorProvider(versionWorkspace))
 
                     interceptAfter { tree ->
-                        tree.filterWithModifiers()
+                        tree.removeElementsWithoutModifiers()
 
                         if (skipSynthetic) {
-                            tree.filterNonSynthetic()
+                            tree.removeSyntheticElements()
                         }
 
-                        tree.filterNonStaticInitializer()
+                        tree.removeStaticInitializers()
 
                         tree.dstNamespaces.forEach { ns ->
-                            if (ns in VanillaMappingContributor.NAMESPACES) return@forEach
+                            if (ns in correctNamespaces) return@forEach
 
                             tree.completeMethodOverrides(ns)
                         }

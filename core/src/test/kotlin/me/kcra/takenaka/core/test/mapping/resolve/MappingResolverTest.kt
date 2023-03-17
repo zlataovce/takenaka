@@ -38,7 +38,8 @@ import kotlin.system.measureTimeMillis
 import kotlin.test.Test
 
 val VERSIONS = listOf(
-    "1.19.3",
+    "1.19.4",
+    // "1.19.3",
     // "1.19.2",
     // "1.19.1",
     // "1.19",
@@ -127,9 +128,9 @@ suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper
         }
 
         interceptAfter { tree ->
-            tree.filterWithModifiers()
-            tree.filterNonSynthetic()
-            tree.filterNonStaticInitializer()
+            tree.removeElementsWithoutModifiers()
+            tree.removeSyntheticElements()
+            tree.removeStaticInitializers()
             tree.completeInnerClassNames("spigot")
 
             tree.dstNamespaces.forEach { ns ->

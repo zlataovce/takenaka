@@ -30,7 +30,7 @@ private val logger = KotlinLogging.logger {}
  *
  * @param namespace the namespace, whose mappings are to be modified
  */
-fun MappingTree.replaceCraftBukkitNMSVersion(namespace: String = "spigot") {
+fun MappingTree.replaceCraftBukkitNMSVersion(namespace: String) {
     val namespaceId = getNamespaceId(namespace)
     if (namespaceId == MappingTree.NULL_NAMESPACE_ID) {
         error("Namespace is not present in the mapping tree")

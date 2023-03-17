@@ -30,41 +30,47 @@ private val logger = KotlinLogging.logger {}
  *
  * These may include client classes or erroneous mappings.
  */
-fun MappingTree.filterWithModifiers() {
+fun MappingTree.removeElementsWithoutModifiers() {
     val namespaceId = getNamespaceId(VanillaMappingContributor.NS_MODIFIERS)
     if (namespaceId == MappingTree.NULL_NAMESPACE_ID) {
         error("Mapping tree has not visited modifiers before")
     }
 
-    val classesForRemoval = mutableListOf<String>()
-    classes.forEach { klass ->
+    var removedClasses = 0
+    classes.removeIf klassRemove@ { klass ->
         if (klass.getDstName(namespaceId) == null) {
             logger.debug { "removed class ${klass.srcName}, missing modifiers" }
-            classesForRemoval += klass.srcName
-            return@forEach
+            removedClasses++
+
+            return@klassRemove true
         }
 
-        val fieldsForRemoval = mutableMapOf<String, String>()
-        klass.fields.forEach { field ->
-            if (field.getDstName(namespaceId) == null) {
+        var removedFields = 0
+        klass.fields.removeIf fieldRemove@ { field ->
+            val removed = field.getDstName(namespaceId) == null
+            if (removed) {
                 logger.debug { "removed field ${klass.srcName}#${field.srcName} ${field.srcDesc}, missing modifiers" }
-                fieldsForRemoval += field.srcName to field.srcDesc
+                removedFields++
             }
-        }
-        fieldsForRemoval.forEach { (name, desc) -> klass.removeField(name, desc) }
-        logger.debug { "removed ${fieldsForRemoval.size} field(s) without modifiers in class ${klass.srcName}" }
 
-        val methodsForRemoval = mutableMapOf<String, String>()
-        klass.methods.forEach { method ->
-            if (method.getDstName(namespaceId) == null) {
-                logger.debug { "removed method ${klass.srcName}#${method.srcName}${method.srcDesc}, missing modifiers" }
-                methodsForRemoval += method.srcName to method.srcDesc
-            }
+            return@fieldRemove removed
         }
-        methodsForRemoval.forEach { (name, desc) -> klass.removeMethod(name, desc) }
-        logger.debug { "removed ${methodsForRemoval.size} method(s) without modifiers in class ${klass.srcName}" }
+        logger.debug { "removed $removedFields field(s) without modifiers in class ${klass.srcName}" }
+
+        var removedMethods = 0
+        klass.methods.removeIf methodRemove@ { method ->
+            val removed = method.getDstName(namespaceId) == null
+            if (removed) {
+                logger.debug { "removed method ${klass.srcName}#${method.srcName}${method.srcDesc}, missing modifiers" }
+                removedMethods++
+            }
+
+            return@methodRemove removed
+        }
+        logger.debug { "removed $removedMethods method(s) without modifiers in class ${klass.srcName}" }
+
+        return@klassRemove false
     }
 
-    classesForRemoval.forEach { removeClass(it) }
-    logger.info { "removed ${classesForRemoval.size} class(es) without modifiers" }
+    logger.info { "removed $removedClasses class(es) without modifiers" }
 }
