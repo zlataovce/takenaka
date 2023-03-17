@@ -18,47 +18,35 @@
 package me.kcra.takenaka.core.test.mapping.ancestry
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
-import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.compositeWorkspace
-import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
+import me.kcra.takenaka.core.mapping.VersionedMappingMap
 import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
 import me.kcra.takenaka.core.test.mapping.resolve.resolveMappings
 import me.kcra.takenaka.core.util.objectMapper
-import net.fabricmc.mappingio.tree.MappingTreeView
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 
 class ClassAncestryTest {
     private val objectMapper = objectMapper()
     private val xmlMapper = XmlMapper()
-    private val workspaceDir = "test-workspace"
 
-    @Test
-    fun `resolve mappings for supported versions and make an ancestry tree`() {
+    lateinit var mappings: VersionedMappingMap
+
+    @BeforeTest
+    fun `resolve mappings`() {
         val workspace = compositeWorkspace {
-            rootDirectory(workspaceDir)
+            rootDirectory("test-workspace")
 
             resolverOptions {
                 relaxedCache()
             }
         }
 
-        val mappings = workspace.resolveMappings(objectMapper, xmlMapper, save = true)
-        val tree = classAncestryTreeOf(mappings, allowedNamespaces = listOf("mojang", "searge", "intermediary", "spigot"))
-
-        tree.forEachIndexed { index, node ->
-            println("Node $index: ${node.size} mapped versions")
-        }
-        println("Mapped ${tree.size} classes")
-
-        val klass = tree["net/minecraft/network/protocol/Packet"]
-        klass?.forEach { (version, _) ->
-            println("${version.id}: ${klass.getNamesForVersion(version)}")
-        }
+        mappings = workspace.resolveMappings(listOf("1.19.3", "1.18.2"), objectMapper, xmlMapper)
     }
-}
 
-fun AncestryTree.Node<MappingTreeView.ClassMappingView>.getNamesForVersion(version: Version): List<String> {
-    val klass = this[version] ?: return emptyList()
-
-    return tree.allowedNamespaces[version]?.mapNotNull(klass::getDstName) ?: emptyList()
+    @Test
+    fun `make an ancestry tree`() {
+        classAncestryTreeOf(mappings, allowedNamespaces = listOf("mojang", "searge", "intermediary", "spigot"))
+    }
 }

@@ -33,8 +33,6 @@ class VersionManifestTest {
     fun `fetch and deserialize the version manifest`() {
         val manifest = objectMapper.versionManifest()
 
-        println(manifest)
-
         assertNotNull(manifest["1.12.2"], message = "did not find 1.12.2 in the manifest")
         assertNotNull(manifest["1.19"], message = "did not find 1.19 in the manifest")
     }
@@ -42,8 +40,6 @@ class VersionManifestTest {
     @Test
     fun `fetch and deserialize the spigot version manifest`() {
         val spigotManifest = objectMapper.readValue<SpigotVersionManifest>(URL("https://hub.spigotmc.org/versions/1.19.2.json"))
-
-        println(spigotManifest)
 
         assertEquals(spigotManifest.refs.keys, setOf("BuildData", "Bukkit", "CraftBukkit", "Spigot"), message = "1.19.2 refs mismatch")
     }

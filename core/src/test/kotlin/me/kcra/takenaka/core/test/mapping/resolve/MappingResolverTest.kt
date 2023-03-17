@@ -27,14 +27,7 @@ import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.buildMappingTree
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
-import net.fabricmc.mappingio.format.Tiny2Reader
-import net.fabricmc.mappingio.format.Tiny2Writer
 import net.fabricmc.mappingio.tree.MappingTree
-import net.fabricmc.mappingio.tree.MemoryMappingTree
-import kotlin.io.path.isRegularFile
-import kotlin.io.path.reader
-import kotlin.io.path.writer
-import kotlin.system.measureTimeMillis
 import kotlin.test.Test
 
 val VERSIONS = listOf(
@@ -80,47 +73,39 @@ val VERSIONS = listOf(
 class MappingResolverTest {
     private val objectMapper = objectMapper()
     private val xmlMapper = XmlMapper()
-    private val workspaceDir = "test-workspace"
 
     @Test
     fun `resolve mappings for supported versions`() {
         val workspace = compositeWorkspace {
-            rootDirectory(workspaceDir)
+            rootDirectory("test-workspace")
 
             resolverOptions {
                 relaxedCache()
             }
         }
 
-        val time = measureTimeMillis {
-            workspace.resolveMappings(objectMapper, xmlMapper)
-        }
-        val cachedTime = measureTimeMillis {
-            workspace.resolveMappings(objectMapper, xmlMapper)
-        }
-
-        println("Elapsed ${time / 1000}s, cached ${cachedTime / 1000}s")
+        workspace.resolveMappings(VERSIONS, objectMapper, xmlMapper)
     }
 }
 
-suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper, xmlMapper: ObjectMapper): MappingTree = coroutineScope {
+suspend fun VersionedWorkspace.resolveMappings(objectMapper: ObjectMapper, xmlMapper: ObjectMapper): MappingTree = coroutineScope {
     return@coroutineScope buildMappingTree {
         val _prependedClasses = mutableListOf<String>()
 
-        contributor(listOf(
-            MojangServerMappingResolver(this@resolveVersionMappings, objectMapper),
-            IntermediaryMappingResolver(this@resolveVersionMappings),
-            SeargeMappingResolver(this@resolveVersionMappings),
+        contributor(
+            MojangServerMappingResolver(this@resolveMappings, objectMapper),
+            IntermediaryMappingResolver(this@resolveMappings),
+            SeargeMappingResolver(this@resolveMappings),
             // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
             // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
-            WrappingContributor(SpigotClassMappingResolver(this@resolveVersionMappings, objectMapper, xmlMapper)) {
+            WrappingContributor(SpigotClassMappingResolver(this@resolveMappings, objectMapper, xmlMapper)) {
                 LegacySpigotMappingPrepender(it, prependedClasses = _prependedClasses)
             },
-            WrappingContributor(SpigotMemberMappingResolver(this@resolveVersionMappings, objectMapper, xmlMapper)) {
+            WrappingContributor(SpigotMemberMappingResolver(this@resolveMappings, objectMapper, xmlMapper)) {
                 LegacySpigotMappingPrepender(it, prependedClasses = _prependedClasses)
             },
-            VanillaMappingContributor(this@resolveVersionMappings, objectMapper)
-        ))
+            VanillaMappingContributor(this@resolveMappings, objectMapper)
+        )
 
         interceptBefore { tree ->
             NamespaceFilter(MissingDescriptorFilter(tree), "searge_id")
@@ -141,30 +126,18 @@ suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper
     }
 }
 
-fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, xmlMapper: ObjectMapper, save: Boolean = false): VersionedMappingMap = runBlocking {
+fun CompositeWorkspace.resolveMappings(versions: List<String>, objectMapper: ObjectMapper, xmlMapper: ObjectMapper): VersionedMappingMap = runBlocking {
     val manifest = objectMapper.versionManifest()
     val jobs = mutableListOf<Deferred<Pair<Version, MappingTree>>>()
 
-    VERSIONS.forEach {
-        val version = manifest[it] ?: error("did not find $it in manifest")
-
+    versions.forEach {
         jobs += async {
+            val version = manifest[it] ?: error("did not find $it in manifest")
             val workspace by createVersioned {
                 this.version = version
             }
-            val savedFile = workspace["joined.tiny"]
-            if (save && savedFile.isRegularFile()) {
-                return@async version to MemoryMappingTree().apply { Tiny2Reader.read(savedFile.reader(), this) }
-            }
 
-            val tree = workspace.resolveVersionMappings(objectMapper, xmlMapper)
-
-            if (save) {
-                Tiny2Writer(savedFile.writer(), false)
-                    .use { writer -> tree.accept(writer) }
-            }
-
-            return@async version to tree
+            return@async version to workspace.resolveMappings(objectMapper, xmlMapper)
         }
     }
 
