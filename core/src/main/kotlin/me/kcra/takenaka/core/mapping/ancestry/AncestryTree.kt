@@ -19,8 +19,7 @@ package me.kcra.takenaka.core.mapping.ancestry
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
-import me.kcra.takenaka.core.util.firstEntryUnsafe
-import me.kcra.takenaka.core.util.lastEntryUnsafe
+import me.kcra.takenaka.core.util.entryOf
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 import java.util.*
 
@@ -39,23 +38,17 @@ class AncestryTree<T : ElementMappingView>(
      * A node in the ancestry tree, immutable.
      * This represents one element (class, field, method) in multiple versions.
      *
-     * @param tree the tree that this node belongs to
-     * @property delegate the map that operations are delegated to
+     * @property tree the tree that this node belongs to
+     * @param delegate the map that operations are delegated to
+     * @property first the first version mapping (oldest)
+     * @property last the last version mapping (newest)
      */
     class Node<T : ElementMappingView>(
         val tree: AncestryTree<T>,
-        internal val delegate: Map<Version, T>
-    ) : Map<Version, T> by delegate {
-        /**
-         * The first version mapping (oldest).
-         */
-        val first by lazy(delegate::firstEntryUnsafe)
-
-        /**
-         * The last version mapping (newest).
-         */
-        val last by lazy(delegate::lastEntryUnsafe)
-    }
+        delegate: Map<Version, T>,
+        val first: Map.Entry<Version, T> = delegate.entries.first(),
+        val last: Map.Entry<Version, T> = delegate.entries.last()
+    ) : Map<Version, T> by delegate
 
     /**
      * Tries to find a node with [key] as a mapping in the last mapped version.
@@ -121,36 +114,31 @@ class AncestryTreeBuilder<T : ElementMappingView> {
     fun toAncestryTree(): AncestryTree<T> {
         val immutableNodes = mutableListOf<AncestryTree.Node<T>>()
         return AncestryTree(immutableNodes, allowedNamespaces).apply {
-            immutableNodes += nodes.map { AncestryTree.Node(this, it) }
+            immutableNodes += nodes.map { AncestryTree.Node(this, it, it.first, it.last) }
         }
     }
 
     /**
      * A node in the ancestry tree, mutable.
      *
-     * **NOTE:** this implementation keeps track of the head and tail entries,
-     * unlike [AncestryTree.Node], which delegates these operations to the underlying map.
-     *
      * @property delegate the map that operations are delegated to
      * @see AncestryTree.Node
      */
-    class MutableNode<T : ElementMappingView>(
-        internal val delegate: MutableMap<Version, T> = mutableMapOf()
-    ) : MutableMap<Version, T> by delegate {
+    class MutableNode<T : ElementMappingView>(internal val delegate: MutableMap<Version, T> = mutableMapOf()) : MutableMap<Version, T> by delegate {
         /**
          * The first version mapping (oldest).
          */
-        lateinit var first: Pair<Version, T>
+        lateinit var first: Map.Entry<Version, T>
 
         /**
          * The last version mapping (newest).
          */
-        lateinit var last: Pair<Version, T>
+        lateinit var last: Map.Entry<Version, T>
 
         init {
             if (delegate.isNotEmpty()) {
-                first = delegate.firstEntryUnsafe().toPair()
-                last = delegate.lastEntryUnsafe().toPair()
+                first = delegate.entries.first()
+                last = delegate.entries.last()
             }
         }
 
@@ -158,10 +146,10 @@ class AncestryTreeBuilder<T : ElementMappingView> {
             val oldValue = delegate.put(key, value)
 
             if (!::first.isInitialized) {
-                first = key to value
+                first = entryOf(key, value)
             }
             if (oldValue == null) {
-                last = key to value
+                last = entryOf(key, value)
             }
 
             return oldValue
