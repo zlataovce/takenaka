@@ -22,6 +22,8 @@ import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
+import me.kcra.takenaka.core.mapping.adapter.isEnumValueOf
+import me.kcra.takenaka.core.mapping.adapter.isEnumValues
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.interfaces
 import me.kcra.takenaka.core.mapping.resolve.modifiers
@@ -63,9 +65,11 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                     klassDeclaration.formals?.unaryPlus()
                 }
             }
-            p(classes = "class-description") {
-                unsafe {
-                    +klassDeclaration.superTypes
+            if (klassDeclaration.superTypes != null) {
+                p(classes = "class-description") {
+                    unsafe {
+                        +klassDeclaration.superTypes
+                    }
                 }
             }
             spacerTopComponent()
@@ -211,9 +215,10 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                         klass.methods.forEach { method ->
                             // skip constructors
                             if (method.srcName == "<init>") return@forEach
+                            // skip implicit enum methods
+                            if ((klassDeclaration.modifiers and Opcodes.ACC_ENUM) != 0 && (method.isEnumValueOf || method.isEnumValues)) return@forEach
 
                             val methodMod = method.modifiers
-
                             tr {
                                 td(classes = "member-modifiers") {
                                     unsafe {
@@ -278,14 +283,14 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
  * @property modifiers the class's modifiers
  * @property modifiersAndName the stringified modifiers with the package-less class name
  * @property formals the formal generic type arguments of the class itself
- * @property superTypes the superclass and superinterfaces, including `extends` and `implements`, implicit ones are omitted
+ * @property superTypes the superclass and superinterfaces, including `extends` and `implements`, implicit ones are omitted (null if there are no non-implicit supertypes)
  */
 data class ClassDeclaration(
     val friendlyName: String,
     val modifiers: Int,
     val modifiersAndName: String,
     val formals: String?,
-    val superTypes: String
+    val superTypes: String?
 )
 
 /**
@@ -329,6 +334,14 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTree.ClassMapping, ver
         val formatter = signature.formatSignature(options, nameRemapper, null, index, version)
         formals = formatter.formals
         superTypes = formatter.superTypes
+
+        // remove the java/lang/Enum generic superclass, this is a hack and should have been done in SignatureFormatter,
+        // however you would have to skip the superclass and then the following type parameter, so I think that this is the simpler way
+        if ((mod and Opcodes.ACC_ENUM) != 0) {
+            val implementsClauseIndex = superTypes.indexOf("implements")
+
+            superTypes = if (implementsClauseIndex != -1) superTypes.substring(implementsClauseIndex) else ""
+        }
     } else {
         val superClass = klass.superClass
         val interfaces = klass.interfaces.filter { it != "java/lang/annotation/Annotation" }
@@ -352,7 +365,13 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTree.ClassMapping, ver
         }
     }
 
-    return ClassDeclaration(friendlyName, mod, modifiersAndName, formals, superTypes)
+    return ClassDeclaration(
+        friendlyName,
+        mod,
+        modifiersAndName,
+        formals,
+        superTypes.ifBlank { null }
+    )
 }
 
 /**
@@ -399,7 +418,7 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
 
         val formatter = signature.formatSignature(options, nameRemapper, linkRemapper, index, version)
         return MethodDeclaration(
-            formatter.formals.ifEmpty { null },
+            formatter.formals.ifBlank { null },
             formatter.args,
             formatter.returnType ?: error("Method signature without a return type"),
             formatter.exceptions

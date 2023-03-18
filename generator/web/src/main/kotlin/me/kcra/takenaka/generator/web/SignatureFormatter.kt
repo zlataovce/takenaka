@@ -150,6 +150,8 @@ object DefaultFormattingOptions {
  *
  * This is adapted from the [org.objectweb.asm.util.TraceSignatureVisitor] class.
  *
+ * **NOTE:** java/lang/Object and java/lang/Record superclasses are omitted automatically, **but java/lang/Enum is not**.
+ *
  * @author Eugene Kuleshov
  * @author Eric Bruneton
  * @author Matouš Kučera
@@ -411,7 +413,6 @@ class SignatureFormatter : SignatureVisitor {
     override fun visitClassType(name: String) {
         classNames.add(name)
 
-        // TODO: omit java/lang/Enum, take into consideration that Enum is generic, so it would visit the formals afterwards
         if (name == "java/lang/Object" || name == "java/lang/Record") {
             // 'Map<java.lang.Object,java.util.List>' or 'abstract public V get(Object key);' should have
             // Object 'but java.lang.String extends java.lang.Object' is unnecessary.

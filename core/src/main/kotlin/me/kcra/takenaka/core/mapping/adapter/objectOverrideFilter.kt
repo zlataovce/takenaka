@@ -54,3 +54,17 @@ inline val MappingTreeView.MethodMappingView.isToString: Boolean
  */
 inline val MappingTreeView.MethodMappingView.isHashCode: Boolean
     get() = srcName == "hashCode" && srcDesc == "()I"
+
+// more implicit methods, not used in removeObjectOverrides and not related to java/lang/Object
+
+/**
+ * Is this method a `valueOf` method of an enum?
+ */
+inline val MappingTreeView.MethodMappingView.isEnumValueOf: Boolean
+    get() = srcName == "valueOf" && srcDesc.startsWith("(Ljava/lang/String;)")
+
+/**
+ * Is this method a `values` method of an enum?
+ */
+inline val MappingTreeView.MethodMappingView.isEnumValues: Boolean
+    get() = srcName == "values" && srcDesc.startsWith("()[")
