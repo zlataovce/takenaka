@@ -216,25 +216,25 @@ class VanillaMappingContributor(
 /**
  * Gets the modifiers from the [VanillaMappingContributor.NS_MODIFIERS] namespace.
  */
-val MappingTreeView.ElementMappingView.modifiers: Int
+inline val MappingTreeView.ElementMappingView.modifiers: Int
     get() = getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: 0
 
 /**
  * Gets the generic signature from the [VanillaMappingContributor.NS_SIGNATURE] namespace.
  */
-val MappingTreeView.ElementMappingView.signature: String?
+inline val MappingTreeView.ElementMappingView.signature: String?
     get() = getName(VanillaMappingContributor.NS_SIGNATURE)
 
 /**
  * Gets the superclass from the [VanillaMappingContributor.NS_SUPER] namespace.
  */
-val MappingTreeView.ClassMappingView.superClass: String
+inline val MappingTreeView.ClassMappingView.superClass: String
     get() = getName(VanillaMappingContributor.NS_SUPER) ?: "java/lang/Object"
 
 /**
  * Gets interfaces from the [VanillaMappingContributor.NS_INTERFACES] namespace.
  */
-val MappingTreeView.ClassMappingView.interfaces: List<String>
+inline val MappingTreeView.ClassMappingView.interfaces: List<String>
     get() = getName(VanillaMappingContributor.NS_INTERFACES).parseInterfaces()
 
 /**

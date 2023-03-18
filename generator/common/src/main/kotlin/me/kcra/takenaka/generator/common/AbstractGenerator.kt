@@ -104,6 +104,7 @@ abstract class AbstractGenerator(
                         }
 
                         tree.removeStaticInitializers()
+                        tree.removeObjectOverrides()
 
                         tree.dstNamespaces.forEach { ns ->
                             if (ns in correctNamespaces) return@forEach
