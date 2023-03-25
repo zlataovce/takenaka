@@ -59,10 +59,18 @@ fun Path.getChecksum(digest: MessageDigest): String {
         }
     }
 
-    val bytes = digest.digest()
-    return buildString {
-        for (i in bytes.indices) {
-            append(((bytes[i].toInt() and 0xff) + 0x100).toString(16).substring(1))
+    return digest.hexValue
+}
+
+/**
+ * Returns the value of this digest in a hexadecimal format.
+ */
+val MessageDigest.hexValue: String
+    get() {
+        val bytes = digest()
+        return buildString {
+            for (i in bytes.indices) {
+                append(((bytes[i].toInt() and 0xff) + 0x100).toString(16).substring(1))
+            }
         }
     }
-}

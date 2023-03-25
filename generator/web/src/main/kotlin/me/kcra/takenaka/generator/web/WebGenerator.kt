@@ -26,6 +26,7 @@ import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.adapter.completeInnerClassNames
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
+import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.generator.common.AbstractGenerator
@@ -35,6 +36,7 @@ import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
 import me.kcra.takenaka.generator.web.transformers.Minifier
 import me.kcra.takenaka.generator.web.transformers.Transformer
+import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.tree.MappingTree
 import org.w3c.dom.Document
 import java.io.BufferedReader
@@ -62,6 +64,7 @@ import kotlin.io.path.writer
  * @param namespaces a map of namespaces and their descriptions, unspecified namespaces will not be shown
  * @param index a resolver for foreign class references
  * @param spigotLikeNamespaces namespaces that should have [replaceCraftBukkitNMSVersion] and [completeInnerClassNames] applied (most likely Spigot mappings or a flavor of them)
+ * @param historyAllowedNamespaces namespaces that should be used for computing history, empty if namespaces from [namespaceFriendlinessIndex] should be considered (excluding the obfuscated one)
  * @author Matouš Kučera
  */
 class WebGenerator(
@@ -76,7 +79,8 @@ class WebGenerator(
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaces: Map<String, NamespaceDescription> = emptyMap(),
     val index: ClassSearchIndex = emptyClassSearchIndex(),
-    val spigotLikeNamespaces: List<String> = emptyList()
+    val spigotLikeNamespaces: List<String> = emptyList(),
+    val historyAllowedNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK
 ) : AbstractGenerator(
     workspace,
     versions,
@@ -96,7 +100,17 @@ class WebGenerator(
         val composite: CompositeWorkspace by workspace
         val styleSupplier = DefaultStyleProvider()
 
+        val historyWorkspace by composite.createWorkspace {
+            name = "history"
+        }
+
         generationContext(styleProvider = styleSupplier::apply) {
+            val tree = classAncestryTreeOf(mappings, historyAllowedNamespaces)
+
+            tree.forEach { node ->
+                historyPage(node).serialize(historyWorkspace, "${node.first.value.hash.take(8)}.html")
+            }
+
             mappings.forEach { (version, tree) ->
                 launch(coroutineDispatcher) {
                     spigotLikeNamespaces.forEach { ns ->
