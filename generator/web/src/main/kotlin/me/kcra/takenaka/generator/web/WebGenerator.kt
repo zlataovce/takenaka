@@ -26,6 +26,7 @@ import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.adapter.completeInnerClassNames
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
+import me.kcra.takenaka.core.mapping.allNamespaceIds
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.generator.common.AbstractGenerator
@@ -124,7 +125,7 @@ class WebGenerator(
                     // %cm/math/Matrix4f %nm/class_1159    b
                     // ... (repeats like this for all classes)
                     val classIndex = buildString {
-                        val namespaces = (MappingTree.SRC_NAMESPACE_ID until tree.maxNamespaceId)
+                        val namespaces = tree.allNamespaceIds
                             .mapNotNull { nsId ->
                                 val nsName = tree.getNamespaceName(nsId)
                                 if (nsName in namespaceFriendlyNames) nsName to nsId else null

@@ -19,6 +19,7 @@ package me.kcra.takenaka.generator.web
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
+import me.kcra.takenaka.core.mapping.dstNamespaceIds
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
 import java.lang.reflect.Modifier
@@ -41,7 +42,7 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
         generator.namespaceFriendlinessIndex.forEach { ns ->
             elem.getName(ns)?.let { return it }
         }
-        return (0 until elem.tree.maxNamespaceId).firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
+        return elem.tree.dstNamespaceIds.firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
     }
 
     /**

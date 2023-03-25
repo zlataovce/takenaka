@@ -19,6 +19,7 @@ package me.kcra.takenaka.core.mapping.ancestry
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
+import me.kcra.takenaka.core.mapping.dstNamespaceIds
 import me.kcra.takenaka.core.util.entryOf
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 import java.util.*
@@ -179,7 +180,7 @@ fun classAncestryTreeOf(mappings: VersionedMappingMap, allowedNamespaces: List<S
         val treeAllowedNamespaces = allowedNamespaces
             .map(tree::getNamespaceId)
             .filter { it != NULL_NAMESPACE_ID }
-            .ifEmpty { (0 until tree.maxNamespaceId).toList() }
+            .ifEmpty { tree.dstNamespaceIds.toList() }
 
         this@buildAncestryTree.allowedNamespaces[version] = treeAllowedNamespaces
 

@@ -22,9 +22,11 @@ import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
-import me.kcra.takenaka.core.mapping.adapter.isEnumValueOf
-import me.kcra.takenaka.core.mapping.adapter.isEnumValues
+import me.kcra.takenaka.core.mapping.allNamespaceIds
 import me.kcra.takenaka.core.mapping.fromInternalName
+import me.kcra.takenaka.core.mapping.matchers.isConstructor
+import me.kcra.takenaka.core.mapping.matchers.isEnumValueOf
+import me.kcra.takenaka.core.mapping.matchers.isEnumValues
 import me.kcra.takenaka.core.mapping.resolve.interfaces
 import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.core.mapping.resolve.signature
@@ -75,7 +77,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
             spacerTopComponent()
             table {
                 tbody {
-                    (MappingTree.SRC_NAMESPACE_ID until klass.tree.maxNamespaceId).forEach { id ->
+                    klass.tree.allNamespaceIds.forEach { id ->
                         val ns = klass.tree.getNamespaceName(id)
                         val namespace = generator.namespaces[ns] ?: return@forEach
 
@@ -127,7 +129,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                 td {
                                     table {
                                         tbody {
-                                            (MappingTree.SRC_NAMESPACE_ID until klass.tree.maxNamespaceId).forEach { id ->
+                                            klass.tree.allNamespaceIds.forEach { id ->
                                                 val ns = klass.tree.getNamespaceName(id)
                                                 val namespace = generator.namespaces[ns]
 
@@ -171,10 +173,9 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                     }
                     tbody {
                         klass.methods.forEach { method ->
-                            if (method.srcName != "<init>") return@forEach
+                            if (!method.isConstructor) return@forEach
 
                             val methodMod = method.modifiers
-
                             tr {
                                 td(classes = "member-modifiers") {
                                     +formatModifiers(methodMod, Modifier.constructorModifiers())
@@ -195,7 +196,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                     }
                 }
             }
-            if (klass.methods.any { it.srcName != "<init>" }) {
+            if (klass.methods.any { !it.isConstructor }) { // static initializers are filtered in AbstractGenerator, no need to check it here
                 spacerBottomComponent()
                 h4 {
                     +"Method summary"
@@ -214,7 +215,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                     tbody {
                         klass.methods.forEach { method ->
                             // skip constructors
-                            if (method.srcName == "<init>") return@forEach
+                            if (method.isConstructor) return@forEach
                             // skip implicit enum methods
                             if ((klassDeclaration.modifiers and Opcodes.ACC_ENUM) != 0 && (method.isEnumValueOf || method.isEnumValues)) return@forEach
 
@@ -238,7 +239,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                 td {
                                     table {
                                         tbody {
-                                            (MappingTree.SRC_NAMESPACE_ID until method.tree.maxNamespaceId).forEach { id ->
+                                            method.tree.allNamespaceIds.forEach { id ->
                                                 val ns = method.tree.getNamespaceName(id)
                                                 val namespace = generator.namespaces[ns]
 
