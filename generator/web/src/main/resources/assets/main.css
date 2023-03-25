@@ -27,6 +27,7 @@
     --text: white;
     --text-badge: white;
     --text-muted: #e5e7eb;
+    --text-section-underline: #21ff21;
     --bg: #151515;
     --nav: #0d0d0d;
     --search: #101010;
@@ -44,6 +45,7 @@
 [data-theme="light"] {
     --text: black;
     --text-muted: black;
+    --text-section-underline: #00ab06;
     --bg: white;
     --nav: #d4d4d8;
     --search: #a1a1aa;
@@ -94,16 +96,19 @@ code {
 
 h1 {
     color: var(--text);
-    font-size: large;
+    font-size: 1.25rem;
+    line-height: 1.75rem;
 }
 
 h4 {
     color: var(--text);
-    font-size: large;
-    font-weight: bolder;
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    font-weight: 600;
     text-decoration-line: underline;
-    text-underline-offset: 4px;
-    margin-bottom: 0.5rem;
+    text-decoration-color: var(--text-section-underline);
+    text-underline-offset: 5px;
+    margin-bottom: 0.75rem;
 }
 
 a {
@@ -124,7 +129,7 @@ table {
 }
 
 th {
-    font-weight: normal;
+    font-weight: 500;
     text-align: left;
 }
 
@@ -319,6 +324,30 @@ input::placeholder {
     line-height: 1.25rem;
 }
 
+.member-table > thead > tr {
+    border-bottom: 2px solid var(--spacer);
+}
+
+.member-table > tbody > tr {
+    border: 1px solid #1f2937;
+    border-right-width: 0;
+    border-left-width: 0;
+}
+
+.member-table > tbody > tr:last-child {
+    border-bottom: none;
+}
+
+.member-table > tbody > tr > td {
+    padding-right: 0.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.member-table > tbody > tr > td.member-modifiers {
+    padding-right: 0.5rem;
+}
+
 .member-modifiers {
     font-family: var(--font-monospace);
     vertical-align: top;
@@ -327,25 +356,6 @@ input::placeholder {
 
 .member-modifiers > * {
     font-family: var(--font-monospace);
-}
-
-.row-borders > thead > tr {
-    border-bottom: 2px solid var(--spacer);
-}
-
-.row-borders > tbody > tr {
-    border: 1px solid #1f2937;
-    border-right-width: 0;
-    border-left-width: 0;
-}
-
-.row-borders > tbody > tr:last-child {
-    border-bottom: none;
-}
-
-.row-borders > tbody > tr > td {
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
 }
 
 .footer-content {

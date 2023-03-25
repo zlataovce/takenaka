@@ -98,7 +98,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                 h4 {
                     +"Field summary"
                 }
-                table(classes = "member-table row-borders") {
+                table(classes = "member-table") {
                     thead {
                         tr {
                             th {
@@ -160,7 +160,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                 h4 {
                     +"Constructor summary"
                 }
-                table(classes = "member-table row-borders") {
+                table(classes = "member-table") {
                     thead {
                         tr {
                             th {
@@ -201,7 +201,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                 h4 {
                     +"Method summary"
                 }
-                table(classes = "member-table row-borders") {
+                table(classes = "member-table") {
                     thead {
                         tr {
                             th {
