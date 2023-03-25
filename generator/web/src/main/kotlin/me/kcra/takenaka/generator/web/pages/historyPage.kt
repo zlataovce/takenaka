@@ -2,11 +2,11 @@ package me.kcra.takenaka.generator.web.pages
 
 import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
+import me.kcra.takenaka.core.mapping.allNamespaceIds
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.*
-import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView.ClassMappingView
 import org.w3c.dom.Document
 
@@ -34,7 +34,7 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                 h3 {
                     +version.id
                 }
-                (MappingTree.SRC_NAMESPACE_ID until klass.tree.maxNamespaceId).forEach { id ->
+                klass.tree.allNamespaceIds.forEach { id ->
                     val ns = klass.tree.getNamespaceName(id)
                     val nsFriendlyName = getNamespaceFriendlyName(ns) ?: return@forEach
 

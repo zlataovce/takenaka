@@ -39,10 +39,12 @@ import me.kcra.takenaka.generator.web.transformers.Minifier
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.tree.MappingTree
+import net.fabricmc.mappingio.tree.MappingTreeView
 import org.w3c.dom.Document
 import java.io.BufferedReader
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.util.IdentityHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
@@ -106,20 +108,48 @@ class WebGenerator(
         }
 
         generationContext(styleProvider = styleSupplier::apply) {
-            val tree = classAncestryTreeOf(mappings, historyAllowedNamespaces)
-
-            tree.forEach { node ->
-                historyPage(node).serialize(historyWorkspace, "${node.first.value.hash.take(8)}.html")
+            // first pass: complete inner class names for spigot-like namespaces
+            // not done in AbstractGenerator due to the namespace requirement
+            mappings.forEach { (_, tree) ->
+                spigotLikeNamespaces.forEach { ns ->
+                    if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
+                        tree.completeInnerClassNames(ns)
+                    }
+                }
             }
 
+            val tree = classAncestryTreeOf(mappings, historyAllowedNamespaces)
+
+            // second pass: replace the CraftBukkit NMS version for spigot-like namespaces
+            // must be after ancestry tree computation, because replacing the VVV package breaks (the remaining) uniformity of the mappings
+            mappings.forEach { (_, tree) ->
+                spigotLikeNamespaces.forEach { ns ->
+                    if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
+                        tree.replaceCraftBukkitNMSVersion(ns)
+                    }
+                }
+            }
+
+            // used for looking up history hashes - for linking
+            val hashMap = IdentityHashMap<MappingTreeView.ClassMappingView, String>()
+
+            tree.forEach { node ->
+                val (_, firstKlass) = node.first
+                val fileHash = firstKlass.hash.take(10)
+
+                node.forEach { (_, klass) ->
+                    hashMap[klass] = fileHash
+                }
+
+                launch(coroutineDispatcher) {
+                    historyPage(node)
+                        .serialize(historyWorkspace, "$fileHash.html")
+                }
+            }
+
+            // third pass: generate the documentation
             mappings.forEach { (version, tree) ->
                 launch(coroutineDispatcher) {
-                    spigotLikeNamespaces.forEach { ns ->
-                        if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
-                            tree.replaceCraftBukkitNMSVersion(ns)
-                            tree.completeInnerClassNames(ns)
-                        }
-                    }
                     val versionWorkspace by composite.createVersioned {
                         this.version = version
                     }
