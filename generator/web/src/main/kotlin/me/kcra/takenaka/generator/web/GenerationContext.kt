@@ -19,7 +19,7 @@ package me.kcra.takenaka.generator.web
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
-import net.fabricmc.mappingio.tree.MappingTree
+import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
 import java.lang.reflect.Modifier
 
@@ -37,7 +37,7 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
      * @param elem the element
      * @return the name
      */
-    fun getFriendlyDstName(elem: MappingTree.ElementMapping): String {
+    fun getFriendlyDstName(elem: MappingTreeView.ElementMappingView): String {
         generator.namespaceFriendlinessIndex.forEach { ns ->
             elem.getName(ns)?.let { return it }
         }

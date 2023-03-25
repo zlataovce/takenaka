@@ -331,7 +331,7 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTree.ClassMapping, ver
             }
         }
 
-        val formatter = signature.formatSignature(options, nameRemapper, null, index, version)
+        val formatter = signature.formatSignature(options, remapper = nameRemapper, packageIndex = index, version = version)
         formals = formatter.formals
         superTypes = formatter.superTypes
 
@@ -416,7 +416,7 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
             }
         }
 
-        val formatter = signature.formatSignature(options, nameRemapper, linkRemapper, index, version)
+        val formatter = signature.formatSignature(options, method, nameRemapper, linkRemapper, index, version)
         return MethodDeclaration(
             formatter.formals.ifBlank { null },
             formatter.args,
@@ -436,7 +436,16 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
         append(
             args.joinToString { arg ->
                 val i = argumentIndex++
-                return@joinToString "${formatType(arg, version, nameRemapper, linkRemapper, isVarargs = i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0)} arg$i"
+                return@joinToString buildString {
+                    append(formatType(arg, version, nameRemapper, linkRemapper, isVarargs = i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0))
+
+                    append(' ')
+                    append(
+                        method.getArg(i, -1, null)
+                            ?.let(nameRemapper.elementMapper)
+                            ?: "arg$i"
+                    )
+                }
             }
         )
         append(')')

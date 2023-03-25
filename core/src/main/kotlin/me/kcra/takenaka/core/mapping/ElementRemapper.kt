@@ -18,12 +18,13 @@
 package me.kcra.takenaka.core.mapping
 
 import net.fabricmc.mappingio.tree.MappingTree
+import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.commons.Remapper
 
 /**
  * A function that selects a mapping from a tree.
  */
-typealias ElementMapper = (MappingTree.ElementMapping) -> String?
+typealias ElementMapper = (MappingTreeView.ElementMappingView) -> String?
 
 /**
  * A [Remapper] implementation that remaps class and class member names from a mapping tree.
