@@ -2,6 +2,7 @@ package me.kcra.takenaka.generator.web.pages
 
 import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
+import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.allNamespaceIds
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
 import me.kcra.takenaka.core.mapping.fromInternalName
@@ -9,6 +10,7 @@ import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.*
 import net.fabricmc.mappingio.tree.MappingTreeView.ClassMappingView
 import org.w3c.dom.Document
+import java.util.*
 
 /**
  * Generates a class history page.
@@ -28,36 +30,40 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
             }
             spacerBottomComponent()
 
-            val nameMap = mutableMapOf<String, String?>()
+            val classNameRows = buildDiff {
+                node.entries.forEach { (version, klass) ->
+                    klass.tree.allNamespaceIds.forEach { id ->
+                        val ns = klass.tree.getNamespaceName(id)
 
-            node.entries.forEach f1@ { (version, klass) ->
+                        val nsFriendlyName = getNamespaceFriendlyName(ns)
+                        if (nsFriendlyName != null) {
+                            append(nsFriendlyName, klass.getName(id)?.fromInternalName(), version)
+                        }
+                    }
+                }
+            }
+
+            classNameRows.forEach { (version, rows) ->
                 h3 {
                     +version.id
                 }
-                klass.tree.allNamespaceIds.forEach { id ->
-                    val ns = klass.tree.getNamespaceName(id)
-                    val nsFriendlyName = getNamespaceFriendlyName(ns) ?: return@forEach
-
-                    val name = klass.getName(id)?.fromInternalName()
-                    val oldName = nameMap[ns]
-                    if (oldName != name) {
-                        if (oldName != null) {
+                rows.forEach { row ->
+                    when (row.type) {
+                        DiffType.DELETION -> {
                             p {
                                 style = "color: var(--text);"
 
-                                +"- $nsFriendlyName: $oldName"
+                                +"- ${row.key}: ${row.value}"
                             }
                         }
-                        if (name != null) {
+                        DiffType.ADDITION -> {
                             p {
                                 style = "color: var(--text);"
 
-                                +"+ $nsFriendlyName: $name"
+                                +"+ ${row.key}: ${row.value}"
                             }
                         }
                     }
-
-                    nameMap[ns] = name
                 }
                 spacerYComponent()
             }
@@ -65,3 +71,36 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
         footerPlaceholderComponent()
     }
 }
+
+class DiffBuilder<K, V>(reverseOrder: Boolean = true) {
+    private val values = mutableMapOf<K, V?>()
+    val rows: SortedMap<Version, MutableList<DiffRow<K, V>>> = TreeMap(
+        if (reverseOrder) Collections.reverseOrder() else null
+    )
+
+    fun append(key: K, value: V?, version: Version) {
+        val oldValue = values[key]
+        if (oldValue != value) {
+            val versionRows by lazy(LazyThreadSafetyMode.NONE) { rows.getOrPut(version, ::mutableListOf) }
+
+            if (oldValue != null) {
+                versionRows += DiffRow(DiffType.DELETION, version, key, oldValue)
+            }
+            if (value != null) {
+                versionRows += DiffRow(DiffType.ADDITION, version, key, value)
+            }
+        }
+
+        values[key] = value
+    }
+}
+
+data class DiffRow<K, V>(val type: DiffType, val version: Version, val key: K, val value: V)
+
+enum class DiffType {
+    DELETION,
+    ADDITION
+}
+
+inline fun buildDiff(reverseOrder: Boolean = true, block: DiffBuilder<String, String>.() -> Unit): Map<Version, List<DiffRow<String, String>>> =
+    DiffBuilder<String, String>(reverseOrder).apply(block).rows
