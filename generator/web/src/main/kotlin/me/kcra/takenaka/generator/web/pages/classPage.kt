@@ -469,6 +469,7 @@ fun GenerationContext.formatType(type: Type, version: Version, nameRemapper: Ele
             if (isVarargs) arrayDimensions--
 
             append("[]".repeat(arrayDimensions))
+            if (isVarargs) append("...")
         }
 
         // Type#INTERNAL, it's private, so we need to use the value directly
