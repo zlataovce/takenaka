@@ -35,6 +35,7 @@ package me.kcra.takenaka.generator.web
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.fromInternalName
+import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.commons.Remapper
 import org.objectweb.asm.signature.SignatureReader
@@ -202,6 +203,11 @@ class SignatureFormatter : SignatureVisitor {
     // remapping stuff
 
     /**
+     * The method to which the formatted signature belongs, used for mapping parameters.
+     */
+    private val method: MappingTreeView.MethodMappingView?
+
+    /**
      * The class name remapper.
      */
     private val remapper: ElementRemapper?
@@ -293,6 +299,7 @@ class SignatureFormatter : SignatureVisitor {
      */
     constructor(
         options: FormattingOptions,
+        method: MappingTreeView.MethodMappingView? = null,
         remapper: ElementRemapper? = null,
         linkRemapper: Remapper? = null,
         packageIndex: ClassSearchIndex? = null,
@@ -302,6 +309,7 @@ class SignatureFormatter : SignatureVisitor {
         declaration_ = StringBuilder()
 
         this.options = options
+        this.method = method
         this.remapper = remapper
         this.linkRemapper = linkRemapper
         this.packageIndex = packageIndex
@@ -310,6 +318,7 @@ class SignatureFormatter : SignatureVisitor {
 
     private constructor(
         options: FormattingOptions,
+        method: MappingTreeView.MethodMappingView?,
         remapper: ElementRemapper?,
         linkRemapper: Remapper?,
         packageIndex: ClassSearchIndex?,
@@ -320,6 +329,7 @@ class SignatureFormatter : SignatureVisitor {
         declaration_ = stringBuilder
 
         this.options = options
+        this.method = method
         this.remapper = remapper
         this.linkRemapper = linkRemapper
         this.packageIndex = packageIndex
@@ -387,11 +397,11 @@ class SignatureFormatter : SignatureVisitor {
         declaration_.append(')')
         val returnType0 = StringBuilder()
         returnType_ = returnType0
-        return SignatureFormatter(options, remapper, linkRemapper, packageIndex, version, returnType0)
+        return SignatureFormatter(options, method, remapper, linkRemapper, packageIndex, version, returnType0)
     }
 
     override fun visitExceptionType(): SignatureVisitor =
-        SignatureFormatter(options, remapper, linkRemapper, packageIndex, version, exceptions_?.append(COMMA_SEPARATOR) ?: StringBuilder().also { exceptions_ = it })
+        SignatureFormatter(options, method, remapper, linkRemapper, packageIndex, version, exceptions_?.append(COMMA_SEPARATOR) ?: StringBuilder().also { exceptions_ = it })
 
     override fun visitBaseType(descriptor: Char) {
         val baseType = BASE_TYPES[descriptor] ?: throw IllegalArgumentException()
@@ -522,7 +532,11 @@ class SignatureFormatter : SignatureVisitor {
                 declaration_.setLength(declaration_.length - 2)
                 declaration_.append("...")
             }
-            declaration_.append(" arg${argumentIndex++}")
+
+            val i = argumentIndex++
+            declaration_.append(' ').append(
+                remapper?.elementMapper?.let { method?.getArg(i, -1, null)?.let(it) } ?: "arg$i"
+            )
         }
     }
 
@@ -596,6 +610,7 @@ fun ElementRemapper.mapAndLink(internalName: String, version: Version, packageIn
  * Makes a new [SignatureFormatter] and immediately visits the signature to it.
  *
  * @param options the formatting options
+ * @param method the method to which this signature belongs, used for remapping parameter names
  * @param remapper the [ElementRemapper] used for remapping names
  * @param linkRemapper the [Remapper] used for remapping links
  * @param packageIndex the index used for resolving foreign class references
@@ -605,12 +620,13 @@ fun ElementRemapper.mapAndLink(internalName: String, version: Version, packageIn
  */
 fun String.formatSignature(
     options: FormattingOptions,
+    method: MappingTreeView.MethodMappingView? = null,
     remapper: ElementRemapper? = null,
     linkRemapper: Remapper? = null,
     packageIndex: ClassSearchIndex? = null,
     version: Version? = null
 ): SignatureFormatter {
-    val visitor = SignatureFormatter(options, remapper, linkRemapper, packageIndex, version)
+    val visitor = SignatureFormatter(options, method, remapper, linkRemapper, packageIndex, version)
     SignatureReader(this).accept(visitor)
 
     return visitor
@@ -634,7 +650,7 @@ fun String.formatTypeSignature(
     packageIndex: ClassSearchIndex? = null,
     version: Version? = null
 ): SignatureFormatter {
-    val visitor = SignatureFormatter(options, remapper, linkRemapper, packageIndex, version)
+    val visitor = SignatureFormatter(options, null, remapper, linkRemapper, packageIndex, version)
     SignatureReader(this).acceptType(visitor)
 
     return visitor

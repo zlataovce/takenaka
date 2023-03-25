@@ -19,9 +19,12 @@ package me.kcra.takenaka.generator.web
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
+import me.kcra.takenaka.core.mapping.dstNamespaceIds
 import me.kcra.takenaka.core.util.hexValue
 import me.kcra.takenaka.core.util.threadLocalMessageDigest
 import net.fabricmc.mappingio.tree.MappingTreeView
+import org.objectweb.asm.Opcodes
+import java.lang.reflect.Modifier
 
 /**
  * A thread-local MD5 digest.
@@ -46,7 +49,7 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
         generator.namespaceFriendlinessIndex.forEach { ns ->
             elem.getName(ns)?.let { return it }
         }
-        return (0 until elem.tree.maxNamespaceId).firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
+        return elem.tree.dstNamespaceIds.firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
     }
 
     /**
@@ -74,7 +77,7 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
         get() = md5Digest
             .apply {
                 update(
-                    (0 until tree.maxNamespaceId)
+                    tree.dstNamespaceIds
                         .mapNotNull { getDstName(it) }
                         .sorted()
                         .joinToString(",")

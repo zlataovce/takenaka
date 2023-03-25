@@ -19,6 +19,7 @@ package me.kcra.takenaka.core.mapping
 
 import me.kcra.takenaka.core.Version
 import net.fabricmc.mappingio.tree.MappingTree
+import net.fabricmc.mappingio.tree.MappingTreeView
 
 /**
  * A collection of version keyed joined mapping trees.
@@ -26,3 +27,15 @@ import net.fabricmc.mappingio.tree.MappingTree
  * @author Matouš Kučera
  */
 typealias VersionedMappingMap = Map<Version, MappingTree>
+
+/**
+ * Returns IDs of all namespaces in this tree.
+ */
+inline val MappingTreeView.allNamespaceIds: IntRange
+    get() = MappingTreeView.SRC_NAMESPACE_ID until maxNamespaceId
+
+/**
+ * Returns IDs of all destination namespaces in this tree (excludes the obfuscated namespace).
+ */
+inline val MappingTreeView.dstNamespaceIds: IntRange
+    get() = 0 until maxNamespaceId

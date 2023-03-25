@@ -165,7 +165,7 @@ open class WorkspaceBuilder {
     /**
      * The resolver options.
      */
-    var resolverOptions by Delegates.notNull<ResolverOptions>()
+    var resolverOptions = 0
 
     /**
      * Builds and sets [resolverOptions] using [block].

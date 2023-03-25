@@ -17,6 +17,7 @@
 
 package me.kcra.takenaka.core.mapping.adapter
 
+import me.kcra.takenaka.core.mapping.matchers.isStaticInitializer
 import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTree
 
@@ -27,7 +28,7 @@ private val logger = KotlinLogging.logger {}
  */
 fun MappingTree.removeStaticInitializers() {
     classes.forEach { klass ->
-        if (klass.methods.removeIf { it.srcName == "<clinit>" }) {
+        if (klass.methods.removeIf { it.isStaticInitializer }) {
             logger.debug { "removed static initializer of ${klass.srcName}" }
         }
     }

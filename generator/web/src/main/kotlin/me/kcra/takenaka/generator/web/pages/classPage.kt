@@ -22,9 +22,11 @@ import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
-import me.kcra.takenaka.core.mapping.adapter.isEnumValueOf
-import me.kcra.takenaka.core.mapping.adapter.isEnumValues
+import me.kcra.takenaka.core.mapping.allNamespaceIds
 import me.kcra.takenaka.core.mapping.fromInternalName
+import me.kcra.takenaka.core.mapping.matchers.isConstructor
+import me.kcra.takenaka.core.mapping.matchers.isEnumValueOf
+import me.kcra.takenaka.core.mapping.matchers.isEnumValues
 import me.kcra.takenaka.core.mapping.resolve.interfaces
 import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.core.mapping.resolve.signature
@@ -75,7 +77,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
             spacerTopComponent()
             table {
                 tbody {
-                    (MappingTree.SRC_NAMESPACE_ID until klass.tree.maxNamespaceId).forEach { id ->
+                    klass.tree.allNamespaceIds.forEach { id ->
                         val ns = klass.tree.getNamespaceName(id)
                         val namespace = generator.namespaces[ns] ?: return@forEach
 
@@ -127,7 +129,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                 td {
                                     table {
                                         tbody {
-                                            (MappingTree.SRC_NAMESPACE_ID until klass.tree.maxNamespaceId).forEach { id ->
+                                            klass.tree.allNamespaceIds.forEach { id ->
                                                 val ns = klass.tree.getNamespaceName(id)
                                                 val namespace = generator.namespaces[ns]
 
@@ -171,10 +173,9 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                     }
                     tbody {
                         klass.methods.forEach { method ->
-                            if (method.srcName != "<init>") return@forEach
+                            if (!method.isConstructor) return@forEach
 
                             val methodMod = method.modifiers
-
                             tr {
                                 td(classes = "member-modifiers") {
                                     +formatModifiers(methodMod, Modifier.constructorModifiers())
@@ -195,7 +196,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                     }
                 }
             }
-            if (klass.methods.any { it.srcName != "<init>" }) {
+            if (klass.methods.any { !it.isConstructor }) { // static initializers are filtered in AbstractGenerator, no need to check it here
                 spacerBottomComponent()
                 h4 {
                     +"Method summary"
@@ -214,7 +215,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                     tbody {
                         klass.methods.forEach { method ->
                             // skip constructors
-                            if (method.srcName == "<init>") return@forEach
+                            if (method.isConstructor) return@forEach
                             // skip implicit enum methods
                             if ((klassDeclaration.modifiers and Opcodes.ACC_ENUM) != 0 && (method.isEnumValueOf || method.isEnumValues)) return@forEach
 
@@ -238,7 +239,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                 td {
                                     table {
                                         tbody {
-                                            (MappingTree.SRC_NAMESPACE_ID until method.tree.maxNamespaceId).forEach { id ->
+                                            method.tree.allNamespaceIds.forEach { id ->
                                                 val ns = method.tree.getNamespaceName(id)
                                                 val namespace = generator.namespaces[ns]
 
@@ -331,7 +332,7 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTree.ClassMapping, ver
             }
         }
 
-        val formatter = signature.formatSignature(options, nameRemapper, null, index, version)
+        val formatter = signature.formatSignature(options, remapper = nameRemapper, packageIndex = index, version = version)
         formals = formatter.formals
         superTypes = formatter.superTypes
 
@@ -416,7 +417,7 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
             }
         }
 
-        val formatter = signature.formatSignature(options, nameRemapper, linkRemapper, index, version)
+        val formatter = signature.formatSignature(options, method, nameRemapper, linkRemapper, index, version)
         return MethodDeclaration(
             formatter.formals.ifBlank { null },
             formatter.args,
@@ -436,7 +437,16 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
         append(
             args.joinToString { arg ->
                 val i = argumentIndex++
-                return@joinToString "${formatType(arg, version, nameRemapper, linkRemapper, isVarargs = i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0)} arg$i"
+                return@joinToString buildString {
+                    append(formatType(arg, version, nameRemapper, linkRemapper, isVarargs = i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0))
+
+                    append(' ')
+                    append(
+                        method.getArg(i, -1, null)
+                            ?.let(nameRemapper.elementMapper)
+                            ?: "arg$i"
+                    )
+                }
             }
         )
         append(')')
@@ -469,6 +479,7 @@ fun GenerationContext.formatType(type: Type, version: Version, nameRemapper: Ele
             if (isVarargs) arrayDimensions--
 
             append("[]".repeat(arrayDimensions))
+            if (isVarargs) append("...")
         }
 
         // Type#INTERNAL, it's private, so we need to use the value directly

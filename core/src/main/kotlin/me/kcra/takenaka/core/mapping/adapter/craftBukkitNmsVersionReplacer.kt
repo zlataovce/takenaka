@@ -43,7 +43,9 @@ fun MappingTree.replaceCraftBukkitNMSVersion(namespace: String) {
         val original = klass.getDstName(namespaceId) ?: return@forEach
         val replaced = original.replace("VVV", nmsVersion)
 
-        logger.debug { "replaced $original -> $replaced" }
-        klass.setDstName(replaced, namespaceId)
+        if (original != replaced) {
+            logger.debug { "replaced $original -> $replaced" }
+            klass.setDstName(replaced, namespaceId)
+        }
     }
 }
