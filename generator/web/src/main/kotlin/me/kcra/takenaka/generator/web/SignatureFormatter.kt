@@ -98,6 +98,23 @@ class FormattingOptionsBuilder(var value: FormattingOptions = 0) {
     }
 
     /**
+     * Appends the [DefaultFormattingOptions.STATIC_METHOD] option.
+     */
+    fun staticMethod() {
+        value = value or DefaultFormattingOptions.STATIC_METHOD
+    }
+
+    /**
+     * Applies method-specific options from a method modifier.
+     *
+     * @param mod the modifier
+     */
+    fun adjustForMethod(mod: Int) {
+        if ((mod and Opcodes.ACC_VARARGS) != 0) variadicParameter()
+        if ((mod and Opcodes.ACC_STATIC) != 0) staticMethod()
+    }
+
+    /**
      * Checks if the options contain an option.
      *
      * @param option the option to check
@@ -144,6 +161,11 @@ object DefaultFormattingOptions {
      * Requests the formatter to make the last argument a variadic one, if it's an array.
      */
     const val VARIADIC_PARAMETER = 0x00001000
+
+    /**
+     * Informs the formatter that the method is static, thus local variable indexes should be decremented by one.
+     */
+    const val STATIC_METHOD = 0x00010000
 }
 
 /**
@@ -533,8 +555,13 @@ class SignatureFormatter : SignatureVisitor {
             }
 
             val i = argumentIndex++
+
+            var lvIndex = i  // local variable index
+            // the first variable is the class instance if it's not static, so offset it
+            if (DefaultFormattingOptions.STATIC_METHOD !in options) lvIndex++
+
             declaration_.append(' ').append(
-                remapper?.elementMapper?.let { method?.getArg(i, -1, null)?.let(it) } ?: "arg$i"
+                remapper?.elementMapper?.let { method?.getArg(-1, lvIndex, null)?.let(it) } ?: "arg$i"
             )
         }
     }

@@ -139,6 +139,7 @@ fun main(args: Array<String>) {
             listOf(
                 MojangServerMappingResolver(versionWorkspace, objectMapper),
                 IntermediaryMappingResolver(versionWorkspace),
+                YarnMappingResolver(versionWorkspace, xmlMapper),
                 SeargeMappingResolver(versionWorkspace),
                 WrappingContributor(SpigotClassMappingResolver(versionWorkspace, objectMapper, xmlMapper)) {
                     // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
@@ -156,7 +157,7 @@ fun main(args: Array<String>) {
         // Searge adds their ID namespace sometimes, so don't perform any corrections on that
         VanillaMappingContributor.NAMESPACES + "searge_id",
         transformers,
-        listOf("mojang", "spigot", "searge", "intermediary", "source"),
+        listOf("mojang", "spigot", "yarn", "searge", "intermediary", "source"),
         mapOf(
             "mojang" to namespaceDescOf(
                 "Mojang",
@@ -167,6 +168,11 @@ fun main(args: Array<String>) {
                 "Spigot",
                 "#CA8A04",
                 AbstractSpigotMappingResolver.META_LICENSE
+            ),
+            "yarn" to namespaceDescOf(
+                "Yarn",
+                "#626262",
+                YarnMappingResolver.META_LICENSE
             ),
             "searge" to namespaceDescOf(
                 "Searge",
