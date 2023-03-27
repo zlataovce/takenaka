@@ -18,20 +18,21 @@
 package me.kcra.takenaka.generator.web.components
 
 import kotlinx.html.*
-import me.kcra.takenaka.generator.web.StyleProvider
+import me.kcra.takenaka.generator.web.StyleConsumer
 
 /**
  * Appends a namespace badge component.
  *
  * @param content the namespace name
  * @param color the badge color in a CSS compatible format
+ * @param styleConsumer the style provider, used for generating stylesheets
  */
-fun FlowContent.badgeComponent(content: String, color: String, styleProvider: StyleProvider? = null) {
-    if (styleProvider != null) {
+fun FlowContent.badgeComponent(content: String, color: String, styleConsumer: StyleConsumer? = null) {
+    if (styleConsumer != null) {
         val lowercase = content.lowercase()
 
-        p(classes = "badge ${styleProvider("badge-$lowercase", "background-color:$color;")}")
-        styleProvider("badge-$lowercase::before", "content:\"$content\";")
+        p(classes = "badge ${styleConsumer("badge-$lowercase", "background-color:$color;")}")
+        styleConsumer("badge-$lowercase::before", "content:\"$content\";")
     } else {
         p(classes = "badge") {
             style = "background-color:$color"
@@ -45,13 +46,14 @@ fun FlowContent.badgeComponent(content: String, color: String, styleProvider: St
  *
  * @param content the namespace name
  * @param color the badge color in a CSS compatible format
+ * @param styleConsumer the style provider, used for generating stylesheets
  */
-fun TR.badgeColumnComponent(content: String, color: String, styleProvider: StyleProvider? = null) {
-    if (styleProvider != null) {
+fun TR.badgeColumnComponent(content: String, color: String, styleConsumer: StyleConsumer? = null) {
+    if (styleConsumer != null) {
         val lowercase = content.lowercase()
 
-        td(classes = "badge ${styleProvider("badge-$lowercase", "background-color:$color;")}")
-        styleProvider("badge-$lowercase::before", "content:\"$content\";")
+        td(classes = "badge ${styleConsumer("badge-$lowercase", "background-color:$color;")}")
+        styleConsumer("badge-$lowercase::before", "content:\"$content\";")
     } else {
         td(classes = "badge") {
             style = "background-color:$color"

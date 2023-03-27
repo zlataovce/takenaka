@@ -23,8 +23,6 @@ import me.kcra.takenaka.core.mapping.dstNamespaceIds
 import me.kcra.takenaka.core.util.hexValue
 import me.kcra.takenaka.core.util.threadLocalMessageDigest
 import net.fabricmc.mappingio.tree.MappingTreeView
-import org.objectweb.asm.Opcodes
-import java.lang.reflect.Modifier
 
 /**
  * A thread-local MD5 digest.
@@ -36,7 +34,7 @@ val md5Digest by threadLocalMessageDigest("MD5")
  *
  * @author Matouš Kučera
  */
-class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenerator, val styleProvider: StyleProvider) : CoroutineScope by coroutineScope {
+class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenerator, val styleConsumer: StyleConsumer) : CoroutineScope by coroutineScope {
     val index: ClassSearchIndex by generator::index
 
     /**
@@ -69,6 +67,14 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
     fun getNamespaceBadgeColor(ns: String): String = generator.namespaces[ns]?.color ?: "#94a3b8"
 
     /**
+     * Gets a CSS color of the namespace with the supplied friendly name.
+     *
+     * @param ns the namespace friendly name
+     * @return the color
+     */
+    fun getFriendlyNamespaceBadgeColor(ns: String): String = generator.namespacesByFriendlyNames[ns]?.color ?: "#94a3b8"
+
+    /**
      * Computes a hash of all destination mappings of this element.
      *
      * The resulting hash is stable, meaning the order of namespaces won't affect it.
@@ -90,8 +96,8 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
 /**
  * Opens a generation context.
  *
- * @param styleProvider the style provider that will be used in the context
+ * @param styleConsumer the style provider that will be used in the context
  * @param block the context user
  */
-inline fun <R> WebGenerator.generationContext(noinline styleProvider: StyleProvider, crossinline block: suspend GenerationContext.() -> R): R =
-    runBlocking(coroutineDispatcher) { block(GenerationContext(this, this@generationContext, styleProvider)) }
+inline fun <R> WebGenerator.generationContext(noinline styleConsumer: StyleConsumer, crossinline block: suspend GenerationContext.() -> R): R =
+    runBlocking(coroutineDispatcher) { block(GenerationContext(this, this@generationContext, styleConsumer)) }

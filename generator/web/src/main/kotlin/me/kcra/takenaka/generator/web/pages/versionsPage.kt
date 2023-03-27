@@ -60,7 +60,7 @@ fun GenerationContext.versionsPage(versions: Map<Version, List<String>>): Docume
                             td(classes = "mapping-badges") {
                                 mappings.forEach { ns ->
                                     generator.namespaces[ns]
-                                        ?.let { badgeComponent(it.friendlyName, it.color, styleProvider) }
+                                        ?.let { badgeComponent(it.friendlyName, it.color, styleConsumer) }
                                 }
                             }
                         }

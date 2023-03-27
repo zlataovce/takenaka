@@ -83,7 +83,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
 
                         val name = klass.getName(id) ?: return@forEach
                         tr {
-                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
+                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
                             td {
                                 p(classes = "mapping-value") {
                                     +name.fromInternalName()
@@ -137,7 +137,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                                     val name = field.getName(id)
                                                     if (name != null) {
                                                         tr {
-                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
+                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
                                                             td {
                                                                 p(classes = "mapping-value") {
                                                                     +name
@@ -247,7 +247,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                                                     val methodName = method.getName(id)
                                                     if (methodName != null) {
                                                         tr {
-                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
+                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
                                                             td {
                                                                 p(classes = "mapping-value") {
                                                                     unsafe {

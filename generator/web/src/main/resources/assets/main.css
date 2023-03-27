@@ -103,6 +103,7 @@ h1 {
 h3 {
     color: var(--text);
     font-size: larger;
+    margin-bottom: 0.5rem;
 }
 
 h4 {
@@ -312,6 +313,14 @@ input::placeholder {
     color: var(--text-badge);
 }
 
+.badge-text {
+    filter: brightness(1.75); /* improve text readability on dark mode */
+}
+
+[data-theme="light"] .badge-text {
+    filter: none;
+}
+
 .mapping-value {
     word-break: break-all;
     font-size: 0.875rem;
@@ -376,4 +385,28 @@ input::placeholder {
     display: flex;
     gap: 0.75rem;
     margin-bottom: 0.5rem;
+}
+
+.diff-addition {
+    font-family: var(--font-monospace);
+    color: var(--text);
+    font-size: 1rem;
+    line-height: 1.5rem;
+    background-color: rgba(46, 160, 67, 0.15);
+}
+
+.diff-addition::before {
+    content: "+ ";
+}
+
+.diff-deletion {
+    font-family: var(--font-monospace);
+    color: var(--text);
+    font-size: 1rem;
+    line-height: 1.5rem;
+    background-color: rgba(248, 81, 73, 0.15);
+}
+
+.diff-deletion::before {
+    content: "- ";
 }

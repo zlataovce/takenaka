@@ -97,17 +97,22 @@ class WebGenerator(
     private val hasMinifier = transformers.any { it is Minifier }
 
     /**
+     * A convenience index for looking up namespaces by their friendly names.
+     */
+    val namespacesByFriendlyNames = namespaces.mapKeys { it.value.friendlyName }
+
+    /**
      * Launches the generator.
      */
     override fun generate() {
         val composite: CompositeWorkspace by workspace
-        val styleSupplier = DefaultStyleProvider()
+        val styleSupplier = DefaultStyleConsumer()
 
         val historyWorkspace by composite.createWorkspace {
             name = "history"
         }
 
-        generationContext(styleProvider = styleSupplier::apply) {
+        generationContext(styleConsumer = styleSupplier::apply) {
             // first pass: complete inner class names for spigot-like namespaces
             // not done in AbstractGenerator due to the namespace requirement
             mappings.forEach { (_, tree) ->

@@ -29,6 +29,7 @@ import java.util.*
  *
  * @param nodes the ancestry nodes
  * @property allowedNamespaces namespace IDs used for computing history, distinguished by version
+ * @param T the kind of the traced element; can be a class, method, field, ...
  * @author Matouš Kučera
  */
 class AncestryTree<T : ElementMappingView>(
@@ -43,6 +44,7 @@ class AncestryTree<T : ElementMappingView>(
      * @param delegate the map that operations are delegated to
      * @property first the first version mapping (oldest)
      * @property last the last version mapping (newest)
+     * @param T the kind of the traced element; can be a class, method, field, ...
      */
     class Node<T : ElementMappingView>(
         val tree: AncestryTree<T>,
@@ -70,6 +72,7 @@ class AncestryTree<T : ElementMappingView>(
 /**
  * A mapping ancestry tree builder.
  *
+ * @param T the kind of the traced element; can be a class, method, field, ...
  * @author Matouš Kučera
  */
 class AncestryTreeBuilder<T : ElementMappingView> {
@@ -123,6 +126,7 @@ class AncestryTreeBuilder<T : ElementMappingView> {
      * A node in the ancestry tree, mutable.
      *
      * @property delegate the map that operations are delegated to
+     * @param T the kind of the traced element; can be a class, method, field, ...
      * @see AncestryTree.Node
      */
     class MutableNode<T : ElementMappingView>(internal val delegate: MutableMap<Version, T> = mutableMapOf()) : MutableMap<Version, T> by delegate {
@@ -162,6 +166,7 @@ class AncestryTreeBuilder<T : ElementMappingView> {
  * Builds an ancestry tree from a builder.
  *
  * @param block the builder action
+ * @param T the kind of the traced element; can be a class, method, field, ...
  * @return the ancestry tree
  */
 inline fun <T : ElementMappingView> buildAncestryTree(block: AncestryTreeBuilder<T>.() -> Unit): AncestryTree<T> =
