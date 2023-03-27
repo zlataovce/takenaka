@@ -22,7 +22,7 @@ The goal of this project is to improve the maintainability and performance of th
 - [x] Intermediary (FabricMC) mappings
 - [x] Searge (Forge) mappings
 - [x] Spigot mappings
-- [ ] Yarn (FabricMC) mappings
+- [x] Yarn (FabricMC) mappings
 - [ ] Hashed (QuiltMC) mappings
 - [ ] QuiltMC mappings
 

@@ -363,6 +363,7 @@ class VersionedWorkspace(override val rootDirectory: Path, override val resolver
     private val composite by lazy { CompositeWorkspace(rootDirectory, resolverOptions) }
     internal val spigotManifestLock: Lock = ReentrantLock()
     internal val mojangManifestLock: Lock = ReentrantLock()
+    internal val yarnMetadataLock: Lock = ReentrantLock()
 
     init {
         rootDirectory.createDirectories()

@@ -111,6 +111,7 @@ suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper
         contributor(listOf(
             MojangServerMappingResolver(this@resolveVersionMappings, objectMapper),
             IntermediaryMappingResolver(this@resolveVersionMappings),
+            YarnMappingResolver(this@resolveVersionMappings, xmlMapper),
             SeargeMappingResolver(this@resolveVersionMappings),
             // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
             // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
@@ -124,7 +125,7 @@ suspend fun VersionedWorkspace.resolveVersionMappings(objectMapper: ObjectMapper
         ))
 
         interceptBefore { tree ->
-            NamespaceFilter(MissingDescriptorFilter(tree), "searge_id")
+            NamespaceFilter(MissingDescriptorFilter(MethodArgSourceFilter(tree)), "searge_id")
         }
 
         interceptAfter { tree ->
@@ -149,7 +150,7 @@ fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, xmlMapper: Ob
     VERSIONS.forEach {
         val version = manifest[it] ?: error("did not find $it in manifest")
 
-        jobs += async {
+        jobs += async(Dispatchers.IO) {
             val workspace by createVersioned {
                 this.version = version
             }

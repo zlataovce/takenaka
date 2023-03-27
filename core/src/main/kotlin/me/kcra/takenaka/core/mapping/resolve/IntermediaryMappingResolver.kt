@@ -25,10 +25,10 @@ import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
 import mu.KotlinLogging
-import net.fabricmc.mappingio.MappingReader
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
+import net.fabricmc.mappingio.format.Tiny1Reader
 import java.io.Reader
 import java.net.URL
 import kotlin.io.path.fileSize
@@ -48,7 +48,7 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
     override val targetNamespace: String = "intermediary"
 
     /**
-     * Creates a new mapping file reader (Tiny format).
+     * Creates a new mapping file reader (Tiny v1 format).
      *
      * @return the reader, null if the version doesn't have mappings released
      */
@@ -114,7 +114,7 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
         reader()?.use { reader ->
             // Intermediary has official and intermediary namespaces
             // official is the obfuscated one
-            MappingReader.read(reader, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK)))
+            Tiny1Reader.read(reader, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK)))
 
             // limit the license file to 12 lines for conciseness
             licenseReader().buffered().use { visitor.visitMetadata(META_LICENSE, it.lineSequence().take(12).joinToString("\\n") { line -> line.replace("\t", "    ") }) }

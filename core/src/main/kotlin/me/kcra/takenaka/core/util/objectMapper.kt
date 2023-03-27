@@ -17,6 +17,7 @@
 
 package me.kcra.takenaka.core.util
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
@@ -42,3 +43,11 @@ fun objectMapper(): ObjectMapper = jsonMapper {
  * @param src the file
  */
 inline fun <reified T> ObjectMapper.readValue(src: Path): T = readValue(src.toFile())
+
+/**
+ * Reads contents of a file into a tree.
+ *
+ * @param src the file
+ * @return the tree
+ */
+fun ObjectMapper.readTree(src: Path): JsonNode = readTree(src.toFile())

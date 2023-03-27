@@ -38,7 +38,7 @@ fun GenerationContext.versionsPage(versions: Map<Version, List<String>>): Docume
     body {
         navPlaceholderComponent()
         main {
-            table(classes = "member-table row-borders") {
+            table(classes = "member-table") {
                 thead {
                     tr {
                         th {

@@ -96,6 +96,10 @@ abstract class AbstractGenerator(
                 return@parallelMap version to buildMappingTree {
                     contributor(contributorProvider(versionWorkspace))
 
+                    interceptBefore { tree ->
+                        MethodArgSourceFilter(tree)
+                    }
+
                     interceptAfter { tree ->
                         tree.removeElementsWithoutModifiers()
 

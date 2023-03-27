@@ -98,7 +98,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                 h4 {
                     +"Field summary"
                 }
-                table(classes = "member-table row-borders") {
+                table(classes = "member-table") {
                     thead {
                         tr {
                             th {
@@ -160,7 +160,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                 h4 {
                     +"Constructor summary"
                 }
-                table(classes = "member-table row-borders") {
+                table(classes = "member-table") {
                     thead {
                         tr {
                             th {
@@ -201,7 +201,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                 h4 {
                     +"Method summary"
                 }
-                table(classes = "member-table row-borders") {
+                table(classes = "member-table") {
                     thead {
                         tr {
                             th {
@@ -411,10 +411,7 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
         val options = buildFormattingOptions {
             escapeHtmlSymbols()
             generateNamedParameters()
-
-            if ((mod and Opcodes.ACC_VARARGS) != 0) {
-                variadicParameter()
-            }
+            adjustForMethod(mod)
         }
 
         val formatter = signature.formatSignature(options, method, nameRemapper, linkRemapper, index, version)
@@ -441,8 +438,13 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
                     append(formatType(arg, version, nameRemapper, linkRemapper, isVarargs = i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0))
 
                     append(' ')
+
+                    var lvIndex = i  // local variable index
+                    // the first variable is the class instance if it's not static, so offset it
+                    if ((mod and Opcodes.ACC_STATIC) == 0) lvIndex++
+
                     append(
-                        method.getArg(i, -1, null)
+                        method.getArg(-1, lvIndex, null)
                             ?.let(nameRemapper.elementMapper)
                             ?: "arg$i"
                     )
