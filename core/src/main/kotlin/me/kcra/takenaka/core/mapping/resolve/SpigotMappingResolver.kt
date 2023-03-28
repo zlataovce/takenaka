@@ -26,6 +26,7 @@ import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
+import me.kcra.takenaka.core.util.resettableLazy
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
@@ -68,16 +69,11 @@ abstract class AbstractSpigotMappingResolver(
      */
     abstract val mappingAttribute: String?
 
-    /**
-     * Creates a new mapping file reader (CSRG format).
-     *
-     * @return the reader, null if this resolver doesn't support the version
-     */
-    override fun reader(): Reader? {
+    private val lazyResolver = resettableLazy {
         val mappingAttribute0 = mappingAttribute
         if (mappingAttribute0 == null) {
             logger.warn { "did not find ${version.id} Spigot mappings ($mappingAttributeName)" }
-            return null
+            return@resettableLazy null
         }
 
         val file = workspace[mappingAttribute0]
@@ -85,7 +81,7 @@ abstract class AbstractSpigotMappingResolver(
         // Spigot's stash doesn't seem to support sending Content-Length headers
         if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && file.isRegularFile()) {
             logger.info { "found cached ${version.id} Spigot mappings ($mappingAttribute0)" }
-            return file.reader()
+            return@resettableLazy file
         }
 
         URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute0?at=${manifest.refs["BuildData"]}").httpRequest {
@@ -93,13 +89,44 @@ abstract class AbstractSpigotMappingResolver(
                 it.copyTo(file)
 
                 logger.info { "fetched ${version.id} Spigot mappings ($mappingAttribute0)" }
-                return file.reader()
+                return@resettableLazy file
             }
 
             logger.warn { "failed to fetch ${version.id} Spigot mappings ($mappingAttribute0), received ${it.responseCode}" }
         }
 
-        return null
+        return@resettableLazy null
+    }
+
+    private val pomLazyResolver = resettableLazy {
+        val file = workspace[CRAFTBUKKIT_POM]
+
+        if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && file.isRegularFile()) {
+            logger.info { "found cached ${version.id} CraftBukkit pom.xml ($mappingAttribute)" }
+            return@resettableLazy file
+        }
+
+        URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/raw/pom.xml?at=${manifest.refs["CraftBukkit"]}").httpRequest {
+            if (it.ok) {
+                it.copyTo(file)
+
+                logger.info { "fetched ${version.id} CraftBukkit pom.xml" }
+                return@resettableLazy file
+            }
+
+            logger.warn { "failed to fetch ${version.id} CraftBukkit pom.xml, received ${it.responseCode}" }
+        }
+
+        return@resettableLazy null
+    }
+
+    /**
+     * Creates a new mapping file reader (CSRG format).
+     *
+     * @return the reader, null if this resolver doesn't support the version
+     */
+    override fun reader(): Reader? {
+        return lazyResolver.resetIfNotExistsAndGet()?.reader()
     }
 
     /**
@@ -122,25 +149,7 @@ abstract class AbstractSpigotMappingResolver(
      * @return the reader, null if an error occurred
      */
     fun pomReader(): Reader? {
-        val file = workspace[CRAFTBUKKIT_POM]
-
-        if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && file.isRegularFile()) {
-            logger.info { "found cached ${version.id} CraftBukkit pom.xml ($mappingAttribute)" }
-            return file.reader()
-        }
-
-        URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/raw/pom.xml?at=${manifest.refs["CraftBukkit"]}").httpRequest {
-            if (it.ok) {
-                it.copyTo(file)
-
-                logger.info { "fetched ${version.id} CraftBukkit pom.xml" }
-                return file.reader()
-            }
-
-            logger.warn { "failed to fetch ${version.id} CraftBukkit pom.xml, received ${it.responseCode}" }
-        }
-
-        return null
+        return pomLazyResolver.resetIfNotExistsAndGet()?.reader()
     }
 
     /**
@@ -161,6 +170,14 @@ abstract class AbstractSpigotMappingResolver(
         licenseReader()?.use { visitor.visitMetadata(META_LICENSE, it.readText()) }
         visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
         pomReader()?.use { xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v -> visitor.visitMetadata(META_CB_NMS_VERSION, v) } }
+    }
+
+    /**
+     * Warms up this contributor.
+     */
+    override suspend fun warmup() {
+        lazyResolver.value
+        pomLazyResolver.value
     }
 
     companion object {

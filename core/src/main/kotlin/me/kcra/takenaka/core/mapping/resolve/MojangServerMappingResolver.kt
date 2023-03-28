@@ -48,15 +48,10 @@ class MojangServerMappingResolver(
         get() = attributes.downloads.serverMappings?.url
     override val targetNamespace: String = "mojang"
 
-    /**
-     * Creates a new mapping file reader (ProGuard format).
-     *
-     * @return the reader, null if the version doesn't have server mappings released
-     */
-    override fun reader(): Reader? {
+    private val lazyResolver = resettableLazy {
         if (attributes.downloads.serverMappings == null) {
             logger.info { "did not find Mojang mappings for ${version.id}" }
-            return null
+            return@resettableLazy null
         }
 
         val file = workspace[MAPPINGS]
@@ -66,7 +61,7 @@ class MojangServerMappingResolver(
 
             if (attributes.downloads.serverMappings?.sha1 == checksum) {
                 logger.info { "matched checksum for cached ${version.id} Mojang mappings" }
-                return file.reader()
+                return@resettableLazy file
             }
 
             logger.warn { "checksum mismatch for ${version.id} Mojang mapping cache, fetching them again" }
@@ -77,13 +72,22 @@ class MojangServerMappingResolver(
                 it.copyTo(file)
 
                 logger.info { "fetched ${version.id} Mojang mappings" }
-                return file.reader()
+                return@resettableLazy file
             }
 
             logger.info { "failed to fetch ${version.id} Mojang mappings, received ${it.responseCode}" }
         }
 
-        return null
+        return@resettableLazy null
+    }
+
+    /**
+     * Creates a new mapping file reader (ProGuard format).
+     *
+     * @return the reader, null if the version doesn't have server mappings released
+     */
+    override fun reader(): Reader? {
+        return lazyResolver.resetIfNotExistsAndGet()?.reader()
     }
 
     /**
@@ -110,6 +114,13 @@ class MojangServerMappingResolver(
         reader()?.let { ProGuardReader.read(it, targetNamespace, MappingUtil.NS_SOURCE_FALLBACK, MappingSourceNsSwitch(visitor, MappingUtil.NS_SOURCE_FALLBACK)) }
         licenseReader()?.use { visitor.visitMetadata(META_LICENSE, it.readText()) }
         visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
+    }
+
+    /**
+     * Warms up this contributor.
+     */
+    override suspend fun warmup() {
+        lazyResolver.value
     }
 
     companion object {

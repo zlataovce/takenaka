@@ -151,7 +151,7 @@ fun CompositeWorkspace.resolveMappings(objectMapper: ObjectMapper, xmlMapper: Ob
         val version = manifest[it] ?: error("did not find $it in manifest")
 
         jobs += async(Dispatchers.IO) {
-            val workspace by createVersioned {
+            val workspace = createVersionedWorkspace {
                 this.version = version
             }
             val savedFile = workspace["joined.tiny"]

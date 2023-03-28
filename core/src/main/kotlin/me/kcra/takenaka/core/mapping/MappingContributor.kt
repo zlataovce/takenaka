@@ -36,6 +36,14 @@ interface MappingContributor {
      * @param visitor the visitor
      */
     fun accept(visitor: MappingVisitor)
+
+    /**
+     * Tries to warm up the contributor.
+     *
+     * This may pre-fetch any mappings, compute needed resources, but it is a no-op by default.
+     */
+    suspend fun warmup() {
+    }
 }
 
 /**

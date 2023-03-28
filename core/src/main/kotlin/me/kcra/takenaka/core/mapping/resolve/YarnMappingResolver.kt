@@ -57,18 +57,13 @@ class YarnMappingResolver(
         get() = "https://raw.githubusercontent.com/FabricMC/yarn/${version.id}/LICENSE"
     override val targetNamespace: String = "yarn"
 
-    /**
-     * Creates a new mapping file reader (Tiny v1 or v2 format).
-     *
-     * @return the reader, null if the version doesn't have mappings released
-     */
-    override fun reader(): Reader? {
+    private val lazyResolver = resettableLazy {
         val file = workspace[MAPPING_JAR]
 
         val builds = versions[version.id]
         if (builds == null) {
             logger.info { "did not find Yarn mappings for ${version.id}" }
-            return null
+            return@resettableLazy null
         }
 
         val targetBuild = builds.maxBy(YarnBuild::buildNumber)
@@ -93,11 +88,11 @@ class YarnMappingResolver(
 
                     if (it.readText() == checksum) {
                         logger.info { "matched checksum for cached ${version.id} Yarn mappings" }
-                        return findMappingFile(file).reader()
+                        return@resettableLazy findMappingFile(file)
                     }
                 } else if (file.fileSize() == url.contentLength) {
                     logger.info { "matched same length for cached ${version.id} Yarn mappings" }
-                    return findMappingFile(file).reader()
+                    return@resettableLazy findMappingFile(file)
                 }
             }
 
@@ -109,13 +104,46 @@ class YarnMappingResolver(
                 it.copyTo(file)
 
                 logger.info { "fetched ${version.id} Yarn mappings" }
-                return findMappingFile(file).reader()
+                return@resettableLazy findMappingFile(file)
             }
 
             logger.warn { "failed to fetch ${version.id} Yarn mappings, received ${it.responseCode}" }
         }
 
-        return null
+        return@resettableLazy null
+    }
+
+    private val licenseLazyResolver = resettableLazy {
+        val file = workspace[LICENSE]
+
+        if (LICENSE in workspace) {
+            logger.info { "found cached ${version.id} Yarn license file" }
+            return@resettableLazy file
+        }
+
+        URL(licenseSource).httpRequest {
+            if (it.ok) {
+                it.copyTo(file)
+
+                logger.info { "fetched ${version.id} Yarn license file" }
+                return@resettableLazy file
+            } else if (it.responseCode == 404) {
+                logger.info { "did not find ${version.id} Yarn license file" }
+            } else {
+                logger.warn { "failed to fetch Yarn license file, received ${it.responseCode}" }
+            }
+        }
+
+        return@resettableLazy null
+    }
+
+    /**
+     * Creates a new mapping file reader (Tiny v1 or v2 format).
+     *
+     * @return the reader, null if the version doesn't have mappings released
+     */
+    override fun reader(): Reader? {
+        return lazyResolver.resetIfNotExistsAndGet()?.reader()
     }
 
     /**
@@ -124,27 +152,7 @@ class YarnMappingResolver(
      * @return the reader, null if this resolver doesn't support the version
      */
     override fun licenseReader(): Reader? {
-        val file = workspace[LICENSE]
-
-        if (LICENSE in workspace) {
-            logger.info { "found cached ${version.id} Yarn license file" }
-            return file.reader()
-        }
-
-        URL(licenseSource).httpRequest {
-            if (it.ok) {
-                it.copyTo(file)
-
-                logger.info { "fetched ${version.id} Yarn license file" }
-                return file.reader()
-            } else if (it.responseCode == 404) {
-                logger.info { "did not find ${version.id} Yarn license file" }
-            } else {
-                logger.warn { "failed to fetch Yarn license file, received ${it.responseCode}" }
-            }
-        }
-
-        return null
+        return licenseLazyResolver.resetIfNotExistsAndGet()?.reader()
     }
 
     /**
@@ -164,6 +172,14 @@ class YarnMappingResolver(
                 visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
             }
         }
+    }
+
+    /**
+     * Warms up this contributor.
+     */
+    override suspend fun warmup() {
+        lazyResolver.value
+        licenseLazyResolver.value
     }
 
     /**

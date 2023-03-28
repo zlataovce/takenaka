@@ -50,22 +50,17 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
     override val licenseSource: String = "https://raw.githubusercontent.com/MinecraftForge/MCPConfig/master/LICENSE"
     override val targetNamespace: String = "searge"
 
-    /**
-     * Creates a new mapping file reader (SRG/TSRG format).
-     *
-     * @return the reader, null if the version doesn't have mappings released
-     */
-    override fun reader(): Reader? {
+    private val lazyResolver = resettableLazy {
         val file = workspace[MCP_CONFIG]
         var url = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp_config/${version.id}/mcp_config-${version.id}.zip.sha1")
 
-        fun readMcpConfig(checksum: String): Reader {
+        fun readMcpConfig(checksum: String): Path {
             if (MCP_CONFIG in workspace) {
                 val fileChecksum = file.getChecksum(sha1Digest)
 
                 if (checksum == fileChecksum) {
                     logger.info { "matched checksum for cached ${version.id} Searge mappings" }
-                    return findMappingFile(file).reader()
+                    return findMappingFile(file)
                 }
 
                 logger.warn { "checksum mismatch for ${version.id} Searge mapping cache, fetching them again" }
@@ -74,12 +69,12 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
             URL(url.toString().removeSuffix(".sha1")).copyTo(file)
 
             logger.info { "fetched ${version.id} Searge mappings" }
-            return findMappingFile(file).reader()
+            return findMappingFile(file)
         }
 
         url.httpRequest {
             if (it.ok) {
-                return readMcpConfig(it.inputStream.reader().use(Reader::readText))
+                return@resettableLazy readMcpConfig(it.inputStream.reader().use(Reader::readText))
             }
         }
 
@@ -88,12 +83,35 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
         url = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp/${version.id}/mcp-${version.id}-srg.zip.sha1")
         url.httpRequest {
             if (it.ok) {
-                return readMcpConfig(it.inputStream.reader().use(Reader::readText))
+                return@resettableLazy readMcpConfig(it.inputStream.reader().use(Reader::readText))
             }
         }
 
         logger.warn { "failed to fetch ${version.id} Searge mappings, didn't find a valid URL" }
-        return null
+        return@resettableLazy null
+    }
+
+    private val licenseLazyResolver = resettableLazy<Path?> {
+        val file = workspace[LICENSE]
+
+        if (LICENSE in workspace) {
+            logger.info { "found cached Searge license file" }
+            return@resettableLazy file
+        }
+
+        URL(licenseSource).copyTo(file)
+
+        logger.info { "fetched Searge license file" }
+        return@resettableLazy file
+    }
+
+    /**
+     * Creates a new mapping file reader (SRG/TSRG format).
+     *
+     * @return the reader, null if the version doesn't have mappings released
+     */
+    override fun reader(): Reader? {
+        return lazyResolver.resetIfNotExistsAndGet()?.reader()
     }
 
     /**
@@ -101,18 +119,8 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
      *
      * @return the reader, null if this resolver doesn't support the version
      */
-    override fun licenseReader(): Reader {
-        val file = workspace[LICENSE]
-
-        if (LICENSE in workspace) {
-            logger.info { "found cached Searge license file" }
-            return file.reader()
-        }
-
-        URL(licenseSource).copyTo(file)
-
-        logger.info { "fetched Searge license file" }
-        return file.reader()
+    override fun licenseReader(): Reader? {
+        return licenseLazyResolver.resetIfNotExistsAndGet()?.reader()
     }
 
     /**
@@ -131,9 +139,17 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
                 MappingUtil.NS_TARGET_FALLBACK to "searge"
             )))
 
-            licenseReader().use { visitor.visitMetadata(META_LICENSE, it.readLines().joinToString("\\n") { line -> line.replace("\t", "    ") }) }
+            licenseReader()?.use { visitor.visitMetadata(META_LICENSE, it.readLines().joinToString("\\n") { line -> line.replace("\t", "    ") }) }
             visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
         }
+    }
+
+    /**
+     * Warms up this contributor.
+     */
+    override suspend fun warmup() {
+        lazyResolver.value
+        licenseLazyResolver.value
     }
 
     /**

@@ -18,7 +18,10 @@
 package me.kcra.takenaka.core.mapping.resolve
 
 import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.core.util.ResettableLazy
 import java.io.Reader
+import java.nio.file.Path
+import kotlin.io.path.isRegularFile
 
 /**
  * A mapping file resolver.
@@ -47,4 +50,16 @@ interface MappingResolver {
      * @return the reader, null if this resolver doesn't support the version
      */
     fun licenseReader(): Reader?
+}
+
+/**
+ * Resets the value if the path is not null and doesn't exist.
+ *
+ * @return a newly fetched value (or not)
+ */
+fun ResettableLazy<Path?>.resetIfNotExistsAndGet(): Path? {
+    synchronized(this) {
+        value?.let { if (!it.isRegularFile()) reset() }
+        return value
+    }
 }

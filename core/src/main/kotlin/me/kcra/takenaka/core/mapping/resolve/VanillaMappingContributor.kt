@@ -57,6 +57,34 @@ class VanillaMappingContributor(
      */
     val classes: List<ClassNode> by lazy(::readServerJar)
 
+    private val lazyResolver = resettableLazy {
+        val file = workspace[SERVER]
+
+        if (SERVER in workspace) {
+            val checksum = file.getChecksum(sha1Digest)
+
+            if (attributes.downloads.server.sha1 == checksum) {
+                logger.info { "matched checksum for cached ${workspace.version.id} vanilla JAR" }
+                return@resettableLazy file
+            }
+
+            logger.warn { "checksum mismatch for ${workspace.version.id} vanilla JAR cache, fetching it again" }
+        }
+
+        URL(attributes.downloads.server.url).httpRequest {
+            if (it.ok) {
+                it.copyTo(file)
+
+                logger.info { "fetched ${workspace.version.id} vanilla JAR" }
+                return@resettableLazy file
+            }
+
+            logger.info { "failed to fetch ${workspace.version.id} vanilla JAR, received ${it.responseCode}" }
+        }
+
+        return@resettableLazy null
+    }
+
     /**
      * Visits the original mappings to the supplied visitor.
      *
@@ -106,6 +134,13 @@ class VanillaMappingContributor(
     }
 
     /**
+     * Warms up this contributor.
+     */
+    override suspend fun warmup() {
+        lazyResolver.value
+    }
+
+    /**
      * Reads the server JAR (bundled JAR in case of a bundler).
      *
      * @return the classes
@@ -151,31 +186,7 @@ class VanillaMappingContributor(
      * @return the file, null if an error occurred
      */
     private fun fetchServerJar(): Path? {
-        val file = workspace[SERVER]
-
-        if (SERVER in workspace) {
-            val checksum = file.getChecksum(sha1Digest)
-
-            if (attributes.downloads.server.sha1 == checksum) {
-                logger.info { "matched checksum for cached ${workspace.version.id} vanilla JAR" }
-                return file
-            }
-
-            logger.warn { "checksum mismatch for ${workspace.version.id} vanilla JAR cache, fetching it again" }
-        }
-
-        URL(attributes.downloads.server.url).httpRequest {
-            if (it.ok) {
-                it.copyTo(file)
-
-                logger.info { "fetched ${workspace.version.id} vanilla JAR" }
-                return file
-            }
-
-            logger.info { "failed to fetch ${workspace.version.id} vanilla JAR, received ${it.responseCode}" }
-        }
-
-        return null
+        return lazyResolver.resetIfNotExistsAndGet()
     }
 
     companion object {
