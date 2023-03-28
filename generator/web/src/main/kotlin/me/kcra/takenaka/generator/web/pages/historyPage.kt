@@ -62,8 +62,12 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
             }
 
             classNameRows.forEach { (version, rows) ->
+                val klass = node[version] ?: error("Could not resolve ${version.id} mapping of $lastFriendlyMapping")
+
                 h3 {
-                    +version.id
+                    a(href = "/${version.id}/${getFriendlyDstName(klass)}.html") {
+                        +version.id
+                    }
                 }
                 rows.forEach { row ->
                     p(classes = "diff-${row.type}") {
