@@ -46,16 +46,55 @@ private val logger = KotlinLogging.logger {}
  *
  * @author Matouš Kučera
  */
-class VanillaMappingContributor(
-    workspace: VersionedWorkspace,
-    objectMapper: ObjectMapper
-) : MojangManifestConsumer(workspace, objectMapper), MappingContributor {
+class VanillaMappingContributor(val workspace: VersionedWorkspace, objectMapper: ObjectMapper) : AbstractOutputContainer<Path?>(), MappingContributor {
     override val targetNamespace: String = MappingUtil.NS_SOURCE_FALLBACK
+    override val outputs: List<Output<out Path?>>
+        get() = listOf(serverJarOutput)
 
     /**
      * The raw classes of the server JAR.
      */
     val classes: List<ClassNode> by lazy(::readServerJar)
+
+    /**
+     * The Mojang manifest provider.
+     */
+    val mojangProvider = MojangManifestProvider(workspace, objectMapper)
+
+    /**
+     * The vanilla server JAR output.
+     */
+    val serverJarOutput = lazyOutput<Path?> {
+        resolver {
+            val file = workspace[SERVER]
+
+            if (SERVER in workspace) {
+                val checksum = file.getChecksum(sha1Digest)
+
+                if (mojangProvider.attributes.downloads.server.sha1 == checksum) {
+                    logger.info { "matched checksum for cached ${workspace.version.id} vanilla JAR" }
+                    return@resolver file
+                }
+
+                logger.warn { "checksum mismatch for ${workspace.version.id} vanilla JAR cache, fetching it again" }
+            }
+
+            URL(mojangProvider.attributes.downloads.server.url).httpRequest {
+                if (it.ok) {
+                    it.copyTo(file)
+
+                    logger.info { "fetched ${workspace.version.id} vanilla JAR" }
+                    return@resolver file
+                }
+
+                logger.info { "failed to fetch ${workspace.version.id} vanilla JAR, received ${it.responseCode}" }
+            }
+
+            return@resolver null
+        }
+
+        upToDateWhen { it == null || it.isRegularFile() }
+    }
 
     /**
      * Visits the original mappings to the supplied visitor.
@@ -111,7 +150,7 @@ class VanillaMappingContributor(
      * @return the classes
      */
     private fun readServerJar(): List<ClassNode> {
-        var file = fetchServerJar() ?: return emptyList()
+        var file = serverJarOutput.value ?: return emptyList()
 
         fun readJar(zf: ZipFile): List<ClassNode> {
             return zf.stream()
@@ -143,39 +182,6 @@ class VanillaMappingContributor(
 
             return readJar(zf)
         }
-    }
-
-    /**
-     * Fetches the server JAR from cache, fetching it if the cache missed.
-     *
-     * @return the file, null if an error occurred
-     */
-    private fun fetchServerJar(): Path? {
-        val file = workspace[SERVER]
-
-        if (SERVER in workspace) {
-            val checksum = file.getChecksum(sha1Digest)
-
-            if (attributes.downloads.server.sha1 == checksum) {
-                logger.info { "matched checksum for cached ${workspace.version.id} vanilla JAR" }
-                return file
-            }
-
-            logger.warn { "checksum mismatch for ${workspace.version.id} vanilla JAR cache, fetching it again" }
-        }
-
-        URL(attributes.downloads.server.url).httpRequest {
-            if (it.ok) {
-                it.copyTo(file)
-
-                logger.info { "fetched ${workspace.version.id} vanilla JAR" }
-                return file
-            }
-
-            logger.info { "failed to fetch ${workspace.version.id} vanilla JAR, received ${it.responseCode}" }
-        }
-
-        return null
     }
 
     companion object {

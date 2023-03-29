@@ -18,7 +18,6 @@
 package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.util.*
@@ -27,9 +26,12 @@ import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch
 import net.fabricmc.mappingio.format.ProGuardReader
-import java.io.Reader
 import java.net.URL
+import java.nio.file.Path
+import kotlin.io.path.bufferedReader
+import kotlin.io.path.isRegularFile
 import kotlin.io.path.reader
+import kotlin.io.path.writeText
 
 private val logger = KotlinLogging.logger {}
 
@@ -37,67 +39,76 @@ private val logger = KotlinLogging.logger {}
  * A resolver for the official Mojang server mapping files ("Mojmaps").
  *
  * @property workspace the workspace
+ * @param objectMapper the JSON object mapper used for manifest deserialization
  * @author Matouš Kučera
  */
-class MojangServerMappingResolver(
-    workspace: VersionedWorkspace,
-    objectMapper: ObjectMapper
-) : MojangManifestConsumer(workspace, objectMapper), MappingResolver, MappingContributor {
-    override val version: Version by workspace::version
+class MojangServerMappingResolver(override val workspace: VersionedWorkspace, objectMapper: ObjectMapper) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val licenseSource: String?
-        get() = attributes.downloads.serverMappings?.url
+        get() = mojangProvider.attributes.downloads.serverMappings?.url
     override val targetNamespace: String = "mojang"
+    override val outputs: List<Output<out Path?>>
+        get() = listOf(mappingOutput, licenseOutput)
 
     /**
-     * Creates a new mapping file reader (ProGuard format).
-     *
-     * @return the reader, null if the version doesn't have server mappings released
+     * The Mojang manifest provider.
      */
-    override fun reader(): Reader? {
-        if (attributes.downloads.serverMappings == null) {
-            logger.info { "did not find Mojang mappings for ${version.id}" }
-            return null
-        }
+    val mojangProvider = MojangManifestProvider(workspace, objectMapper)
 
-        val file = workspace[MAPPINGS]
-
-        if (MAPPINGS in workspace) {
-            val checksum = file.getChecksum(sha1Digest)
-
-            if (attributes.downloads.serverMappings?.sha1 == checksum) {
-                logger.info { "matched checksum for cached ${version.id} Mojang mappings" }
-                return file.reader()
+    override val mappingOutput = lazyOutput<Path?> {
+        resolver {
+            if (mojangProvider.attributes.downloads.serverMappings == null) {
+                logger.info { "did not find Mojang mappings for ${version.id}" }
+                return@resolver null
             }
 
-            logger.warn { "checksum mismatch for ${version.id} Mojang mapping cache, fetching them again" }
-        }
+            val file = workspace[MAPPINGS]
 
-        URL(attributes.downloads.serverMappings?.url).httpRequest {
-            if (it.ok) {
-                it.copyTo(file)
+            if (MAPPINGS in workspace) {
+                val checksum = file.getChecksum(sha1Digest)
 
-                logger.info { "fetched ${version.id} Mojang mappings" }
-                return file.reader()
+                if (mojangProvider.attributes.downloads.serverMappings?.sha1 == checksum) {
+                    logger.info { "matched checksum for cached ${version.id} Mojang mappings" }
+                    return@resolver file
+                }
+
+                logger.warn { "checksum mismatch for ${version.id} Mojang mapping cache, fetching them again" }
             }
 
-            logger.info { "failed to fetch ${version.id} Mojang mappings, received ${it.responseCode}" }
+            URL(mojangProvider.attributes.downloads.serverMappings?.url).httpRequest {
+                if (it.ok) {
+                    it.copyTo(file)
+
+                    logger.info { "fetched ${version.id} Mojang mappings" }
+                    return@resolver file
+                }
+
+                logger.info { "failed to fetch ${version.id} Mojang mappings, received ${it.responseCode}" }
+            }
+
+            return@resolver null
         }
 
-        return null
+        upToDateWhen { it == null || it.isRegularFile() }
     }
 
-    /**
-     * Creates a new license file reader.
-     *
-     * @return the reader, null if this resolver doesn't support the version
-     */
-    override fun licenseReader(): Reader? {
-        // read first line of the mapping file
-        return reader()?.buffered()?.use { bufferedReader ->
-            val line = bufferedReader.readLine()
+    override val licenseOutput = lazyOutput<Path?> {
+        resolver {
+            val file = workspace[LICENSE]
+            val mappingPath by mappingOutput
 
-            if (line.startsWith("# ")) line.drop(2).reader() else null
+            mappingPath?.bufferedReader()?.use {
+                val line = it.readLine()
+
+                if (line.startsWith("# ")) {
+                    file.writeText(line.drop(2))
+                    return@resolver file
+                }
+            }
+
+            return@resolver null
         }
+
+        upToDateWhen { it == null || it.isRegularFile() }
     }
 
     /**
@@ -106,10 +117,17 @@ class MojangServerMappingResolver(
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
+        val mappingPath by mappingOutput
+
         // Mojang maps are original -> obfuscated, so we need to switch it beforehand
-        reader()?.let { ProGuardReader.read(it, targetNamespace, MappingUtil.NS_SOURCE_FALLBACK, MappingSourceNsSwitch(visitor, MappingUtil.NS_SOURCE_FALLBACK)) }
-        licenseReader()?.use { visitor.visitMetadata(META_LICENSE, it.readText()) }
-        visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
+        mappingPath?.reader()?.use { ProGuardReader.read(it, targetNamespace, MappingUtil.NS_SOURCE_FALLBACK, MappingSourceNsSwitch(visitor, MappingUtil.NS_SOURCE_FALLBACK)) }
+
+        val licensePath by licenseOutput
+
+        licensePath?.reader()?.use {
+            visitor.visitMetadata(META_LICENSE, it.readText())
+            visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
+        }
     }
 
     companion object {
@@ -117,6 +135,11 @@ class MojangServerMappingResolver(
          * The file name of the cached server mappings.
          */
         const val MAPPINGS = "mojang_mappings.txt"
+
+        /**
+         * The file name of the cached license file.
+         */
+        const val LICENSE = "mojang_license.txt"
 
         /**
          * The license metadata key.

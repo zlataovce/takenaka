@@ -47,12 +47,23 @@ typealias VisitorWrapper = (MappingVisitor) -> MappingVisitor
  * A mapping contributor that wraps the mapping visitor before passing it to the delegate.
  *
  * @param contributor the delegate
- * @param wrap the wrapping function
+ * @param wrappingFunction the wrapping function
  * @author Matouš Kučera
  */
-class WrappingContributor(
-    private val contributor: MappingContributor,
-    val wrap: VisitorWrapper
-) : MappingContributor by contributor {
-    override fun accept(visitor: MappingVisitor) = contributor.accept(wrap(visitor))
+class WrappingContributor(internal val contributor: MappingContributor, val wrappingFunction: VisitorWrapper) : MappingContributor {
+    override val targetNamespace by contributor::targetNamespace
+
+    override fun accept(visitor: MappingVisitor) = contributor.accept(wrappingFunction(visitor))
+}
+
+/**
+ * Unwraps this mapping contributor if it is a [WrappingContributor].
+ *
+ * @return the unwrapped contributor
+ */
+fun MappingContributor.unwrap(): MappingContributor {
+    if (this is WrappingContributor) {
+        return contributor.unwrap()
+    }
+    return this
 }

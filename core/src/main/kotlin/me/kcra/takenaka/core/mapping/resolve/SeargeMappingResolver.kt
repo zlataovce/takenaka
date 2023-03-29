@@ -18,7 +18,6 @@
 package me.kcra.takenaka.core.mapping.resolve
 
 import me.kcra.takenaka.core.DefaultResolverOptions
-import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
@@ -45,74 +44,73 @@ private val logger = KotlinLogging.logger {}
  * @property workspace the workspace
  * @author Matouš Kučera
  */
-class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver, MappingContributor {
-    override val version: Version by workspace::version
+class SeargeMappingResolver(override val workspace: VersionedWorkspace) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val licenseSource: String = "https://raw.githubusercontent.com/MinecraftForge/MCPConfig/master/LICENSE"
     override val targetNamespace: String = "searge"
+    override val outputs: List<Output<out Path?>>
+        get() = listOf(mappingOutput, licenseOutput)
 
-    /**
-     * Creates a new mapping file reader (SRG/TSRG format).
-     *
-     * @return the reader, null if the version doesn't have mappings released
-     */
-    override fun reader(): Reader? {
-        val file = workspace[MCP_CONFIG]
-        var url = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp_config/${version.id}/mcp_config-${version.id}.zip.sha1")
+    override val mappingOutput = lazyOutput<Path?> {
+        resolver {
+            val file = workspace[MCP_CONFIG]
+            var url = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp_config/${version.id}/mcp_config-${version.id}.zip.sha1")
 
-        fun readMcpConfig(checksum: String): Reader {
-            if (MCP_CONFIG in workspace) {
-                val fileChecksum = file.getChecksum(sha1Digest)
+            fun readMcpConfig(checksum: String): Path {
+                if (MCP_CONFIG in workspace) {
+                    val fileChecksum = file.getChecksum(sha1Digest)
 
-                if (checksum == fileChecksum) {
-                    logger.info { "matched checksum for cached ${version.id} Searge mappings" }
-                    return findMappingFile(file).reader()
+                    if (checksum == fileChecksum) {
+                        logger.info { "matched checksum for cached ${version.id} Searge mappings" }
+                        return findMappingFile(file)
+                    }
+
+                    logger.warn { "checksum mismatch for ${version.id} Searge mapping cache, fetching them again" }
                 }
 
-                logger.warn { "checksum mismatch for ${version.id} Searge mapping cache, fetching them again" }
+                URL(url.toString().removeSuffix(".sha1")).copyTo(file)
+
+                logger.info { "fetched ${version.id} Searge mappings" }
+                return findMappingFile(file)
             }
 
-            URL(url.toString().removeSuffix(".sha1")).copyTo(file)
-
-            logger.info { "fetched ${version.id} Searge mappings" }
-            return findMappingFile(file).reader()
-        }
-
-        url.httpRequest {
-            if (it.ok) {
-                return readMcpConfig(it.inputStream.reader().use(Reader::readText))
+            url.httpRequest {
+                if (it.ok) {
+                    return@resolver readMcpConfig(it.inputStream.reader().use(Reader::readText))
+                }
             }
-        }
 
-        // let's try the second URL
+            // let's try the second URL
 
-        url = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp/${version.id}/mcp-${version.id}-srg.zip.sha1")
-        url.httpRequest {
-            if (it.ok) {
-                return readMcpConfig(it.inputStream.reader().use(Reader::readText))
+            url = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp/${version.id}/mcp-${version.id}-srg.zip.sha1")
+            url.httpRequest {
+                if (it.ok) {
+                    return@resolver readMcpConfig(it.inputStream.reader().use(Reader::readText))
+                }
             }
+
+            logger.warn { "failed to fetch ${version.id} Searge mappings, didn't find a valid URL" }
+            return@resolver null
         }
 
-        logger.warn { "failed to fetch ${version.id} Searge mappings, didn't find a valid URL" }
-        return null
+        upToDateWhen { it == null || it.isRegularFile() }
     }
 
-    /**
-     * Creates a new license file reader.
-     *
-     * @return the reader, null if this resolver doesn't support the version
-     */
-    override fun licenseReader(): Reader {
-        val file = workspace[LICENSE]
+    override val licenseOutput = lazyOutput {
+        resolver {
+            val file = workspace[LICENSE]
 
-        if (LICENSE in workspace) {
-            logger.info { "found cached Searge license file" }
-            return file.reader()
+            if (LICENSE in workspace) {
+                logger.info { "found cached Searge license file" }
+                return@resolver file
+            }
+
+            URL(licenseSource).copyTo(file)
+
+            logger.info { "fetched Searge license file" }
+            return@resolver file
         }
 
-        URL(licenseSource).copyTo(file)
-
-        logger.info { "fetched Searge license file" }
-        return file.reader()
+        upToDateWhen(Path::isRegularFile)
     }
 
     /**
@@ -121,7 +119,9 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        reader()?.use { reader ->
+        val mappingPath by mappingOutput
+
+        mappingPath?.reader()?.use { reader ->
             // Searge has obf, srg and id namespaces; obf is the obfuscated one
             MappingReader.read(reader, MappingNsRenamer(visitor, mapOf(
                 "obf" to MappingUtil.NS_SOURCE_FALLBACK,
@@ -131,8 +131,12 @@ class SeargeMappingResolver(val workspace: VersionedWorkspace) : MappingResolver
                 MappingUtil.NS_TARGET_FALLBACK to "searge"
             )))
 
-            licenseReader().use { visitor.visitMetadata(META_LICENSE, it.readLines().joinToString("\\n") { line -> line.replace("\t", "    ") }) }
-            visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
+            val licensePath by licenseOutput
+
+            licensePath.reader().use {
+                visitor.visitMetadata(META_LICENSE, it.readLines().joinToString("\\n") { line -> line.replace("\t", "    ") })
+                visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
+            }
         }
     }
 

@@ -17,36 +17,27 @@
 
 package me.kcra.takenaka.core.mapping.resolve
 
-import me.kcra.takenaka.core.Version
-import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.Workspace
 import java.nio.file.Path
 
 /**
- * A mapping file resolver.
+ * Licensing information resolver.
  *
  * @author Matouš Kučera
  */
-interface MappingResolver : OutputContainer<Path?> {
+interface LicenseResolver : OutputContainer<Path?> {
     /**
-     * The mapping workspace.
+     * The resolver workspace.
      */
-    val workspace: VersionedWorkspace
+    val workspace: Workspace
 
     /**
-     * A shorthand for getting the workspace version.
+     * The source where the license was acquired (a URL, a file path, ...).
      */
-    val version: Version
-        get() = workspace.version
+    val licenseSource: String?
 
     /**
-     * The mapping file output of this resolver.
+     * The license file output of this resolver.
      */
-    val mappingOutput: Output<out Path?>
+    val licenseOutput: Output<out Path?>
 }
-
-/**
- * A base for a mapping resolver.
- *
- * Subclasses should override the [outputs] property with their own values.
- */
-abstract class AbstractMappingResolver : AbstractOutputContainer<Path?>(), MappingResolver

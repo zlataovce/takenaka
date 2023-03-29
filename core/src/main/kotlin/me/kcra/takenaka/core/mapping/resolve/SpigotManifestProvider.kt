@@ -29,14 +29,11 @@ import kotlin.concurrent.withLock
 private val logger = KotlinLogging.logger {}
 
 /**
- * A consumer of Spigot's BuildData manifest.
+ * A provider of Spigot's BuildData manifest.
  *
  * @author Matouš Kučera
  */
-open class SpigotManifestConsumer(
-    val workspace: VersionedWorkspace,
-    private val objectMapper: ObjectMapper
-) {
+class SpigotManifestProvider(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper) {
     /**
      * The version manifest.
      */

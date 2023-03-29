@@ -17,12 +17,20 @@
 
 package me.kcra.takenaka.generator.web
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
+import kotlinx.html.dom.serialize
+import kotlinx.html.dom.write
+import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.dstNamespaceIds
 import me.kcra.takenaka.core.util.hexValue
 import me.kcra.takenaka.core.util.threadLocalMessageDigest
 import net.fabricmc.mappingio.tree.MappingTreeView
+import org.objectweb.asm.Opcodes
+import org.w3c.dom.Document
+import java.lang.reflect.Modifier
+import kotlin.io.path.createDirectories
+import kotlin.io.path.writeText
+import kotlin.io.path.writer
 
 /**
  * A thread-local MD5 digest.
@@ -36,6 +44,25 @@ val md5Digest by threadLocalMessageDigest("MD5")
  */
 class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenerator, val styleConsumer: StyleConsumer) : CoroutineScope by coroutineScope {
     val index: ClassSearchIndex by generator::index
+
+    /**
+     * Serializes a [Document] to a file in the specified workspace.
+     *
+     * @param workspace the workspace
+     * @param path the path, relative in the workspace
+     */
+    fun Document.serialize(workspace: Workspace, path: String) {
+        launch(Dispatchers.IO + CoroutineName("save-coro")) {
+            val file = workspace[path]
+            file.parent.createDirectories()
+
+            if (generator.transformers.isEmpty()) {
+                file.writer().use { it.write(this@serialize) }
+            } else {
+                file.writeText(generator.transformHtml(serialize(prettyPrint = !generator.hasMinifier)))
+            }
+        }
+    }
 
     /**
      * Gets a "friendly" destination name of an element.
@@ -99,5 +126,5 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
  * @param styleConsumer the style provider that will be used in the context
  * @param block the context user
  */
-inline fun <R> WebGenerator.generationContext(noinline styleConsumer: StyleConsumer, crossinline block: suspend GenerationContext.() -> R): R =
-    runBlocking(coroutineDispatcher) { block(GenerationContext(this, this@generationContext, styleConsumer)) }
+suspend inline fun <R> WebGenerator.generationContext(noinline styleConsumer: StyleConsumer, crossinline block: suspend GenerationContext.() -> R): R =
+    coroutineScope { block(GenerationContext(this, this@generationContext, styleConsumer)) }

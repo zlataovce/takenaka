@@ -26,10 +26,13 @@ import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
 import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.buildMappingTree
+import me.kcra.takenaka.core.mapping.resolve.OutputContainer
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
+import me.kcra.takenaka.core.mapping.unwrap
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * A function for providing a list of mapping contributors for a single version.
@@ -44,7 +47,6 @@ typealias ContributorProvider = AbstractGenerator.(VersionedWorkspace) -> List<M
  * @param versions the Minecraft versions that this generator will process
  * @param mappingWorkspace the workspace in which the mappings are stored
  * @param contributorProvider a function that provides mapping contributors to be processed
- * @param coroutineDispatcher the Kotlin Coroutines context
  * @param skipSynthetic whether synthetic classes and their members should be skipped
  * @param correctNamespaces namespaces excluded from any correction, these are artificial (non-mapping) namespaces defined in the core library by default
  * @author Matouš Kučera
@@ -54,10 +56,18 @@ abstract class AbstractGenerator(
     val versions: List<String>,
     val mappingWorkspace: CompositeWorkspace,
     val contributorProvider: ContributorProvider,
-    val coroutineDispatcher: CoroutineContext = Dispatchers.IO,
     val skipSynthetic: Boolean = false,
     val correctNamespaces: List<String> = VanillaMappingContributor.NAMESPACES
 ) {
+    /**
+     * The mappings.
+     */
+    protected val mappings: VersionedMappingMap by lazy {
+        runBlocking {
+            resolveMappings()
+        }
+    }
+
     /**
      * An object mapper instance for this generator.
      */
@@ -69,32 +79,43 @@ abstract class AbstractGenerator(
     val xmlMapper = XmlMapper()
 
     /**
-     * The mappings.
-     */
-    val mappings: VersionedMappingMap by lazy(::resolveMappings)
-
-    /**
      * Launches the generator.
      */
-    abstract fun generate()
+    abstract suspend fun generate()
 
     /**
      * Resolves mappings for all targeted versions.
      *
      * @return a map of joined mapping files, keyed by version
      */
-    private fun resolveMappings(): VersionedMappingMap = runBlocking(coroutineDispatcher) {
+    protected suspend fun resolveMappings(): VersionedMappingMap {
         val manifest = objectMapper.versionManifest()
 
-        return@runBlocking versions
-            .map { manifest[it] ?: error("did not find version $it in manifest") }
-            .parallelMap { version ->
-                val versionWorkspace by mappingWorkspace.createVersioned {
-                    this.version = version
+        return versions
+            .map { versionString ->
+                mappingWorkspace.createVersionedWorkspace {
+                    this.version = manifest[versionString] ?: error("did not find version $versionString in manifest")
+                }
+            }
+            .parallelMap(Dispatchers.Default + CoroutineName("mapping-coro")) { workspace ->
+                val contributors = contributorProvider(workspace)
+                coroutineScope {
+                    contributors.forEach { _contributor ->
+                        val contributor = _contributor.unwrap()
+
+                        // pre-fetch outputs asynchronously
+                        if (contributor is OutputContainer<*>) {
+                            contributor.forEach { output ->
+                                launch(Dispatchers.Default + CoroutineName("resolve-coro")) {
+                                    output.resolve()
+                                }
+                            }
+                        }
+                    }
                 }
 
-                return@parallelMap version to buildMappingTree {
-                    contributor(contributorProvider(versionWorkspace))
+                workspace.version to buildMappingTree {
+                    contributor(contributors)
 
                     interceptBefore { tree ->
                         MethodArgSourceFilter(tree)
@@ -125,9 +146,13 @@ abstract class AbstractGenerator(
 /**
  * Maps an [Iterable] in parallel.
  *
- * @param f the mapping function
+ * @param context the coroutine context
+ * @param block the mapping function
  * @return the remapped list
  */
-suspend fun <A, B> Iterable<A>.parallelMap(f: suspend (A) -> B): List<B> = coroutineScope {
-    map { async { f(it) } }.awaitAll()
+suspend fun <A, B> Iterable<A>.parallelMap(
+    context: CoroutineContext = EmptyCoroutineContext,
+    block: suspend (A) -> B
+): List<B> = coroutineScope {
+    map { async(context) { block(it) } }.awaitAll()
 }

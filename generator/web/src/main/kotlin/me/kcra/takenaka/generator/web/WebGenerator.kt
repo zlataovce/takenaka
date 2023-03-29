@@ -17,10 +17,10 @@
 
 package me.kcra.takenaka.generator.web
 
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.html.dom.serialize
-import kotlinx.html.dom.write
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
@@ -45,10 +45,7 @@ import java.io.BufferedReader
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.IdentityHashMap
-import kotlin.coroutines.CoroutineContext
-import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
-import kotlin.io.path.writer
 
 /**
  * A generator that generates documentation in an HTML format.
@@ -59,7 +56,6 @@ import kotlin.io.path.writer
  * @param versions the Minecraft versions that this generator will process
  * @param mappingWorkspace the workspace in which the mappings are stored
  * @param contributorProvider a function that provides mapping contributors to be processed
- * @param coroutineDispatcher the Kotlin Coroutines context
  * @param skipSynthetic whether synthetic classes and their members should be skipped
  * @param correctNamespaces namespaces excluded from any correction, these are artificial (non-mapping) namespaces defined in the core library by default
  * @param transformers a list of transformers that transform the output
@@ -75,7 +71,6 @@ class WebGenerator(
     versions: List<String>,
     mappingWorkspace: CompositeWorkspace,
     contributorProvider: ContributorProvider,
-    coroutineDispatcher: CoroutineContext = Dispatchers.IO,
     skipSynthetic: Boolean = false,
     correctNamespaces: List<String> = VanillaMappingContributor.NAMESPACES,
     val transformers: List<Transformer> = emptyList(),
@@ -89,12 +84,20 @@ class WebGenerator(
     versions,
     mappingWorkspace,
     contributorProvider,
-    coroutineDispatcher,
     skipSynthetic,
     correctNamespaces
-) {
+), Transformer {
     private val namespaceFriendlyNames = namespaces.mapValues { it.value.friendlyName }
-    private val hasMinifier = transformers.any { it is Minifier }
+    private val currentComposite by workspace
+
+    internal val hasMinifier = transformers.any { it is Minifier }
+
+    /**
+     * The "assets" folder.
+     */
+    val assetWorkspace = currentComposite.createWorkspace {
+        this.name = "assets"
+    }
 
     /**
      * A convenience index for looking up namespaces by their friendly names.
@@ -104,7 +107,7 @@ class WebGenerator(
     /**
      * Launches the generator.
      */
-    override fun generate() {
+    override suspend fun generate() {
         val composite: CompositeWorkspace by workspace
         val styleSupplier = DefaultStyleConsumer()
 
@@ -154,8 +157,14 @@ class WebGenerator(
 
             // third pass: generate the documentation
             mappings.forEach { (version, tree) ->
-                launch(coroutineDispatcher) {
-                    val versionWorkspace by composite.createVersioned {
+                launch(Dispatchers.Default + CoroutineName("generate-coro")) {
+                    spigotLikeNamespaces.forEach { ns ->
+                        if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
+                            tree.replaceCraftBukkitNMSVersion(ns)
+                            tree.completeInnerClassNames(ns)
+                        }
+                    }
+                    val versionWorkspace = currentComposite.createVersionedWorkspace {
                         this.version = version
                     }
 
@@ -187,7 +196,7 @@ class WebGenerator(
                         tree.classes.forEach { klass ->
                             val friendlyName = getFriendlyDstName(klass)
 
-                            launch(coroutineDispatcher) {
+                            launch(Dispatchers.Default + CoroutineName("page-coro")) {
                                 classPage(klass, versionWorkspace, friendlyNameRemapper)
                                     .serialize(versionWorkspace, "$friendlyName.html")
                             }
@@ -236,31 +245,6 @@ class WebGenerator(
                 .serialize(workspace, "index.html")
         }
 
-        workspace["assets"].createDirectories()
-
-        fun copyAsset(name: String) {
-            val inputStream = javaClass.getResourceAsStream("/assets/$name")
-                ?: error("Could not copy over /assets/$name from resources")
-            val destination = workspace["assets/$name"]
-
-            if (transformers.isNotEmpty()) {
-                var content = inputStream.bufferedReader().use(BufferedReader::readText)
-
-                transformers.forEach { transformer ->
-                    content = when (name.substringAfterLast('.')) {
-                        "css" -> transformer.transformCss(content)
-                        "js" -> transformer.transformJs(content)
-                        "html" -> transformer.transformHtml(content)
-                        else -> content
-                    }
-                }
-
-                destination.writeText(content)
-            } else {
-                inputStream.use { Files.copy(it, destination, StandardCopyOption.REPLACE_EXISTING) }
-            }
-        }
-
         copyAsset("main.js")
 
         val componentFileContent = generateComponentFile(
@@ -293,26 +277,35 @@ class WebGenerator(
                 }
             }
         )
-        workspace["assets/components.js"].writeText(componentFileContent.transformJs())
-        workspace["assets/generated.css"].writeText(styleSupplier.generateStyleSheet().transformCss())
+        assetWorkspace["components.js"].writeText(transformJs(componentFileContent))
+        assetWorkspace["generated.css"].writeText(transformCss(styleSupplier.generateStyleSheet()))
 
         copyAsset("main.css") // main.css should be copied last to minify correctly
     }
 
     /**
-     * Serializes a [Document] to a file in the specified workspace.
+     * Copies and transforms an asset from `resources`, placing it into [assetWorkspace].
      *
-     * @param workspace the workspace
-     * @param path the path, relative in the workspace
+     * @param name the asset path, **must not begin with a slash**
      */
-    fun Document.serialize(workspace: Workspace, path: String) {
-        val file = workspace[path]
-        file.parent.createDirectories()
+    fun copyAsset(name: String) {
+        val inputStream = javaClass.getResourceAsStream("/assets/$name")
+            ?: error("Could not copy over /assets/$name from resources")
 
-        if (transformers.isEmpty()) {
-            file.writer().use { it.write(this) }
+        val destination = assetWorkspace[name]
+        if (transformers.isNotEmpty()) {
+            val content = inputStream.bufferedReader().use(BufferedReader::readText)
+
+            destination.writeText(
+                when (name.substringAfterLast('.')) {
+                    "css" -> transformCss(content)
+                    "js" -> transformJs(content)
+                    "html" -> transformHtml(content)
+                    else -> content
+                }
+            )
         } else {
-            file.writeText(serialize(prettyPrint = !hasMinifier).transformHtml())
+            inputStream.use { Files.copy(it, destination, StandardCopyOption.REPLACE_EXISTING) }
         }
     }
 
@@ -370,21 +363,24 @@ class WebGenerator(
     /**
      * Transforms HTML markup with all transformers in this generator.
      *
+     * @param content the markup to transform
      * @return the transformed markup
      */
-    fun String.transformHtml(): String = transformers.fold(this) { content0, transformer -> transformer.transformHtml(content0) }
+    override fun transformHtml(content: String): String = transformers.fold(content) { content0, transformer -> transformer.transformHtml(content0) }
 
     /**
      * Transforms a JS script with all transformers in this generator.
      *
+     * @param content the script to transform
      * @return the transformed script
      */
-    fun String.transformJs(): String = transformers.fold(this) { content0, transformer -> transformer.transformJs(content0) }
+    override fun transformJs(content: String): String = transformers.fold(content) { content0, transformer -> transformer.transformJs(content0) }
 
     /**
      * Transforms a CSS stylesheet with all transformers in this generator.
      *
+     * @param content the stylesheet to transform
      * @return the transformed stylesheet
      */
-    fun String.transformCss(): String = transformers.fold(this) { content0, transformer -> transformer.transformCss(content0) }
+    override fun transformCss(content: String): String = transformers.fold(content) { content0, transformer -> transformer.transformCss(content0) }
 }
