@@ -93,6 +93,13 @@ class WebGenerator(
     internal val hasMinifier = transformers.any { it is Minifier }
 
     /**
+     * The "history" folder.
+     */
+    val historyWorkspace = currentComposite.createWorkspace {
+        name = "history"
+    }
+
+    /**
      * The "assets" folder.
      */
     val assetWorkspace = currentComposite.createWorkspace {
@@ -108,14 +115,9 @@ class WebGenerator(
      * Launches the generator.
      */
     override suspend fun generate() {
-        val composite: CompositeWorkspace by workspace
-        val styleSupplier = DefaultStyleConsumer()
+        val styleConsumer = DefaultStyleConsumer()
 
-        val historyWorkspace by composite.createWorkspace {
-            name = "history"
-        }
-
-        generationContext(styleConsumer = styleSupplier::apply) {
+        generationContext(styleConsumer = styleConsumer::apply) {
             // first pass: complete inner class names for spigot-like namespaces
             // not done in AbstractGenerator due to the namespace requirement
             mappings.forEach { (_, tree) ->
@@ -149,7 +151,7 @@ class WebGenerator(
                     hashMap[klass] = fileHash
                 }
 
-                launch(coroutineDispatcher) {
+                launch(Dispatchers.Default + CoroutineName("page-coro")) {
                     historyPage(node)
                         .serialize(historyWorkspace, "$fileHash.html")
                 }
@@ -158,12 +160,6 @@ class WebGenerator(
             // third pass: generate the documentation
             mappings.forEach { (version, tree) ->
                 launch(Dispatchers.Default + CoroutineName("generate-coro")) {
-                    spigotLikeNamespaces.forEach { ns ->
-                        if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
-                            tree.replaceCraftBukkitNMSVersion(ns)
-                            tree.completeInnerClassNames(ns)
-                        }
-                    }
                     val versionWorkspace = currentComposite.createVersionedWorkspace {
                         this.version = version
                     }
@@ -278,7 +274,7 @@ class WebGenerator(
             }
         )
         assetWorkspace["components.js"].writeText(transformJs(componentFileContent))
-        assetWorkspace["generated.css"].writeText(transformCss(styleSupplier.generateStyleSheet()))
+        assetWorkspace["generated.css"].writeText(transformCss(styleConsumer.generateStyleSheet()))
 
         copyAsset("main.css") // main.css should be copied last to minify correctly
     }

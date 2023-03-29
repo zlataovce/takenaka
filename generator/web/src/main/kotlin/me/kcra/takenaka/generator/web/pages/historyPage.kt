@@ -130,7 +130,7 @@ class DiffBuilder<K, V>(reverseOrder: Boolean = true) {
      *  - the former value is null (not present) and [value] is non-null, a [DiffType.ADDITION] row is appended.
      *  - the former value is non-null and [value] is null, a [DiffType.DELETION] row is appended.
      *  - both the former value and [value] are non-null and are not equal ([Object.equals]),
-     *    rows with both types are appended (former value row is a [DiffType.DELETION], [value] row is an [DiffType.ADDITION]).
+     *    rows with both types will be appended (former value row is a [DiffType.DELETION], [value] row is an [DiffType.ADDITION]).
      *
      * @param version the version of the current [value]
      * @param key the cross-version key, most likely a namespace

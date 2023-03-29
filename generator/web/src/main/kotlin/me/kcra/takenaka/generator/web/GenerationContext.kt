@@ -25,9 +25,7 @@ import me.kcra.takenaka.core.mapping.dstNamespaceIds
 import me.kcra.takenaka.core.util.hexValue
 import me.kcra.takenaka.core.util.threadLocalMessageDigest
 import net.fabricmc.mappingio.tree.MappingTreeView
-import org.objectweb.asm.Opcodes
 import org.w3c.dom.Document
-import java.lang.reflect.Modifier
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.io.path.writer
