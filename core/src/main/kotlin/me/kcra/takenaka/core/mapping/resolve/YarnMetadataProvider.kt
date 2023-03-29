@@ -32,14 +32,11 @@ import kotlin.concurrent.withLock
 private val logger = KotlinLogging.logger {}
 
 /**
- * A consumer of Yarn's maven-metadata.xml file.
+ * A provider of Yarn's maven-metadata.xml file.
  *
  * @author Matouš Kučera
  */
-open class YarnMetadataConsumer(
-    val workspace: VersionedWorkspace,
-    private val xmlMapper: ObjectMapper
-) {
+class YarnMetadataProvider(val workspace: VersionedWorkspace, private val xmlMapper: ObjectMapper) {
     /**
      * A map of versions and their builds.
      */

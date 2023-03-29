@@ -26,7 +26,9 @@ import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.VersionedMappingMap
 import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.buildMappingTree
+import me.kcra.takenaka.core.mapping.resolve.OutputContainer
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
+import me.kcra.takenaka.core.mapping.unwrap
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
 import kotlin.coroutines.CoroutineContext
@@ -98,9 +100,16 @@ abstract class AbstractGenerator(
             .parallelMap(Dispatchers.Default + CoroutineName("mapping-coro")) { workspace ->
                 val contributors = contributorProvider(workspace)
                 coroutineScope {
-                    contributors.forEach { contributor ->
-                        launch(Dispatchers.Default + CoroutineName("warmup-coro")) {
-                            contributor.warmup()
+                    contributors.forEach { _contributor ->
+                        val contributor = _contributor.unwrap()
+
+                        // pre-fetch outputs asynchronously
+                        if (contributor is OutputContainer<*>) {
+                            contributor.forEach { output ->
+                                launch(Dispatchers.Default + CoroutineName("resolve-coro")) {
+                                    output.resolve()
+                                }
+                            }
                         }
                     }
                 }

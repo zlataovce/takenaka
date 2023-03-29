@@ -19,14 +19,12 @@ package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.DefaultResolverOptions
-import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
-import me.kcra.takenaka.core.util.resettableLazy
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
@@ -35,11 +33,13 @@ import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
 import net.fabricmc.mappingio.format.TsrgReader
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
-import java.io.Reader
 import java.lang.invoke.MethodHandles
 import java.net.URL
+import java.nio.file.Path
+import kotlin.io.path.bufferedReader
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.reader
+import kotlin.io.path.writeText
 
 private val logger = KotlinLogging.logger {}
 
@@ -47,17 +47,20 @@ private val logger = KotlinLogging.logger {}
  * A base resolver for Spigot mapping files.
  *
  * @property workspace the workspace
+ * @param objectMapper the JSON object mapper used for manifest deserialization
  * @author Matouš Kučera
  */
-abstract class AbstractSpigotMappingResolver(
-    workspace: VersionedWorkspace,
-    objectMapper: ObjectMapper,
-    val xmlMapper: ObjectMapper
-) : SpigotManifestConsumer(workspace, objectMapper), MappingResolver, MappingContributor {
-    override val version: Version by workspace::version
+abstract class AbstractSpigotMappingResolver(final override val workspace: VersionedWorkspace, objectMapper: ObjectMapper, val xmlMapper: ObjectMapper) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val licenseSource: String
-        get() = "https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${manifest.refs["BuildData"]}"
+        get() = "https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${spigotProvider.manifest.refs["BuildData"]}"
     override val targetNamespace: String = "spigot"
+    override val outputs: List<Output<out Path?>>
+        get() = listOf(mappingOutput, licenseOutput, pomOutput)
+
+    /**
+     * The Spigot manifest provider.
+     */
+    val spigotProvider = SpigotManifestProvider(workspace, objectMapper)
 
     /**
      * The name of the attribute with the mapping file name.
@@ -69,87 +72,83 @@ abstract class AbstractSpigotMappingResolver(
      */
     abstract val mappingAttribute: String?
 
-    private val lazyResolver = resettableLazy {
-        val mappingAttribute0 = mappingAttribute
-        if (mappingAttribute0 == null) {
-            logger.warn { "did not find ${version.id} Spigot mappings ($mappingAttributeName)" }
-            return@resettableLazy null
-        }
-
-        val file = workspace[mappingAttribute0]
-
-        // Spigot's stash doesn't seem to support sending Content-Length headers
-        if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && file.isRegularFile()) {
-            logger.info { "found cached ${version.id} Spigot mappings ($mappingAttribute0)" }
-            return@resettableLazy file
-        }
-
-        URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute0?at=${manifest.refs["BuildData"]}").httpRequest {
-            if (it.ok) {
-                it.copyTo(file)
-
-                logger.info { "fetched ${version.id} Spigot mappings ($mappingAttribute0)" }
-                return@resettableLazy file
+    override val mappingOutput = lazyOutput<Path?> {
+        resolver {
+            val mappingAttribute0 = mappingAttribute
+            if (mappingAttribute0 == null) {
+                logger.warn { "did not find ${version.id} Spigot mappings ($mappingAttributeName)" }
+                return@resolver null
             }
 
-            logger.warn { "failed to fetch ${version.id} Spigot mappings ($mappingAttribute0), received ${it.responseCode}" }
-        }
+            val file = workspace[mappingAttribute0]
 
-        return@resettableLazy null
-    }
-
-    private val pomLazyResolver = resettableLazy {
-        val file = workspace[CRAFTBUKKIT_POM]
-
-        if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && file.isRegularFile()) {
-            logger.info { "found cached ${version.id} CraftBukkit pom.xml ($mappingAttribute)" }
-            return@resettableLazy file
-        }
-
-        URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/raw/pom.xml?at=${manifest.refs["CraftBukkit"]}").httpRequest {
-            if (it.ok) {
-                it.copyTo(file)
-
-                logger.info { "fetched ${version.id} CraftBukkit pom.xml" }
-                return@resettableLazy file
+            // Spigot's stash doesn't seem to support sending Content-Length headers
+            if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && file.isRegularFile()) {
+                logger.info { "found cached ${version.id} Spigot mappings ($mappingAttribute0)" }
+                return@resolver file
             }
 
-            logger.warn { "failed to fetch ${version.id} CraftBukkit pom.xml, received ${it.responseCode}" }
+            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute0?at=${spigotProvider.manifest.refs["BuildData"]}").httpRequest {
+                if (it.ok) {
+                    it.copyTo(file)
+
+                    logger.info { "fetched ${version.id} Spigot mappings ($mappingAttribute0)" }
+                    return@resolver file
+                }
+
+                logger.warn { "failed to fetch ${version.id} Spigot mappings ($mappingAttribute0), received ${it.responseCode}" }
+            }
+
+            return@resolver null
         }
 
-        return@resettableLazy null
+        upToDateWhen { it == null || it.isRegularFile() }
     }
 
-    /**
-     * Creates a new mapping file reader (CSRG format).
-     *
-     * @return the reader, null if this resolver doesn't support the version
-     */
-    override fun reader(): Reader? {
-        return lazyResolver.resetIfNotExistsAndGet()?.reader()
-    }
+    override val licenseOutput = lazyOutput<Path?> {
+        resolver {
+            val file = workspace[LICENSE]
+            val mappingPath by mappingOutput
 
-    /**
-     * Creates a new license file reader.
-     *
-     * @return the reader, null if this resolver doesn't support the version
-     */
-    override fun licenseReader(): Reader? {
-        // read first line of the mapping file
-        return reader()?.buffered()?.use { bufferedReader ->
-            val line = bufferedReader.readLine()
+            mappingPath?.bufferedReader()?.use {
+                val line = it.readLine()
 
-            if (line.startsWith("# ")) line.drop(2).reader() else null
+                if (line.startsWith("# ")) {
+                    file.writeText(line.drop(2))
+                    return@resolver file
+                }
+            }
+
+            return@resolver null
         }
+
+        upToDateWhen { it == null || it.isRegularFile() }
     }
 
-    /**
-     * Creates a new CraftBukkit pom.xml file reader.
-     *
-     * @return the reader, null if an error occurred
-     */
-    fun pomReader(): Reader? {
-        return pomLazyResolver.resetIfNotExistsAndGet()?.reader()
+    val pomOutput = lazyOutput<Path?> {
+        resolver {
+            val file = workspace[CRAFTBUKKIT_POM]
+
+            if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && file.isRegularFile()) {
+                logger.info { "found cached ${version.id} CraftBukkit pom.xml ($mappingAttribute)" }
+                return@resolver file
+            }
+
+            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/raw/pom.xml?at=${spigotProvider.manifest.refs["CraftBukkit"]}").httpRequest {
+                if (it.ok) {
+                    it.copyTo(file)
+
+                    logger.info { "fetched ${version.id} CraftBukkit pom.xml" }
+                    return@resolver file
+                }
+
+                logger.warn { "failed to fetch ${version.id} CraftBukkit pom.xml, received ${it.responseCode}" }
+            }
+
+            return@resolver null
+        }
+
+        upToDateWhen { it == null || it.isRegularFile() }
     }
 
     /**
@@ -158,29 +157,36 @@ abstract class AbstractSpigotMappingResolver(
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        reader()?.buffered()?.use { bufferedReader ->
+        val mappingPath by mappingOutput
+        
+        mappingPath?.bufferedReader()?.use { reader ->
             // skip license comment, mapping-io doesn't remove comments (it will parse them)
-            if (bufferedReader.readLine().startsWith('#')) {
-                TsrgReader.read(bufferedReader, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor)
+            if (reader.readLine().startsWith('#')) {
+                TsrgReader.read(reader, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor)
             } else {
                 // we can't seek to the beginning, so we have to make a new reader altogether
-                reader()?.buffered()?.use { TsrgReader.read(it, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor) }
+                mappingPath?.bufferedReader()?.use { TsrgReader.read(it, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor) }
             }
         }
-        licenseReader()?.use { visitor.visitMetadata(META_LICENSE, it.readText()) }
-        visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
-        pomReader()?.use { xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v -> visitor.visitMetadata(META_CB_NMS_VERSION, v) } }
-    }
-
-    /**
-     * Warms up this contributor.
-     */
-    override suspend fun warmup() {
-        lazyResolver.value
-        pomLazyResolver.value
+        
+        val licensePath by licenseOutput
+        
+        licensePath?.reader()?.use {
+            visitor.visitMetadata(META_LICENSE, it.readText())
+            visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
+        }
+        
+        val pomPath by pomOutput
+        
+        pomPath?.reader()?.use { xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v -> visitor.visitMetadata(META_CB_NMS_VERSION, v) } }
     }
 
     companion object {
+        /**
+         * The file name of the cached license file.
+         */
+        const val LICENSE = "spigot_license.txt"
+        
         /**
          * The CraftBukkit pom.xml file.
          */
@@ -215,7 +221,7 @@ class SpigotClassMappingResolver(
     xmlMapper: ObjectMapper
 ) : AbstractSpigotMappingResolver(workspace, objectMapper, xmlMapper) {
     override val mappingAttributeName: String = "classMappings"
-    override val mappingAttribute: String? = attributes.classMappings
+    override val mappingAttribute: String? = spigotProvider.attributes.classMappings
 }
 
 /**
@@ -231,7 +237,7 @@ class SpigotMemberMappingResolver(
 ) : AbstractSpigotMappingResolver(workspace, objectMapper, xmlMapper) {
     private var expectPrefixedClassNames = false
     override val mappingAttributeName: String = "memberMappings"
-    override val mappingAttribute: String? = attributes.memberMappings
+    override val mappingAttribute: String? = spigotProvider.attributes.memberMappings
 
     /**
      * Visits the mappings to the supplied visitor.
@@ -244,6 +250,8 @@ class SpigotMemberMappingResolver(
      * @param visitor the mapping tree
      */
     override fun accept(visitor: MappingVisitor) {
+        val mappingPath by mappingOutput
+
         var visitor0 = visitor
 
         // skip over forwarding visitors in search of a mapping tree
@@ -263,7 +271,7 @@ class SpigotMemberMappingResolver(
             }
 
             if (visitor.visitContent()) {
-                reader()?.buffered()?.forEachLine { line ->
+                mappingPath?.bufferedReader()?.forEachLine { line ->
                     if (line.startsWith('#')) {
                         return@forEachLine // skip comments
                     }

@@ -17,7 +17,6 @@
 
 package me.kcra.takenaka.core.mapping.resolve
 
-import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.util.*
@@ -26,10 +25,11 @@ import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
 import net.fabricmc.mappingio.format.Tiny1Reader
-import java.io.Reader
 import java.net.URL
 import java.nio.file.Path
+import kotlin.io.path.bufferedReader
 import kotlin.io.path.fileSize
+import kotlin.io.path.isRegularFile
 import kotlin.io.path.reader
 
 private val logger = KotlinLogging.logger {}
@@ -40,75 +40,66 @@ private val logger = KotlinLogging.logger {}
  * @property workspace the workspace
  * @author Matouš Kučera
  */
-class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingResolver, MappingContributor {
-    override val version: Version by workspace::version
+class IntermediaryMappingResolver(override val workspace: VersionedWorkspace) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val licenseSource: String = "https://raw.githubusercontent.com/FabricMC/intermediary/master/LICENSE"
     override val targetNamespace: String = "intermediary"
+    override val outputs: List<Output<out Path?>>
+        get() = listOf(mappingOutput, licenseOutput)
 
-    private val lazyResolver = resettableLazy {
-        val file = workspace[MAPPINGS]
+    override val mappingOutput = lazyOutput<Path?> {
+        resolver {
+            val file = workspace[MAPPINGS]
 
-        val url = URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${version.id}.tiny")
-        val length = url.contentLength
+            val url = URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${version.id}.tiny")
+            val length = url.contentLength
 
-        if (length == (-1).toLong()) {
-            logger.info { "did not find Intermediary mappings for ${version.id}" }
-            return@resettableLazy null
-        }
-
-        if (MAPPINGS in workspace) {
-            if (file.fileSize() == length) {
-                logger.info { "matched same length for cached ${version.id} Intermediary mappings" }
-                return@resettableLazy file
+            if (length == (-1).toLong()) {
+                logger.info { "did not find Intermediary mappings for ${version.id}" }
+                return@resolver null
             }
 
-            logger.warn { "length mismatch for ${version.id} Intermediary mapping cache, fetching them again" }
-        }
+            if (MAPPINGS in workspace) {
+                if (file.fileSize() == length) {
+                    logger.info { "matched same length for cached ${version.id} Intermediary mappings" }
+                    return@resolver file
+                }
 
-        url.httpRequest {
-            if (it.ok) {
-                it.copyTo(file)
-
-                logger.info { "fetched ${version.id} Intermediary mappings" }
-                return@resettableLazy file
+                logger.warn { "length mismatch for ${version.id} Intermediary mapping cache, fetching them again" }
             }
 
-            logger.warn { "failed to fetch ${version.id} Intermediary mappings, received ${it.responseCode}" }
+            url.httpRequest {
+                if (it.ok) {
+                    it.copyTo(file)
+
+                    logger.info { "fetched ${version.id} Intermediary mappings" }
+                    return@resolver file
+                }
+
+                logger.warn { "failed to fetch ${version.id} Intermediary mappings, received ${it.responseCode}" }
+            }
+
+            return@resolver null
         }
 
-        return@resettableLazy null
+        upToDateWhen { it == null || it.isRegularFile() }
     }
 
-    private val licenseLazyResolver = resettableLazy<Path?> {
-        val file = workspace[LICENSE]
+    override val licenseOutput = lazyOutput {
+        resolver {
+            val file = workspace[LICENSE]
 
-        if (LICENSE in workspace) {
-            logger.info { "found cached Intermediary license file" }
-            return@resettableLazy file
+            if (LICENSE in workspace) {
+                logger.info { "found cached Intermediary license file" }
+                return@resolver file
+            }
+
+            URL(licenseSource).copyTo(file)
+
+            logger.info { "fetched Intermediary license file" }
+            return@resolver file
         }
 
-        URL(licenseSource).copyTo(file)
-
-        logger.info { "fetched Intermediary license file" }
-        return@resettableLazy file
-    }
-
-    /**
-     * Creates a new mapping file reader (Tiny v1 format).
-     *
-     * @return the reader, null if the version doesn't have mappings released
-     */
-    override fun reader(): Reader? {
-        return lazyResolver.resetIfNotExistsAndGet()?.reader()
-    }
-
-    /**
-     * Creates a new license file reader.
-     *
-     * @return the reader, null if this resolver doesn't support the version
-     */
-    override fun licenseReader(): Reader? {
-        return licenseLazyResolver.resetIfNotExistsAndGet()?.reader()
+        upToDateWhen(Path::isRegularFile)
     }
 
     /**
@@ -117,23 +108,21 @@ class IntermediaryMappingResolver(val workspace: VersionedWorkspace) : MappingRe
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        reader()?.use { reader ->
+        val mappingPath by mappingOutput
+
+        mappingPath?.reader()?.use { reader ->
             // Intermediary has official and intermediary namespaces
             // official is the obfuscated one
             Tiny1Reader.read(reader, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK)))
 
-            // limit the license file to 12 lines for conciseness
-            licenseReader()?.buffered()?.use { visitor.visitMetadata(META_LICENSE, it.lineSequence().take(12).joinToString("\\n") { line -> line.replace("\t", "    ") }) }
-            visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
-        }
-    }
+            val licensePath by licenseOutput
 
-    /**
-     * Warms up this contributor.
-     */
-    override suspend fun warmup() {
-        lazyResolver.value
-        licenseLazyResolver.value
+            // limit the license file to 12 lines for conciseness
+            licensePath.bufferedReader().use {
+                visitor.visitMetadata(META_LICENSE, it.lineSequence().take(12).joinToString("\\n") { line -> line.replace("\t", "    ") })
+                visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
+            }
+        }
     }
 
     companion object {

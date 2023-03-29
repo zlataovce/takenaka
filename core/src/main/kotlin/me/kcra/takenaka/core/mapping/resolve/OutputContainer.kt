@@ -17,36 +17,18 @@
 
 package me.kcra.takenaka.core.mapping.resolve
 
-import me.kcra.takenaka.core.Version
-import me.kcra.takenaka.core.VersionedWorkspace
-import java.nio.file.Path
-
 /**
- * A mapping file resolver.
+ * A list of outputs with the same type.
  *
+ * @param T the output type
  * @author Matouš Kučera
  */
-interface MappingResolver : OutputContainer<Path?> {
-    /**
-     * The mapping workspace.
-     */
-    val workspace: VersionedWorkspace
-
-    /**
-     * A shorthand for getting the workspace version.
-     */
-    val version: Version
-        get() = workspace.version
-
-    /**
-     * The mapping file output of this resolver.
-     */
-    val mappingOutput: Output<out Path?>
-}
+interface OutputContainer<T> : List<Output<out T>>
 
 /**
- * A base for a mapping resolver.
+ * A base for an output container.
  *
- * Subclasses should override the [outputs] property with their own values.
+ * @param T the output type
+ * @property outputs the list of outputs, this should be overridden by subclasses
  */
-abstract class AbstractMappingResolver : AbstractOutputContainer<Path?>(), MappingResolver
+open class AbstractOutputContainer<T>(protected open val outputs: List<Output<out T>> = emptyList()) : OutputContainer<T>, List<Output<out T>> by outputs
