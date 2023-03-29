@@ -16,13 +16,11 @@
  */
 
 @file:JvmName("Main")
-@file:OptIn(ExperimentalCoroutinesApi::class)
 
 package me.kcra.takenaka.generator.web.cli
 
 import kotlinx.cli.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.*
 import me.kcra.takenaka.core.mapping.WrappingContributor
 import me.kcra.takenaka.core.mapping.adapter.LegacySpigotMappingPrepender
@@ -71,7 +69,6 @@ fun main(args: Array<String>) {
     // generator-specific settings below
 
     val minifier by parser.option(ArgType.Choice<MinifierImpls>(), shortName = "m", description = "The minifier implementation used for minifying the documentation").default(MinifierImpls.DETERMINISTIC)
-    val parallelismLimit by parser.option(ArgType.Int, description = "Parallelism limit of the coroutine context").default(-1)
     val javadoc by parser.option(ArgType.String, shortName = "j", description = "Javadoc site that should be referenced in the documentation, can be specified multiple times").multiple()
     val skipSynthetic by parser.option(ArgType.Boolean, description = "Excludes synthetic classes and class members from the documentation").default(true)
 
@@ -112,9 +109,6 @@ fun main(args: Array<String>) {
         else -> {}
     }
 
-    logger.info { "using dispatcher with limit $parallelismLimit" }
-    val coroutineDispatcher = if (parallelismLimit != -1) Dispatchers.IO.limitedParallelism(parallelismLimit) else Dispatchers.IO
-
     val indexerMapper = objectMapper()
     val indexers = mutableListOf<ClassSearchIndex>(indexerMapper.modularClassSearchIndexOf(JDK_17_BASE_URL))
 
@@ -152,7 +146,6 @@ fun main(args: Array<String>) {
                 VanillaMappingContributor(versionWorkspace, objectMapper)
             )
         },
-        coroutineDispatcher,
         skipSynthetic,
         // Searge adds their ID namespace sometimes, so don't perform any corrections on that
         VanillaMappingContributor.NAMESPACES + "searge_id",
@@ -191,6 +184,10 @@ fun main(args: Array<String>) {
     )
 
     logger.info { "starting generator" }
-    val time = measureTimeMillis(generator::generate) / 1000
-    logger.info { "generator finished in $time second(s)" }
+    val time = measureTimeMillis {
+        runBlocking {
+            generator.generate()
+        }
+    }
+    logger.info { "generator finished in ${time / 1000} second(s)" }
 }

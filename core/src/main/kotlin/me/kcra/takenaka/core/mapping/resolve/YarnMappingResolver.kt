@@ -29,12 +29,12 @@ import net.fabricmc.mappingio.MappingReader
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
-import java.io.Reader
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.zip.ZipFile
+import kotlin.io.path.bufferedReader
 import kotlin.io.path.fileSize
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.reader
@@ -45,106 +45,108 @@ private val logger = KotlinLogging.logger {}
  * A resolver for the Yarn mappings from FabricMC.
  *
  * @property workspace the workspace
- * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
+ * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
  * @author Matouš Kučera
  */
-class YarnMappingResolver(
-    workspace: VersionedWorkspace,
-    xmlMapper: ObjectMapper
-) : YarnMetadataConsumer(workspace, xmlMapper), MappingResolver, MappingContributor {
+class YarnMappingResolver(override val workspace: VersionedWorkspace, xmlMapper: ObjectMapper) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val version: Version by workspace::version
     override val licenseSource: String
         get() = "https://raw.githubusercontent.com/FabricMC/yarn/${version.id}/LICENSE"
     override val targetNamespace: String = "yarn"
+    override val outputs: List<Output<out Path?>>
+        get() = listOf(mappingOutput, licenseOutput)
 
     /**
-     * Creates a new mapping file reader (Tiny v1 or v2 format).
-     *
-     * @return the reader, null if the version doesn't have mappings released
+     * The Yarn metadata provider.
      */
-    override fun reader(): Reader? {
-        val file = workspace[MAPPING_JAR]
+    val yarnProvider = YarnMetadataProvider(workspace, xmlMapper)
 
-        val builds = versions[version.id]
-        if (builds == null) {
-            logger.info { "did not find Yarn mappings for ${version.id}" }
-            return null
-        }
+    override val mappingOutput = lazyOutput<Path?> {
+        resolver {
+            val file = workspace[MAPPING_JAR]
 
-        val targetBuild = builds.maxBy(YarnBuild::buildNumber)
-
-        var urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild-mergedv2.jar"
-        URL(urlString).httpRequest(method = "HEAD") {
-            if (!it.ok) {
-                logger.info { "mergedv2 Yarn JAR for ${version.id} failed to fetch, falling back to normal one" }
-
-                // TODO: use enigma mappings or normal v2 JAR instead (requires merging with intermediary)
-                urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild.jar"
+            val builds = yarnProvider.versions[version.id]
+            if (builds == null) {
+                logger.info { "did not find Yarn mappings for ${version.id}" }
+                return@resolver null
             }
-        }
 
-        val url = URL(urlString)
-        val checksumUrl = URL("$urlString.sha1")
+            val targetBuild = builds.maxBy(YarnBuild::buildNumber)
 
-        if (MAPPING_JAR in workspace) {
-            checksumUrl.httpRequest {
-                if (it.ok) {
-                    val checksum = file.getChecksum(sha1Digest)
+            var urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild-mergedv2.jar"
+            URL(urlString).httpRequest(method = "HEAD") {
+                if (!it.ok) {
+                    logger.info { "mergedv2 Yarn JAR for ${version.id} failed to fetch, falling back to normal one" }
 
-                    if (it.readText() == checksum) {
-                        logger.info { "matched checksum for cached ${version.id} Yarn mappings" }
-                        return findMappingFile(file).reader()
-                    }
-                } else if (file.fileSize() == url.contentLength) {
-                    logger.info { "matched same length for cached ${version.id} Yarn mappings" }
-                    return findMappingFile(file).reader()
+                    // TODO: use enigma mappings or normal v2 JAR instead (requires merging with intermediary)
+                    urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild.jar"
                 }
             }
 
-            logger.warn { "checksum/length mismatch for ${version.id} Yarn mapping cache, fetching them again" }
-        }
+            val url = URL(urlString)
+            val checksumUrl = URL("$urlString.sha1")
 
-        url.httpRequest {
-            if (it.ok) {
-                it.copyTo(file)
+            if (MAPPING_JAR in workspace) {
+                checksumUrl.httpRequest {
+                    if (it.ok) {
+                        val checksum = file.getChecksum(sha1Digest)
 
-                logger.info { "fetched ${version.id} Yarn mappings" }
-                return findMappingFile(file).reader()
+                        if (it.readText() == checksum) {
+                            logger.info { "matched checksum for cached ${version.id} Yarn mappings" }
+                            return@resolver findMappingFile(file)
+                        }
+                    } else if (file.fileSize() == url.contentLength) {
+                        logger.info { "matched same length for cached ${version.id} Yarn mappings" }
+                        return@resolver findMappingFile(file)
+                    }
+                }
+
+                logger.warn { "checksum/length mismatch for ${version.id} Yarn mapping cache, fetching them again" }
             }
 
-            logger.warn { "failed to fetch ${version.id} Yarn mappings, received ${it.responseCode}" }
-        }
+            url.httpRequest {
+                if (it.ok) {
+                    it.copyTo(file)
 
-        return null
+                    logger.info { "fetched ${version.id} Yarn mappings" }
+                    return@resolver findMappingFile(file)
+                }
+
+                logger.warn { "failed to fetch ${version.id} Yarn mappings, received ${it.responseCode}" }
+            }
+
+            return@resolver null
+        }
+        
+        upToDateWhen { it == null || it.isRegularFile() }
     }
 
-    /**
-     * Creates a new license file reader.
-     *
-     * @return the reader, null if this resolver doesn't support the version
-     */
-    override fun licenseReader(): Reader? {
-        val file = workspace[LICENSE]
+    override val licenseOutput = lazyOutput<Path?> {
+        resolver {
+            val file = workspace[LICENSE]
 
-        if (LICENSE in workspace) {
-            logger.info { "found cached ${version.id} Yarn license file" }
-            return file.reader()
-        }
-
-        URL(licenseSource).httpRequest {
-            if (it.ok) {
-                it.copyTo(file)
-
-                logger.info { "fetched ${version.id} Yarn license file" }
-                return file.reader()
-            } else if (it.responseCode == 404) {
-                logger.info { "did not find ${version.id} Yarn license file" }
-            } else {
-                logger.warn { "failed to fetch Yarn license file, received ${it.responseCode}" }
+            if (LICENSE in workspace) {
+                logger.info { "found cached ${version.id} Yarn license file" }
+                return@resolver file
             }
-        }
 
-        return null
+            URL(licenseSource).httpRequest {
+                if (it.ok) {
+                    it.copyTo(file)
+
+                    logger.info { "fetched ${version.id} Yarn license file" }
+                    return@resolver file
+                } else if (it.responseCode == 404) {
+                    logger.info { "did not find ${version.id} Yarn license file" }
+                } else {
+                    logger.warn { "failed to fetch Yarn license file, received ${it.responseCode}" }
+                }
+            }
+
+            return@resolver null
+        }
+        
+        upToDateWhen { it == null || it.isRegularFile() }
     }
 
     /**
@@ -153,13 +155,17 @@ class YarnMappingResolver(
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        reader()?.use { reader ->
+        val mappingPath by mappingOutput
+
+        mappingPath?.reader()?.use { reader ->
             // Yarn has official, named and intermediary namespaces
             // official is the obfuscated one
             MappingReader.read(reader, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK, "named" to "yarn")))
 
+            val licensePath by licenseOutput
+
             // limit the license file to 12 lines for conciseness
-            licenseReader()?.buffered()?.use {
+            licensePath?.bufferedReader()?.use {
                 visitor.visitMetadata(META_LICENSE, it.lineSequence().take(12).joinToString("\\n") { line -> line.replace("\t", "    ") })
                 visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
             }

@@ -245,21 +245,21 @@ class CompositeWorkspace(override val rootDirectory: Path, override val resolver
      *
      * @return the sub-workspace
      */
-    inline fun createWorkspace(crossinline block: MemberBuilder.() -> Unit): Lazy<Workspace> = lazy { MemberBuilder(this).apply(block).toWorkspace() }
+    inline fun createWorkspace(crossinline block: MemberBuilder.() -> Unit): Workspace = MemberBuilder(this).apply(block).toWorkspace()
 
     /**
      * Creates a new composite sub-workspace with a unique name.
      *
      * @return the sub-workspace
      */
-    inline fun createComposite(crossinline block: CompositeMemberBuilder.() -> Unit): Lazy<CompositeWorkspace> = lazy { CompositeMemberBuilder(this).apply(block).toWorkspace() }
+    inline fun createCompositeWorkspace(crossinline block: CompositeMemberBuilder.() -> Unit): CompositeWorkspace = CompositeMemberBuilder(this).apply(block).toWorkspace()
 
     /**
      * Creates a new versioned sub-workspace.
      *
      * @return the sub-workspace
      */
-    inline fun createVersioned(crossinline block: VersionedMemberBuilder.() -> Unit): Lazy<VersionedWorkspace> = lazy { VersionedMemberBuilder(this).apply(block).toWorkspace() }
+    inline fun createVersionedWorkspace(crossinline block: VersionedMemberBuilder.() -> Unit): VersionedWorkspace = VersionedMemberBuilder(this).apply(block).toWorkspace()
 
     /**
      * A base sub-workspace builder.

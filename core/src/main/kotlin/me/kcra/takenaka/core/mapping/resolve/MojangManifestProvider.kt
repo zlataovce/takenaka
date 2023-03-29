@@ -32,14 +32,11 @@ import kotlin.concurrent.withLock
 private val logger = KotlinLogging.logger {}
 
 /**
- * A consumer of the version attributes from Mojang's v2 version manifest.
+ * A provider of version attributes from Mojang's v2 version manifest.
  *
  * @author Matouš Kučera
  */
-open class MojangManifestConsumer(
-    val workspace: VersionedWorkspace,
-    private val objectMapper: ObjectMapper
-) {
+class MojangManifestProvider(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper) {
     /**
      * The version attributes.
      */
