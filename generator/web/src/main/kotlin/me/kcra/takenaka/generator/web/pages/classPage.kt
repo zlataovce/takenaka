@@ -45,11 +45,12 @@ import java.lang.reflect.Modifier
  * Generates a class overview page.
  *
  * @param klass the class
+ * @param hash the history file hash
  * @param workspace the workspace
  * @param friendlyNameRemapper the remapper for remapping signatures
  * @return the generated document
  */
-fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: VersionedWorkspace, friendlyNameRemapper: ElementRemapper): Document = createHTMLDocument().html {
+fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, workspace: VersionedWorkspace, friendlyNameRemapper: ElementRemapper): Document = createHTMLDocument().html {
     val klassDeclaration = formatClassDescriptor(klass, workspace.version, friendlyNameRemapper)
 
     headComponent("${workspace.version.id} - ${klassDeclaration.friendlyName}", workspace.version.id)
@@ -65,6 +66,9 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, workspace: Vers
                 unsafe {
                     +klassDeclaration.modifiersAndName
                     klassDeclaration.formals?.unaryPlus()
+                    if (hash != null) {
+                        +"""<a href="/history/$hash.html"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></a>"""
+                    }
                 }
             }
             if (klassDeclaration.superTypes != null) {

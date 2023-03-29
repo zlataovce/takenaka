@@ -193,7 +193,7 @@ class WebGenerator(
                             val friendlyName = getFriendlyDstName(klass)
 
                             launch(Dispatchers.Default + CoroutineName("page-coro")) {
-                                classPage(klass, versionWorkspace, friendlyNameRemapper)
+                                classPage(klass, hashMap[klass], versionWorkspace, friendlyNameRemapper)
                                     .serialize(versionWorkspace, "$friendlyName.html")
                             }
 
