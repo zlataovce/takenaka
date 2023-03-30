@@ -48,19 +48,19 @@ fun MappingTree.completeMethodOverrides(namespace: String) {
         val klassName by lazy(LazyThreadSafetyMode.NONE) { klass.getDstName(namespaceId) }
         val klassSuperTypes by lazy(LazyThreadSafetyMode.NONE) { klass.superTypes }
 
-        klass.methods.forEach { method ->
+        klass.methods.forEach originalEach@ { method ->
             val methodName = method.getDstName(namespaceId)
             if (methodName == null) {
                 klassSuperTypes.forEach { superType ->
-                    val superMethodName = superType.methods
-                        .filter { it.srcName == method.srcName && it.srcDesc == method.srcDesc }
-                        .firstNotNullOfOrNull { it.getDstName(namespaceId) }
+                    superType.methods.forEach superEach@ { superMethod ->
+                        if (superMethod.srcName != method.srcName || superMethod.srcDesc != method.srcDesc) return@superEach
+                        val superMethodName = superMethod.getDstName(namespaceId) ?: return@superEach
 
-                    if (superMethodName != null) {
                         logger.debug { "corrected name of $klassName#$superMethodName for namespace $namespace" }
                         correctionCount++
 
                         method.setDstName(superMethodName, namespaceId)
+                        return@originalEach // perf: return early when method is corrected
                     }
                 }
             }

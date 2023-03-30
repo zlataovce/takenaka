@@ -59,7 +59,7 @@ open class Minifier : Transformer {
      *
      * @return the class name
      */
-    fun nextMinifiedClass(): String = minifiedClass(classIndex++)
+    open fun nextMinifiedClass(): String = minifiedClass(classIndex++)
 
     /**
      * Minifies raw CSS styles.

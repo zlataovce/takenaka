@@ -103,7 +103,7 @@ class WebGenerator(
      * The "assets" folder.
      */
     val assetWorkspace = currentComposite.createWorkspace {
-        this.name = "assets"
+        name = "assets"
     }
 
     /**
@@ -200,16 +200,9 @@ class WebGenerator(
                             classMap.getOrPut(friendlyName.substringBeforeLast('/')) { mutableMapOf() } +=
                                 friendlyName.substringAfterLast('/') to classTypeOf(klass.modifiers)
 
-                            appendLine(
-                                namespaces.values.joinToString("\t") { ns ->
-                                    klass.getName(ns)
-                                        ?.replace("net/minecraft", "%nm")
-                                        ?.replace("com/mojang", "%cm")
-                                        ?: ""
-                                }
-                            )
+                            appendLine(namespaces.values.joinToString("\t") { klass.getName(it) ?: "" })
                         }
-                    }
+                    }.replace("net/minecraft", "%nm").replace("com/mojang", "%cm")
 
                     classMap.forEach { (packageName, classes) ->
                         packagePage(versionWorkspace, packageName, classes)
@@ -312,14 +305,7 @@ class WebGenerator(
      * @return the content of the component file
      */
     fun generateComponentFile(vararg components: ComponentDefinition): String = buildString {
-        fun Document.serializeAsComponent(): String {
-            var content = serialize(prettyPrint = false)
-            transformers.forEach { transformer ->
-                content = transformer.transformHtml(content)
-            }
-
-            return content.substringAfter("\n")
-        }
+        fun Document.serializeAsComponent(): String = transformHtml(serialize(prettyPrint = false)).substringAfter("\n")
 
         append(
             """

@@ -26,6 +26,10 @@ import kotlin.math.abs
  * @author Matouš Kučera
  */
 class DeterministicMinifier : Minifier() {
+    override fun nextMinifiedClass(): String {
+        throw UnsupportedOperationException("nextMinifiedClass is not supported")
+    }
+
     /**
      * Minifies raw HTML markup.
      *
