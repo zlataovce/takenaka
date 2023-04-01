@@ -412,3 +412,29 @@ input::placeholder {
 .diff-deletion::before {
     content: "- ";
 }
+
+.diff-status {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-style: italic;
+    margin-bottom: 1rem;
+    color: var(--text);
+}
+
+.diff-no-changes {
+    margin-bottom: 0;
+}
+
+.diff-no-changes::before {
+    content: "No changes";
+}
+
+.diff-first-occurrence::before {
+    content: "First known occurrence";
+}
+
+.diff-title {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    color: var(--text-muted);
+}

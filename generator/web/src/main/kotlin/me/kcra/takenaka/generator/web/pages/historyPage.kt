@@ -61,7 +61,7 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                 }
             }
 
-            classNameRows.forEach { (version, rows) ->
+            classNameRows.entries.forEachIndexed { i, (version, rows) ->
                 val klass = node[version] ?: error("Could not resolve ${version.id} mapping of $lastFriendlyMapping")
 
                 h3 {
@@ -69,13 +69,23 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                         +version.id
                     }
                 }
-                rows.forEach { row ->
-                    p(classes = "diff-${row.type}") {
-                        textBadgeComponent(row.key, getFriendlyNamespaceBadgeColor(row.key), styleConsumer)
-                        unsafe {
-                            +row.value
+                if (i == (classNameRows.size - 1)) { // is last (oldest)?
+                    p(classes = "diff-status diff-first-occurrence")
+                }
+                if (rows.isNotEmpty()) {
+                    p(classes = "diff-title") {
+                        +"Names"
+                    }
+                    rows.forEach { row ->
+                        p(classes = "diff-${row.type}") {
+                            textBadgeComponent(row.key, getFriendlyNamespaceBadgeColor(row.key), styleConsumer)
+                            unsafe {
+                                +row.value
+                            }
                         }
                     }
+                } else {
+                    p(classes = "diff-status diff-no-changes")
                 }
                 spacerYComponent()
             }
@@ -114,6 +124,11 @@ class DiffBuilder<K, V>(reverseOrder: Boolean = true) {
     private val values = mutableMapOf<K, V?>()
 
     /**
+     * Versions which had appended values to this builder.
+     */
+    val versions = mutableSetOf<Version>()
+
+    /**
      * The differences, grouped and sorted by version for convenience.
      *
      * If a reverse order [Comparator] is applied, this is sorted newest to oldest.
@@ -137,6 +152,8 @@ class DiffBuilder<K, V>(reverseOrder: Boolean = true) {
      * @param value the version-dependent value, most likely a mapping
      */
     fun append(version: Version, key: K, value: V?) {
+        versions += version
+
         val oldValue = values[key]
         if (oldValue != value) {
             val versionRows by lazy(LazyThreadSafetyMode.NONE) { rows.getOrPut(version, ::mutableListOf) }
@@ -150,6 +167,13 @@ class DiffBuilder<K, V>(reverseOrder: Boolean = true) {
         }
 
         values[key] = value
+    }
+
+    /**
+     * Makes all appended versions have an entry in [rows], empty or not.
+     */
+    fun ensureRowAllocation() {
+        versions.forEach { rows.getOrPut(it, ::mutableListOf) }
     }
 }
 
@@ -181,6 +205,9 @@ enum class DiffType {
     override fun toString(): String = name.lowercase()
 }
 
+typealias StringDiffBuilder = DiffBuilder<String, String>
+typealias StringDiffRow = DiffRow<String, String>
+
 /**
  * Builds a simple string-string diff.
  *
@@ -188,5 +215,5 @@ enum class DiffType {
  * @param block the builder action
  * @return the differences, grouped by version for convenience
  */
-inline fun buildDiff(reverseOrder: Boolean = true, block: DiffBuilder<String, String>.() -> Unit): Map<Version, List<DiffRow<String, String>>> =
-    DiffBuilder<String, String>(reverseOrder).apply(block).rows
+inline fun buildDiff(reverseOrder: Boolean = true, block: StringDiffBuilder.() -> Unit): Map<Version, List<StringDiffRow>> =
+    StringDiffBuilder(reverseOrder).apply(block).apply(StringDiffBuilder::ensureRowAllocation).rows
