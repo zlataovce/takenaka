@@ -45,10 +45,10 @@ private val logger = KotlinLogging.logger {}
  * A resolver for the Yarn mappings from FabricMC.
  *
  * @property workspace the workspace
- * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
+ * @property yarnProvider the Yarn metadata provider
  * @author Matouš Kučera
  */
-class YarnMappingResolver(override val workspace: VersionedWorkspace, xmlMapper: ObjectMapper) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
+class YarnMappingResolver(override val workspace: VersionedWorkspace, val yarnProvider: YarnMetadataProvider) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val version: Version by workspace::version
     override val licenseSource: String
         get() = "https://raw.githubusercontent.com/FabricMC/yarn/${version.id}/LICENSE"
@@ -57,9 +57,12 @@ class YarnMappingResolver(override val workspace: VersionedWorkspace, xmlMapper:
         get() = listOf(mappingOutput, licenseOutput)
 
     /**
-     * The Yarn metadata provider.
+     * Creates a new resolver with a default metadata provider.
+     *
+     * @param workspace the workspace
+     * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
      */
-    val yarnProvider = YarnMetadataProvider(workspace, xmlMapper)
+    constructor(workspace: VersionedWorkspace, xmlMapper: ObjectMapper) : this(workspace, YarnMetadataProvider(workspace, xmlMapper))
 
     override val mappingOutput = lazyOutput<Path?> {
         resolver {

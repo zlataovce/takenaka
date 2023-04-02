@@ -39,10 +39,13 @@ private val logger = KotlinLogging.logger {}
  * A resolver for the official Mojang server mapping files ("Mojmaps").
  *
  * @property workspace the workspace
- * @param objectMapper the JSON object mapper used for manifest deserialization
+ * @property mojangProvider the Mojang manifest provider
  * @author Matouš Kučera
  */
-class MojangServerMappingResolver(override val workspace: VersionedWorkspace, objectMapper: ObjectMapper) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
+class MojangServerMappingResolver(
+    override val workspace: VersionedWorkspace,
+    val mojangProvider: MojangManifestAttributeProvider
+) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val licenseSource: String?
         get() = mojangProvider.attributes.downloads.serverMappings?.url
     override val targetNamespace: String = "mojang"
@@ -50,9 +53,13 @@ class MojangServerMappingResolver(override val workspace: VersionedWorkspace, ob
         get() = listOf(mappingOutput, licenseOutput)
 
     /**
-     * The Mojang manifest provider.
+     * Creates a new resolver with a default metadata provider.
+     *
+     * @param workspace the workspace
+     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
      */
-    val mojangProvider = MojangManifestProvider(workspace, objectMapper)
+    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper) :
+            this(workspace, MojangManifestAttributeProvider(workspace, objectMapper))
 
     override val mappingOutput = lazyOutput<Path?> {
         resolver {

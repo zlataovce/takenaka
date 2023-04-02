@@ -19,6 +19,7 @@
 
 package me.kcra.takenaka.generator.web.cli
 
+import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.cli.*
 import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.*
@@ -62,7 +63,7 @@ fun main(args: Array<String>) {
     val parser = ArgParser("web-cli")
     val output by parser.option(ArgType.String, shortName = "o", description = "Output directory").default("output")
     val version by parser.option(ArgType.String, shortName = "v", description = "Target Minecraft version, can be specified multiple times").multiple().required()
-    val cache by parser.option(ArgType.String, shortName = "c", description = "Caching directory for mappings").default("mapping-cache")
+    val cache by parser.option(ArgType.String, shortName = "c", description = "Caching directory for mappings and other resources").default("cache")
     val strictCache by parser.option(ArgType.Boolean, description = "Enforces strict cache validation").default(false)
     val clean by parser.option(ArgType.Boolean, description = "Removes previous build output and cache before launching").default(false)
 
@@ -96,6 +97,9 @@ fun main(args: Array<String>) {
 
     // generator setup below
 
+    val objectMapper = objectMapper()
+    val xmlMapper = XmlMapper()
+
     val transformers = mutableListOf<Transformer>()
 
     logger.info { "using minifier type $minifier" }
@@ -109,46 +113,57 @@ fun main(args: Array<String>) {
         else -> {}
     }
 
-    val indexerMapper = objectMapper()
-    val indexers = mutableListOf<ClassSearchIndex>(indexerMapper.modularClassSearchIndexOf(JDK_17_BASE_URL))
+    val indexers = mutableListOf<ClassSearchIndex>(objectMapper.modularClassSearchIndexOf(JDK_17_BASE_URL))
 
     javadoc.mapTo(indexers) { javadocDef ->
         val javadocParams = javadocDef.split('+', limit = 2)
 
         when (javadocParams.size) {
             2 -> classSearchIndexOf(javadocParams[1], javadocParams[0])
-            else -> indexerMapper.modularClassSearchIndexOf(javadocParams[0])
+            else -> objectMapper.modularClassSearchIndexOf(javadocParams[0])
         }
     }
 
     logger.info { "using ${indexers.size} javadoc indexer(s)" }
 
+    val mappingsCache = cacheWorkspace.createCompositeWorkspace {
+        this.name = "mappings"
+    }
+    val sharedCache = cacheWorkspace.createWorkspace {
+        this.name = "shared"
+    }
+
+    val yarnProvider = YarnMetadataProvider(sharedCache, xmlMapper)
     val generator = WebGenerator(
         workspace,
         version,
-        cacheWorkspace,
+        mappingsCache,
         { versionWorkspace ->
+            val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper)
+            val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper)
             val _prependedClasses = mutableListOf<String>()
 
             listOf(
-                MojangServerMappingResolver(versionWorkspace, objectMapper),
-                IntermediaryMappingResolver(versionWorkspace),
-                YarnMappingResolver(versionWorkspace, xmlMapper),
-                SeargeMappingResolver(versionWorkspace),
-                WrappingContributor(SpigotClassMappingResolver(versionWorkspace, objectMapper, xmlMapper)) {
+                MojangServerMappingResolver(versionWorkspace, mojangProvider),
+                IntermediaryMappingResolver(versionWorkspace, sharedCache),
+                YarnMappingResolver(versionWorkspace, yarnProvider),
+                SeargeMappingResolver(versionWorkspace, sharedCache),
+                WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
                     // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
                     // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
                     LegacySpigotMappingPrepender(it, prependedClasses = _prependedClasses, prependEverything = versionWorkspace.version.id == "1.16.5")
                 },
-                WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, objectMapper, xmlMapper)) {
+                WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
                     LegacySpigotMappingPrepender(it, prependedClasses = _prependedClasses)
                 },
-                VanillaMappingContributor(versionWorkspace, objectMapper)
+                VanillaMappingContributor(versionWorkspace, mojangProvider)
             )
         },
         skipSynthetic,
         // Searge adds their ID namespace sometimes, so don't perform any corrections on that
         VanillaMappingContributor.NAMESPACES + "searge_id",
+        objectMapper,
+        xmlMapper,
         transformers,
         listOf("mojang", "spigot", "yarn", "searge", "intermediary", "source"),
         mapOf(

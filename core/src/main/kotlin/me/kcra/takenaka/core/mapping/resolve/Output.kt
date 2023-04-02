@@ -17,6 +17,7 @@
 
 package me.kcra.takenaka.core.mapping.resolve
 
+import kotlinx.coroutines.runBlocking
 import kotlin.properties.Delegates
 import kotlin.reflect.KProperty
 
@@ -45,7 +46,7 @@ interface Output<T> {
      *
      * @return the value
      */
-    fun resolve(): T
+    suspend fun resolve(): T
 
     /**
      * Gets the output value by delegation.
@@ -70,7 +71,7 @@ class OutputBuilder<T> {
     /**
      * The initializer function.
      */
-    private var initializer: () -> T by Delegates.notNull()
+    private var initializer: suspend () -> T by Delegates.notNull()
 
     /**
      * The up-to-date func, defaults to a null check.
@@ -80,7 +81,7 @@ class OutputBuilder<T> {
     /**
      * Sets the resolver function.
      */
-    fun resolver(block: () -> T) {
+    fun resolver(block: suspend () -> T) {
         initializer = block
     }
 
@@ -113,7 +114,9 @@ class OutputBuilder<T> {
                             @Suppress("UNCHECKED_CAST")
                             v as T
                         } else {
-                            resolve()
+                            runBlocking {
+                                resolve()
+                            }
                         }
                     }
                 }
@@ -128,7 +131,7 @@ class OutputBuilder<T> {
                     }
                 }
 
-            override fun resolve(): T {
+            override suspend fun resolve(): T {
                 val typedValue = initializer()
                 synchronized(this) {
                     _value = typedValue
