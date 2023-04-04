@@ -24,13 +24,16 @@ import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.readValue
 import mu.KotlinLogging
 import java.net.URL
-import kotlin.concurrent.withLock
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * A provider of Spigot's BuildData manifest.
+ * A provider of Spigot's version manifest.
  *
+ * This class is thread-safe and presumes multiple instances operate on a single workspace.
+ *
+ * @property workspace the workspace
+ * @property objectMapper an [ObjectMapper] that can deserialize JSON data
  * @author Matouš Kučera
  */
 class SpigotManifestProvider(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper) {
@@ -50,12 +53,12 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
      * @return the manifest
      */
     private fun readManifest(): SpigotVersionManifest {
-        workspace.spigotManifestLock.withLock {
+        return workspace.withLock("spigot-manifest") {
             val file = workspace[MANIFEST]
 
             if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && MANIFEST in workspace) {
                 try {
-                    return objectMapper.readValue<SpigotVersionManifest>(file).apply {
+                    return@withLock objectMapper.readValue<SpigotVersionManifest>(file).apply {
                         logger.info { "read cached ${workspace.version.id} Spigot manifest" }
                     }
                 } catch (e: JacksonException) {
@@ -66,7 +69,7 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
             URL("https://hub.spigotmc.org/versions/${workspace.version.id}.json").copyTo(file)
 
             logger.info { "fetched ${workspace.version.id} Spigot manifest" }
-            return objectMapper.readValue(file)
+            return@withLock objectMapper.readValue(file)
         }
     }
 
@@ -76,12 +79,12 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
      * @return the attributes
      */
     private fun readAttributes(): SpigotVersionAttributes {
-        workspace.spigotManifestLock.withLock {
+        return workspace.withLock("spigot-manifest") {
             val file = workspace[BUILDDATA_INFO]
 
             if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && BUILDDATA_INFO in workspace) {
                 try {
-                    return objectMapper.readValue<SpigotVersionAttributes>(file).apply {
+                    return@withLock objectMapper.readValue<SpigotVersionAttributes>(file).apply {
                         logger.info { "read cached ${workspace.version.id} Spigot attributes" }
                     }
                 } catch (e: JacksonException) {
@@ -92,7 +95,7 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
             URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/info.json?at=${manifest.refs["BuildData"]}").copyTo(file)
 
             logger.info { "fetched ${workspace.version.id} Spigot attributes" }
-            return objectMapper.readValue(file)
+            return@withLock objectMapper.readValue(file)
         }
     }
 

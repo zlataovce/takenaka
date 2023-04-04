@@ -18,6 +18,7 @@
 package me.kcra.takenaka.core.mapping.resolve
 
 import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.util.*
 import mu.KotlinLogging
@@ -38,9 +39,13 @@ private val logger = KotlinLogging.logger {}
  * A resolver for the Intermediary mappings from FabricMC.
  *
  * @property workspace the workspace
+ * @property licenseWorkspace the workspace where the license will be stored
  * @author Matouš Kučera
  */
-class IntermediaryMappingResolver(override val workspace: VersionedWorkspace) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
+class IntermediaryMappingResolver(
+    override val workspace: VersionedWorkspace,
+    val licenseWorkspace: Workspace = workspace
+) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val licenseSource: String = "https://raw.githubusercontent.com/FabricMC/intermediary/master/LICENSE"
     override val targetNamespace: String = "intermediary"
     override val outputs: List<Output<out Path?>>
@@ -86,17 +91,19 @@ class IntermediaryMappingResolver(override val workspace: VersionedWorkspace) : 
 
     override val licenseOutput = lazyOutput {
         resolver {
-            val file = workspace[LICENSE]
+            licenseWorkspace.withLock("intermediary-license") {
+                val file = licenseWorkspace[LICENSE]
 
-            if (LICENSE in workspace) {
-                logger.info { "found cached Intermediary license file" }
-                return@resolver file
+                if (LICENSE in licenseWorkspace) {
+                    logger.info { "found cached Intermediary license file" }
+                    return@withLock file
+                }
+
+                URL(licenseSource).copyTo(file)
+
+                logger.info { "fetched Intermediary license file" }
+                return@withLock file
             }
-
-            URL(licenseSource).copyTo(file)
-
-            logger.info { "fetched Intermediary license file" }
-            return@resolver file
         }
 
         upToDateWhen(Path::isRegularFile)

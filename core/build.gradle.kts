@@ -10,7 +10,7 @@ dependencies {
     api(libs.mapping.io)
     implementation(libs.bundles.kotlin)
     implementation(libs.kotlin.logging.jvm)
-    testImplementation(libs.kotlinx.coroutines.core.jvm)
+    implementation(libs.kotlinx.coroutines.core.jvm)
     testImplementation(kotlin("test"))
     testRuntimeOnly(libs.slf4j.simple)
 }

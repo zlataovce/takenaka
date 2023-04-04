@@ -27,16 +27,19 @@ import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.readValue
 import mu.KotlinLogging
 import java.net.URL
-import kotlin.concurrent.withLock
 
 private val logger = KotlinLogging.logger {}
 
 /**
  * A provider of version attributes from Mojang's v2 version manifest.
  *
+ * This class is thread-safe and presumes multiple instances operate on a single workspace.
+ *
+ * @property workspace the workspace
+ * @property objectMapper an [ObjectMapper] that can deserialize JSON data
  * @author Matouš Kučera
  */
-class MojangManifestProvider(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper) {
+class MojangManifestAttributeProvider(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper) {
     /**
      * The version attributes.
      */
@@ -48,12 +51,12 @@ class MojangManifestProvider(val workspace: VersionedWorkspace, private val obje
      * @return the attributes
      */
     private fun readAttributes(): VersionAttributes {
-        workspace.mojangManifestLock.withLock {
+        return workspace.withLock("mojang-manifest") {
             val file = workspace[ATTRIBUTES]
 
             if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && ATTRIBUTES in workspace) {
                 try {
-                    return objectMapper.readValue<VersionAttributes>(file).apply {
+                    return@withLock objectMapper.readValue<VersionAttributes>(file).apply {
                         logger.info { "read cached ${workspace.version.id} attributes" }
                     }
                 } catch (e: JacksonException) {
@@ -64,7 +67,7 @@ class MojangManifestProvider(val workspace: VersionedWorkspace, private val obje
             URL(workspace.version.url).copyTo(file)
 
             logger.info { "fetched ${workspace.version.id} attributes" }
-            return objectMapper.readValue(file)
+            return@withLock objectMapper.readValue(file)
         }
     }
 

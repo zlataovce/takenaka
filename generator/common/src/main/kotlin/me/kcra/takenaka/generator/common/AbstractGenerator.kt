@@ -17,13 +17,14 @@
 
 package me.kcra.takenaka.generator.common
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.coroutines.*
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.mapping.VersionedMappingMap
+import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.buildMappingTree
 import me.kcra.takenaka.core.mapping.resolve.OutputContainer
@@ -37,7 +38,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 /**
  * A function for providing a list of mapping contributors for a single version.
  */
-typealias ContributorProvider = AbstractGenerator.(VersionedWorkspace) -> List<MappingContributor>
+typealias ContributorProvider = (VersionedWorkspace) -> List<MappingContributor>
 
 /**
  * An abstract base for a generator.
@@ -49,6 +50,8 @@ typealias ContributorProvider = AbstractGenerator.(VersionedWorkspace) -> List<M
  * @param contributorProvider a function that provides mapping contributors to be processed
  * @param skipSynthetic whether synthetic classes and their members should be skipped
  * @param correctNamespaces namespaces excluded from any correction, these are artificial (non-mapping) namespaces defined in the core library by default
+ * @param objectMapper an object mapper instance for this generator
+ * @param xmlMapper an XML object mapper instance for this generator
  * @author Matouš Kučera
  */
 abstract class AbstractGenerator(
@@ -57,26 +60,18 @@ abstract class AbstractGenerator(
     val mappingWorkspace: CompositeWorkspace,
     val contributorProvider: ContributorProvider,
     val skipSynthetic: Boolean = false,
-    val correctNamespaces: List<String> = VanillaMappingContributor.NAMESPACES
+    val correctNamespaces: List<String> = VanillaMappingContributor.NAMESPACES,
+    val objectMapper: ObjectMapper = objectMapper(),
+    val xmlMapper: ObjectMapper = XmlMapper()
 ) {
     /**
      * The mappings.
      */
-    protected val mappings: VersionedMappingMap by lazy {
+    protected val mappings: MappingsMap by lazy {
         runBlocking {
             resolveMappings()
         }
     }
-
-    /**
-     * An object mapper instance for this generator.
-     */
-    val objectMapper = objectMapper()
-
-    /**
-     * An XML object mapper instance for this generator.
-     */
-    val xmlMapper = XmlMapper()
 
     /**
      * Launches the generator.
@@ -88,7 +83,7 @@ abstract class AbstractGenerator(
      *
      * @return a map of joined mapping files, keyed by version
      */
-    protected suspend fun resolveMappings(): VersionedMappingMap {
+    protected suspend fun resolveMappings(): MappingsMap {
         val manifest = objectMapper.versionManifest()
 
         return versions

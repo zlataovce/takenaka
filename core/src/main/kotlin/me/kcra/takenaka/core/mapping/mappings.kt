@@ -23,10 +23,8 @@ import net.fabricmc.mappingio.tree.MappingTreeView
 
 /**
  * A collection of version keyed joined mapping trees.
- *
- * @author Matouš Kučera
  */
-typealias VersionedMappingMap = Map<Version, MappingTree>
+typealias MappingsMap = Map<Version, MappingTree>
 
 /**
  * Returns IDs of all namespaces in this tree.

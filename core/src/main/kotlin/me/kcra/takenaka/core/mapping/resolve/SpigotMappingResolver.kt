@@ -47,20 +47,20 @@ private val logger = KotlinLogging.logger {}
  * A base resolver for Spigot mapping files.
  *
  * @property workspace the workspace
- * @param objectMapper the JSON object mapper used for manifest deserialization
+ * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
+ * @property spigotProvider the Spigot manifest provider
  * @author Matouš Kučera
  */
-abstract class AbstractSpigotMappingResolver(final override val workspace: VersionedWorkspace, objectMapper: ObjectMapper, val xmlMapper: ObjectMapper) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
+abstract class AbstractSpigotMappingResolver(
+    override val workspace: VersionedWorkspace,
+    val xmlMapper: ObjectMapper,
+    val spigotProvider: SpigotManifestProvider
+) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val licenseSource: String
         get() = "https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${spigotProvider.manifest.refs["BuildData"]}"
     override val targetNamespace: String = "spigot"
     override val outputs: List<Output<out Path?>>
         get() = listOf(mappingOutput, licenseOutput, pomOutput)
-
-    /**
-     * The Spigot manifest provider.
-     */
-    val spigotProvider = SpigotManifestProvider(workspace, objectMapper)
 
     /**
      * The name of the attribute with the mapping file name.
@@ -71,6 +71,16 @@ abstract class AbstractSpigotMappingResolver(final override val workspace: Versi
      * The value of the attribute with the mapping file name.
      */
     abstract val mappingAttribute: String?
+
+    /**
+     * Creates a new resolver with a default metadata provider.
+     *
+     * @param workspace the workspace
+     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
+     * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
+     */
+    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper) :
+            this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper))
 
     override val mappingOutput = lazyOutput<Path?> {
         resolver {
@@ -190,7 +200,7 @@ abstract class AbstractSpigotMappingResolver(final override val workspace: Versi
         /**
          * The CraftBukkit pom.xml file.
          */
-        const val CRAFTBUKKIT_POM = "pom.xml"
+        const val CRAFTBUKKIT_POM = "craftbukkit_pom.xml"
 
         /**
          * The license metadata key.
@@ -213,31 +223,55 @@ abstract class AbstractSpigotMappingResolver(final override val workspace: Versi
  * A resolver for Spigot class mapping files.
  *
  * @property workspace the workspace
+ * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
+ * @property spigotProvider the Spigot manifest provider
  * @author Matouš Kučera
  */
 class SpigotClassMappingResolver(
     workspace: VersionedWorkspace,
-    objectMapper: ObjectMapper,
-    xmlMapper: ObjectMapper
-) : AbstractSpigotMappingResolver(workspace, objectMapper, xmlMapper) {
+    xmlMapper: ObjectMapper,
+    spigotProvider: SpigotManifestProvider
+) : AbstractSpigotMappingResolver(workspace, xmlMapper, spigotProvider) {
     override val mappingAttributeName: String = "classMappings"
     override val mappingAttribute: String? = spigotProvider.attributes.classMappings
+
+    /**
+     * Creates a new resolver with a default metadata provider.
+     *
+     * @param workspace the workspace
+     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
+     * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
+     */
+    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper) :
+            this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper))
 }
 
 /**
  * A resolver for Spigot member mapping files.
  *
  * @property workspace the workspace
+ * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
+ * @property spigotProvider the Spigot manifest provider
  * @author Matouš Kučera
  */
 class SpigotMemberMappingResolver(
     workspace: VersionedWorkspace,
-    objectMapper: ObjectMapper,
-    xmlMapper: ObjectMapper
-) : AbstractSpigotMappingResolver(workspace, objectMapper, xmlMapper) {
+    xmlMapper: ObjectMapper,
+    spigotProvider: SpigotManifestProvider
+) : AbstractSpigotMappingResolver(workspace, xmlMapper, spigotProvider) {
     private var expectPrefixedClassNames = false
     override val mappingAttributeName: String = "memberMappings"
     override val mappingAttribute: String? = spigotProvider.attributes.memberMappings
+
+    /**
+     * Creates a new resolver with a default metadata provider.
+     *
+     * @param workspace the workspace
+     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
+     * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
+     */
+    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper) :
+            this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper))
 
     /**
      * Visits the mappings to the supplied visitor.

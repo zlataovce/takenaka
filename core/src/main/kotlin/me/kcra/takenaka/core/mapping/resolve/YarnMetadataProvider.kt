@@ -21,22 +21,25 @@ import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.DefaultResolverOptions
-import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.readTree
 import mu.KotlinLogging
 import java.net.URL
-import kotlin.concurrent.withLock
 
 private val logger = KotlinLogging.logger {}
 
 /**
  * A provider of Yarn's maven-metadata.xml file.
  *
+ * This class is thread-safe, but presumes that only one instance will operate on a workspace at a time.
+ *
+ * @property workspace the workspace
+ * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
  * @author Matouš Kučera
  */
-class YarnMetadataProvider(val workspace: VersionedWorkspace, private val xmlMapper: ObjectMapper) {
+class YarnMetadataProvider(val workspace: Workspace, private val xmlMapper: ObjectMapper) {
     /**
      * A map of versions and their builds.
      */
@@ -55,16 +58,16 @@ class YarnMetadataProvider(val workspace: VersionedWorkspace, private val xmlMap
     private fun parseVersions(): Map<String, List<YarnBuild>> = buildMap<String, MutableList<YarnBuild>> {
         metadata["versioning"]["versions"]["version"].forEach { versionNode ->
             val buildString = versionNode.asText()
-            val isOldFormat = "+build" !in buildString
+            val isNewFormat = "+build" in buildString
 
             val lastDotIndex = buildString.lastIndexOf('.')
 
             var version = buildString.substring(0, lastDotIndex)
-            if (!isOldFormat) version = version.removeSuffix("+build")
+            if (isNewFormat) version = version.removeSuffix("+build")
 
             val buildNumber = buildString.substring(lastDotIndex + 1, buildString.length).toInt()
 
-            getOrPut(version, ::mutableListOf) += YarnBuild(version, buildNumber, isOldFormat)
+            getOrPut(version, ::mutableListOf) += YarnBuild(version, buildNumber, isNewFormat)
         }
     }
 
@@ -74,24 +77,22 @@ class YarnMetadataProvider(val workspace: VersionedWorkspace, private val xmlMap
      * @return the metadata XML node
      */
     private fun readMetadata(): JsonNode {
-        workspace.yarnMetadataLock.withLock {
-            val file = workspace[METADATA]
+        val file = workspace[METADATA]
 
-            if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && METADATA in workspace) {
-                try {
-                    return xmlMapper.readTree(file).apply {
-                        logger.info { "read cached Yarn metadata" }
-                    }
-                } catch (e: JacksonException) {
-                    logger.warn(e) { "failed to read cached Yarn metadata, fetching it again" }
+        if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && METADATA in workspace) {
+            try {
+                return xmlMapper.readTree(file).apply {
+                    logger.info { "read cached Yarn metadata" }
                 }
+            } catch (e: JacksonException) {
+                logger.warn(e) { "failed to read cached Yarn metadata, fetching it again" }
             }
-
-            URL("https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml").copyTo(file)
-
-            logger.info { "fetched Yarn metadata" }
-            return xmlMapper.readTree(file)
         }
+
+        URL("https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml").copyTo(file)
+
+        logger.info { "fetched Yarn metadata" }
+        return xmlMapper.readTree(file)
     }
 
     companion object {
@@ -107,13 +108,13 @@ class YarnMetadataProvider(val workspace: VersionedWorkspace, private val xmlMap
  *
  * @property version the Minecraft version that this build is for
  * @property buildNumber the Yarn build number, higher is newer
- * @property isOldFormat whether this build is named via the old format ("version.build_number" as opposed to "version+build.build_number")
+ * @property isNewFormat whether this build is named via the new format ("version+build.build_number" as opposed to "version.build_number")
  */
-data class YarnBuild(val version: String, val buildNumber: Int, val isOldFormat: Boolean) {
+data class YarnBuild(val version: String, val buildNumber: Int, val isNewFormat: Boolean) {
     override fun toString(): String {
-        if (isOldFormat) {
-            return "$version.$buildNumber"
+        if (isNewFormat) {
+            return "$version+build.$buildNumber"
         }
-        return "$version+build.$buildNumber"
+        return "$version.$buildNumber"
     }
 }

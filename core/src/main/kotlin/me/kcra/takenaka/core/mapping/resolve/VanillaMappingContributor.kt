@@ -44,9 +44,14 @@ private val logger = KotlinLogging.logger {}
 /**
  * A mapping contributor that completes any missing names and descriptors, and visits modifiers and the generic signature as mappings.
  *
+ * @property workspace the workspace
+ * @property mojangProvider the Mojang manifest provider
  * @author Matouš Kučera
  */
-class VanillaMappingContributor(val workspace: VersionedWorkspace, objectMapper: ObjectMapper) : AbstractOutputContainer<Path?>(), MappingContributor {
+class VanillaMappingContributor(
+    val workspace: VersionedWorkspace,
+    val mojangProvider: MojangManifestAttributeProvider
+) : AbstractOutputContainer<Path?>(), MappingContributor {
     override val targetNamespace: String = MappingUtil.NS_SOURCE_FALLBACK
     override val outputs: List<Output<out Path?>>
         get() = listOf(serverJarOutput)
@@ -57,9 +62,13 @@ class VanillaMappingContributor(val workspace: VersionedWorkspace, objectMapper:
     val classes: List<ClassNode> by lazy(::readServerJar)
 
     /**
-     * The Mojang manifest provider.
+     * Creates a new resolver with a default metadata provider.
+     *
+     * @param workspace the workspace
+     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
      */
-    val mojangProvider = MojangManifestProvider(workspace, objectMapper)
+    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper) :
+            this(workspace, MojangManifestAttributeProvider(workspace, objectMapper))
 
     /**
      * The vanilla server JAR output.

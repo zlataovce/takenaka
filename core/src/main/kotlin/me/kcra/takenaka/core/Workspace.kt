@@ -20,7 +20,11 @@ package me.kcra.takenaka.core
 import java.nio.file.Path
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
-import kotlin.io.path.*
+import kotlin.concurrent.withLock
+import kotlin.io.path.Path
+import kotlin.io.path.createDirectories
+import kotlin.io.path.isRegularFile
+import kotlin.io.path.name
 import kotlin.properties.Delegates
 import kotlin.reflect.KProperty
 
@@ -119,6 +123,14 @@ interface Workspace {
     }
 
     /**
+     * Acquires a workspace-level lock by a string key.
+     *
+     * @param key the lock key
+     * @param block the lambda, which will be executed when the lock is acquired
+     */
+    fun <T> withLock(key: String, block: () -> T): T
+
+    /**
      * Checks if this workspace contains the specified file.
      *
      * @param file the file name
@@ -188,12 +200,19 @@ open class WorkspaceBuilder {
  * A simple workspace.
  */
 private class Simple(override val rootDirectory: Path, override val resolverOptions: ResolverOptions = resolverOptionsOf()) : Workspace {
-    private val composite by lazy { CompositeWorkspace(rootDirectory, resolverOptions) }
+    private val composite by lazy { CompositeWorkspace(rootDirectory, resolverOptions, locks) }
+    private val locks = mutableMapOf<String, Lock>()
+    private val mapLock: Lock = ReentrantLock()
 
     init {
         rootDirectory.createDirectories()
     }
 
+    override fun <T> withLock(key: String, block: () -> T): T {
+        val keyedLock = mapLock.withLock { locks.getOrPut(key, ::ReentrantLock) }
+
+        return keyedLock.withLock(block)
+    }
     override operator fun getValue(thisRef: Any?, property: KProperty<*>) = composite
 }
 
@@ -233,11 +252,22 @@ inline fun compositeWorkspace(block: CompositeWorkspaceBuilder.() -> Unit): Comp
  * @property rootDirectory the workspace root
  * @property resolverOptions the resolver options
  */
-class CompositeWorkspace(override val rootDirectory: Path, override val resolverOptions: ResolverOptions = resolverOptionsOf()) : Workspace {
+class CompositeWorkspace(
+    override val rootDirectory: Path,
+    override val resolverOptions: ResolverOptions = resolverOptionsOf(),
+    private val locks: MutableMap<String, Lock> = mutableMapOf()
+) : Workspace {
+    private val mapLock: Lock = ReentrantLock()
+
     init {
         rootDirectory.createDirectories()
     }
 
+    override fun <T> withLock(key: String, block: () -> T): T {
+        val keyedLock = mapLock.withLock { locks.getOrPut(key, ::ReentrantLock) }
+
+        return keyedLock.withLock(block)
+    }
     override operator fun getValue(thisRef: Any?, property: KProperty<*>) = this
 
     /**
@@ -360,14 +390,18 @@ inline fun versionedWorkspace(block: VersionedWorkspaceBuilder.() -> Unit): Vers
  * @property version the version which this workspace belongs to
  */
 class VersionedWorkspace(override val rootDirectory: Path, override val resolverOptions: ResolverOptions = resolverOptionsOf(), val version: Version) : Workspace {
-    private val composite by lazy { CompositeWorkspace(rootDirectory, resolverOptions) }
-    internal val spigotManifestLock: Lock = ReentrantLock()
-    internal val mojangManifestLock: Lock = ReentrantLock()
-    internal val yarnMetadataLock: Lock = ReentrantLock()
+    private val composite by lazy { CompositeWorkspace(rootDirectory, resolverOptions, locks) }
+    private val locks = mutableMapOf<String, Lock>()
+    private val mapLock: Lock = ReentrantLock()
 
     init {
         rootDirectory.createDirectories()
     }
 
+    override fun <T> withLock(key: String, block: () -> T): T {
+        val keyedLock = mapLock.withLock { locks.getOrPut(key, ::ReentrantLock) }
+
+        return keyedLock.withLock(block)
+    }
     override operator fun getValue(thisRef: Any?, property: KProperty<*>) = composite
 }

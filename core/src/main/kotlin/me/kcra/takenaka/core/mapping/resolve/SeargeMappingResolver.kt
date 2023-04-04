@@ -19,6 +19,7 @@ package me.kcra.takenaka.core.mapping.resolve
 
 import me.kcra.takenaka.core.DefaultResolverOptions
 import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.util.*
@@ -42,9 +43,13 @@ private val logger = KotlinLogging.logger {}
  * A resolver for the Searge (Forge) mappings.
  *
  * @property workspace the workspace
+ * @property licenseWorkspace the workspace where the license will be stored
  * @author Matouš Kučera
  */
-class SeargeMappingResolver(override val workspace: VersionedWorkspace) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
+class SeargeMappingResolver(
+    override val workspace: VersionedWorkspace,
+    val licenseWorkspace: Workspace = workspace
+) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val licenseSource: String = "https://raw.githubusercontent.com/MinecraftForge/MCPConfig/master/LICENSE"
     override val targetNamespace: String = "searge"
     override val outputs: List<Output<out Path?>>
@@ -97,17 +102,19 @@ class SeargeMappingResolver(override val workspace: VersionedWorkspace) : Abstra
 
     override val licenseOutput = lazyOutput {
         resolver {
-            val file = workspace[LICENSE]
+            licenseWorkspace.withLock("searge-license") {
+                val file = licenseWorkspace[LICENSE]
 
-            if (LICENSE in workspace) {
-                logger.info { "found cached Searge license file" }
-                return@resolver file
+                if (LICENSE in licenseWorkspace) {
+                    logger.info { "found cached Searge license file" }
+                    return@withLock file
+                }
+
+                URL(licenseSource).copyTo(file)
+
+                logger.info { "fetched Searge license file" }
+                return@withLock file
             }
-
-            URL(licenseSource).copyTo(file)
-
-            logger.info { "fetched Searge license file" }
-            return@resolver file
         }
 
         upToDateWhen(Path::isRegularFile)

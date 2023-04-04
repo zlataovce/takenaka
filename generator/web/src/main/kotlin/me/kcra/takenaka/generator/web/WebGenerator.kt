@@ -17,6 +17,8 @@
 
 package me.kcra.takenaka.generator.web
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,6 +32,7 @@ import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
 import me.kcra.takenaka.core.mapping.allNamespaceIds
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.resolve.modifiers
+import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.generator.common.AbstractGenerator
 import me.kcra.takenaka.generator.common.ContributorProvider
 import me.kcra.takenaka.generator.web.components.footerComponent
@@ -73,6 +76,8 @@ class WebGenerator(
     contributorProvider: ContributorProvider,
     skipSynthetic: Boolean = false,
     correctNamespaces: List<String> = VanillaMappingContributor.NAMESPACES,
+    objectMapper: ObjectMapper = objectMapper(),
+    xmlMapper: ObjectMapper = XmlMapper(),
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaces: Map<String, NamespaceDescription> = emptyMap(),
@@ -85,7 +90,9 @@ class WebGenerator(
     mappingWorkspace,
     contributorProvider,
     skipSynthetic,
-    correctNamespaces
+    correctNamespaces,
+    objectMapper,
+    xmlMapper
 ), Transformer {
     private val namespaceFriendlyNames = namespaces.mapValues { it.value.friendlyName }
     private val currentComposite by workspace

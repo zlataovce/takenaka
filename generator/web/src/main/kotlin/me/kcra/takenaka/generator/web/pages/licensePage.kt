@@ -43,7 +43,8 @@ fun GenerationContext.licensePage(workspace: VersionedWorkspace, licenses: Map<S
                 +"Licenses - ${workspace.version.id}"
             }
             spacerBottomComponent()
-            licenses.entries.forEachIndexed { index, (ns, license) ->
+
+            licenses.entries.forEachIndexed { i, (ns, license) ->
                 val namespace = generator.namespaces[ns]
                 if (namespace != null) {
                     div(classes = "license-header") {
@@ -63,7 +64,7 @@ fun GenerationContext.licensePage(workspace: VersionedWorkspace, licenses: Map<S
                         +license.content.replace("\\n", "\n")
                     }
 
-                    if (index != (licenses.size - 1)) {
+                    if (i != (licenses.size - 1)) {
                         spacerYComponent()
                     }
                 }
