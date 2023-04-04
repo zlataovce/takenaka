@@ -52,7 +52,7 @@ private val logger = KotlinLogging.logger {}
  * @author Matouš Kučera
  */
 abstract class AbstractSpigotMappingResolver(
-    final override val workspace: VersionedWorkspace,
+    override val workspace: VersionedWorkspace,
     val xmlMapper: ObjectMapper,
     val spigotProvider: SpigotManifestProvider
 ) : AbstractMappingResolver(), MappingContributor, LicenseResolver {

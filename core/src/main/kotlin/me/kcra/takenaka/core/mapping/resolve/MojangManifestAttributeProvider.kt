@@ -36,6 +36,7 @@ private val logger = KotlinLogging.logger {}
  * This class is thread-safe and presumes multiple instances operate on a single workspace.
  *
  * @property workspace the workspace
+ * @property objectMapper an [ObjectMapper] that can deserialize JSON data
  * @author Matouš Kučera
  */
 class MojangManifestAttributeProvider(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper) {

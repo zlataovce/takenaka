@@ -24,7 +24,7 @@ import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.mapping.VersionedMappingMap
+import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.buildMappingTree
 import me.kcra.takenaka.core.mapping.resolve.OutputContainer
@@ -67,7 +67,7 @@ abstract class AbstractGenerator(
     /**
      * The mappings.
      */
-    protected val mappings: VersionedMappingMap by lazy {
+    protected val mappings: MappingsMap by lazy {
         runBlocking {
             resolveMappings()
         }
@@ -83,7 +83,7 @@ abstract class AbstractGenerator(
      *
      * @return a map of joined mapping files, keyed by version
      */
-    protected suspend fun resolveMappings(): VersionedMappingMap {
+    protected suspend fun resolveMappings(): MappingsMap {
         val manifest = objectMapper.versionManifest()
 
         return versions

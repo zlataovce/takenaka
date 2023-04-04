@@ -19,7 +19,6 @@ package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.DefaultResolverOptions
-import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
@@ -49,7 +48,6 @@ private val logger = KotlinLogging.logger {}
  * @author Matouš Kučera
  */
 class YarnMappingResolver(override val workspace: VersionedWorkspace, val yarnProvider: YarnMetadataProvider) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
-    override val version: Version by workspace::version
     override val licenseSource: String
         get() = "https://raw.githubusercontent.com/FabricMC/yarn/${version.id}/LICENSE"
     override val targetNamespace: String = "yarn"

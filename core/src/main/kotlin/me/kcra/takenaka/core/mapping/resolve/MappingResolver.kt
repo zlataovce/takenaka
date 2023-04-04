@@ -33,16 +33,16 @@ interface MappingResolver : OutputContainer<Path?> {
     val workspace: VersionedWorkspace
 
     /**
-     * A shorthand for getting the workspace version.
-     */
-    val version: Version
-        get() = workspace.version
-
-    /**
      * The mapping file output of this resolver.
      */
     val mappingOutput: Output<out Path?>
 }
+
+/**
+ * A shorthand for getting the workspace version.
+ */
+inline val MappingResolver.version: Version
+    get() = workspace.version
 
 /**
  * A base for a mapping resolver.

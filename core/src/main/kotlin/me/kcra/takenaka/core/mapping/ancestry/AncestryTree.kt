@@ -18,7 +18,7 @@
 package me.kcra.takenaka.core.mapping.ancestry
 
 import me.kcra.takenaka.core.Version
-import me.kcra.takenaka.core.mapping.VersionedMappingMap
+import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.dstNamespaceIds
 import me.kcra.takenaka.core.util.entryOf
 import net.fabricmc.mappingio.tree.MappingTreeView.*
@@ -174,7 +174,7 @@ inline fun <T : ElementMappingView> buildAncestryTree(block: AncestryTreeBuilder
  * @param allowedNamespaces namespaces that are used in this tree for tracing history, not distinguished by version; empty if all namespaces should be considered
  * @return the ancestry tree
  */
-fun classAncestryTreeOf(mappings: VersionedMappingMap, allowedNamespaces: List<String> = emptyList()): AncestryTree<ClassMappingView> = buildAncestryTree {
+fun classAncestryTreeOf(mappings: MappingsMap, allowedNamespaces: List<String> = emptyList()): AncestryTree<ClassMappingView> = buildAncestryTree {
     // convert to sorted map to ensure proper ordering
     mappings.toSortedMap().forEach { (version, tree) ->
         val treeAllowedNamespaces = allowedNamespaces

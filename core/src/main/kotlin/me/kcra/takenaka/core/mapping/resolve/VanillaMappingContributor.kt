@@ -57,6 +57,11 @@ class VanillaMappingContributor(
         get() = listOf(serverJarOutput)
 
     /**
+     * The raw classes of the server JAR.
+     */
+    val classes: List<ClassNode> by lazy(::readServerJar)
+
+    /**
      * Creates a new resolver with a default metadata provider.
      *
      * @param workspace the workspace
@@ -64,11 +69,6 @@ class VanillaMappingContributor(
      */
     constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper) :
             this(workspace, MojangManifestAttributeProvider(workspace, objectMapper))
-
-    /**
-     * The raw classes of the server JAR.
-     */
-    val classes: List<ClassNode> by lazy(::readServerJar)
 
     /**
      * The vanilla server JAR output.
