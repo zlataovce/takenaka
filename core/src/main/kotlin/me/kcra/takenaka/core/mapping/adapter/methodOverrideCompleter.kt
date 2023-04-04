@@ -44,6 +44,9 @@ fun MappingTree.completeMethodOverrides(namespace: String) {
 
     var correctionCount = 0
     classes.forEach { klass ->
+        // FAST PATH: skip class when there are only java.* super types
+        if (klass.superClass.startsWith("java/") && klass.interfaces.all { it.startsWith("java/") }) return@forEach
+
         // perf: turn off thread-safe lazy resolving, only one thread accesses these
         val klassName by lazy(LazyThreadSafetyMode.NONE) { klass.getDstName(namespaceId) }
         val klassSuperTypes by lazy(LazyThreadSafetyMode.NONE) { klass.superTypes }
@@ -68,6 +71,56 @@ fun MappingTree.completeMethodOverrides(namespace: String) {
     }
 
     logger.info { "corrected $correctionCount name(s) in namespace $namespace" }
+}
+
+/**
+ * Corrects inconsistencies surrounding overridden methods in multiple namespaces at a time.
+ *
+ * Same constraints as for the [completeMethodOverrides] method apply.
+ * This method might be slower than its non-batch counterpart when dealing with a lot of trees and/or few namespaces.
+ *
+ * @param namespaces the namespaces that will be corrected
+ */
+fun MappingTree.batchCompleteMethodOverrides(namespaces: List<String>) {
+    val namespaceIds = namespaces.map { ns ->
+        val namespaceId = getNamespaceId(ns)
+        if (namespaceId == MappingTree.NULL_NAMESPACE_ID) {
+            error("Namespace is not present in the mapping tree")
+        }
+
+        return@map namespaceId
+    }
+
+    var correctionCount = 0
+    classes.forEach { klass ->
+        // FAST PATH: skip class when there are only java.* super types
+        if (klass.superClass.startsWith("java/") && klass.interfaces.all { it.startsWith("java/") }) return@forEach
+
+        klass.methods.forEach originalEach@ { method ->
+            var namespaceIdsToCorrect = namespaceIds.filter { method.getDstName(it) == null }
+
+            if (namespaceIdsToCorrect.isNotEmpty()) {
+                klass.superTypes.forEach { superType ->
+                    superType.methods.forEach superEach@ { superMethod ->
+                        if (superMethod.srcName != method.srcName || superMethod.srcDesc != method.srcDesc) return@superEach
+
+                        namespaceIdsToCorrect = namespaceIdsToCorrect.filter { namespaceId ->
+                            val superMethodName = superMethod.getDstName(namespaceId) ?: return@filter true
+
+                            logger.debug { "corrected name of ${klass.getDstName(namespaceId)}#$superMethodName for namespace ${namespaces[namespaceIds.indexOf(namespaceId)]}" }
+                            correctionCount++
+
+                            method.setDstName(superMethodName, namespaceId)
+                            return@filter false
+                        }
+                        if (namespaceIdsToCorrect.isEmpty()) return@originalEach // perf: return early when method is corrected on all namespaces
+                    }
+                }
+            }
+        }
+    }
+
+    logger.info { "corrected $correctionCount name(s) in namespaces ${namespaces.joinToString()}" }
 }
 
 /**

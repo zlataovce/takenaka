@@ -17,137 +17,20 @@
 
 package me.kcra.takenaka.generator.common
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.xml.XmlMapper
-import kotlinx.coroutines.*
-import me.kcra.takenaka.core.CompositeWorkspace
-import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.MappingsMap
-import me.kcra.takenaka.core.mapping.adapter.*
-import me.kcra.takenaka.core.mapping.buildMappingTree
-import me.kcra.takenaka.core.mapping.resolve.OutputContainer
-import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
-import me.kcra.takenaka.core.mapping.unwrap
-import me.kcra.takenaka.core.util.objectMapper
-import me.kcra.takenaka.core.versionManifest
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.EmptyCoroutineContext
-
-/**
- * A function for providing a list of mapping contributors for a single version.
- */
-typealias ContributorProvider = (VersionedWorkspace) -> List<MappingContributor>
 
 /**
  * An abstract base for a generator.
+ *
  * A generator transforms mappings into another form, such as accessors or documentation.
  *
- * @param workspace the workspace in which this generator can move around
- * @param versions the Minecraft versions that this generator will process
- * @param mappingWorkspace the workspace in which the mappings are stored
- * @param contributorProvider a function that provides mapping contributors to be processed
- * @param skipSynthetic whether synthetic classes and their members should be skipped
- * @param correctNamespaces namespaces excluded from any correction, these are artificial (non-mapping) namespaces defined in the core library by default
- * @param objectMapper an object mapper instance for this generator
- * @param xmlMapper an XML object mapper instance for this generator
+ * @property workspace the workspace in which this generator can move around
  * @author Matouš Kučera
  */
-abstract class AbstractGenerator(
-    val workspace: Workspace,
-    val versions: List<String>,
-    val mappingWorkspace: CompositeWorkspace,
-    val contributorProvider: ContributorProvider,
-    val skipSynthetic: Boolean = false,
-    val correctNamespaces: List<String> = VanillaMappingContributor.NAMESPACES,
-    val objectMapper: ObjectMapper = objectMapper(),
-    val xmlMapper: ObjectMapper = XmlMapper()
-) {
+abstract class AbstractGenerator(val workspace: Workspace) {
     /**
-     * The mappings.
+     * Launches the generator with a pre-determined set of mappings.
      */
-    protected val mappings: MappingsMap by lazy {
-        runBlocking {
-            resolveMappings()
-        }
-    }
-
-    /**
-     * Launches the generator.
-     */
-    abstract suspend fun generate()
-
-    /**
-     * Resolves mappings for all targeted versions.
-     *
-     * @return a map of joined mapping files, keyed by version
-     */
-    protected suspend fun resolveMappings(): MappingsMap {
-        val manifest = objectMapper.versionManifest()
-
-        return versions
-            .map { versionString ->
-                mappingWorkspace.createVersionedWorkspace {
-                    this.version = manifest[versionString] ?: error("did not find version $versionString in manifest")
-                }
-            }
-            .parallelMap(Dispatchers.Default + CoroutineName("mapping-coro")) { workspace ->
-                val contributors = contributorProvider(workspace)
-                coroutineScope {
-                    contributors.forEach { _contributor ->
-                        val contributor = _contributor.unwrap()
-
-                        // pre-fetch outputs asynchronously
-                        if (contributor is OutputContainer<*>) {
-                            contributor.forEach { output ->
-                                launch(Dispatchers.Default + CoroutineName("resolve-coro")) {
-                                    output.resolve()
-                                }
-                            }
-                        }
-                    }
-                }
-
-                workspace.version to buildMappingTree {
-                    contributor(contributors)
-
-                    interceptBefore { tree ->
-                        MethodArgSourceFilter(tree)
-                    }
-
-                    interceptAfter { tree ->
-                        tree.removeElementsWithoutModifiers()
-
-                        if (skipSynthetic) {
-                            tree.removeSyntheticElements()
-                        }
-
-                        tree.removeStaticInitializers()
-                        tree.removeObjectOverrides()
-
-                        tree.dstNamespaces.forEach { ns ->
-                            if (ns in correctNamespaces) return@forEach
-
-                            tree.completeMethodOverrides(ns)
-                        }
-                    }
-                }
-            }
-            .toMap()
-    }
-}
-
-/**
- * Maps an [Iterable] in parallel.
- *
- * @param context the coroutine context
- * @param block the mapping function
- * @return the remapped list
- */
-suspend fun <A, B> Iterable<A>.parallelMap(
-    context: CoroutineContext = EmptyCoroutineContext,
-    block: suspend (A) -> B
-): List<B> = coroutineScope {
-    map { async(context) { block(it) } }.awaitAll()
+    abstract suspend fun generate(mappings: MappingsMap)
 }
