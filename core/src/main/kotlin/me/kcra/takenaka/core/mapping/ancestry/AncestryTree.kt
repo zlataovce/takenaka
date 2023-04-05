@@ -24,6 +24,11 @@ import me.kcra.takenaka.core.util.entryOf
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 
 /**
+ * A name and descriptor pair.
+ */
+typealias NameDescriptorPair = Pair<String, String>
+
+/**
  * A mapping ancestry tree.
  *
  * @param nodes the ancestry nodes
@@ -31,10 +36,7 @@ import net.fabricmc.mappingio.tree.MappingTreeView.*
  * @param T the kind of the traced element; can be a class, method, field, ...
  * @author Matouš Kučera
  */
-class AncestryTree<T : ElementMappingView>(
-    nodes: List<Node<T>>,
-    val allowedNamespaces: Map<Version, Array<Int>>
-) : List<AncestryTree.Node<T>> by nodes {
+class AncestryTree<T : ElementMappingView>(nodes: List<Node<T>>, val allowedNamespaces: Map<Version, Array<Int>>) : List<AncestryTree.Node<T>> by nodes {
     /**
      * A node in the ancestry tree, immutable.
      * This represents one element (class, field, method) in multiple versions.
@@ -52,24 +54,39 @@ class AncestryTree<T : ElementMappingView>(
         val last: Map.Entry<Version, T> = delegate.entries.last()
     ) : Map<Version, T> by delegate {
         /**
-         * Internal cache of the allowed namespaces of the last entry.
+         * Internal cache of names (as per the tree's allowed namespaces) of the last entry.
+         *
+         * This is not designed for dealing with the names themselves, rather only for set disjointness.
          */
-        internal val lastAllowedNamespaces: Array<Int> by lazy {
-            tree.allowedNamespaces[last.key] ?: error("Version ${last.key} is not mapped in parent tree")
+        internal val lastNames: Set<Any> by lazy {
+            val (lastVersion, lastMapping) = last
+
+            if (lastMapping is MemberMappingView) {
+                tree.allowedNamespaces[lastVersion]
+                    ?.mapNotNullTo(mutableSetOf()) { ns ->
+                        val name = lastMapping.getDstName(ns)
+                            ?: return@mapNotNullTo null
+                        val desc = lastMapping.getDstDesc(ns)
+                            ?: return@mapNotNullTo null
+
+                        name to desc
+                    }
+                    ?: error("Version $lastVersion is not mapped in parent tree")
+            } else {
+                tree.allowedNamespaces[lastVersion]
+                    ?.mapNotNullTo(mutableSetOf(), lastMapping::getDstName)
+                    ?: error("Version $lastVersion is not mapped in parent tree")
+            }
         }
     }
 
     /**
      * Tries to find a node with [key] as a mapping in the last mapped version.
      *
-     * @param key the mapping
+     * @param key the mapping; [String] for classes, [NameDescriptorPair] for members (field, method)
      * @return the node, null if not found
      */
-    operator fun get(key: String): Node<T>? = find { node ->
-        val (_, lastMapping) = node.last
-
-        return@find node.lastAllowedNamespaces.any { lastMapping.getDstName(it) == key }
-    }
+    operator fun get(key: Any): Node<T>? = find { key in it.lastNames }
 }
 
 /**
@@ -144,9 +161,11 @@ class AncestryTreeBuilder<T : ElementMappingView> {
         lateinit var last: Map.Entry<Version, T>
 
         /**
-         * Internal allowed namespace cache of the last entry.
+         * Internal cache of names (as per the tree's allowed namespaces) of the last entry.
+         *
+         * **This is not set by the [put] methods.**
          */
-        internal var lastAllowedNamespaces: Array<Int>? = null
+        internal var lastNames: Set<Any>? = null
 
         init {
             if (delegate.isNotEmpty()) {
@@ -200,21 +219,22 @@ fun classAncestryTreeOf(mappings: MappingsMap, allowedNamespaces: List<String> =
 
         tree.classes.forEach { klass ->
             val classMappings = treeAllowedNamespaces.mapNotNullTo(mutableSetOf(), klass::getDstName)
+            val classMappingsArray = classMappings.toTypedArray() // perf: use array due to marginally better iteration performance
 
             // do we have a node with one or more equal names in the last version?
             // if we don't, make a new node and append it to the tree
             val node = findOrEmpty { node ->
                 val (lastVersion, lastMapping) = node.last
-
-                return@findOrEmpty (node.lastAllowedNamespaces ?: this@buildAncestryTree.allowedNamespaces[lastVersion])
-                    ?.any { lastMapping.getDstName(it)?.let(classMappings::contains) ?: false }
+                val lastNames = (node.lastNames ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNull(lastMapping::getDstName))
                     ?: error("Version ${version.id} has not been mapped yet, make sure mappings are sorted correctly")
+
+                return@findOrEmpty classMappingsArray.any(lastNames::contains)
             }
 
             // add the entry for this version to the node
             val lastValue = node.put(version, klass)
             if (lastValue == null) {
-                node.lastAllowedNamespaces = treeAllowedNamespaces
+                node.lastNames = classMappings
             }
         }
     }
@@ -235,32 +255,39 @@ fun fieldAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTre
 
         realKlass.fields.forEach { field ->
             val fieldMappings = treeAllowedNamespaces
-                .mapNotNullTo(mutableSetOf()) { nsId ->
-                    val name = field.getDstName(nsId) ?: return@mapNotNullTo null
-                    val desc = field.getDstDesc(nsId) ?: return@mapNotNullTo null
+                .mapNotNullTo(mutableSetOf()) { ns ->
+                    val name = field.getDstName(ns)
+                        ?: return@mapNotNullTo null
+                    val desc = field.getDstDesc(ns)
+                        ?: return@mapNotNullTo null
 
                     name to desc
                 }
+
+            val fieldMappingsArray = fieldMappings.toTypedArray() // perf: use array due to marginally better iteration performance
 
             // do we have a node with one or more equal name-descriptor pairs in the last version?
             // if we don't, make a new node and append it to the tree
             val node = findOrEmpty { node ->
                 val (lastVersion, lastMapping) = node.last
+                val lastNames = node.lastNames
+                    ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNull { ns ->
+                        val name = lastMapping.getDstName(ns)
+                            ?: return@mapNotNull null
+                        val desc = lastMapping.getDstDesc(ns)
+                            ?: return@mapNotNull null
 
-                return@findOrEmpty (node.lastAllowedNamespaces ?: this@buildAncestryTree.allowedNamespaces[lastVersion])
-                    ?.any { nsId ->
-                        val name = lastMapping.getDstName(nsId) ?: return@any false
-                        val desc = lastMapping.getDstDesc(nsId) ?: return@any false
-
-                        fieldMappings.contains(name to desc)
+                        name to desc
                     }
                     ?: error("Version ${version.id} has not been mapped yet")
+
+                return@findOrEmpty fieldMappingsArray.any(lastNames::contains)
             }
 
             // add the entry for this version to the node
             val lastValue = node.put(version, field)
             if (lastValue == null) {
-                node.lastAllowedNamespaces = treeAllowedNamespaces
+                node.lastNames = fieldMappings
             }
         }
     }
@@ -281,32 +308,39 @@ fun methodAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTr
 
         realKlass.methods.forEach { method ->
             val methodMappings = treeAllowedNamespaces
-                .mapNotNullTo(mutableSetOf()) { nsId ->
-                    val name = method.getDstName(nsId) ?: return@mapNotNullTo null
-                    val desc = method.getDstDesc(nsId) ?: return@mapNotNullTo null
+                .mapNotNullTo(mutableSetOf()) { ns ->
+                    val name = method.getDstName(ns)
+                        ?: return@mapNotNullTo null
+                    val desc = method.getDstDesc(ns)
+                        ?: return@mapNotNullTo null
 
                     name to desc
                 }
+
+            val methodMappingsArray = methodMappings.toTypedArray() // perf: use array due to marginally better iteration performance
 
             // do we have a node with one or more equal name-descriptor pairs in the last version?
             // if we don't, make a new node and append it to the tree
             val node = findOrEmpty { node ->
                 val (lastVersion, lastMapping) = node.last
+                val lastNames = node.lastNames
+                    ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNull { ns ->
+                        val name = lastMapping.getDstName(ns)
+                            ?: return@mapNotNull null
+                        val desc = lastMapping.getDstDesc(ns)
+                            ?: return@mapNotNull null
 
-                return@findOrEmpty (node.lastAllowedNamespaces ?: this@buildAncestryTree.allowedNamespaces[lastVersion])
-                    ?.any { nsId ->
-                        val name = lastMapping.getDstName(nsId) ?: return@any false
-                        val desc = lastMapping.getDstDesc(nsId) ?: return@any false
-
-                        methodMappings.contains(name to desc)
+                        name to desc
                     }
                     ?: error("Version ${version.id} has not been mapped yet")
+
+                return@findOrEmpty methodMappingsArray.any(lastNames::contains)
             }
 
             // add the entry for this version to the node
             val lastValue = node.put(version, method)
             if (lastValue == null) {
-                node.lastAllowedNamespaces = treeAllowedNamespaces
+                node.lastNames = methodMappings
             }
         }
     }
