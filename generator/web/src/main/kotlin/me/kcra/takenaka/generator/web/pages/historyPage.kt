@@ -87,12 +87,7 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                                         .sortedBy { generator.namespaceFriendlinessIndex.indexOf(it.second) }
                                         .mapNotNull { (id, ns) ->
                                             field.getName(id)?.let { name ->
-                                                buildString {
-                                                    appendHTML {
-                                                        textBadgeComponent(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer)
-                                                    }
-                                                    append(name)
-                                                }
+                                                textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name
                                             }
                                         }
                                         .joinToString()
@@ -140,12 +135,7 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                                         .sortedBy { generator.namespaceFriendlinessIndex.indexOf(it.second) }
                                         .mapNotNull { (id, ns) ->
                                             method.getName(id)?.let { name ->
-                                                buildString {
-                                                    appendHTML {
-                                                        textBadgeComponent(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer)
-                                                    }
-                                                    append(name)
-                                                }
+                                                textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name
                                             }
                                         }
                                         .joinToString()
@@ -162,7 +152,7 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                     val tree = methodTree.trees[version] ?: error("Constructor tree does not have parent's version")
                     val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
 
-                    constructorTree.forEach nodeForEach@ { ctorNode ->
+                    constructorTree.forEach { ctorNode ->
                         val nullableMethod = ctorNode[version]
 
                         append(

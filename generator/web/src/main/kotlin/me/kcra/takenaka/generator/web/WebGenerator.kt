@@ -101,6 +101,11 @@ class WebGenerator(
     internal val hasMinifier = transformers.any { it is Minifier }
 
     /**
+     * A [Comparator] for comparing the friendliness of namespaces, useful for sorting.
+     */
+    val friendlinessComparator = compareBy(namespaceFriendlinessIndex::indexOf)
+
+    /**
      * The "history" folder.
      */
     val historyWorkspace = currentComposite.createWorkspace {

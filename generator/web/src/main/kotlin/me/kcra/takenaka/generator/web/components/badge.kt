@@ -76,3 +76,19 @@ fun FlowContent.textBadgeComponent(content: String, color: String, styleConsumer
     styleConsumer("badge-text-$lowercase::before", "color:$color;content:\"$content\";")
     styleConsumer("badge-text-$lowercase::after", "content:\": \";")
 }
+
+/**
+ * Builds a string representation of [textBadgeComponent].
+ *
+ * @param content the namespace name
+ * @param color the badge color in a CSS compatible format
+ * @param styleConsumer the style provider, used for generating stylesheets
+ */
+fun textBadgeComponentUnsafe(content: String, color: String, styleConsumer: StyleConsumer): String {
+    val lowercase = content.lowercase()
+
+    styleConsumer("badge-text-$lowercase::before", "color:$color;content:\"$content\";")
+    styleConsumer("badge-text-$lowercase::after", "content:\": \";")
+
+    return """<span class="badge-text ${styleConsumer("badge-text-$lowercase", "font-family:var(--font-monospace);")}"></span>"""
+}
