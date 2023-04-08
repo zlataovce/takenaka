@@ -26,24 +26,29 @@ import kotlinx.html.dom.serialize
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
+import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.adapter.completeInnerClassNames
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.allNamespaceIds
+import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.core.util.objectMapper
-import me.kcra.takenaka.generator.common.AbstractGenerator
+import me.kcra.takenaka.generator.common.AbstractResolvingGenerator
 import me.kcra.takenaka.generator.common.ContributorProvider
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
 import me.kcra.takenaka.generator.web.transformers.Minifier
 import me.kcra.takenaka.generator.web.transformers.Transformer
+import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.tree.MappingTree
+import net.fabricmc.mappingio.tree.MappingTreeView
 import org.w3c.dom.Document
 import java.io.BufferedReader
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.util.*
 import kotlin.io.path.writeText
 
 /**
@@ -62,6 +67,7 @@ import kotlin.io.path.writeText
  * @param namespaces a map of namespaces and their descriptions, unspecified namespaces will not be shown
  * @param index a resolver for foreign class references
  * @param spigotLikeNamespaces namespaces that should have [replaceCraftBukkitNMSVersion] and [completeInnerClassNames] applied (most likely Spigot mappings or a flavor of them)
+ * @param historyAllowedNamespaces namespaces that should be used for computing history, empty if namespaces from [namespaceFriendlinessIndex] should be considered (excluding the obfuscated one)
  * @author Matouš Kučera
  */
 class WebGenerator(
@@ -77,8 +83,9 @@ class WebGenerator(
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaces: Map<String, NamespaceDescription> = emptyMap(),
     val index: ClassSearchIndex = emptyClassSearchIndex(),
-    val spigotLikeNamespaces: List<String> = emptyList()
-) : AbstractGenerator(
+    val spigotLikeNamespaces: List<String> = emptyList(),
+    val historyAllowedNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK
+) : AbstractResolvingGenerator(
     workspace,
     versions,
     mappingWorkspace,
@@ -94,27 +101,78 @@ class WebGenerator(
     internal val hasMinifier = transformers.any { it is Minifier }
 
     /**
-     * The "assets" folder.
+     * A [Comparator] for comparing the friendliness of namespaces, useful for sorting.
      */
-    val assetWorkspace = currentComposite.createWorkspace {
-        this.name = "assets"
+    val friendlinessComparator = compareBy(namespaceFriendlinessIndex::indexOf)
+
+    /**
+     * The "history" folder.
+     */
+    val historyWorkspace = currentComposite.createWorkspace {
+        name = "history"
     }
 
     /**
-     * Launches the generator.
+     * The "assets" folder.
      */
-    override suspend fun generate() {
-        val styleSupplier = DefaultStyleProvider()
+    val assetWorkspace = currentComposite.createWorkspace {
+        name = "assets"
+    }
 
-        generationContext(styleProvider = styleSupplier::apply) {
+    /**
+     * A convenience index for looking up namespaces by their friendly names.
+     */
+    val namespacesByFriendlyNames = namespaces.mapKeys { it.value.friendlyName }
+
+    /**
+     * Launches the generator with a pre-determined set of mappings.
+     */
+    override suspend fun generate(mappings: MutableMappingsMap) {
+        val styleConsumer = DefaultStyleConsumer()
+
+        generationContext(styleConsumer = styleConsumer::apply) {
+            // first pass: complete inner class names for spigot-like namespaces
+            // not done in AbstractGenerator due to the namespace requirement
+            mappings.forEach { (_, tree) ->
+                spigotLikeNamespaces.forEach { ns ->
+                    if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
+                        tree.completeInnerClassNames(ns)
+                    }
+                }
+            }
+
+            val tree = classAncestryTreeOf(mappings, historyAllowedNamespaces)
+
+            // second pass: replace the CraftBukkit NMS version for spigot-like namespaces
+            // must be after ancestry tree computation, because replacing the VVV package breaks (the remaining) uniformity of the mappings
+            mappings.forEach { (_, tree) ->
+                spigotLikeNamespaces.forEach { ns ->
+                    if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
+                        tree.replaceCraftBukkitNMSVersion(ns)
+                    }
+                }
+            }
+
+            // used for looking up history hashes - for linking
+            val hashMap = IdentityHashMap<MappingTreeView.ClassMappingView, String>()
+
+            tree.forEach { node ->
+                val (_, firstKlass) = node.first
+                val fileHash = firstKlass.hash.take(10)
+
+                node.forEach { (_, klass) ->
+                    hashMap[klass] = fileHash
+                }
+
+                launch(Dispatchers.Default + CoroutineName("page-coro")) {
+                    historyPage(node)
+                        .serialize(historyWorkspace, "$fileHash.html")
+                }
+            }
+
+            // third pass: generate the documentation
             mappings.forEach { (version, tree) ->
                 launch(Dispatchers.Default + CoroutineName("generate-coro")) {
-                    spigotLikeNamespaces.forEach { ns ->
-                        if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
-                            tree.replaceCraftBukkitNMSVersion(ns)
-                            tree.completeInnerClassNames(ns)
-                        }
-                    }
                     val versionWorkspace = currentComposite.createVersionedWorkspace {
                         this.version = version
                     }
@@ -148,23 +206,16 @@ class WebGenerator(
                             val friendlyName = getFriendlyDstName(klass)
 
                             launch(Dispatchers.Default + CoroutineName("page-coro")) {
-                                classPage(klass, versionWorkspace, friendlyNameRemapper)
+                                classPage(klass, hashMap[klass], versionWorkspace, friendlyNameRemapper)
                                     .serialize(versionWorkspace, "$friendlyName.html")
                             }
 
                             classMap.getOrPut(friendlyName.substringBeforeLast('/')) { mutableMapOf() } +=
                                 friendlyName.substringAfterLast('/') to classTypeOf(klass.modifiers)
 
-                            appendLine(
-                                namespaces.values.joinToString("\t") { ns ->
-                                    klass.getName(ns)
-                                        ?.replace("net/minecraft", "%nm")
-                                        ?.replace("com/mojang", "%cm")
-                                        ?: ""
-                                }
-                            )
+                            appendLine(namespaces.values.joinToString("\t") { klass.getName(it) ?: "" })
                         }
-                    }
+                    }.replace("net/minecraft", "%nm").replace("com/mojang", "%cm")
 
                     classMap.forEach { (packageName, classes) ->
                         packagePage(versionWorkspace, packageName, classes)
@@ -229,7 +280,7 @@ class WebGenerator(
             }
         )
         assetWorkspace["components.js"].writeText(transformJs(componentFileContent))
-        assetWorkspace["generated.css"].writeText(transformCss(styleSupplier.generateStyleSheet()))
+        assetWorkspace["generated.css"].writeText(transformCss(styleConsumer.generateStyleSheet()))
 
         copyAsset("main.css") // main.css should be copied last to minify correctly
     }
@@ -267,14 +318,7 @@ class WebGenerator(
      * @return the content of the component file
      */
     fun generateComponentFile(vararg components: ComponentDefinition): String = buildString {
-        fun Document.serializeAsComponent(): String {
-            var content = serialize(prettyPrint = false)
-            transformers.forEach { transformer ->
-                content = transformer.transformHtml(content)
-            }
-
-            return content.substringAfter("\n")
-        }
+        fun Document.serializeAsComponent(): String = transformHtml(serialize(prettyPrint = false)).substringAfter("\n")
 
         append(
             """

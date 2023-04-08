@@ -75,7 +75,7 @@ class LegacySpigotMappingPrepender(next: MappingVisitor, val namespace: String =
      */
     class PrependingRemapper(val prependedClasses: MutableList<String> = mutableListOf(), val prependEverything: Boolean = false) : Remapper() {
         override fun map(internalName: String): String {
-            if (!internalName.contains('/')) {
+            if ('/' !in internalName) {
                 prependedClasses += internalName
             }
             if (prependEverything || internalName in prependedClasses) {

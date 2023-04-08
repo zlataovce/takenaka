@@ -17,7 +17,6 @@
 
 package me.kcra.takenaka.core.mapping
 
-import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.commons.Remapper
 
@@ -32,7 +31,7 @@ typealias ElementMapper = (MappingTreeView.ElementMappingView) -> String?
  * @param tree the mapping tree
  * @param elementMapper a function that selects the desired mapping for the element
  */
-class ElementRemapper(val tree: MappingTree, val elementMapper: ElementMapper) : Remapper() {
+class ElementRemapper(val tree: MappingTreeView, val elementMapper: ElementMapper) : Remapper() {
     override fun mapMethodName(owner: String, name: String, descriptor: String): String =
         tree.getClass(owner)?.getMethod(name, descriptor)?.let(elementMapper) ?: name
     override fun mapRecordComponentName(owner: String, name: String, descriptor: String): String =

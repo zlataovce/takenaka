@@ -100,6 +100,12 @@ h1 {
     line-height: 1.75rem;
 }
 
+h3 {
+    color: var(--text);
+    font-size: larger;
+    margin-bottom: 0.5rem;
+}
+
 h4 {
     color: var(--text);
     font-size: 1.125rem;
@@ -264,6 +270,8 @@ input::placeholder {
 }
 
 .class-header {
+    display: flex;
+    justify-content: space-between;
     margin-top: 1rem;
     overflow-wrap: break-word;
     font-size: 1.5rem;
@@ -305,6 +313,14 @@ input::placeholder {
     font-weight: 600;
     line-height: .75rem;
     color: var(--text-badge);
+}
+
+.badge-text {
+    filter: brightness(1.75); /* improve text readability on dark mode */
+}
+
+[data-theme="light"] .badge-text {
+    filter: none;
 }
 
 .mapping-value {
@@ -371,4 +387,63 @@ input::placeholder {
     display: flex;
     gap: 0.75rem;
     margin-bottom: 0.5rem;
+}
+
+.diff-addition {
+    font-family: var(--font-monospace);
+    color: var(--text);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    background-color: rgba(46, 160, 67, 0.15);
+}
+
+.diff-addition > * {
+    font-family: var(--font-monospace);
+}
+
+.diff-addition::before {
+    content: "+ ";
+}
+
+.diff-deletion {
+    font-family: var(--font-monospace);
+    color: var(--text);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    background-color: rgba(248, 81, 73, 0.15);
+}
+
+.diff-deletion > * {
+    font-family: var(--font-monospace);
+}
+
+.diff-deletion::before {
+    content: "- ";
+}
+
+.diff-status {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-style: italic;
+    margin-bottom: 1rem;
+    color: var(--text);
+}
+
+.diff-no-changes {
+    margin-bottom: 0;
+}
+
+.diff-no-changes::before {
+    content: "No changes";
+}
+
+.diff-first-occurrence::before {
+    content: "First known occurrence";
+}
+
+.diff-title {
+    font-weight: 500;
+    margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
+    color: var(--text-muted);
 }

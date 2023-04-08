@@ -24,18 +24,18 @@ import kotlin.concurrent.withLock
 /**
  * A function that provides a CSS class name from a key and the style content.
  */
-typealias StyleProvider = (String, String) -> String
+typealias StyleConsumer = (String, String) -> String
 
 /**
- * A synchronized [StyleProvider] implementation.
+ * A synchronized [StyleConsumer] implementation.
  */
-class DefaultStyleProvider(val styles: MutableMap<String, String> = mutableMapOf()) {
-    private val supplierLock: Lock = ReentrantLock()
+class DefaultStyleConsumer(val styles: MutableMap<String, String> = mutableMapOf()) {
+    private val lock: Lock = ReentrantLock()
 
     /**
-     * The [StyleProvider].
+     * The [StyleConsumer].
      */
-    fun apply(k: String, s: String): String = supplierLock.withLock {
+    fun apply(k: String, s: String): String = lock.withLock {
         styles.putIfAbsent(k, s); k
     }
 

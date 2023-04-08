@@ -1,6 +1,6 @@
 # generator-web-cli
 
-This is the CLI interface for the web documentation generator.
+This is the CLI interface and usage reference for the web documentation generator.
 
 ## Options
 
@@ -10,7 +10,7 @@ Usage: web-cli options_list
 Options:
     --output, -o [output] -> Output directory { String }
     --version, -v -> Target Minecraft version, can be specified multiple times (always required) { String }
-    --cache, -c [mapping-cache] -> Caching directory for mappings { String }
+    --cache, -c [cache] -> Caching directory for mappings and other resources { String }
     --strictCache [false] -> Enforces strict cache validation
     --clean [false] -> Removes previous build output and cache before launching
     --minifier, -m [DETERMINISTIC] -> The minifier implementation used for minifying the documentation { Value should be one of [deterministic, normal, none] }

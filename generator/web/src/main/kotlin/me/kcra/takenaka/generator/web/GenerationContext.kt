@@ -22,20 +22,25 @@ import kotlinx.html.dom.serialize
 import kotlinx.html.dom.write
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.dstNamespaceIds
+import me.kcra.takenaka.core.util.hexValue
+import me.kcra.takenaka.core.util.threadLocalMessageDigest
 import net.fabricmc.mappingio.tree.MappingTreeView
-import org.objectweb.asm.Opcodes
 import org.w3c.dom.Document
-import java.lang.reflect.Modifier
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.io.path.writer
+
+/**
+ * A thread-local MD5 digest.
+ */
+val md5Digest by threadLocalMessageDigest("MD5")
 
 /**
  * A generation context.
  *
  * @author Matouš Kučera
  */
-class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenerator, val styleProvider: StyleProvider) : CoroutineScope by coroutineScope {
+class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenerator, val styleConsumer: StyleConsumer) : CoroutineScope by coroutineScope {
     val index: ClassSearchIndex by generator::index
 
     /**
@@ -87,38 +92,37 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
     fun getNamespaceBadgeColor(ns: String): String = generator.namespaces[ns]?.color ?: "#94a3b8"
 
     /**
-     * Formats a modifier integer into a string.
+     * Gets a CSS color of the namespace with the supplied friendly name.
      *
-     * @param mod the modifier integer
-     * @param mask the modifier mask (you can get that from the [Modifier] class or use 0)
-     * @return the modifier string
+     * @param ns the namespace friendly name
+     * @return the color
      */
-    fun formatModifiers(mod: Int, mask: Int): String = buildString {
-        val mMod = mod and mask
+    fun getFriendlyNamespaceBadgeColor(ns: String): String = generator.namespacesByFriendlyNames[ns]?.color ?: "#94a3b8"
 
-        if ((mMod and Opcodes.ACC_PUBLIC) != 0) append("public ")
-        if ((mMod and Opcodes.ACC_PRIVATE) != 0) append("private ")
-        if ((mMod and Opcodes.ACC_PROTECTED) != 0) append("protected ")
-        if ((mMod and Opcodes.ACC_STATIC) != 0) append("static ")
-        // an interface is implicitly abstract
-        // we need to check the unmasked modifiers here, since ACC_INTERFACE is not among Modifier#classModifiers
-        if ((mMod and Opcodes.ACC_ABSTRACT) != 0 && (mod and Opcodes.ACC_INTERFACE) == 0) append("abstract ")
-        // an enum is implicitly final
-        // we need to check the unmasked modifiers here, since ACC_ENUM is not among Modifier#classModifiers
-        if ((mMod and Opcodes.ACC_FINAL) != 0 && (mask != Modifier.classModifiers() || (mod and Opcodes.ACC_ENUM) == 0)) append("final ")
-        if ((mMod and Opcodes.ACC_NATIVE) != 0) append("native ")
-        if ((mMod and Opcodes.ACC_STRICT) != 0) append("strict ")
-        if ((mMod and Opcodes.ACC_SYNCHRONIZED) != 0) append("synchronized ")
-        if ((mMod and Opcodes.ACC_TRANSIENT) != 0) append("transient ")
-        if ((mMod and Opcodes.ACC_VOLATILE) != 0) append("volatile ")
-    }
+    /**
+     * Computes a hash of all destination mappings of this element.
+     *
+     * The resulting hash is stable, meaning the order of namespaces won't affect it.
+     */
+    val MappingTreeView.ElementMappingView.hash: String
+        get() = md5Digest
+            .apply {
+                update(
+                    tree.dstNamespaceIds
+                        .mapNotNull { getDstName(it) }
+                        .sorted()
+                        .joinToString(",")
+                        .encodeToByteArray()
+                )
+            }
+            .hexValue
 }
 
 /**
  * Opens a generation context.
  *
- * @param styleProvider the style provider that will be used in the context
+ * @param styleConsumer the style provider that will be used in the context
  * @param block the context user
  */
-suspend inline fun <R> WebGenerator.generationContext(noinline styleProvider: StyleProvider, crossinline block: suspend GenerationContext.() -> R): R =
-    coroutineScope { block(GenerationContext(this, this@generationContext, styleProvider)) }
+suspend inline fun <R> WebGenerator.generationContext(noinline styleConsumer: StyleConsumer, crossinline block: suspend GenerationContext.() -> R): R =
+    coroutineScope { block(GenerationContext(this, this@generationContext, styleConsumer)) }

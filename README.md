@@ -13,7 +13,6 @@ The goal of this project is to improve the maintainability and performance of th
 
 ### Planned features
 
-- [ ] history page for the web documentation
 - [ ] reflective accessor generation
 
 ### Mappings
