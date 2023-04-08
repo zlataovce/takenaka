@@ -279,7 +279,7 @@ fun fieldAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTre
 
                         name to desc
                     }
-                    ?: error("Version ${version.id} has not been mapped yet")
+                    ?: error("Version ${lastVersion.id} has not been mapped yet")
 
                 return@findOrEmpty fieldMappingsArray.any(lastNames::contains)
             }
@@ -332,7 +332,7 @@ fun methodAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTr
 
                         name to desc
                     }
-                    ?: error("Version ${version.id} has not been mapped yet")
+                    ?: error("Version ${lastVersion.id} has not been mapped yet")
 
                 return@findOrEmpty methodMappingsArray.any(lastNames::contains)
             }

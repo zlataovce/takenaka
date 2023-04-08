@@ -20,13 +20,18 @@ package me.kcra.takenaka.generator.web.pages
 import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.allNamespaceIds
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
+import me.kcra.takenaka.core.mapping.ancestry.fieldAncestryTreeOf
+import me.kcra.takenaka.core.mapping.ancestry.methodAncestryTreeOf
 import me.kcra.takenaka.core.mapping.fromInternalName
+import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.generator.web.GenerationContext
-import me.kcra.takenaka.generator.web.StyleConsumer
 import me.kcra.takenaka.generator.web.components.*
+import net.fabricmc.mappingio.tree.MappingTreeView.MethodMappingView
 import net.fabricmc.mappingio.tree.MappingTreeView.ClassMappingView
+import net.fabricmc.mappingio.tree.MappingTreeView.FieldMappingView
 import org.w3c.dom.Document
 import java.util.*
 
@@ -49,7 +54,8 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
             spacerBottomComponent()
 
             val classNameRows = buildDiff {
-                node.entries.forEach { (version, klass) ->
+                node.forEach { (version, klass) ->
+                    flushUntouchedEntries(version)
                     klass.tree.allNamespaceIds.forEach { id ->
                         val ns = klass.tree.getNamespaceName(id)
 
@@ -57,6 +63,95 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                         if (nsFriendlyName != null) {
                             append(version, nsFriendlyName, klass.getName(id)?.fromInternalName())
                         }
+                    }
+                }
+            }
+
+            val fieldTree = fieldAncestryTreeOf(node)
+            val fieldRows = buildFieldDiff {
+                node.keys.forEach { version ->
+                    flushUntouchedEntries(version)
+                    fieldTree.forEach nodeForEach@ { fieldNode ->
+                        val field = fieldNode[version]
+                        if (field == null) {
+                            append(version, fieldNode, null)
+                            return@nodeForEach
+                        }
+
+                        append(
+                            version,
+                            fieldNode,
+                            HistoricalDescriptableDetail(
+                                formatFieldDescriptor(field, version, ElementRemapper(field.tree, ::getFriendlyDstName)),
+                                field.tree.allNamespaceIds
+                                    .mapNotNull { id ->
+                                        id to (getNamespaceFriendlyName(field.tree.getNamespaceName(id)) ?: return@mapNotNull null)
+                                    }
+                                    .sortedBy { generator.namespaceFriendlinessIndex.indexOf(it.second) }
+                                    .mapNotNull { (id, ns) ->
+                                        field.getName(id)?.let { name ->
+                                            buildString {
+                                                appendHTML {
+                                                    textBadgeComponent(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer)
+                                                }
+                                                append(name)
+                                            }
+                                        }
+                                    }
+                                    .joinToString()
+                            )
+                        )
+                    }
+                }
+            }
+
+            val methodTree = methodAncestryTreeOf(node)
+            val methodRows = buildMethodDiff {
+                node.keys.forEach { version ->
+                    flushUntouchedEntries(version)
+                    methodTree.forEach nodeForEach@ { methodNode ->
+                        val method = methodNode[version]
+                        if (method?.srcName == "<init>") return@nodeForEach
+                        if (method == null) {
+                            append(version, methodNode, null)
+                            return@nodeForEach
+                        }
+
+                        val methodDeclaration = formatMethodDescriptor(
+                            method,
+                            method.modifiers,
+                            version,
+                            ElementRemapper(method.tree, ::getFriendlyDstName),
+                            generateNamedParameters = false
+                        )
+
+                        append(
+                            version,
+                            methodNode,
+                            HistoricalDescriptableDetail(
+                                buildString {
+                                    append(methodDeclaration.args)
+                                    methodDeclaration.exceptions
+                                        ?.let { append(" throws $it") }
+                                },
+                                method.tree.allNamespaceIds
+                                    .mapNotNull { id ->
+                                        id to (getNamespaceFriendlyName(method.tree.getNamespaceName(id)) ?: return@mapNotNull null)
+                                    }
+                                    .sortedBy { generator.namespaceFriendlinessIndex.indexOf(it.second) }
+                                    .mapNotNull { (id, ns) ->
+                                        method.getName(id)?.let { name ->
+                                            buildString {
+                                                appendHTML {
+                                                    textBadgeComponent(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer)
+                                                }
+                                                append(name)
+                                            }
+                                        }
+                                    }
+                                    .joinToString()
+                            )
+                        )
                     }
                 }
             }
@@ -72,15 +167,47 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                 if (i == (classNameRows.size - 1)) { // is last (oldest)?
                     p(classes = "diff-status diff-first-occurrence")
                 }
+                p(classes = "diff-title") {
+                    +"Names"
+                }
                 if (rows.isNotEmpty()) {
-                    p(classes = "diff-title") {
-                        +"Names"
-                    }
                     rows.forEach { row ->
                         p(classes = "diff-${row.type}") {
                             textBadgeComponent(row.key, getFriendlyNamespaceBadgeColor(row.key), styleConsumer)
+                            +row.value
+                        }
+                    }
+                } else {
+                    p(classes = "diff-status diff-no-changes")
+                }
+
+                val versionFieldRows = fieldRows[version] ?: emptyList()
+
+                p(classes = "diff-title") {
+                    +"Fields"
+                }
+                if (versionFieldRows.isNotEmpty()) {
+                    versionFieldRows.forEach { row ->
+                        p(classes = "diff-${row.type}") {
                             unsafe {
-                                +row.value
+                                +row.value.toString()
+                            }
+                        }
+                    }
+                } else {
+                    p(classes = "diff-status diff-no-changes")
+                }
+
+                val versionMethodRows = methodRows[version] ?: emptyList()
+
+                p(classes = "diff-title") {
+                    +"Methods"
+                }
+                if (versionMethodRows.isNotEmpty()) {
+                    versionMethodRows.forEach { row ->
+                        p(classes = "diff-${row.type}") {
+                            unsafe {
+                                +row.value.toString()
                             }
                         }
                     }
@@ -95,18 +222,27 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
 }
 
 /**
- * Appends a namespace text badge component.
+ * A historical detail of a descriptable class member (such as a field or a method), as displayed on the documentation.
  *
- * @param content the namespace name
- * @param color the badge color in a CSS compatible format
- * @param styleConsumer the style provider, used for generating stylesheets
+ * **A detail is equal if just the mappings match.**
+ *
+ * @property descriptor a textified descriptor/generic signature
+ * @property mappings sorted and arranged mapping pairs
  */
-fun FlowContent.textBadgeComponent(content: String, color: String, styleConsumer: StyleConsumer) {
-    val lowercase = content.lowercase()
+data class HistoricalDescriptableDetail(
+    val descriptor: String,
+    val mappings: String
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
 
-    span(classes = "badge-text ${styleConsumer("badge-text-$lowercase", "font-family:var(--font-monospace);")}")
-    styleConsumer("badge-text-$lowercase::before", "color:$color;content:\"$content\";")
-    styleConsumer("badge-text-$lowercase::after", "content:\": \";")
+        other as HistoricalDescriptableDetail
+
+        return mappings == other.mappings
+    }
+    override fun hashCode(): Int = mappings.hashCode()
+    override fun toString(): String = "$descriptor: $mappings"
 }
 
 /**
@@ -119,9 +255,16 @@ fun FlowContent.textBadgeComponent(content: String, color: String, styleConsumer
  */
 class DiffBuilder<K, V>(reverseOrder: Boolean = true) {
     /**
+     * A temporary store of previously appended keys, used for differentiation.
+     *
+     * This is flushed every time a version's mappings are appended.
+     */
+    private val keys = mutableSetOf<K>()
+
+    /**
      * A temporary store of previously appended values, used for differentiation.
      */
-    private val values = mutableMapOf<K, V?>()
+    private val values = mutableMapOf<K, V>()
 
     /**
      * Versions which had appended values to this builder.
@@ -166,14 +309,29 @@ class DiffBuilder<K, V>(reverseOrder: Boolean = true) {
             }
         }
 
-        values[key] = value
+        keys += key
+        if (value == null) {
+            values.remove(key)
+        } else {
+            values[key] = value
+        }
     }
 
     /**
      * Makes all appended versions have an entry in [rows], empty or not.
      */
-    fun ensureRowAllocation() {
+    fun addRowEntries() {
         versions.forEach { rows.getOrPut(it, ::mutableListOf) }
+    }
+
+    /**
+     * Appends `null` for all keys that weren't touched since the last flush.
+     *
+     * @param version the version that should have the differences appended
+     */
+    fun flushUntouchedEntries(version: Version) {
+        values.filterKeys { it !in keys }.forEach { (k, _) -> append(version, k, null) }
+        keys.clear()
     }
 }
 
@@ -216,4 +374,30 @@ typealias StringDiffRow = DiffRow<String, String>
  * @return the differences, grouped by version for convenience
  */
 inline fun buildDiff(reverseOrder: Boolean = true, block: StringDiffBuilder.() -> Unit): Map<Version, List<StringDiffRow>> =
-    StringDiffBuilder(reverseOrder).apply(block).apply(StringDiffBuilder::ensureRowAllocation).rows
+    StringDiffBuilder(reverseOrder).apply(block).apply(StringDiffBuilder::addRowEntries).rows
+
+typealias FieldDiffBuilder = DiffBuilder<AncestryTree.Node<FieldMappingView>, HistoricalDescriptableDetail>
+typealias FieldDiffRow = DiffRow<AncestryTree.Node<FieldMappingView>, HistoricalDescriptableDetail>
+
+/**
+ * Builds a simple field diff.
+ *
+ * @param reverseOrder whether a reverse order [Comparator] should be used on [DiffBuilder.rows]
+ * @param block the builder action
+ * @return the differences, grouped by version for convenience
+ */
+inline fun buildFieldDiff(reverseOrder: Boolean = true, block: FieldDiffBuilder.() -> Unit): Map<Version, List<FieldDiffRow>> =
+    FieldDiffBuilder(reverseOrder).apply(block).apply(FieldDiffBuilder::addRowEntries).rows
+
+typealias MethodDiffBuilder = DiffBuilder<AncestryTree.Node<MethodMappingView>, HistoricalDescriptableDetail>
+typealias MethodDiffRow = DiffRow<AncestryTree.Node<MethodMappingView>, HistoricalDescriptableDetail>
+
+/**
+ * Builds a simple method diff.
+ *
+ * @param reverseOrder whether a reverse order [Comparator] should be used on [DiffBuilder.rows]
+ * @param block the builder action
+ * @return the differences, grouped by version for convenience
+ */
+inline fun buildMethodDiff(reverseOrder: Boolean = true, block: MethodDiffBuilder.() -> Unit): Map<Version, List<MethodDiffRow>> =
+    MethodDiffBuilder(reverseOrder).apply(block).apply(MethodDiffBuilder::addRowEntries).rows

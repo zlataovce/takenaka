@@ -35,6 +35,7 @@ import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.components.*
 import net.fabricmc.mappingio.tree.MappingTree
+import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.objectweb.asm.commons.Remapper
@@ -115,19 +116,12 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                     }
                     tbody {
                         klass.fields.forEach { field ->
-                            val fieldMod = field.modifiers
-
                             tr {
                                 td(classes = "member-modifiers") {
-                                    +formatModifiers(fieldMod, Modifier.fieldModifiers())
+                                    +formatModifiers(field.modifiers, Modifier.fieldModifiers())
 
                                     unsafe {
-                                        val signature = field.signature
-                                        if (signature != null) {
-                                            +signature.formatTypeSignature(DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS, friendlyNameRemapper, null, index, workspace.version).declaration
-                                        } else {
-                                            +formatType(Type.getType(field.srcDesc), workspace.version, friendlyNameRemapper)
-                                        }
+                                        +formatFieldDescriptor(field, workspace.version, friendlyNameRemapper)
                                     }
                                 }
                                 td {
@@ -306,7 +300,7 @@ data class ClassDeclaration(
  * @param nameRemapper the remapper for remapping signatures
  * @return the formatted descriptor
  */
-fun GenerationContext.formatClassDescriptor(klass: MappingTree.ClassMapping, version: Version, nameRemapper: ElementRemapper): ClassDeclaration {
+fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingView, version: Version, nameRemapper: ElementRemapper): ClassDeclaration {
     val friendlyName = getFriendlyDstName(klass).fromInternalName()
     val mod = klass.modifiers
 
@@ -380,6 +374,23 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTree.ClassMapping, ver
 }
 
 /**
+ * Formats a field descriptor/generic signature into a textual representation, without modifiers.
+ *
+ * @param field the field
+ * @param version the Minecraft version where the field is contained, used for linking
+ * @param nameRemapper the remapper used for remapping the class name
+ * @return the textual representation
+ */
+fun GenerationContext.formatFieldDescriptor(
+    field: MappingTreeView.FieldMappingView,
+    version: Version,
+    nameRemapper: ElementRemapper
+): String {
+    return field.signature?.formatTypeSignature(DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS, nameRemapper, null, index, version)?.declaration
+        ?: formatType(Type.getType(field.srcDesc), version, nameRemapper)
+}
+
+/**
  * A formatted method descriptor.
  *
  * @property formals the formal generic type arguments of the method
@@ -402,9 +413,17 @@ data class MethodDeclaration(
  * @param version the mapping's version
  * @param nameRemapper the remapper for remapping signatures
  * @param linkRemapper the remapper used for remapping link addresses
+ * @param generateNamedParameters whether named (or generated) parameter names should be added
  * @return the formatted descriptor
  */
-fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, mod: Int, version: Version, nameRemapper: ElementRemapper, linkRemapper: Remapper? = null): MethodDeclaration {
+fun GenerationContext.formatMethodDescriptor(
+    method: MappingTreeView.MethodMappingView,
+    mod: Int,
+    version: Version,
+    nameRemapper: ElementRemapper,
+    linkRemapper: Remapper? = null,
+    generateNamedParameters: Boolean = true
+): MethodDeclaration {
     // example:
     // descriptor: ([Ldyl;Ljava/util/Map;Z)V
     // signature: ([Ldyl;Ljava/util/Map<Lchq;Ldzg;>;Z)V
@@ -414,7 +433,7 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
     if (signature != null) {
         val options = buildFormattingOptions {
             escapeHtmlSymbols()
-            generateNamedParameters()
+            if (generateNamedParameters) generateNamedParameters()
             adjustForMethod(mod)
         }
 
@@ -441,17 +460,19 @@ fun GenerationContext.formatMethodDescriptor(method: MappingTree.MethodMapping, 
                 return@joinToString buildString {
                     append(formatType(arg, version, nameRemapper, linkRemapper, isVarargs = i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0))
 
-                    append(' ')
+                    if (generateNamedParameters) {
+                        append(' ')
 
-                    var lvIndex = i  // local variable index
-                    // the first variable is the class instance if it's not static, so offset it
-                    if ((mod and Opcodes.ACC_STATIC) == 0) lvIndex++
+                        var lvIndex = i  // local variable index
+                        // the first variable is the class instance if it's not static, so offset it
+                        if ((mod and Opcodes.ACC_STATIC) == 0) lvIndex++
 
-                    append(
-                        method.getArg(-1, lvIndex, null)
-                            ?.let(nameRemapper.elementMapper)
-                            ?: "arg$i"
-                    )
+                        append(
+                            method.getArg(-1, lvIndex, null)
+                                ?.let(nameRemapper.elementMapper)
+                                ?: "arg$i"
+                        )
+                    }
                 }
             }
         )

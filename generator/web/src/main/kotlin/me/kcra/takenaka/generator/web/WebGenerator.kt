@@ -29,8 +29,8 @@ import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.adapter.completeInnerClassNames
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
-import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
 import me.kcra.takenaka.core.mapping.allNamespaceIds
+import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.core.util.objectMapper
@@ -48,7 +48,7 @@ import org.w3c.dom.Document
 import java.io.BufferedReader
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.util.IdentityHashMap
+import java.util.*
 import kotlin.io.path.writeText
 
 /**

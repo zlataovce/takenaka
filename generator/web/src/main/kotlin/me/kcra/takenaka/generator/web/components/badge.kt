@@ -61,3 +61,18 @@ fun TR.badgeColumnComponent(content: String, color: String, styleConsumer: Style
         }
     }
 }
+
+/**
+ * Appends a namespace text badge component.
+ *
+ * @param content the namespace name
+ * @param color the badge color in a CSS compatible format
+ * @param styleConsumer the style provider, used for generating stylesheets
+ */
+fun FlowContent.textBadgeComponent(content: String, color: String, styleConsumer: StyleConsumer) {
+    val lowercase = content.lowercase()
+
+    span(classes = "badge-text ${styleConsumer("badge-text-$lowercase", "font-family:var(--font-monospace);")}")
+    styleConsumer("badge-text-$lowercase::before", "color:$color;content:\"$content\";")
+    styleConsumer("badge-text-$lowercase::after", "content:\": \";")
+}
