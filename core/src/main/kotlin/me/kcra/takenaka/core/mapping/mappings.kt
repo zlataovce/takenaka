@@ -24,7 +24,12 @@ import net.fabricmc.mappingio.tree.MappingTreeView
 /**
  * A collection of version keyed joined mapping trees.
  */
-typealias MappingsMap = Map<Version, MappingTree>
+typealias MappingsMap = Map<Version, MappingTreeView>
+
+/**
+ * A collection of version keyed joined mutable mapping trees.
+ */
+typealias MutableMappingsMap = Map<Version, MappingTree>
 
 /**
  * Returns IDs of all namespaces in this tree.

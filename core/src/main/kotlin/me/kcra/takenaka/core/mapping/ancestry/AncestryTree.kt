@@ -22,6 +22,7 @@ import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.dstNamespaceIds
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import me.kcra.takenaka.core.util.entryOf
+import net.fabricmc.mappingio.tree.MappingTreeView
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 
 /**
@@ -33,11 +34,16 @@ typealias NameDescriptorPair = Pair<String, String>
  * A mapping ancestry tree.
  *
  * @param nodes the ancestry nodes
+ * @property trees mapping trees used for the computation of this ancestry tree
  * @property allowedNamespaces namespace IDs used for computing history, distinguished by version
  * @param T the kind of the traced element; can be a class, method, field, ...
  * @author Matouš Kučera
  */
-class AncestryTree<T : ElementMappingView>(nodes: List<Node<T>>, val allowedNamespaces: Map<Version, Array<Int>>) : List<AncestryTree.Node<T>> by nodes {
+class AncestryTree<T : ElementMappingView>(
+    nodes: List<Node<T>>,
+    val trees: MappingsMap,
+    val allowedNamespaces: Map<Version, Array<Int>>
+) : List<AncestryTree.Node<T>> by nodes {
     /**
      * A node in the ancestry tree, immutable.
      * This represents one element (class, field, method) in multiple versions.
@@ -103,6 +109,11 @@ class AncestryTreeBuilder<T : ElementMappingView> {
     val nodes = mutableListOf<MutableNode<T>>()
 
     /**
+     * Mapping trees used for composition of this ancestry tree, distinguished by version.
+     */
+    val trees = mutableMapOf<Version, MappingTreeView>()
+
+    /**
      * Namespace IDs used for computing history, distinguished by version.
      */
     val allowedNamespaces = mutableMapOf<Version, Array<Int>>()
@@ -123,6 +134,15 @@ class AncestryTreeBuilder<T : ElementMappingView> {
     fun emptyNode(): MutableNode<T> = MutableNode<T>().also(nodes::add)
 
     /**
+     * Makes the builder inherit mapping trees from another tree.
+     *
+     * @param tree the tree to be inherited from
+     */
+    fun inheritTrees(tree: AncestryTree<*>) {
+        trees += tree.trees
+    }
+
+    /**
      * Makes the builder inherit allowed namespaces from another tree.
      *
      * @param tree the tree to be inherited from
@@ -138,7 +158,7 @@ class AncestryTreeBuilder<T : ElementMappingView> {
      */
     fun toAncestryTree(): AncestryTree<T> {
         val immutableNodes = mutableListOf<AncestryTree.Node<T>>()
-        return AncestryTree(immutableNodes, allowedNamespaces).apply {
+        return AncestryTree(immutableNodes, trees, allowedNamespaces).apply {
             immutableNodes += nodes.map { AncestryTree.Node(this, it, it.first, it.last) }
         }
     }
@@ -208,6 +228,8 @@ inline fun <T : ElementMappingView> buildAncestryTree(block: AncestryTreeBuilder
  * @return the ancestry tree
  */
 fun classAncestryTreeOf(mappings: MappingsMap, allowedNamespaces: List<String> = emptyList()): AncestryTree<ClassMappingView> = buildAncestryTree {
+    trees += mappings
+
     // convert to sorted map to ensure proper ordering
     mappings.toSortedMap().forEach { (version, tree) ->
         val treeAllowedNamespaces = allowedNamespaces
@@ -248,6 +270,7 @@ fun classAncestryTreeOf(mappings: MappingsMap, allowedNamespaces: List<String> =
  * @return the ancestry tree
  */
 fun fieldAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTree<FieldMappingView> = buildAncestryTree {
+    inheritTrees(klass.tree)
     inheritNamespaces(klass.tree)
 
     klass.forEach { (version, realKlass) ->
@@ -325,6 +348,7 @@ fun methodAncestryTreeOf(
     klass: AncestryTree.Node<ClassMappingView>,
     constructorMode: ConstructorComputationMode = ConstructorComputationMode.EXCLUDE
 ): AncestryTree<MethodMappingView> = buildAncestryTree {
+    inheritTrees(klass.tree)
     inheritNamespaces(klass.tree)
 
     klass.forEach { (version, realKlass) ->

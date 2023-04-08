@@ -26,7 +26,7 @@ import kotlinx.html.dom.serialize
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
-import me.kcra.takenaka.core.mapping.MappingsMap
+import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.adapter.completeInnerClassNames
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.allNamespaceIds
@@ -122,7 +122,7 @@ class WebGenerator(
     /**
      * Launches the generator with a pre-determined set of mappings.
      */
-    override suspend fun generate(mappings: MappingsMap) {
+    override suspend fun generate(mappings: MutableMappingsMap) {
         val styleConsumer = DefaultStyleConsumer()
 
         generationContext(styleConsumer = styleConsumer::apply) {

@@ -23,13 +23,10 @@ import kotlinx.coroutines.*
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.mapping.MappingsMap
+import me.kcra.takenaka.core.mapping.*
 import me.kcra.takenaka.core.mapping.adapter.*
-import me.kcra.takenaka.core.mapping.buildMappingTree
 import me.kcra.takenaka.core.mapping.resolve.OutputContainer
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
-import me.kcra.takenaka.core.mapping.unwrap
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
 import kotlin.coroutines.CoroutineContext
@@ -73,7 +70,7 @@ abstract class AbstractResolvingGenerator(
      *
      * @return a map of joined mapping files, keyed by version
      */
-    protected suspend fun resolveMappings(): MappingsMap {
+    protected suspend fun resolveMappings(): MutableMappingsMap {
         val manifest = objectMapper.versionManifest()
 
         return versions

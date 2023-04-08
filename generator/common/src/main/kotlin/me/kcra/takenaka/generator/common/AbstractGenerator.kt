@@ -18,7 +18,7 @@
 package me.kcra.takenaka.generator.common
 
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.MappingsMap
+import me.kcra.takenaka.core.mapping.MutableMappingsMap
 
 /**
  * An abstract base for a generator.
@@ -32,5 +32,5 @@ abstract class AbstractGenerator(val workspace: Workspace) {
     /**
      * Launches the generator with a pre-determined set of mappings.
      */
-    abstract suspend fun generate(mappings: MappingsMap)
+    abstract suspend fun generate(mappings: MutableMappingsMap)
 }
