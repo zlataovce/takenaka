@@ -20,6 +20,7 @@ package me.kcra.takenaka.core.mapping.ancestry
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.dstNamespaceIds
+import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import me.kcra.takenaka.core.util.entryOf
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 
@@ -294,23 +295,57 @@ fun fieldAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTre
 }
 
 /**
+ * The method ancestry tree computation constructor handling.
+ */
+enum class ConstructorComputationMode {
+    /**
+     * Excludes all constructors.
+     */
+    EXCLUDE,
+
+    /**
+     * Includes all constructors.
+     */
+    INCLUDE,
+
+    /**
+     * Excludes all methods except constructors.
+     */
+    ONLY
+}
+
+/**
  * Computes an ancestry tree of all methods in the supplied class ancestry node.
  *
  * @param klass the class node
+ * @param constructorMode constructor handling behavior setting
  * @return the ancestry tree
  */
-fun methodAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTree<MethodMappingView> = buildAncestryTree {
+fun methodAncestryTreeOf(
+    klass: AncestryTree.Node<ClassMappingView>,
+    constructorMode: ConstructorComputationMode = ConstructorComputationMode.EXCLUDE
+): AncestryTree<MethodMappingView> = buildAncestryTree {
     inheritNamespaces(klass.tree)
 
     klass.forEach { (version, realKlass) ->
         val treeAllowedNamespaces = klass.tree.allowedNamespaces[version]
             ?: error("Version ${version.id} has not been mapped yet")
 
-        realKlass.methods.forEach { method ->
+        realKlass.methods.forEach methodEach@ { method ->
+            val isConstructor = method.isConstructor
+            when (constructorMode) {
+                ConstructorComputationMode.EXCLUDE -> {
+                    if (isConstructor) return@methodEach
+                }
+                ConstructorComputationMode.ONLY -> {
+                    if (!isConstructor) return@methodEach
+                }
+                ConstructorComputationMode.INCLUDE -> {}
+            }
+
             val methodMappings = treeAllowedNamespaces
                 .mapNotNullTo(mutableSetOf()) { ns ->
-                    val name = method.getDstName(ns)
-                        ?: return@mapNotNullTo null
+                    val name = if (isConstructor) "<init>" else (method.getDstName(ns) ?: return@mapNotNullTo null)
                     val desc = method.getDstDesc(ns)
                         ?: return@mapNotNullTo null
 
@@ -325,8 +360,7 @@ fun methodAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTr
                 val (lastVersion, lastMapping) = node.last
                 val lastNames = node.lastNames
                     ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNull { ns ->
-                        val name = lastMapping.getDstName(ns)
-                            ?: return@mapNotNull null
+                        val name = if (isConstructor) "<init>" else (lastMapping.getDstName(ns) ?: return@mapNotNull null)
                         val desc = lastMapping.getDstDesc(ns)
                             ?: return@mapNotNull null
 

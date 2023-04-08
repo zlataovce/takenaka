@@ -23,15 +23,14 @@ import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.allNamespaceIds
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
+import me.kcra.takenaka.core.mapping.ancestry.ConstructorComputationMode
 import me.kcra.takenaka.core.mapping.ancestry.fieldAncestryTreeOf
 import me.kcra.takenaka.core.mapping.ancestry.methodAncestryTreeOf
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.*
-import net.fabricmc.mappingio.tree.MappingTreeView.MethodMappingView
-import net.fabricmc.mappingio.tree.MappingTreeView.ClassMappingView
-import net.fabricmc.mappingio.tree.MappingTreeView.FieldMappingView
+import net.fabricmc.mappingio.tree.MappingTreeView.*
 import org.w3c.dom.Document
 import java.util.*
 
@@ -109,9 +108,9 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
             val methodRows = buildMethodDiff {
                 node.keys.forEach { version ->
                     flushUntouchedEntries(version)
+
                     methodTree.forEach nodeForEach@ { methodNode ->
                         val method = methodNode[version]
-                        if (method?.srcName == "<init>") return@nodeForEach
                         if (method == null) {
                             append(version, methodNode, null)
                             return@nodeForEach
@@ -130,6 +129,9 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                             methodNode,
                             HistoricalDescriptableDetail(
                                 buildString {
+                                    methodDeclaration.formals?.let { append(it).append(' ') }
+                                    append(methodDeclaration.returnType)
+                                    append(' ')
                                     append(methodDeclaration.args)
                                     methodDeclaration.exceptions
                                         ?.let { append(" throws $it") }
@@ -150,6 +152,43 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                                         }
                                     }
                                     .joinToString()
+                            )
+                        )
+                    }
+                }
+            }
+
+            val constructorTree = methodAncestryTreeOf(node, ConstructorComputationMode.ONLY)
+            val constructorRows = buildMethodDiff {
+                node.keys.forEach { version ->
+                    flushUntouchedEntries(version)
+
+                    constructorTree.forEach nodeForEach@ { ctorNode ->
+                        val method = ctorNode[version]
+                        if (method == null) {
+                            append(version, ctorNode, null)
+                            return@nodeForEach
+                        }
+
+                        val methodDeclaration = formatMethodDescriptor(
+                            method,
+                            method.modifiers,
+                            version,
+                            ElementRemapper(method.tree, ::getFriendlyDstName),
+                            generateNamedParameters = false
+                        )
+
+                        append(
+                            version,
+                            ctorNode,
+                            HistoricalDescriptableDetail(
+                                buildString {
+                                    methodDeclaration.formals?.let { append(it).append(' ') }
+                                    append(methodDeclaration.args)
+                                    methodDeclaration.exceptions
+                                        ?.let { append(" throws $it") }
+                                },
+                                "<init>"
                             )
                         )
                     }
@@ -191,6 +230,23 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                         p(classes = "diff-${row.type}") {
                             unsafe {
                                 +row.value.toString()
+                            }
+                        }
+                    }
+                } else {
+                    p(classes = "diff-status diff-no-changes")
+                }
+
+                val versionCtorRows = constructorRows[version] ?: emptyList()
+
+                p(classes = "diff-title") {
+                    +"Constructors"
+                }
+                if (versionCtorRows.isNotEmpty()) {
+                    versionCtorRows.forEach { row ->
+                        p(classes = "diff-${row.type}") {
+                            unsafe {
+                                +row.value.descriptor
                             }
                         }
                     }
