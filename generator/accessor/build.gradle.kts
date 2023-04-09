@@ -5,9 +5,7 @@ plugins {
 apply(plugin = "org.jetbrains.kotlin.jvm")
 
 dependencies {
-    api(project(":core"))
-    api(libs.kotlin.logging.jvm)
-    api(libs.kotlinx.coroutines.core.jvm)
+    api(project(":generator-common"))
     testImplementation(kotlin("test"))
     testRuntimeOnly(libs.slf4j.simple)
 }
