@@ -17,6 +17,8 @@
 
 package me.kcra.takenaka.core.mapping
 
+import me.kcra.takenaka.core.mapping.adapter.*
+import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MemoryMappingTree
@@ -40,17 +42,17 @@ class MappingTreeBuilder {
     /**
      * The mapping contributors.
      */
-    val contributors: MutableList<MappingContributor> = mutableListOf()
+    var contributors = mutableListOf<MappingContributor>()
 
     /**
      * Functions that wrap the tree into a mapping visitor, maintains insertion order.
      */
-    val interceptorsBefore: MutableList<InterceptBefore> = mutableListOf()
+    var interceptorsBefore = mutableListOf<InterceptBefore>()
 
     /**
      * Functions that mutate the finalized tree, maintains insertion order.
      */
-    val interceptorsAfter: MutableList<InterceptAfter> = mutableListOf()
+    var interceptorsAfter = mutableListOf<InterceptAfter>()
 
     /**
      * Appends mapping contributors.
@@ -112,6 +114,40 @@ class MappingTreeBuilder {
 
         return tree
     }
+}
+
+/**
+ * Creates an [InterceptAfter] that normalizes a mapping tree.
+ *
+ * Normalization includes multiple processes:
+ *  - removal of classes and class members that aren't backed by modifiers visited by [VanillaMappingContributor]
+ *  - removal of synthetic classes and class members, if [skipSynthetic] is true
+ *  - removal of static initializer blocks (&lt;clinit&gt; methods)
+ *  - removal of methods overridden from java.lang.Object
+ *  - renaming of owner classes of unmapped anonymous and inner classes in [innerClassCompletionCandidates] namespaces
+ *  - inheritance error corrections in all namespaces except [correctNamespaces]
+ *
+ * @param skipSynthetic should the interceptor skip all synthetic classes and class members?
+ * @param correctNamespaces namespaces that should not have inheritance error corrections applied, these are artificial (non-mapping) namespaces defined in the core library by default
+ * @param innerClassCompletionCandidates namespaces that should have their inner classes' owner names corrected, these will most likely be Spigot mapping namespaces
+ * @return the interceptor
+ */
+fun normalizingInterceptorOf(
+    skipSynthetic: Boolean = true,
+    correctNamespaces: List<String> = VanillaMappingContributor.NAMESPACES,
+    innerClassCompletionCandidates: List<String> = emptyList()
+): InterceptAfter = { tree ->
+    tree.removeElementsWithoutModifiers()
+
+    if (skipSynthetic) {
+        tree.removeSyntheticElements()
+    }
+
+    tree.removeStaticInitializers()
+    tree.removeObjectOverrides()
+
+    innerClassCompletionCandidates.forEach(tree::completeInnerClassNames)
+    tree.batchCompleteMethodOverrides(tree.dstNamespaces.filterNot(correctNamespaces::contains))
 }
 
 /**

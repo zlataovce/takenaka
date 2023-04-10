@@ -20,13 +20,14 @@ package me.kcra.takenaka.generator.common
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.coroutines.*
-import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.*
-import me.kcra.takenaka.core.mapping.adapter.*
+import me.kcra.takenaka.core.mapping.MappingContributor
+import me.kcra.takenaka.core.mapping.MutableMappingsMap
+import me.kcra.takenaka.core.mapping.adapter.MethodArgSourceFilter
+import me.kcra.takenaka.core.mapping.buildMappingTree
 import me.kcra.takenaka.core.mapping.resolve.OutputContainer
-import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
+import me.kcra.takenaka.core.mapping.unwrap
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
 import kotlin.coroutines.CoroutineContext
@@ -41,25 +42,20 @@ typealias ContributorProvider = (VersionedWorkspace) -> List<MappingContributor>
  * An abstract base for a generator that also fetches and transforms mappings.
  *
  * @param workspace the workspace in which this generator can move around
- * @property versions the Minecraft versions that this generator will process
- * @property mappingWorkspace the workspace in which the mappings are stored
- * @property contributorProvider a function that provides mapping contributors to be processed
- * @property skipSynthetic whether synthetic classes and their members should be skipped
- * @property correctNamespaces namespaces excluded from any correction, these are artificial (non-mapping) namespaces defined in the core library by default
  * @property objectMapper an object mapper instance for this generator
  * @property xmlMapper an XML object mapper instance for this generator
  * @author Matouš Kučera
  */
 abstract class AbstractResolvingGenerator(
     workspace: Workspace,
-    val versions: List<String>,
-    val mappingWorkspace: CompositeWorkspace,
-    val contributorProvider: ContributorProvider,
-    val skipSynthetic: Boolean = false,
-    val correctNamespaces: List<String> = VanillaMappingContributor.NAMESPACES,
     val objectMapper: ObjectMapper = objectMapper(),
     val xmlMapper: ObjectMapper = XmlMapper()
 ) : AbstractGenerator(workspace) {
+    /**
+     * The configuration for this generator.
+     */
+    abstract val mappingConfiguration: MappingConfiguration
+
     /**
      * Launches the generator.
      */
@@ -73,14 +69,14 @@ abstract class AbstractResolvingGenerator(
     protected suspend fun resolveMappings(): MutableMappingsMap {
         val manifest = objectMapper.versionManifest()
 
-        return versions
+        return mappingConfiguration.versions
             .map { versionString ->
-                mappingWorkspace.createVersionedWorkspace {
+                mappingConfiguration.workspace.createVersionedWorkspace {
                     this.version = manifest[versionString] ?: error("did not find version $versionString in manifest")
                 }
             }
             .parallelMap(Dispatchers.Default + CoroutineName("mapping-coro")) { workspace ->
-                val contributors = contributorProvider(workspace)
+                val contributors = mappingConfiguration.contributorProvider(workspace)
                 coroutineScope {
                     contributors.forEach { _contributor ->
                         val contributor = _contributor.unwrap()
@@ -99,22 +95,11 @@ abstract class AbstractResolvingGenerator(
                 workspace.version to buildMappingTree {
                     contributor(contributors)
 
-                    interceptBefore { tree ->
-                        MethodArgSourceFilter(tree)
-                    }
+                    // this probably doesn't need to be exposed in MappingConfiguration,
+                    // if anybody actually needs this, scream at me in a GitHub issue
+                    interceptorsBefore += ::MethodArgSourceFilter
 
-                    interceptAfter { tree ->
-                        tree.removeElementsWithoutModifiers()
-
-                        if (skipSynthetic) {
-                            tree.removeSyntheticElements()
-                        }
-
-                        tree.removeStaticInitializers()
-                        tree.removeObjectOverrides()
-
-                        tree.batchCompleteMethodOverrides(tree.dstNamespaces.filter { it !in correctNamespaces })
-                    }
+                    interceptorsAfter += mappingConfiguration.mapperInterceptor
                 }
             }
             .toMap()

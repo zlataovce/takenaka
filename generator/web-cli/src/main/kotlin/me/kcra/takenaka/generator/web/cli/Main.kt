@@ -25,12 +25,12 @@ import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.*
 import me.kcra.takenaka.core.mapping.WrappingContributor
 import me.kcra.takenaka.core.mapping.adapter.LegacySpigotMappingPrepender
+import me.kcra.takenaka.core.mapping.normalizingInterceptorOf
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.transformers.DeterministicMinifier
 import me.kcra.takenaka.generator.web.transformers.Minifier
-import me.kcra.takenaka.generator.web.transformers.Transformer
 import mu.KotlinLogging
 import kotlin.system.measureTimeMillis
 
@@ -100,32 +100,6 @@ fun main(args: Array<String>) {
     val objectMapper = objectMapper()
     val xmlMapper = XmlMapper()
 
-    val transformers = mutableListOf<Transformer>()
-
-    logger.info { "using minifier type $minifier" }
-    when (minifier) {
-        MinifierImpls.DETERMINISTIC -> {
-            transformers += DeterministicMinifier()
-        }
-        MinifierImpls.NORMAL -> {
-            transformers += Minifier()
-        }
-        else -> {}
-    }
-
-    val indexers = mutableListOf<ClassSearchIndex>(objectMapper.modularClassSearchIndexOf(JDK_17_BASE_URL))
-
-    javadoc.mapTo(indexers) { javadocDef ->
-        val javadocParams = javadocDef.split('+', limit = 2)
-
-        when (javadocParams.size) {
-            2 -> classSearchIndexOf(javadocParams[1], javadocParams[0])
-            else -> objectMapper.modularClassSearchIndexOf(javadocParams[0])
-        }
-    }
-
-    logger.info { "using ${indexers.size} javadoc indexer(s)" }
-
     val mappingsCache = cacheWorkspace.createCompositeWorkspace {
         this.name = "mappings"
     }
@@ -134,14 +108,49 @@ fun main(args: Array<String>) {
     }
 
     val yarnProvider = YarnMetadataProvider(sharedCache, xmlMapper)
-    val generator = WebGenerator(
-        workspace,
-        version,
-        mappingsCache,
-        { versionWorkspace ->
+
+    val config = buildWebMappingConfig {
+        version(version)
+        mappingWorkspace = mappingsCache
+
+        logger.info { "using minifier type $minifier" }
+        when (minifier) {
+            MinifierImpls.DETERMINISTIC -> {
+                transformer(DeterministicMinifier())
+            }
+            MinifierImpls.NORMAL -> {
+                transformer(Minifier())
+            }
+            MinifierImpls.NONE -> {}
+        }
+
+        val indexers = mutableListOf<ClassSearchIndex>(objectMapper.modularClassSearchIndexOf(JDK_17_BASE_URL))
+
+        javadoc.mapTo(indexers) { javadocDef ->
+            val javadocParams = javadocDef.split('+', limit = 2)
+
+            when (javadocParams.size) {
+                2 -> classSearchIndexOf(javadocParams[1], javadocParams[0])
+                else -> objectMapper.modularClassSearchIndexOf(javadocParams[0])
+            }
+        }
+
+        index(indexers)
+        logger.info { "using ${indexers.size} javadoc indexer(s)" }
+
+        interceptMapper(
+            normalizingInterceptorOf(
+                skipSynthetic = skipSynthetic,
+                // Searge adds their ID namespace sometimes, so don't perform any corrections on that
+                correctNamespaces = VanillaMappingContributor.NAMESPACES + "searge_id",
+                innerClassCompletionCandidates = listOf("spigot")
+            )
+        )
+        provideContributors { versionWorkspace ->
             val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper)
             val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper)
-            val _prependedClasses = mutableListOf<String>()
+
+            val prependedClasses = mutableListOf<String>()
 
             listOf(
                 MojangServerMappingResolver(versionWorkspace, mojangProvider),
@@ -151,52 +160,27 @@ fun main(args: Array<String>) {
                 WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
                     // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
                     // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
-                    LegacySpigotMappingPrepender(it, prependedClasses = _prependedClasses, prependEverything = versionWorkspace.version.id == "1.16.5")
+                    LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses, prependEverything = versionWorkspace.version.id == "1.16.5")
                 },
                 WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
-                    LegacySpigotMappingPrepender(it, prependedClasses = _prependedClasses)
+                    LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses)
                 },
                 VanillaMappingContributor(versionWorkspace, mojangProvider)
             )
-        },
-        skipSynthetic,
-        // Searge adds their ID namespace sometimes, so don't perform any corrections on that
-        VanillaMappingContributor.NAMESPACES + "searge_id",
-        objectMapper,
-        xmlMapper,
-        transformers,
-        listOf("mojang", "spigot", "yarn", "searge", "intermediary", "source"),
-        mapOf(
-            "mojang" to namespaceDescOf(
-                "Mojang",
-                "#4D7C0F",
-                MojangServerMappingResolver.META_LICENSE
-            ),
-            "spigot" to namespaceDescOf(
-                "Spigot",
-                "#CA8A04",
-                AbstractSpigotMappingResolver.META_LICENSE
-            ),
-            "yarn" to namespaceDescOf(
-                "Yarn",
-                "#626262",
-                YarnMappingResolver.META_LICENSE
-            ),
-            "searge" to namespaceDescOf(
-                "Searge",
-                "#B91C1C",
-                SeargeMappingResolver.META_LICENSE
-            ),
-            "intermediary" to namespaceDescOf(
-                "Intermediary",
-                "#0369A1",
-                IntermediaryMappingResolver.META_LICENSE
-            ),
-            "source" to namespaceDescOf("Obfuscated", "#581C87")
-        ),
-        CompositeClassSearchIndex(indexers),
-        listOf("spigot")
-    )
+        }
+
+        namespaceFriendliness("mojang", "spigot", "yarn", "searge", "intermediary", "source")
+        namespace("mojang", "Mojang", "#4D7C0F", MojangServerMappingResolver.META_LICENSE)
+        namespace("spigot", "Spigot", "#CA8A04", AbstractSpigotMappingResolver.META_LICENSE)
+        namespace("yarn", "Yarn", "#626262", YarnMappingResolver.META_LICENSE)
+        namespace("searge", "Searge", "#B91C1C", SeargeMappingResolver.META_LICENSE)
+        namespace("intermediary", "Intermediary", "#0369A1", IntermediaryMappingResolver.META_LICENSE)
+        namespace("source", "Obfuscated", "#581C87")
+
+        craftBukkitVersionReplaceCandidates += "spigot"
+    }
+
+    val generator = WebGenerator(workspace, config, objectMapper, xmlMapper)
 
     logger.info { "starting generator" }
     val time = measureTimeMillis {

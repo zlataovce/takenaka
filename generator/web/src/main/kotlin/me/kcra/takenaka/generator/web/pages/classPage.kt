@@ -84,7 +84,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                 tbody {
                     klass.tree.allNamespaceIds.forEach { id ->
                         val ns = klass.tree.getNamespaceName(id)
-                        val namespace = generator.namespaces[ns] ?: return@forEach
+                        val namespace = generator.mappingConfiguration.namespaces[ns] ?: return@forEach
 
                         val name = klass.getName(id) ?: return@forEach
                         tr {
@@ -129,7 +129,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                                         tbody {
                                             klass.tree.allNamespaceIds.forEach { id ->
                                                 val ns = klass.tree.getNamespaceName(id)
-                                                val namespace = generator.namespaces[ns]
+                                                val namespace = generator.mappingConfiguration.namespaces[ns]
 
                                                 if (namespace != null) {
                                                     val name = field.getName(id)
@@ -239,7 +239,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                                         tbody {
                                             method.tree.allNamespaceIds.forEach { id ->
                                                 val ns = method.tree.getNamespaceName(id)
-                                                val namespace = generator.namespaces[ns]
+                                                val namespace = generator.mappingConfiguration.namespaces[ns]
 
                                                 if (namespace != null) {
                                                     val methodName = method.getName(id)
