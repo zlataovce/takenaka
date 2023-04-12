@@ -1,3 +1,20 @@
+/*
+ * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
+ *
+ * Copyright (c) 2023 Matous Kucera
+ *
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package me.kcra.takenaka.generator.web
 
 import me.kcra.takenaka.core.CompositeWorkspace
@@ -6,6 +23,7 @@ import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.generator.common.ContributorProvider
 import me.kcra.takenaka.generator.common.MappingConfiguration
 import me.kcra.takenaka.generator.common.MappingConfigurationBuilder
+import me.kcra.takenaka.generator.common.WorkspacePathProvider
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import net.fabricmc.mappingio.MappingUtil
 
@@ -16,6 +34,7 @@ import net.fabricmc.mappingio.MappingUtil
  * @property workspace the mapping cache workspace
  * @property contributorProvider a function that provides mapping contributors based on a version
  * @property mapperInterceptor a function that modifies every mapping tree, useful for normalization and correction
+ * @property joinedOutputProvider the joined mapping file path provider, returns null if it should not be persisted (rebuilt in memory every run)
  * @property transformers a list of transformers that transform the output
  * @property namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @property namespaces a map of namespaces and their descriptions, unspecified namespaces will not be shown
@@ -29,17 +48,19 @@ class WebMappingConfiguration(
     workspace: CompositeWorkspace,
     contributorProvider: ContributorProvider,
     mapperInterceptor: InterceptAfter,
+    joinedOutput: WorkspacePathProvider,
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaces: Map<String, NamespaceDescription> = emptyMap(),
     val index: ClassSearchIndex = emptyClassSearchIndex(),
     val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
-    val historicalNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK
+    val historicalNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK,
 ) : MappingConfiguration(
     versions,
     workspace,
     contributorProvider,
-    mapperInterceptor
+    mapperInterceptor,
+    joinedOutput
 )
 
 /**
@@ -169,6 +190,7 @@ class WebMappingConfigurationBuilder : MappingConfigurationBuilder() {
         mappingWorkspace,
         contributorProvider,
         mapperInterceptor,
+        joinedOutputProvider,
         transformers,
         namespaceFriendlinessIndex,
         namespaces,
