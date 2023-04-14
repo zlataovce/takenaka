@@ -66,6 +66,7 @@ fun main(args: Array<String>) {
     val cache by parser.option(ArgType.String, shortName = "c", description = "Caching directory for mappings and other resources").default("cache")
     val strictCache by parser.option(ArgType.Boolean, description = "Enforces strict cache validation").default(false)
     val clean by parser.option(ArgType.Boolean, description = "Removes previous build output and cache before launching").default(false)
+    val noJoined by parser.option(ArgType.Boolean, description = "Don't save joined mapping files").default(false)
 
     // generator-specific settings below
 
@@ -178,6 +179,10 @@ fun main(args: Array<String>) {
         namespace("source", "Obfuscated", "#581C87")
 
         craftBukkitVersionReplaceCandidates += "spigot"
+
+        if (noJoined) {
+            provideJoinedOutputPath { null }
+        }
     }
 
     val generator = WebGenerator(workspace, config, objectMapper, xmlMapper)
