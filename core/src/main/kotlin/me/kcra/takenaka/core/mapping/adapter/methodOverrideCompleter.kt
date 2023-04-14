@@ -48,17 +48,18 @@ fun MappingTree.completeMethodOverrides(namespace: String) {
         if (klass.superClass.startsWith("java/") && klass.interfaces.all { it.startsWith("java/") }) return@forEach
 
         // perf: turn off thread-safe lazy resolving, only one thread accesses these
-        val klassName by lazy(LazyThreadSafetyMode.NONE) { klass.getDstName(namespaceId) }
+        val klassName by lazy(LazyThreadSafetyMode.NONE) { klass.getDstName(namespaceId) ?: klass.srcName }
         val klassSuperTypes by lazy(LazyThreadSafetyMode.NONE) { klass.superTypes }
 
         klass.methods.forEach originalEach@ { method ->
-            val methodName = method.getDstName(namespaceId)
-            if (methodName == null) {
-                klassSuperTypes.forEach { superType ->
-                    superType.methods.forEach superEach@ { superMethod ->
-                        if (superMethod.srcName != method.srcName || superMethod.srcDesc != method.srcDesc) return@superEach
-                        val superMethodName = superMethod.getDstName(namespaceId) ?: return@superEach
+            val methodName by lazy(LazyThreadSafetyMode.NONE) { method.getDstName(namespaceId) }
 
+            klassSuperTypes.forEach { superType ->
+                superType.methods.forEach superEach@ { superMethod ->
+                    if (superMethod.srcName != method.srcName || superMethod.srcDesc != method.srcDesc) return@superEach
+                    val superMethodName = superMethod.getDstName(namespaceId) ?: return@superEach
+
+                    if (methodName != superMethodName) {
                         logger.debug { "corrected name of $klassName#$superMethodName for namespace $namespace" }
                         correctionCount++
 
@@ -97,7 +98,7 @@ fun MappingTree.batchCompleteMethodOverrides(namespaces: List<String>) {
         if (klass.superClass.startsWith("java/") && klass.interfaces.all { it.startsWith("java/") }) return@forEach
 
         klass.methods.forEach originalEach@ { method ->
-            var namespaceIdsToCorrect = namespaceIds.filter { method.getDstName(it) == null }
+            var namespaceIdsToCorrect = namespaceIds
 
             if (namespaceIdsToCorrect.isNotEmpty()) {
                 klass.superTypes.forEach { superType ->
@@ -106,11 +107,14 @@ fun MappingTree.batchCompleteMethodOverrides(namespaces: List<String>) {
 
                         namespaceIdsToCorrect = namespaceIdsToCorrect.filter { namespaceId ->
                             val superMethodName = superMethod.getDstName(namespaceId) ?: return@filter true
+                            val methodName = method.getDstName(namespaceId)
 
-                            logger.debug { "corrected name of ${klass.getDstName(namespaceId)}#$superMethodName for namespace ${namespaces[namespaceIds.indexOf(namespaceId)]}" }
-                            correctionCount++
+                            if (methodName != superMethodName) {
+                                logger.debug { "corrected name of ${klass.getDstName(namespaceId) ?: klass.srcName}#$superMethodName for namespace ${namespaces[namespaceIds.indexOf(namespaceId)]}" }
+                                correctionCount++
 
-                            method.setDstName(superMethodName, namespaceId)
+                                method.setDstName(superMethodName, namespaceId)
+                            }
                             return@filter false
                         }
                         if (namespaceIdsToCorrect.isEmpty()) return@originalEach // perf: return early when method is corrected on all namespaces
