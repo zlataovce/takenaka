@@ -25,6 +25,8 @@ import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.*
 import me.kcra.takenaka.core.mapping.WrappingContributor
 import me.kcra.takenaka.core.mapping.adapter.LegacySpigotMappingPrepender
+import me.kcra.takenaka.core.mapping.adapter.MethodArgSourceFilter
+import me.kcra.takenaka.core.mapping.adapter.NamespaceFilter
 import me.kcra.takenaka.core.mapping.normalizingInterceptorOf
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
@@ -139,14 +141,19 @@ fun main(args: Array<String>) {
         index(indexers)
         logger.info { "using ${indexers.size} javadoc indexer(s)" }
 
+        // remove obfuscated method parameter names, they are a filler from Searge
+        interceptVisitor(::MethodArgSourceFilter)
+        // remove Searge's ID namespace, it's not necessary
+        interceptVisitor { v ->
+            NamespaceFilter(v, "searge_id")
+        }
         interceptMapper(
             normalizingInterceptorOf(
                 skipSynthetic = skipSynthetic,
-                // Searge adds their ID namespace sometimes, so don't perform any corrections on that
-                correctNamespaces = VanillaMappingContributor.NAMESPACES + "searge_id",
                 innerClassCompletionCandidates = listOf("spigot")
             )
         )
+
         provideContributors { versionWorkspace ->
             val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper)
             val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper)

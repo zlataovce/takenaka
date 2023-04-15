@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.test.adapter
+package me.kcra.takenaka.core.test.mapping.adapter
 
 import me.kcra.takenaka.core.mapping.adapter.batchCompleteMethodOverrides
 import me.kcra.takenaka.core.mapping.adapter.completeMethodOverrides
@@ -64,7 +64,7 @@ class MethodOverrideCompleterTest {
     }
 
     @Test
-    fun `incorrect method names should be corrected for a multiple namespaces`() {
+    fun `incorrect method names should be corrected for multiple namespaces`() {
         val tree = createMockTree()
         val klass = assertNotNull(tree.getClass("ConcreteClass"))
         val method = assertNotNull(klass.getMethod("overriddenMethod", "(Ltest/Class;)V"))

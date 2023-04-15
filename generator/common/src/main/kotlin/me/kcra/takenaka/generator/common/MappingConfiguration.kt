@@ -19,6 +19,7 @@ package me.kcra.takenaka.generator.common
 
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.mapping.InterceptAfter
+import me.kcra.takenaka.core.mapping.InterceptBefore
 import kotlin.properties.Delegates
 
 /**
@@ -30,7 +31,8 @@ import kotlin.properties.Delegates
  * @property versions the mapping candidate versions
  * @property workspace the mapping cache workspace
  * @property contributorProvider a function that provides mapping contributors based on a version
- * @property mapperInterceptor a function that modifies every mapping tree, useful for normalization and correction
+ * @property mapperInterceptors functions that sequentially modify every mapping tree, useful for normalization and correction
+ * @property visitorInterceptors functions that sequentially wrap a tree visitor before any mappings are visited to it, useful for simple filtering
  * @property joinedOutputProvider the joined mapping file path provider, returns null if it should not be persisted (rebuilt in memory every run)
  * @author Matouš Kučera
  */
@@ -38,7 +40,8 @@ open class MappingConfiguration(
     val versions: List<String>,
     val workspace: CompositeWorkspace,
     val contributorProvider: ContributorProvider,
-    val mapperInterceptor: InterceptAfter,
+    val mapperInterceptors: List<InterceptAfter>,
+    val visitorInterceptors: List<InterceptBefore>,
     val joinedOutputProvider: WorkspacePathProvider
 )
 
@@ -64,9 +67,14 @@ open class MappingConfigurationBuilder {
     var contributorProvider by Delegates.notNull<ContributorProvider>()
 
     /**
-     * A function that modifies every mapping tree, useful for normalization and correction.
+     * Function that sequentially modify every mapping tree, useful for normalization and correction.
      */
-    var mapperInterceptor: InterceptAfter = {}
+    var mapperInterceptors = mutableListOf<InterceptAfter>()
+
+    /**
+     * Functions that sequentially wrap a tree visitor before any mappings are visited to it, useful for simple filtering.
+     */
+    var visitorInterceptors = mutableListOf<InterceptBefore>()
 
     /**
      * The joined mapping file path provider, returns null if it should not be persisted (rebuilt in memory every run).
@@ -110,12 +118,21 @@ open class MappingConfigurationBuilder {
     }
 
     /**
-     * Sets [mapperInterceptor].
+     * Appends to [mapperInterceptors].
      *
      * @param block the interceptor
      */
     fun interceptMapper(block: InterceptAfter) {
-        mapperInterceptor = block
+        mapperInterceptors += block
+    }
+
+    /**
+     * Appends to [visitorInterceptors].
+     *
+     * @param block the interceptor
+     */
+    fun interceptVisitor(block: InterceptBefore) {
+        visitorInterceptors += block
     }
 
     /**
@@ -127,7 +144,8 @@ open class MappingConfigurationBuilder {
         versions,
         mappingWorkspace,
         contributorProvider,
-        mapperInterceptor,
+        mapperInterceptors,
+        visitorInterceptors,
         joinedOutputProvider
     )
 }

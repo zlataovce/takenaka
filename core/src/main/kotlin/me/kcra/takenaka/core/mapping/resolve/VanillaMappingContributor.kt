@@ -108,6 +108,9 @@ class VanillaMappingContributor(
     /**
      * Visits the original mappings to the supplied visitor.
      *
+     * [NS_SUPER] is null if the superclass is `java/lang/Object`.
+     * [NS_INTERFACES] is null if there are no superinterfaces.
+     *
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
@@ -121,7 +124,11 @@ class VanillaMappingContributor(
                     if (visitor.visitClass(klass.name)) {
                         visitor.visitDstName(MappedElementKind.CLASS, 0, klass.access.toString(10))
                         visitor.visitDstName(MappedElementKind.CLASS, 1, klass.signature)
-                        visitor.visitDstName(MappedElementKind.CLASS, 2, klass.superName)
+
+                        val superName = klass.superName ?: "java/lang/Object"
+                        if (superName != "java/lang/Object") {
+                            visitor.visitDstName(MappedElementKind.CLASS, 2, superName)
+                        }
                         if (klass.interfaces.isNotEmpty()) {
                             visitor.visitDstName(MappedElementKind.CLASS, 3, klass.interfaces.joinToString(","))
                         }

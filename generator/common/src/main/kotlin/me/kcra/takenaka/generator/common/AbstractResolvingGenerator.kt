@@ -24,7 +24,6 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
-import me.kcra.takenaka.core.mapping.adapter.MethodArgSourceFilter
 import me.kcra.takenaka.core.mapping.adapter.MissingDescriptorFilter
 import me.kcra.takenaka.core.mapping.buildMappingTree
 import me.kcra.takenaka.core.mapping.resolve.OutputContainer
@@ -126,11 +125,8 @@ abstract class AbstractResolvingGenerator(
                 val tree = buildMappingTree {
                     contributor(contributors)
 
-                    // this probably doesn't need to be exposed in MappingConfiguration,
-                    // if anybody actually needs this, scream at me in a GitHub issue
-                    interceptorsBefore += ::MethodArgSourceFilter
-
-                    interceptorsAfter += mappingConfiguration.mapperInterceptor
+                    interceptorsBefore += mappingConfiguration.visitorInterceptors
+                    interceptorsAfter += mappingConfiguration.mapperInterceptors
                 }
 
                 if (outputFile != null && !outputFile.isDirectory()) {

@@ -18,6 +18,9 @@ sourceSets {
 val benchmarkImplementation by configurations.getting {
     extendsFrom(configurations.implementation.get())
 }
+val benchmarkRuntimeOnly by configurations.getting {
+    extendsFrom(configurations.runtimeOnly.get())
+}
 
 dependencies {
     api(libs.bundles.asm)
@@ -29,6 +32,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testRuntimeOnly(libs.slf4j.simple)
     benchmarkImplementation(libs.kotlinx.benchmark.runtime)
+    benchmarkRuntimeOnly(libs.slf4j.simple)
 }
 
 allOpen {
