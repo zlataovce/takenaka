@@ -23,25 +23,20 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.html.dom.serialize
-import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
-import me.kcra.takenaka.core.mapping.adapter.completeInnerClassNames
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.allNamespaceIds
 import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
-import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.resolve.modifiers
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.generator.common.AbstractResolvingGenerator
-import me.kcra.takenaka.generator.common.ContributorProvider
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
 import me.kcra.takenaka.generator.web.transformers.Minifier
 import me.kcra.takenaka.generator.web.transformers.Transformer
-import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.w3c.dom.Document
@@ -57,53 +52,26 @@ import kotlin.io.path.writeText
  * An instance can be reused, but it is **not** thread-safe!
  *
  * @param workspace the workspace in which this generator can move around
- * @param versions the Minecraft versions that this generator will process
- * @param mappingWorkspace the workspace in which the mappings are stored
- * @param contributorProvider a function that provides mapping contributors to be processed
- * @param skipSynthetic whether synthetic classes and their members should be skipped
- * @param correctNamespaces namespaces excluded from any correction, these are artificial (non-mapping) namespaces defined in the core library by default
- * @param transformers a list of transformers that transform the output
- * @param namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
- * @param namespaces a map of namespaces and their descriptions, unspecified namespaces will not be shown
- * @param index a resolver for foreign class references
- * @param spigotLikeNamespaces namespaces that should have [replaceCraftBukkitNMSVersion] and [completeInnerClassNames] applied (most likely Spigot mappings or a flavor of them)
- * @param historyAllowedNamespaces namespaces that should be used for computing history, empty if namespaces from [namespaceFriendlinessIndex] should be considered (excluding the obfuscated one)
+ * @param mappingConfiguration the mapping configuration
+ * @param objectMapper an object mapper instance for this generator
+ * @param xmlMapper an XML object mapper instance for this generator
  * @author Matouš Kučera
  */
 class WebGenerator(
     workspace: Workspace,
-    versions: List<String>,
-    mappingWorkspace: CompositeWorkspace,
-    contributorProvider: ContributorProvider,
-    skipSynthetic: Boolean = false,
-    correctNamespaces: List<String> = VanillaMappingContributor.NAMESPACES,
+    override val mappingConfiguration: WebMappingConfiguration,
     objectMapper: ObjectMapper = objectMapper(),
-    xmlMapper: ObjectMapper = XmlMapper(),
-    val transformers: List<Transformer> = emptyList(),
-    val namespaceFriendlinessIndex: List<String> = emptyList(),
-    val namespaces: Map<String, NamespaceDescription> = emptyMap(),
-    val index: ClassSearchIndex = emptyClassSearchIndex(),
-    val spigotLikeNamespaces: List<String> = emptyList(),
-    val historyAllowedNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK
-) : AbstractResolvingGenerator(
-    workspace,
-    versions,
-    mappingWorkspace,
-    contributorProvider,
-    skipSynthetic,
-    correctNamespaces,
-    objectMapper,
-    xmlMapper
-), Transformer {
-    private val namespaceFriendlyNames = namespaces.mapValues { it.value.friendlyName }
+    xmlMapper: ObjectMapper = XmlMapper()
+) : AbstractResolvingGenerator(workspace, objectMapper, xmlMapper), Transformer {
+    private val namespaceFriendlyNames = mappingConfiguration.namespaces.mapValues { it.value.friendlyName }
     private val currentComposite by workspace
 
-    internal val hasMinifier = transformers.any { it is Minifier }
+    internal val hasMinifier = mappingConfiguration.transformers.any { it is Minifier }
 
     /**
      * A [Comparator] for comparing the friendliness of namespaces, useful for sorting.
      */
-    val friendlinessComparator = compareBy(namespaceFriendlinessIndex::indexOf)
+    val friendlinessComparator = compareBy(mappingConfiguration.namespaceFriendlinessIndex::indexOf)
 
     /**
      * The "history" folder.
@@ -122,7 +90,7 @@ class WebGenerator(
     /**
      * A convenience index for looking up namespaces by their friendly names.
      */
-    val namespacesByFriendlyNames = namespaces.mapKeys { it.value.friendlyName }
+    val namespacesByFriendlyNames = mappingConfiguration.namespaces.mapKeys { it.value.friendlyName }
 
     /**
      * Launches the generator with a pre-determined set of mappings.
@@ -131,22 +99,12 @@ class WebGenerator(
         val styleConsumer = DefaultStyleConsumer()
 
         generationContext(styleConsumer = styleConsumer::apply) {
-            // first pass: complete inner class names for spigot-like namespaces
-            // not done in AbstractGenerator due to the namespace requirement
-            mappings.forEach { (_, tree) ->
-                spigotLikeNamespaces.forEach { ns ->
-                    if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
-                        tree.completeInnerClassNames(ns)
-                    }
-                }
-            }
+            val tree = classAncestryTreeOf(mappings, mappingConfiguration.historicalNamespaces)
 
-            val tree = classAncestryTreeOf(mappings, historyAllowedNamespaces)
-
-            // second pass: replace the CraftBukkit NMS version for spigot-like namespaces
+            // first pass: replace the CraftBukkit NMS version for spigot-like namespaces
             // must be after ancestry tree computation, because replacing the VVV package breaks (the remaining) uniformity of the mappings
             mappings.forEach { (_, tree) ->
-                spigotLikeNamespaces.forEach { ns ->
+                mappingConfiguration.craftBukkitVersionReplaceCandidates.forEach { ns ->
                     if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
                         tree.replaceCraftBukkitNMSVersion(ns)
                     }
@@ -170,7 +128,7 @@ class WebGenerator(
                 }
             }
 
-            // third pass: generate the documentation
+            // second pass: generate the documentation
             mappings.forEach { (version, tree) ->
                 launch(Dispatchers.Default + CoroutineName("generate-coro")) {
                     val versionWorkspace = currentComposite.createVersionedWorkspace {
@@ -197,7 +155,7 @@ class WebGenerator(
                                 val nsName = tree.getNamespaceName(nsId)
                                 if (nsName in namespaceFriendlyNames) nsName to nsId else null
                             }
-                            .sortedBy { namespaceFriendlinessIndex.indexOf(it.first) }
+                            .sortedBy { mappingConfiguration.namespaceFriendlinessIndex.indexOf(it.first) }
                             .toMap()
 
                         appendLine(namespaces.keys.joinToString("\t") { "${namespaceFriendlyNames[it]}:${getNamespaceBadgeColor(it)}" })
@@ -222,14 +180,14 @@ class WebGenerator(
                             .serialize(versionWorkspace, "$packageName/index.html")
                     }
 
-                    val licenses = namespaces
+                    val licenses = mappingConfiguration.namespaces
                         .mapNotNull { (ns, nsDesc) ->
                             if (nsDesc.license == null) return@mapNotNull null
 
                             val content = nsDesc.license.content.let(tree::getMetadata) ?: return@mapNotNull null
                             val source = nsDesc.license.source.let(tree::getMetadata) ?: return@mapNotNull null
 
-                            return@mapNotNull ns to licenseOf(content, source)
+                            return@mapNotNull ns to License(content, source)
                         }
                         .toMap()
 
@@ -295,7 +253,7 @@ class WebGenerator(
             ?: error("Could not copy over /assets/$name from resources")
 
         val destination = assetWorkspace[name]
-        if (transformers.isNotEmpty()) {
+        if (mappingConfiguration.transformers.isNotEmpty()) {
             val content = inputStream.bufferedReader().use(BufferedReader::readText)
 
             destination.writeText(
@@ -361,7 +319,7 @@ class WebGenerator(
      * @param content the markup to transform
      * @return the transformed markup
      */
-    override fun transformHtml(content: String): String = transformers.fold(content) { content0, transformer -> transformer.transformHtml(content0) }
+    override fun transformHtml(content: String): String = mappingConfiguration.transformers.fold(content) { content0, transformer -> transformer.transformHtml(content0) }
 
     /**
      * Transforms a JS script with all transformers in this generator.
@@ -369,7 +327,7 @@ class WebGenerator(
      * @param content the script to transform
      * @return the transformed script
      */
-    override fun transformJs(content: String): String = transformers.fold(content) { content0, transformer -> transformer.transformJs(content0) }
+    override fun transformJs(content: String): String = mappingConfiguration.transformers.fold(content) { content0, transformer -> transformer.transformJs(content0) }
 
     /**
      * Transforms a CSS stylesheet with all transformers in this generator.
@@ -377,5 +335,5 @@ class WebGenerator(
      * @param content the stylesheet to transform
      * @return the transformed stylesheet
      */
-    override fun transformCss(content: String): String = transformers.fold(content) { content0, transformer -> transformer.transformCss(content0) }
+    override fun transformCss(content: String): String = mappingConfiguration.transformers.fold(content) { content0, transformer -> transformer.transformCss(content0) }
 }

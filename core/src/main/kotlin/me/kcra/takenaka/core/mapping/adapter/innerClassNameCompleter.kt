@@ -37,10 +37,10 @@ fun MappingTree.completeInnerClassNames(namespace: String) {
 
     var completionCount = 0
     classes.forEach { klass ->
-        if ('$' !in klass.srcName || klass.getDstName(namespaceId) != null) return@forEach
+        val dollarIndex = klass.srcName.lastIndexOf('$')
+        if (dollarIndex == -1 || klass.getDstName(namespaceId) != null) return@forEach
 
-        val owner = klass.srcName.substringBeforeLast('$')
-        val name = klass.srcName.substringAfterLast('$')
+        val owner = klass.srcName.substring(0, dollarIndex)
 
         val ownerKlass = getClass(owner)
         if (ownerKlass == null) {
@@ -53,6 +53,8 @@ fun MappingTree.completeInnerClassNames(namespace: String) {
             logger.debug { "inner class ${klass.srcName} without mapped owner ${ownerKlass.srcName} for namespace $namespace" }
             return@forEach
         }
+
+        val name = klass.srcName.substring(dollarIndex + 1)
 
         klass.setDstName("$ownerName$$name", namespaceId)
         logger.debug { "completed inner class name ${klass.srcName} -> $ownerName$$name for namespace $namespace" }

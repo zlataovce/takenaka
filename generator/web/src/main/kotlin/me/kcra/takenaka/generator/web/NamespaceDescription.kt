@@ -29,28 +29,3 @@ data class NamespaceDescription(
     val color: String,
     val license: LicenseReference?
 )
-
-/**
- * Creates a new namespace description.
- *
- * @param friendlyName the namespace friendly name, which will be shown on the site
- * @param color the namespace badge color
- * @return the namespace description
- */
-fun namespaceDescOf(friendlyName: String, color: String) = NamespaceDescription(friendlyName, color, null)
-
-/**
- * Creates a new namespace description.
- *
- * @param friendlyName the namespace friendly name, which will be shown on the site
- * @param color the namespace badge color
- * @param licenseContent the license content metadata key
- * @param licenseSource the license source metadata key
- * @return the namespace description
- */
-fun namespaceDescOf(
-    friendlyName: String,
-    color: String,
-    licenseContent: String,
-    licenseSource: String = "${licenseContent}_source"
-) = NamespaceDescription(friendlyName, color, licenseReferenceOf(licenseContent, licenseSource))

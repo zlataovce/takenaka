@@ -382,9 +382,14 @@ fun methodAncestryTreeOf(
             // if we don't, make a new node and append it to the tree
             val node = findOrEmpty { node ->
                 val (lastVersion, lastMapping) = node.last
+                val isLastConstructor = lastMapping.isConstructor
+
+                // FAST PATH: method type mismatch, so skip
+                if (isConstructor != isLastConstructor) return@findOrEmpty false
+
                 val lastNames = node.lastNames
                     ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNull { ns ->
-                        val name = if (isConstructor) "<init>" else (lastMapping.getDstName(ns) ?: return@mapNotNull null)
+                        val name = if (isLastConstructor) "<init>" else (lastMapping.getDstName(ns) ?: return@mapNotNull null)
                         val desc = lastMapping.getDstDesc(ns)
                             ?: return@mapNotNull null
 

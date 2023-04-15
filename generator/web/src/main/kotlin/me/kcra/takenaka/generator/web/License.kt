@@ -26,27 +26,9 @@ package me.kcra.takenaka.generator.web
 data class LicenseReference(val content: String, val source: String)
 
 /**
- * Creates a new license metadata key pair.
- *
- * @param content the license content metadata key
- * @param source the license source metadata key
- * @return the license metadata key pair
- */
-fun licenseReferenceOf(content: String, source: String = "${content}_source") = LicenseReference(content, source)
-
-/**
  * A license declaration.
  *
  * @property content the license content
  * @property source the license source, probably a link
  */
 data class License(val content: String, val source: String)
-
-/**
- * Creates a new license declaration.
- *
- * @param content the license content
- * @param source the license source, probably a link
- * @return the license declaration
- */
-fun licenseOf(content: String, source: String) = License(content, source)

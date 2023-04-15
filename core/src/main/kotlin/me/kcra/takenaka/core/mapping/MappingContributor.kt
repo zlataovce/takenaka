@@ -61,7 +61,7 @@ class WrappingContributor(internal val contributor: MappingContributor, val wrap
  *
  * @return the unwrapped contributor
  */
-fun MappingContributor.unwrap(): MappingContributor {
+tailrec fun MappingContributor.unwrap(): MappingContributor {
     if (this is WrappingContributor) {
         return contributor.unwrap()
     }

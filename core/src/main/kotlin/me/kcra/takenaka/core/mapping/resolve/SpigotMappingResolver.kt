@@ -33,6 +33,7 @@ import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
 import net.fabricmc.mappingio.format.TsrgReader
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
+import org.objectweb.asm.commons.Remapper
 import java.lang.invoke.MethodHandles
 import java.net.URL
 import java.nio.file.Path
@@ -299,6 +300,26 @@ class SpigotMemberMappingResolver(
             error("Mapping tree has not visited Spigot class mappings before")
         }
 
+        fun getPrefixedClass(name: String): MappingTreeView.ClassMappingView? =
+            visitor0.getClass("net/minecraft/server/VVV/${name.substringAfterLast('/')}", namespaceId)?.also { expectPrefixedClassNames = true }
+
+        fun getClass(name: String): MappingTreeView.ClassMappingView? =
+            // perf: reorder queries based on previously read values
+            if (expectPrefixedClassNames) {
+                getPrefixedClass(name) // search for prefixed class names
+                    ?: visitor0.getClass(name) // search for unobfuscated class names, like Main and MinecraftServer
+                    ?: visitor0.getClass(name, namespaceId)
+            } else {
+                visitor0.getClass(name, namespaceId)
+                    ?: getPrefixedClass(name) // search for prefixed class names
+                    ?: visitor0.getClass(name) // search for unobfuscated class names, like Main and MinecraftServer
+            }
+
+        val srcRemapper = object : Remapper() {
+            override fun map(internalName: String): String =
+                getClass(internalName)?.srcName ?: internalName
+        }
+
         while (true) {
             if (visitor.visitHeader()) {
                 visitor.visitNamespaces(MappingUtil.NS_SOURCE_FALLBACK, listOf(targetNamespace))
@@ -324,20 +345,7 @@ class SpigotMemberMappingResolver(
                         columns.add(2, srcNameCol.substring(parenthesisIndex))
                     }
 
-                    fun getPrefixedClass(name: String): MappingTreeView.ClassMappingView? =
-                        visitor0.getClass("net/minecraft/server/VVV/${name.substringAfterLast('/')}", namespaceId)?.also { expectPrefixedClassNames = true }
-
-                    // perf: reorder queries based on previously read values
-                    val ownerKlass = if (expectPrefixedClassNames) {
-                         getPrefixedClass(owner) // search for prefixed class names
-                            ?: visitor0.getClass(owner) // search for unobfuscated class names, like Main and MinecraftServer
-                            ?: visitor0.getClass(owner, namespaceId)
-                    } else {
-                        visitor0.getClass(owner, namespaceId)
-                            ?: getPrefixedClass(owner) // search for prefixed class names
-                            ?: visitor0.getClass(owner) // search for unobfuscated class names, like Main and MinecraftServer
-                    }
-
+                    val ownerKlass = getClass(owner)
                     if (ownerKlass == null) {
                         logger.warn { "skipping member $srcName in $owner, unknown owner" }
                         return@forEachLine
@@ -357,7 +365,7 @@ class SpigotMemberMappingResolver(
                                 val desc = columns[2]
                                 val name = columns[3]
 
-                                if (visitor.visitMethod(srcName, null)) {
+                                if (visitor.visitMethod(srcName, srcRemapper.mapDesc(desc))) {
                                     visitor.visitDstName(MappedElementKind.METHOD, 0, name)
                                     visitor.visitDstDesc(MappedElementKind.METHOD, 0, desc)
                                     visitor.visitElementContent(MappedElementKind.METHOD)
