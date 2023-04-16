@@ -22,6 +22,7 @@ kotlinx-coroutines-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx
 kotlinx-html-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-html-jvm", version = "0.8.1" }
 kotlinx-cli-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-cli-jvm", version = "0.3.5" }
 kotlinx-benchmark-runtime = { group = "org.jetbrains.kotlinx", name = "kotlinx-benchmark-runtime", version.ref = "kotlinx-benchmark" }
+jb-annotations = { group = "org.jetbrains", name = "annotations", version = "24.0.1" }
 build-licenser = { group = "org.cadixdev.licenser", name = "org.cadixdev.licenser.gradle.plugin", version = "0.6.1" }
 build-gradle-versions = { group = "com.github.ben-manes", name = "gradle-versions-plugin", version = "0.46.0" }
 
