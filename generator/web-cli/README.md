@@ -4,18 +4,19 @@ This is the CLI interface and usage reference for the web documentation generato
 
 ## Options
 
-```bash
+```
 $ java -jar generator-web-cli-0.0.1-SNAPSHOT-all.jar --help
 Usage: web-cli options_list
-Options:
+Options: 
     --output, -o [output] -> Output directory { String }
     --version, -v -> Target Minecraft version, can be specified multiple times (always required) { String }
     --cache, -c [cache] -> Caching directory for mappings and other resources { String }
-    --strictCache [false] -> Enforces strict cache validation
-    --clean [false] -> Removes previous build output and cache before launching
+    --strictCache [false] -> Enforces strict cache validation 
+    --clean [false] -> Removes previous build output and cache before launching 
+    --noJoined [false] -> Don't save joined mapping files 
     --minifier, -m [DETERMINISTIC] -> The minifier implementation used for minifying the documentation { Value should be one of [deterministic, normal, none] }
     --javadoc, -j -> Javadoc site that should be referenced in the documentation, can be specified multiple times { String }
-    --skipSynthetic [true] -> Excludes synthetic classes and class members from the documentation
+    --skipSynthetic [true] -> Excludes synthetic classes and class members from the documentation 
     --help, -h -> Usage info
 ```
 
