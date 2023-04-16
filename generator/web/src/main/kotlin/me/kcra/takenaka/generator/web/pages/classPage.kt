@@ -63,12 +63,18 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                 +friendlyPackageName
             }
 
-            p(classes = "class-header") {
-                unsafe {
-                    +klassDeclaration.modifiersAndName
-                    klassDeclaration.formals?.unaryPlus()
-                    if (hash != null) {
-                        +"""<a href="/history/$hash.html"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></a>"""
+            div(classes = "class-header") {
+                p {
+                    unsafe {
+                        +klassDeclaration.modifiersAndName
+                        klassDeclaration.formals?.unaryPlus()
+                    }
+                }
+                if (hash != null) {
+                    a(classes = "history-icon", href = "/history/$hash.html") {
+                        unsafe {
+                            +"""<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>"""
+                        }
                     }
                 }
             }
@@ -89,10 +95,8 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                         val name = klass.getName(id) ?: return@forEach
                         tr {
                             badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
-                            td {
-                                p(classes = "mapping-value") {
-                                    +name.fromInternalName()
-                                }
+                            td(classes = "mapping-value") {
+                                +name.fromInternalName()
                             }
                         }
                     }
@@ -136,10 +140,8 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                                                     if (name != null) {
                                                         tr {
                                                             badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
-                                                            td {
-                                                                p(classes = "mapping-value") {
-                                                                    +name
-                                                                }
+                                                            td(classes = "mapping-value") {
+                                                                +name
                                                             }
                                                         }
                                                     }
@@ -153,7 +155,9 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                     }
                 }
             }
-            if (klass.methods.any { it.srcName == "<init>" }) {
+
+            val constructors = klass.methods.filter(MappingTreeView.MethodMappingView::isConstructor)
+            if (constructors.isNotEmpty()) {
                 spacerBottomComponent()
                 h4 {
                     +"Constructor summary"
@@ -170,23 +174,19 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                         }
                     }
                     tbody {
-                        klass.methods.forEach { method ->
-                            if (!method.isConstructor) return@forEach
-
-                            val methodMod = method.modifiers
+                        constructors.forEach { ctor ->
+                            val ctorMod = ctor.modifiers
                             tr {
                                 td(classes = "member-modifiers") {
-                                    +formatModifiers(methodMod, Modifier.constructorModifiers())
+                                    +formatModifiers(ctorMod, Modifier.constructorModifiers())
                                 }
                                 td {
-                                    p {
-                                        unsafe {
-                                            val ctorDeclaration = formatMethodDescriptor(method, methodMod, workspace.version, friendlyNameRemapper, linkRemapper = null)
+                                    unsafe {
+                                        val ctorDeclaration = formatMethodDescriptor(ctor, ctorMod, workspace.version, friendlyNameRemapper, linkRemapper = null)
 
-                                            ctorDeclaration.formals?.unaryPlus()
-                                            +ctorDeclaration.args
-                                            ctorDeclaration.exceptions?.let { +" throws $it" }
-                                        }
+                                        ctorDeclaration.formals?.unaryPlus()
+                                        +ctorDeclaration.args
+                                        ctorDeclaration.exceptions?.let { +" throws $it" }
                                     }
                                 }
                             }
@@ -194,7 +194,11 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                     }
                 }
             }
-            if (klass.methods.any { !it.isConstructor }) { // static initializers are filtered in AbstractGenerator, no need to check it here
+
+            // static initializers are filtered in AbstractGenerator, no need to check it here
+            // skip constructors and implicit enum methods
+            val methods = klass.methods.filter { !it.isConstructor && ((klassDeclaration.modifiers and Opcodes.ACC_ENUM) == 0 || !(it.isEnumValueOf || it.isEnumValues)) }
+            if (methods.isNotEmpty()) {
                 spacerBottomComponent()
                 h4 {
                     +"Method summary"
@@ -211,12 +215,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                         }
                     }
                     tbody {
-                        klass.methods.forEach { method ->
-                            // skip constructors
-                            if (method.isConstructor) return@forEach
-                            // skip implicit enum methods
-                            if ((klassDeclaration.modifiers and Opcodes.ACC_ENUM) != 0 && (method.isEnumValueOf || method.isEnumValues)) return@forEach
-
+                        methods.forEach { method ->
                             val methodMod = method.modifiers
                             tr {
                                 td(classes = "member-modifiers") {
@@ -246,16 +245,14 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                                                     if (methodName != null) {
                                                         tr {
                                                             badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
-                                                            td {
-                                                                p(classes = "mapping-value") {
-                                                                    unsafe {
-                                                                        val remapper = ElementRemapper(method.tree) { it.getName(id) }
-                                                                        val methodDeclaration = formatMethodDescriptor(method, methodMod, workspace.version, remapper, linkRemapper = friendlyNameRemapper)
+                                                            td(classes = "mapping-value") {
+                                                                unsafe {
+                                                                    val remapper = ElementRemapper(method.tree) { it.getName(id) }
+                                                                    val methodDeclaration = formatMethodDescriptor(method, methodMod, workspace.version, remapper, linkRemapper = friendlyNameRemapper)
 
-                                                                        +methodName
-                                                                        +methodDeclaration.args
-                                                                        methodDeclaration.exceptions?.let { +" throws $it" }
-                                                                    }
+                                                                    +methodName
+                                                                    +methodDeclaration.args
+                                                                    methodDeclaration.exceptions?.let { +" throws $it" }
                                                                 }
                                                             }
                                                         }

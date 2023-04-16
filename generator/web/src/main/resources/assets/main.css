@@ -389,6 +389,11 @@ input::placeholder {
     margin-bottom: 0.5rem;
 }
 
+.history-icon {
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
 .diff-addition {
     font-family: var(--font-monospace);
     color: var(--text);
