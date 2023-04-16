@@ -17,8 +17,6 @@
 
 package me.kcra.takenaka.generator.web
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,8 +28,7 @@ import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.allNamespaceIds
 import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
 import me.kcra.takenaka.core.mapping.resolve.modifiers
-import me.kcra.takenaka.core.util.objectMapper
-import me.kcra.takenaka.generator.common.AbstractResolvingGenerator
+import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
@@ -51,27 +48,20 @@ import kotlin.io.path.writeText
  *
  * An instance can be reused, but it is **not** thread-safe!
  *
- * @param workspace the workspace in which this generator can move around
- * @param mappingConfiguration the mapping configuration
- * @param objectMapper an object mapper instance for this generator
- * @param xmlMapper an XML object mapper instance for this generator
+ * @property workspace the workspace in which this generator can move around
+ * @property config the website generation configuration
  * @author Matouš Kučera
  */
-class WebGenerator(
-    workspace: Workspace,
-    override val mappingConfiguration: WebMappingConfiguration,
-    objectMapper: ObjectMapper = objectMapper(),
-    xmlMapper: ObjectMapper = XmlMapper()
-) : AbstractResolvingGenerator(workspace, objectMapper, xmlMapper), Transformer {
-    private val namespaceFriendlyNames = mappingConfiguration.namespaces.mapValues { it.value.friendlyName }
+class WebGenerator(override val workspace: Workspace, val config: WebConfiguration) : Generator, Transformer {
+    private val namespaceFriendlyNames = config.namespaces.mapValues { it.value.friendlyName }
     private val currentComposite by workspace
 
-    internal val hasMinifier = mappingConfiguration.transformers.any { it is Minifier }
+    internal val hasMinifier = config.transformers.any { it is Minifier }
 
     /**
      * A [Comparator] for comparing the friendliness of namespaces, useful for sorting.
      */
-    val friendlinessComparator = compareBy(mappingConfiguration.namespaceFriendlinessIndex::indexOf)
+    val friendlinessComparator = compareBy(config.namespaceFriendlinessIndex::indexOf)
 
     /**
      * The "history" folder.
@@ -90,7 +80,7 @@ class WebGenerator(
     /**
      * A convenience index for looking up namespaces by their friendly names.
      */
-    val namespacesByFriendlyNames = mappingConfiguration.namespaces.mapKeys { it.value.friendlyName }
+    val namespacesByFriendlyNames = config.namespaces.mapKeys { it.value.friendlyName }
 
     /**
      * Launches the generator with a pre-determined set of mappings.
@@ -99,12 +89,12 @@ class WebGenerator(
         val styleConsumer = DefaultStyleConsumer()
 
         generationContext(styleConsumer = styleConsumer::apply) {
-            val tree = classAncestryTreeOf(mappings, mappingConfiguration.historicalNamespaces)
+            val tree = classAncestryTreeOf(mappings, config.historicalNamespaces)
 
             // first pass: replace the CraftBukkit NMS version for spigot-like namespaces
             // must be after ancestry tree computation, because replacing the VVV package breaks (the remaining) uniformity of the mappings
             mappings.forEach { (_, tree) ->
-                mappingConfiguration.craftBukkitVersionReplaceCandidates.forEach { ns ->
+                config.craftBukkitVersionReplaceCandidates.forEach { ns ->
                     if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
                         tree.replaceCraftBukkitNMSVersion(ns)
                     }
@@ -155,7 +145,7 @@ class WebGenerator(
                                 val nsName = tree.getNamespaceName(nsId)
                                 if (nsName in namespaceFriendlyNames) nsName to nsId else null
                             }
-                            .sortedBy { mappingConfiguration.namespaceFriendlinessIndex.indexOf(it.first) }
+                            .sortedBy { config.namespaceFriendlinessIndex.indexOf(it.first) }
                             .toMap()
 
                         appendLine(namespaces.keys.joinToString("\t") { "${namespaceFriendlyNames[it]}:${getNamespaceBadgeColor(it)}" })
@@ -180,7 +170,7 @@ class WebGenerator(
                             .serialize(versionWorkspace, "$packageName/index.html")
                     }
 
-                    val licenses = mappingConfiguration.namespaces
+                    val licenses = config.namespaces
                         .mapNotNull { (ns, nsDesc) ->
                             if (nsDesc.license == null) return@mapNotNull null
 
@@ -253,7 +243,7 @@ class WebGenerator(
             ?: error("Could not copy over /assets/$name from resources")
 
         val destination = assetWorkspace[name]
-        if (mappingConfiguration.transformers.isNotEmpty()) {
+        if (config.transformers.isNotEmpty()) {
             val content = inputStream.bufferedReader().use(BufferedReader::readText)
 
             destination.writeText(
@@ -319,7 +309,7 @@ class WebGenerator(
      * @param content the markup to transform
      * @return the transformed markup
      */
-    override fun transformHtml(content: String): String = mappingConfiguration.transformers.fold(content) { content0, transformer -> transformer.transformHtml(content0) }
+    override fun transformHtml(content: String): String = config.transformers.fold(content) { content0, transformer -> transformer.transformHtml(content0) }
 
     /**
      * Transforms a JS script with all transformers in this generator.
@@ -327,7 +317,7 @@ class WebGenerator(
      * @param content the script to transform
      * @return the transformed script
      */
-    override fun transformJs(content: String): String = mappingConfiguration.transformers.fold(content) { content0, transformer -> transformer.transformJs(content0) }
+    override fun transformJs(content: String): String = config.transformers.fold(content) { content0, transformer -> transformer.transformJs(content0) }
 
     /**
      * Transforms a CSS stylesheet with all transformers in this generator.
@@ -335,5 +325,5 @@ class WebGenerator(
      * @param content the stylesheet to transform
      * @return the transformed stylesheet
      */
-    override fun transformCss(content: String): String = mappingConfiguration.transformers.fold(content) { content0, transformer -> transformer.transformCss(content0) }
+    override fun transformCss(content: String): String = config.transformers.fold(content) { content0, transformer -> transformer.transformCss(content0) }
 }

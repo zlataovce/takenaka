@@ -84,7 +84,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                 tbody {
                     klass.tree.allNamespaceIds.forEach { id ->
                         val ns = klass.tree.getNamespaceName(id)
-                        val namespace = generator.mappingConfiguration.namespaces[ns] ?: return@forEach
+                        val namespace = generator.config.namespaces[ns] ?: return@forEach
 
                         val name = klass.getName(id) ?: return@forEach
                         tr {
@@ -129,7 +129,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                                         tbody {
                                             klass.tree.allNamespaceIds.forEach { id ->
                                                 val ns = klass.tree.getNamespaceName(id)
-                                                val namespace = generator.mappingConfiguration.namespaces[ns]
+                                                val namespace = generator.config.namespaces[ns]
 
                                                 if (namespace != null) {
                                                     val name = field.getName(id)
@@ -239,7 +239,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                                         tbody {
                                             method.tree.allNamespaceIds.forEach { id ->
                                                 val ns = method.tree.getNamespaceName(id)
-                                                val namespace = generator.mappingConfiguration.namespaces[ns]
+                                                val namespace = generator.config.namespaces[ns]
 
                                                 if (namespace != null) {
                                                     val methodName = method.getName(id)
@@ -330,7 +330,7 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
             }
         }
 
-        val formatter = signature.formatSignature(options, remapper = nameRemapper, packageIndex = index, version = version)
+        val formatter = signature.formatSignature(options, remapper = nameRemapper, packageIndex = generator.config.index, version = version)
         formals = formatter.formals
         superTypes = formatter.superTypes
 
@@ -347,7 +347,7 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
 
         superTypes = buildString {
             if (superClass != "java/lang/Object" && superClass != "java/lang/Record" && superClass != "java/lang/Enum") {
-                append("extends ${nameRemapper.mapAndLink(superClass, version, index)}")
+                append("extends ${nameRemapper.mapAndLink(superClass, version, generator.config.index)}")
                 if (interfaces.isNotEmpty()) {
                     append(" ")
                 }
@@ -359,7 +359,7 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
                         else -> "implements"
                     }
                 )
-                append(" ${interfaces.joinToString(", ") { nameRemapper.mapAndLink(it, version, index) }}")
+                append(" ${interfaces.joinToString(", ") { nameRemapper.mapAndLink(it, version, generator.config.index) }}")
             }
         }
     }
@@ -386,7 +386,7 @@ fun GenerationContext.formatFieldDescriptor(
     version: Version,
     nameRemapper: ElementRemapper
 ): String {
-    return field.signature?.formatTypeSignature(DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS, nameRemapper, null, index, version)?.declaration
+    return field.signature?.formatTypeSignature(DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS, nameRemapper, null, generator.config.index, version)?.declaration
         ?: formatType(Type.getType(field.srcDesc), version, nameRemapper)
 }
 
@@ -437,7 +437,7 @@ fun GenerationContext.formatMethodDescriptor(
             adjustForMethod(mod)
         }
 
-        val formatter = signature.formatSignature(options, method, nameRemapper, linkRemapper, index, version)
+        val formatter = signature.formatSignature(options, method, nameRemapper, linkRemapper, generator.config.index, version)
         return MethodDeclaration(
             formatter.formals.ifBlank { null },
             formatter.args,
@@ -500,7 +500,7 @@ fun GenerationContext.formatMethodDescriptor(
 fun GenerationContext.formatType(type: Type, version: Version, nameRemapper: ElementRemapper, linkRemapper: Remapper? = null, isVarargs: Boolean = false): String {
     return when (type.sort) {
         Type.ARRAY -> buildString {
-            append(nameRemapper.mapAndLink(type.elementType.className.toInternalName(), version, index, linkRemapper))
+            append(nameRemapper.mapAndLink(type.elementType.className.toInternalName(), version, generator.config.index, linkRemapper))
 
             var arrayDimensions = type.dimensions
             if (isVarargs) arrayDimensions--
@@ -510,7 +510,7 @@ fun GenerationContext.formatType(type: Type, version: Version, nameRemapper: Ele
         }
 
         // Type#INTERNAL, it's private, so we need to use the value directly
-        Type.OBJECT, 12 -> nameRemapper.mapAndLink(type.internalName, version, index, linkRemapper)
+        Type.OBJECT, 12 -> nameRemapper.mapAndLink(type.internalName, version, generator.config.index, linkRemapper)
         else -> type.className
     }
 }

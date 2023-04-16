@@ -30,6 +30,8 @@ import me.kcra.takenaka.core.mapping.adapter.NamespaceFilter
 import me.kcra.takenaka.core.mapping.normalizingInterceptorOf
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
+import me.kcra.takenaka.generator.common.ResolvingMappingProvider
+import me.kcra.takenaka.generator.common.buildMappingConfig
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.transformers.DeterministicMinifier
 import me.kcra.takenaka.generator.web.transformers.Minifier
@@ -111,35 +113,9 @@ fun main(args: Array<String>) {
     }
 
     val yarnProvider = YarnMetadataProvider(sharedCache, xmlMapper)
-
-    val config = buildWebMappingConfig {
+    val mappingConfig = buildMappingConfig {
         version(version)
         mappingWorkspace = mappingsCache
-
-        logger.info { "using minifier type $minifier" }
-        when (minifier) {
-            MinifierImpls.DETERMINISTIC -> {
-                transformer(DeterministicMinifier())
-            }
-            MinifierImpls.NORMAL -> {
-                transformer(Minifier())
-            }
-            MinifierImpls.NONE -> {}
-        }
-
-        val indexers = mutableListOf<ClassSearchIndex>(objectMapper.modularClassSearchIndexOf(JDK_17_BASE_URL))
-
-        javadoc.mapTo(indexers) { javadocDef ->
-            val javadocParams = javadocDef.split('+', limit = 2)
-
-            when (javadocParams.size) {
-                2 -> classSearchIndexOf(javadocParams[1], javadocParams[0])
-                else -> objectMapper.modularClassSearchIndexOf(javadocParams[0])
-            }
-        }
-
-        index(indexers)
-        logger.info { "using ${indexers.size} javadoc indexer(s)" }
 
         // remove obfuscated method parameter names, they are a filler from Searge
         interceptVisitor(::MethodArgSourceFilter)
@@ -177,6 +153,39 @@ fun main(args: Array<String>) {
             )
         }
 
+        if (noJoined) {
+            provideJoinedOutputPath { null }
+        }
+    }
+
+    val mappingProvider = ResolvingMappingProvider(mappingConfig, objectMapper, xmlMapper)
+
+    val webConfig = buildWebConfig {
+        logger.info { "using minifier type $minifier" }
+        when (minifier) {
+            MinifierImpls.DETERMINISTIC -> {
+                transformer(DeterministicMinifier())
+            }
+            MinifierImpls.NORMAL -> {
+                transformer(Minifier())
+            }
+            MinifierImpls.NONE -> {}
+        }
+
+        val indexers = mutableListOf<ClassSearchIndex>(objectMapper.modularClassSearchIndexOf(JDK_17_BASE_URL))
+
+        javadoc.mapTo(indexers) { javadocDef ->
+            val javadocParams = javadocDef.split('+', limit = 2)
+
+            when (javadocParams.size) {
+                2 -> classSearchIndexOf(javadocParams[1], javadocParams[0])
+                else -> objectMapper.modularClassSearchIndexOf(javadocParams[0])
+            }
+        }
+
+        index(indexers)
+        logger.info { "using ${indexers.size} javadoc indexer(s)" }
+
         namespaceFriendliness("mojang", "spigot", "yarn", "searge", "intermediary", "source")
         namespace("mojang", "Mojang", "#4D7C0F", MojangServerMappingResolver.META_LICENSE)
         namespace("spigot", "Spigot", "#CA8A04", AbstractSpigotMappingResolver.META_LICENSE)
@@ -186,18 +195,14 @@ fun main(args: Array<String>) {
         namespace("source", "Obfuscated", "#581C87")
 
         craftBukkitVersionReplaceCandidates += "spigot"
-
-        if (noJoined) {
-            provideJoinedOutputPath { null }
-        }
     }
 
-    val generator = WebGenerator(workspace, config, objectMapper, xmlMapper)
+    val generator = WebGenerator(workspace, webConfig)
 
     logger.info { "starting generator" }
     val time = measureTimeMillis {
         runBlocking {
-            generator.generate()
+            generator.generate(mappingProvider)
         }
     }
     logger.info { "generator finished in ${time / 1000} second(s)" }
