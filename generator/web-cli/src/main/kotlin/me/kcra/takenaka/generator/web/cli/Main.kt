@@ -33,7 +33,6 @@ import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.generator.common.ResolvingMappingProvider
 import me.kcra.takenaka.generator.common.buildMappingConfig
 import me.kcra.takenaka.generator.web.*
-import me.kcra.takenaka.generator.web.transformers.DeterministicMinifier
 import me.kcra.takenaka.generator.web.transformers.Minifier
 import mu.KotlinLogging
 import kotlin.system.measureTimeMillis
@@ -45,12 +44,12 @@ private val logger = KotlinLogging.logger {}
  */
 enum class MinifierImpls {
     /**
-     * Deterministic minification ([DeterministicMinifier]).
+     * Deterministic minification.
      */
     DETERMINISTIC,
 
     /**
-     * Normal minification ([Minifier]).
+     * Normal minification.
      */
     NORMAL,
 
@@ -74,7 +73,7 @@ fun main(args: Array<String>) {
 
     // generator-specific settings below
 
-    val minifier by parser.option(ArgType.Choice<MinifierImpls>(), shortName = "m", description = "The minifier implementation used for minifying the documentation").default(MinifierImpls.DETERMINISTIC)
+    val minifier by parser.option(ArgType.Choice<MinifierImpls>(), shortName = "m", description = "The minifier implementation used for minifying the documentation").default(MinifierImpls.NORMAL)
     val javadoc by parser.option(ArgType.String, shortName = "j", description = "Javadoc site that should be referenced in the documentation, can be specified multiple times").multiple()
     val skipSynthetic by parser.option(ArgType.Boolean, description = "Excludes synthetic classes and class members from the documentation").default(true)
 
@@ -161,13 +160,10 @@ fun main(args: Array<String>) {
     val mappingProvider = ResolvingMappingProvider(mappingConfig, objectMapper, xmlMapper)
 
     val webConfig = buildWebConfig {
-        logger.info { "using minifier type $minifier" }
+        logger.info { "using minification mode $minifier" }
         when (minifier) {
-            MinifierImpls.DETERMINISTIC -> {
-                transformer(DeterministicMinifier())
-            }
-            MinifierImpls.NORMAL -> {
-                transformer(Minifier())
+            MinifierImpls.NORMAL, MinifierImpls.DETERMINISTIC -> {
+                transformer(Minifier(isDeterministic = minifier == MinifierImpls.DETERMINISTIC))
             }
             MinifierImpls.NONE -> {}
         }

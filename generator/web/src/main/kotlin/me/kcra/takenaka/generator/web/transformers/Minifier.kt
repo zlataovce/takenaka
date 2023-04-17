@@ -17,29 +17,26 @@
 
 package me.kcra.takenaka.generator.web.transformers
 
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
+import kotlin.math.abs
 
 /**
  * A transformer that minifies web resources.
  *
+ * @property isDeterministic whether the minified output should be consistent with previous runs (useful for minimizing differences in Git, makes minification less effective)
  * @author Matouš Kučera
  */
-open class Minifier : Transformer {
-    /**
-     * The transformation lock.
-     */
-    protected val lock = ReentrantLock()
-
+class Minifier(val isDeterministic: Boolean = false) : Transformer {
     /**
      * Amount of unique visited class names, used as an entropy for generating a class name.
      */
-    protected var classIndex = 0
+    private var classIndex = 0
 
     /**
      * A mapping of original -> minified CSS class names.
+     *
+     * **This map is not synchronized, you must synchronize all accesses on the Minifier object.**
      */
-    val classes: MutableMap<String, String> = mutableMapOf()
+    val classes = mutableMapOf<String, String>()
 
     /**
      * Minifies raw HTML markup.
@@ -47,19 +44,23 @@ open class Minifier : Transformer {
      * @param content the raw HTML markup
      * @return the transformed markup
      */
-    override fun transformHtml(content: String): String = lock.withLock {
-        content.replace(CLASS_ATTR_REGEX) { m ->
-            """class="${m.groups[1]?.value?.split(' ')?.joinToString(" ") { classes.computeIfAbsent(it) { nextMinifiedClass() } } ?: ""}""""
-        }
+    override fun transformHtml(content: String): String = content.replace(CLASS_ATTR_REGEX) { m ->
+        """class="${m.groups[1]?.value?.split(' ')?.joinToString(" ", transform = ::minifyClass) ?: ""}""""
     }
 
     /**
-     * Generates a unique CSS class name.
-     * The class name is unique only in the context of this minifier.
+     * Minifies a CSS class name.
      *
-     * @return the class name
+     * This function is pure, meaning it will return the same object every invocation.
+     *
+     * @param k the class name to be minified
+     * @return the minified class name
      */
-    open fun nextMinifiedClass(): String = minifiedClass(classIndex++)
+    fun minifyClass(k: String): String = synchronized(this) {
+        classes.computeIfAbsent(k) {
+            minifiedClass(if (isDeterministic) abs(it.hashCode().toShort().toInt()) else classIndex++)
+        }
+    }
 
     /**
      * Minifies raw CSS styles.
@@ -69,10 +70,10 @@ open class Minifier : Transformer {
      */
     override fun transformCss(content: String): String {
         var remappedContent = content.split("\r\n", "\n")
-            .joinToString("") { it.trim() }
+            .joinToString("", transform = String::trim)
             .replace(COMMENT_REGEX, "")
 
-        lock.withLock {
+        synchronized(this) {
             classes.forEach { (original, minified) ->
                 remappedContent = remappedContent.replace("\\.$original([ :])".toRegex()) { ".$minified${it.groups[1]?.value}" }
             }

@@ -599,12 +599,19 @@ fun formatModifiers(mod: Int, mask: Int): String = buildString {
     if ((mMod and Opcodes.ACC_PRIVATE) != 0) append("private ")
     if ((mMod and Opcodes.ACC_PROTECTED) != 0) append("protected ")
     if ((mMod and Opcodes.ACC_STATIC) != 0) append("static ")
+    // enums can have an abstract modifier (methods included) if its constants have a custom impl
+    // TODO: should we remove that?
+
     // an interface is implicitly abstract
     // we need to check the unmasked modifiers here, since ACC_INTERFACE is not among Modifier#classModifiers
     if ((mMod and Opcodes.ACC_ABSTRACT) != 0 && (mod and Opcodes.ACC_INTERFACE) == 0) append("abstract ")
-    // an enum is implicitly final
-    // we need to check the unmasked modifiers here, since ACC_ENUM is not among Modifier#classModifiers
-    if ((mMod and Opcodes.ACC_FINAL) != 0 && (mask != Modifier.classModifiers() || (mod and Opcodes.ACC_ENUM) == 0)) append("final ")
+    if ((mMod and Opcodes.ACC_FINAL) != 0) {
+        // enums and records are implicitly final
+        // we need to check the unmasked modifiers here, since ACC_ENUM is not among Modifier#classModifiers
+        if (mask != Modifier.classModifiers() || ((mod and Opcodes.ACC_ENUM) == 0 && (mod and Opcodes.ACC_RECORD) == 0)) {
+            append("final ")
+        }
+    }
     if ((mMod and Opcodes.ACC_NATIVE) != 0) append("native ")
     if ((mMod and Opcodes.ACC_STRICT) != 0) append("strict ")
     if ((mMod and Opcodes.ACC_SYNCHRONIZED) != 0) append("synchronized ")
