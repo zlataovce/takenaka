@@ -17,26 +17,13 @@
 
 package me.kcra.takenaka.generator.web
 
-import me.kcra.takenaka.core.CompositeWorkspace
-import me.kcra.takenaka.core.mapping.InterceptAfter
-import me.kcra.takenaka.core.mapping.InterceptBefore
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
-import me.kcra.takenaka.generator.common.ContributorProvider
-import me.kcra.takenaka.generator.common.MappingConfiguration
-import me.kcra.takenaka.generator.common.MappingConfigurationBuilder
-import me.kcra.takenaka.generator.common.WorkspacePathProvider
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import net.fabricmc.mappingio.MappingUtil
 
 /**
  * Configuration for [WebGenerator].
  *
- * @param versions the mapping candidate versions
- * @param workspace the mapping cache workspace
- * @param contributorProvider a function that provides mapping contributors based on a version
- * @param mapperInterceptors functions that sequentially modify every mapping tree, useful for normalization and correction
- * @param visitorInterceptors functions that sequentially wrap a tree visitor before any mappings are visited to it, useful for simple filtering
- * @param joinedOutputProvider the joined mapping file path provider, returns null if it should not be persisted (rebuilt in memory every run)
  * @property transformers a list of transformers that transform the output
  * @property namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @property namespaces a map of namespaces and their descriptions, unspecified namespaces will not be shown
@@ -45,34 +32,21 @@ import net.fabricmc.mappingio.MappingUtil
  * @property historicalNamespaces namespaces that should be used for computing history, namespaces from [namespaceFriendlinessIndex] are considered by default (excluding the obfuscated one)
  * @author Matouš Kučera
  */
-class WebMappingConfiguration(
-    versions: List<String>,
-    workspace: CompositeWorkspace,
-    contributorProvider: ContributorProvider,
-    mapperInterceptors: List<InterceptAfter>,
-    visitorInterceptors: List<InterceptBefore>,
-    joinedOutputProvider: WorkspacePathProvider,
+data class WebConfiguration(
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaces: Map<String, NamespaceDescription> = emptyMap(),
     val index: ClassSearchIndex = emptyClassSearchIndex(),
     val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
     val historicalNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK,
-) : MappingConfiguration(
-    versions,
-    workspace,
-    contributorProvider,
-    mapperInterceptors,
-    visitorInterceptors,
-    joinedOutputProvider
 )
 
 /**
- * A builder for [WebMappingConfiguration].
+ * A builder for [WebConfiguration].
  *
  * @author Matouš Kučera
  */
-class WebMappingConfigurationBuilder : MappingConfigurationBuilder() {
+class WebConfigurationBuilder {
     /**
      * Transformers that transform the output.
      */
@@ -189,13 +163,7 @@ class WebMappingConfigurationBuilder : MappingConfigurationBuilder() {
      *
      * @return the configuration
      */
-    override fun toMappingConfig(): WebMappingConfiguration = WebMappingConfiguration(
-        versions,
-        mappingWorkspace,
-        contributorProvider,
-        mapperInterceptors,
-        visitorInterceptors,
-        joinedOutputProvider,
+    fun toWebConfig() = WebConfiguration(
         transformers,
         namespaceFriendlinessIndex,
         namespaces,
@@ -206,10 +174,10 @@ class WebMappingConfigurationBuilder : MappingConfigurationBuilder() {
 }
 
 /**
- * Builds a mapping configuration with a builder.
+ * Builds a [WebGenerator] configuration with a builder.
  *
  * @param block the builder action
  * @return the configuration
  */
-inline fun buildWebMappingConfig(block: WebMappingConfigurationBuilder.() -> Unit): WebMappingConfiguration =
-    WebMappingConfigurationBuilder().apply(block).toMappingConfig()
+inline fun buildWebConfig(block: WebConfigurationBuilder.() -> Unit): WebConfiguration =
+    WebConfigurationBuilder().apply(block).toWebConfig()

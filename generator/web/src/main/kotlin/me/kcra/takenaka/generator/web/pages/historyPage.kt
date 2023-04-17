@@ -84,7 +84,7 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                                         .mapNotNull { id ->
                                             id to (getNamespaceFriendlyName(tree.getNamespaceName(id)) ?: return@mapNotNull null)
                                         }
-                                        .sortedBy { generator.mappingConfiguration.namespaceFriendlinessIndex.indexOf(it.second) }
+                                        .sortedBy { generator.config.namespaceFriendlinessIndex.indexOf(it.second) }
                                         .mapNotNull { (id, ns) ->
                                             field.getName(id)?.let { name ->
                                                 textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name
@@ -132,7 +132,7 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                                         .mapNotNull { id ->
                                             id to (getNamespaceFriendlyName(tree.getNamespaceName(id)) ?: return@mapNotNull null)
                                         }
-                                        .sortedBy { generator.mappingConfiguration.namespaceFriendlinessIndex.indexOf(it.second) }
+                                        .sortedBy { generator.config.namespaceFriendlinessIndex.indexOf(it.second) }
                                         .mapNotNull { (id, ns) ->
                                             method.getName(id)?.let { name ->
                                                 textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name

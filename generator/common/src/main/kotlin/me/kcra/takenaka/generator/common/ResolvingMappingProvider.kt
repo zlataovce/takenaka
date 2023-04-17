@@ -20,9 +20,6 @@ package me.kcra.takenaka.generator.common
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.coroutines.*
-import me.kcra.takenaka.core.VersionedWorkspace
-import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.adapter.MissingDescriptorFilter
 import me.kcra.takenaka.core.mapping.buildMappingTree
@@ -34,7 +31,6 @@ import mu.KotlinLogging
 import net.fabricmc.mappingio.format.Tiny2Reader
 import net.fabricmc.mappingio.format.Tiny2Writer
 import net.fabricmc.mappingio.tree.MemoryMappingTree
-import java.nio.file.Path
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.io.path.*
@@ -42,56 +38,34 @@ import kotlin.io.path.*
 private val logger = KotlinLogging.logger {}
 
 /**
- * A function for providing a list of mapping contributors for a single version.
- */
-typealias ContributorProvider = (VersionedWorkspace) -> List<MappingContributor>
-
-/**
- * A function for providing a path from a versioned workspace.
- */
-typealias WorkspacePathProvider = (VersionedWorkspace) -> Path?
-
-/**
- * An abstract base for a generator that also fetches and transforms mappings.
+ * A [MappingProvider] implementation that fetches, corrects and caches mappings.
  *
- * Joined mapping files are cached in a Tiny v2 format.
- *
- * @param workspace the workspace in which this generator can move around
- * @property objectMapper an object mapper instance for this generator
- * @property xmlMapper an XML object mapper instance for this generator
+ * @property mappingConfig configuration to alter the mapping fetching and correction process
+ * @property objectMapper a JSON object mapper instance for this provider
+ * @property xmlMapper an XML object mapper instance for this provider
  * @author Matouš Kučera
  */
-abstract class AbstractResolvingGenerator(
-    workspace: Workspace,
+class ResolvingMappingProvider(
+    val mappingConfig: MappingConfiguration,
     val objectMapper: ObjectMapper = objectMapper(),
     val xmlMapper: ObjectMapper = XmlMapper()
-) : AbstractGenerator(workspace) {
+) : MappingProvider {
     /**
-     * The configuration for this generator.
-     */
-    abstract val mappingConfiguration: MappingConfiguration
-
-    /**
-     * Launches the generator.
-     */
-    suspend fun generate() = generate(resolveMappings())
-
-    /**
-     * Resolves mappings for all targeted versions.
+     * Resolves the mappings.
      *
-     * @return a map of joined mapping files, keyed by version
+     * @return the mappings
      */
-    protected suspend fun resolveMappings(): MutableMappingsMap {
+    override suspend fun get(): MutableMappingsMap {
         val manifest = objectMapper.versionManifest()
 
-        return mappingConfiguration.versions
+        return mappingConfig.versions
             .map { versionString ->
-                mappingConfiguration.workspace.createVersionedWorkspace {
+                mappingConfig.workspace.createVersionedWorkspace {
                     this.version = manifest[versionString] ?: error("did not find version $versionString in manifest")
                 }
             }
             .parallelMap(Dispatchers.Default + CoroutineName("mapping-coro")) { workspace ->
-                val outputFile = mappingConfiguration.joinedOutputProvider(workspace)
+                val outputFile = mappingConfig.joinedOutputProvider(workspace)
                 if (outputFile != null && outputFile.isRegularFile()) {
                     // load mapping tree from file
                     try {
@@ -106,7 +80,7 @@ abstract class AbstractResolvingGenerator(
 
                 // joined mapping file not found, let's make it
 
-                val contributors = mappingConfiguration.contributorProvider(workspace)
+                val contributors = mappingConfig.contributorProvider(workspace)
                 coroutineScope {
                     contributors.forEach { _contributor ->
                         val contributor = _contributor.unwrap()
@@ -125,8 +99,8 @@ abstract class AbstractResolvingGenerator(
                 val tree = buildMappingTree {
                     contributor(contributors)
 
-                    interceptorsBefore += mappingConfiguration.visitorInterceptors
-                    interceptorsAfter += mappingConfiguration.mapperInterceptors
+                    interceptorsBefore += mappingConfig.visitorInterceptors
+                    interceptorsAfter += mappingConfig.mapperInterceptors
                 }
 
                 if (outputFile != null && !outputFile.isDirectory()) {

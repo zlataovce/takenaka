@@ -25,12 +25,27 @@ import me.kcra.takenaka.core.mapping.MutableMappingsMap
  *
  * A generator transforms mappings into another form, such as accessors or documentation.
  *
- * @property workspace the workspace in which this generator can move around
  * @author Matouš Kučera
  */
-abstract class AbstractGenerator(val workspace: Workspace) {
+interface Generator {
+    /**
+     * The workspace in which this generator can move around.
+     */
+    val workspace: Workspace
+
     /**
      * Launches the generator with a pre-determined set of mappings.
+     *
+     * @param mappings the mappings
      */
-    abstract suspend fun generate(mappings: MutableMappingsMap)
+    suspend fun generate(mappings: MutableMappingsMap)
+
+    /**
+     * Launches the generator with mappings provided by the provider.
+     *
+     * @param provider the provider
+     */
+    suspend fun generate(provider: MappingProvider) {
+        generate(provider.get())
+    }
 }

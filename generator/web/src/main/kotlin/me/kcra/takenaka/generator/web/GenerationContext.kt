@@ -40,9 +40,7 @@ val md5Digest by threadLocalMessageDigest("MD5")
  *
  * @author Matouš Kučera
  */
-class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenerator, val styleConsumer: StyleConsumer) : CoroutineScope by coroutineScope {
-    val index: ClassSearchIndex by generator.mappingConfiguration::index
-
+class GenerationContext(val generator: WebGenerator, val styleConsumer: StyleConsumer, contextScope: CoroutineScope) : CoroutineScope by contextScope {
     /**
      * Serializes a [Document] to a file in the specified workspace.
      *
@@ -54,7 +52,7 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
             val file = workspace[path]
             file.parent.createDirectories()
 
-            if (generator.mappingConfiguration.transformers.isEmpty()) {
+            if (generator.config.transformers.isEmpty()) {
                 file.writer().use { it.write(this@serialize) }
             } else {
                 file.writeText(generator.transformHtml(serialize(prettyPrint = !generator.hasMinifier)))
@@ -69,7 +67,7 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
      * @return the name
      */
     fun getFriendlyDstName(elem: MappingTreeView.ElementMappingView): String {
-        generator.mappingConfiguration.namespaceFriendlinessIndex.forEach { ns ->
+        generator.config.namespaceFriendlinessIndex.forEach { ns ->
             elem.getName(ns)?.let { return it }
         }
         return elem.tree.dstNamespaceIds.firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
@@ -81,7 +79,7 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
      * @param ns the namespace
      * @return the color
      */
-    fun getNamespaceFriendlyName(ns: String): String? = generator.mappingConfiguration.namespaces[ns]?.friendlyName
+    fun getNamespaceFriendlyName(ns: String): String? = generator.config.namespaces[ns]?.friendlyName
 
     /**
      * Gets a CSS color of the supplied namespace.
@@ -89,7 +87,7 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
      * @param ns the namespace
      * @return the color
      */
-    fun getNamespaceBadgeColor(ns: String): String = generator.mappingConfiguration.namespaces[ns]?.color ?: "#94a3b8"
+    fun getNamespaceBadgeColor(ns: String): String = generator.config.namespaces[ns]?.color ?: "#94a3b8"
 
     /**
      * Gets a CSS color of the namespace with the supplied friendly name.
@@ -125,4 +123,4 @@ class GenerationContext(coroutineScope: CoroutineScope, val generator: WebGenera
  * @param block the context user
  */
 suspend inline fun <R> WebGenerator.generationContext(noinline styleConsumer: StyleConsumer, crossinline block: suspend GenerationContext.() -> R): R =
-    coroutineScope { block(GenerationContext(this, this@generationContext, styleConsumer)) }
+    coroutineScope { block(GenerationContext(this@generationContext, styleConsumer, this)) }

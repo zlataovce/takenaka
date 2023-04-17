@@ -18,15 +18,25 @@
 package me.kcra.takenaka.generator.common
 
 import me.kcra.takenaka.core.CompositeWorkspace
+import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.InterceptAfter
 import me.kcra.takenaka.core.mapping.InterceptBefore
+import me.kcra.takenaka.core.mapping.MappingContributor
+import java.nio.file.Path
 import kotlin.properties.Delegates
 
 /**
- * A base configuration class for generators.
- *
- * Generator implementations should prefer to subclass this,
- * instead of passing lots of parameters in constructors.
+ * A function for providing a list of mapping contributors for a single version.
+ */
+typealias ContributorProvider = (VersionedWorkspace) -> List<MappingContributor>
+
+/**
+ * A function for providing a path from a versioned workspace.
+ */
+typealias WorkspacePathProvider = (VersionedWorkspace) -> Path?
+
+/**
+ * A configuration class for [ResolvingMappingProvider].
  *
  * @property versions the mapping candidate versions
  * @property workspace the mapping cache workspace
@@ -36,7 +46,7 @@ import kotlin.properties.Delegates
  * @property joinedOutputProvider the joined mapping file path provider, returns null if it should not be persisted (rebuilt in memory every run)
  * @author Matouš Kučera
  */
-open class MappingConfiguration(
+data class MappingConfiguration(
     val versions: List<String>,
     val workspace: CompositeWorkspace,
     val contributorProvider: ContributorProvider,
@@ -46,11 +56,11 @@ open class MappingConfiguration(
 )
 
 /**
- * A base [MappingConfiguration] builder class.
+ * A [MappingConfiguration] builder.
  *
  * @author Matouš Kučera
  */
-open class MappingConfigurationBuilder {
+class MappingConfigurationBuilder {
     /**
      * The mapping candidate versions.
      */
@@ -140,7 +150,7 @@ open class MappingConfigurationBuilder {
      *
      * @return the configuration
      */
-    open fun toMappingConfig(): MappingConfiguration = MappingConfiguration(
+    fun toMappingConfig() = MappingConfiguration(
         versions,
         mappingWorkspace,
         contributorProvider,

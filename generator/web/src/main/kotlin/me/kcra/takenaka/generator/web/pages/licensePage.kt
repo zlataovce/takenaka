@@ -45,7 +45,7 @@ fun GenerationContext.licensePage(workspace: VersionedWorkspace, licenses: Map<S
             spacerBottomComponent()
 
             licenses.entries.forEachIndexed { i, (ns, license) ->
-                val namespace = generator.mappingConfiguration.namespaces[ns]
+                val namespace = generator.config.namespaces[ns]
                 if (namespace != null) {
                     div(classes = "license-header") {
                         badgeComponent(namespace.friendlyName, namespace.color, styleConsumer)
