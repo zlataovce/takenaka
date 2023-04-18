@@ -18,6 +18,7 @@
 package me.kcra.takenaka.generator.accessor.runtime;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * An abstraction for platform-dependent calls.
@@ -45,4 +46,13 @@ public interface MapperPlatform {
      */
     @NotNull
     String getVersion();
+
+    /**
+     * Gets the preferred mapping namespace of this platform.
+     *
+     * @return the namespace, defaults to the obfuscated mapping if null
+     */
+    default @Nullable String getMappingNamespace() {
+        return null;
+    }
 }

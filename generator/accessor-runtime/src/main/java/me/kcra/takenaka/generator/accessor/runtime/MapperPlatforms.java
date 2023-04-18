@@ -29,7 +29,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * A class for management of {@link MapperPlatform}s.
+ * Standard {@link MapperPlatform} implementations.
  *
  * @author Matouš Kučera
  */
@@ -69,7 +69,59 @@ public enum MapperPlatforms implements MapperPlatform {
 
         @Override
         public @NotNull String getVersion() {
+            if (!isSupported) {
+                throw new UnsupportedOperationException("Bukkit is not supported by this environment");
+            }
             return minecraftVersion;
+        }
+
+        @Override
+        public @NotNull String getMappingNamespace() {
+            return "spigot";
+        }
+    },
+
+    /**
+     * An abstraction for Forge-based platforms.
+     */
+    FORGE {
+        private final boolean isSupported = Reflect.has("net.minecraftforge.common.MinecraftForge");
+        private String minecraftVersion = null;
+
+        {
+            if (isSupported) {
+                try {
+                    try {
+                        // Flattening versions
+                        final Class<?> mcpVersionClass = Class.forName("net.minecraftforge.versions.mcp.MCPVersion");
+                        minecraftVersion = (String) mcpVersionClass.getMethod("getMCVersion").invoke(null);
+                    } catch (ClassNotFoundException | NoSuchMethodException ignored) {
+                        // Legacy versions
+                        final Class<?> forgeClass = Class.forName("net.minecraftforge.common.MinecraftForge");
+                        minecraftVersion = (String) forgeClass.getField("MC_VERSION").get(null);
+                    }
+                } catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException | InvocationTargetException e) {
+                    throw new RuntimeException("Failed to get Minecraft version", e);
+                }
+            }
+        }
+
+        @Override
+        public boolean isSupported() {
+            return isSupported;
+        }
+
+        @Override
+        public @NotNull String getVersion() {
+            if (!isSupported) {
+                throw new UnsupportedOperationException("Forge is not supported by this environment");
+            }
+            return minecraftVersion;
+        }
+
+        @Override
+        public @NotNull String getMappingNamespace() {
+            return "searge";
         }
     };
 
@@ -81,7 +133,7 @@ public enum MapperPlatforms implements MapperPlatform {
     /**
      * The current mapper platform implementation.
      */
-    private static MapperPlatform CURRENT;
+    private static volatile MapperPlatform CURRENT = null;
 
     /**
      * Gets the current mapper platform, discovering a supported one, if not set.
