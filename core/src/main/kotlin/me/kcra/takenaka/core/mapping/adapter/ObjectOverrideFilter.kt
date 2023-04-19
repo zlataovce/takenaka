@@ -17,21 +17,25 @@
 
 package me.kcra.takenaka.core.mapping.adapter
 
-import me.kcra.takenaka.core.mapping.matchers.isEquals
-import me.kcra.takenaka.core.mapping.matchers.isHashCode
-import me.kcra.takenaka.core.mapping.matchers.isToString
-import mu.KotlinLogging
-import net.fabricmc.mappingio.tree.MappingTree
-
-private val logger = KotlinLogging.logger {}
+import net.fabricmc.mappingio.MappingVisitor
+import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
 
 /**
  * Filters out methods overridden from java/lang/Object (equals, toString, hashCode).
+ * 
+ * @param next the visitor to delegate to
+ * @author Matouš Kučera
  */
-fun MappingTree.removeObjectOverrides() {
-    classes.forEach { klass ->
-        if (klass.methods.removeIf { it.isEquals || it.isToString || it.isHashCode }) {
-            logger.debug { "removed Object overrides of ${klass.srcName}" }
+class ObjectOverrideFilter(next: MappingVisitor) : ForwardingMappingVisitor(next) {
+    override fun visitMethod(srcName: String, srcDesc: String?): Boolean {
+        if (
+            (srcName == "equals" && srcDesc == "(Ljava/lang/Object;)Z") ||
+            (srcName == "toString" && srcDesc == "()Ljava/lang/String;") ||
+            (srcName == "hashCode" && srcDesc == "()I")
+        ) {
+            return false
         }
+        
+        return super.visitMethod(srcName, srcDesc)
     }
 }

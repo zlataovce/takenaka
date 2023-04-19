@@ -15,21 +15,16 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.mapping.adapter
-
-import me.kcra.takenaka.core.mapping.matchers.isStaticInitializer
-import mu.KotlinLogging
-import net.fabricmc.mappingio.tree.MappingTree
-
-private val logger = KotlinLogging.logger {}
+package me.kcra.takenaka.core.mapping.analysis
 
 /**
- * Filters out static initializers (&lt;clinit&gt;).
+ * Basic mapping problems, analyzed by [MappingAnalyzerImpl].
+ *
+ * @property description the problem description
+ * @property resolvableByDeletion whether the problem should be resolved by deleting the element
+ * @author Matouš Kučera
  */
-fun MappingTree.removeStaticInitializers() {
-    classes.forEach { klass ->
-        if (klass.methods.removeIf { it.isStaticInitializer }) {
-            logger.debug { "removed static initializer of ${klass.srcName}" }
-        }
-    }
+enum class StandardProblemKinds(override val description: String?, override val resolvableByDeletion: Boolean) : ProblemKind {
+    NON_EXISTENT_MAPPING("mapping does not have modifiers visited or they are malformed, likely a client class", true),
+    SYNTHETIC("mapping is synthetic, it does not exist at compile-time", true)
 }

@@ -24,9 +24,7 @@ import kotlinx.cli.*
 import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.*
 import me.kcra.takenaka.core.mapping.WrappingContributor
-import me.kcra.takenaka.core.mapping.adapter.LegacySpigotMappingPrepender
-import me.kcra.takenaka.core.mapping.adapter.MethodArgSourceFilter
-import me.kcra.takenaka.core.mapping.adapter.NamespaceFilter
+import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.normalizingInterceptorOf
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
@@ -116,15 +114,18 @@ fun main(args: Array<String>) {
         version(version)
         mappingWorkspace = mappingsCache
 
-        // remove obfuscated method parameter names, they are a filler from Searge
-        interceptVisitor(::MethodArgSourceFilter)
         // remove Searge's ID namespace, it's not necessary
         interceptVisitor { v ->
             NamespaceFilter(v, "searge_id")
         }
+        // remove static initializers, not needed in the documentation
+        interceptVisitor(::StaticInitializerFilter)
+        // remove overrides of java/lang/Object, they are implicit
+        interceptVisitor(::ObjectOverrideFilter)
+        // remove obfuscated method parameter names, they are a filler from Searge
+        interceptVisitor(::MethodArgSourceFilter)
         interceptMapper(
             normalizingInterceptorOf(
-                skipSynthetic = skipSynthetic,
                 innerClassCompletionCandidates = listOf("spigot")
             )
         )
