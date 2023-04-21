@@ -32,7 +32,7 @@ typealias ProblemResolution<T> = Problem<T>.() -> Unit
  * @property kind the kind of the problem
  * @property resolution a function for resolving this problem
  */
-data class Problem<T : MappingTree.ElementMapping>(val element: T, val namespace: String?, val kind: ProblemKind, val resolution: ProblemResolution<T>) {
+class Problem<T : MappingTree.ElementMapping>(val element: T, val namespace: String?, val kind: ProblemKind, val resolution: ProblemResolution<T>) {
     /**
      * Resolves this problem with [resolution].
      */

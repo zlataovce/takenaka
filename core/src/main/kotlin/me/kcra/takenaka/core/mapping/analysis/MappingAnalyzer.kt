@@ -17,76 +17,62 @@
 
 package me.kcra.takenaka.core.mapping.analysis
 
-import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTree
-import kotlin.system.measureTimeMillis
-
-private val logger = KotlinLogging.logger {}
 
 /**
- * A base for a mapping analyzer.
+ * A mapping semantic analyzer, useful for identifying and correcting mapping errors in a selective manner.
  *
  * @author Matouš Kučera
  */
 interface MappingAnalyzer {
     /**
-     * Index of problems by their kind.
+     * Problems currently discovered by this analyzer.
      */
-    val problems: MutableMap<ProblemKind, MutableList<Problem<*>>>
+    val problems: List<Problem<*>>
+
+    /**
+     * Kinds of problems currently discovered by this analyzer.
+     */
+    val problemKinds: List<ProblemKind>
+        get() = problems.mapTo(mutableSetOf(), transform = Problem<*>::kind).sortedByDescending(ProblemKind::deletesElement)
 
     /**
      * Reads a mapping tree and appends its problems to this analyzer.
      *
      * @param tree the mapping tree
      */
-    fun accept(tree: MappingTree) {
-        tree.classes.forEach { klass ->
-            acceptClass(klass)
-
-            klass.fields.forEach(::acceptField)
-            klass.methods.forEach(::acceptMethod)
-        }
-    }
+    fun accept(tree: MappingTree)
 
     /**
-     * Accepts all resolutions of all problems.
+     * Accepts resolutions of all problems.
      */
     fun acceptResolutions() {
-        problems.forEach { (kind, _) -> acceptResolutions(kind) }
+        problemKinds.forEach(::acceptResolutions)
     }
 
     /**
-     * Accepts all resolutions of problems with kind [kind].
+     * Accepts resolutions of all problems with a specific problem kind.
      *
      * @param kind the problem kind
      * @return the accepted resolutions
      */
-    fun acceptResolutions(kind: ProblemKind): List<Problem<*>> {
-        val problemsWithKind = problems.remove(kind) ?: return emptyList()
+    fun acceptResolutions(kind: ProblemKind): List<Problem<*>>
 
-        val time = measureTimeMillis {
-            // remove all problems for an element, if there is at least one deletion resolution
-            problemsWithKind
-                .filter { problem -> problem.kind.resolvableByDeletion }
-                .distinctBy(Problem<*>::element)
-                .forEach { deletableProblem ->
-                    problemsWithKind.removeIf { problem ->
-                        deletableProblem !== problem && deletableProblem.element === problem.element
-                    }
-                }
+    /**
+     * Accepts resolutions of all problems of an element.
+     *
+     * @param element the troubled element
+     * @return the accepted resolutions
+     */
+    fun <T : MappingTree.ElementMapping> acceptElementResolutions(element: T): List<Problem<T>> =
+        problemKinds.flatMap { kind -> acceptElementResolutions(element, kind) }
 
-            problemsWithKind.forEach(Problem<*>::acceptResolution)
-        }
-        logger.info { "accepted ${problemsWithKind.size} $kind resolution(s) in ${time}ms" }
-
-        return problemsWithKind
-    }
-
-    fun <T : MappingTree.ElementMapping> addProblem(element: T, namespace: String?, kind: ProblemKind, resolution: ProblemResolution<T>) {
-        problems.getOrPut(kind, ::mutableListOf) += Problem(element, namespace, kind, resolution)
-    }
-
-    fun acceptClass(klass: MappingTree.ClassMapping)
-    fun acceptField(field: MappingTree.FieldMapping)
-    fun acceptMethod(method: MappingTree.MethodMapping)
+    /**
+     * Accepts resolutions of all problems of an element with a specific problem kind.
+     *
+     * @param element the troubled element
+     * @param kind the problem kind
+     * @return the accepted resolutions
+     */
+    fun <T : MappingTree.ElementMapping> acceptElementResolutions(element: T, kind: ProblemKind): List<Problem<T>>
 }

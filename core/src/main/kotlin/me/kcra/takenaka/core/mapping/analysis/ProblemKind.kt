@@ -29,7 +29,7 @@ interface ProblemKind {
     val description: String?
 
     /**
-     * Whether this problem should be resolved by deleting the element from the tree.
+     * Whether this problem is resolved by deleting the element from the tree.
      */
-    val resolvableByDeletion: Boolean
+    val deletesElement: Boolean
 }

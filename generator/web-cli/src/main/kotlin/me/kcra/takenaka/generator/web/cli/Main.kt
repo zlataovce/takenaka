@@ -22,12 +22,15 @@ package me.kcra.takenaka.generator.web.cli
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.cli.*
 import kotlinx.coroutines.runBlocking
-import me.kcra.takenaka.core.*
+import me.kcra.takenaka.core.buildResolverOptions
+import me.kcra.takenaka.core.compositeWorkspace
 import me.kcra.takenaka.core.mapping.WrappingContributor
 import me.kcra.takenaka.core.mapping.adapter.*
-import me.kcra.takenaka.core.mapping.normalizingInterceptorOf
+import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
+import me.kcra.takenaka.core.mapping.analysis.impl.StandardProblemKinds
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
+import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.common.ResolvingMappingProvider
 import me.kcra.takenaka.generator.common.buildMappingConfig
 import me.kcra.takenaka.generator.web.*
@@ -115,28 +118,37 @@ fun main(args: Array<String>) {
         mappingWorkspace = mappingsCache
 
         // remove Searge's ID namespace, it's not necessary
-        interceptVisitor { v ->
+        intercept { v ->
             NamespaceFilter(v, "searge_id")
         }
         // remove static initializers, not needed in the documentation
-        interceptVisitor(::StaticInitializerFilter)
+        intercept(::StaticInitializerFilter)
         // remove overrides of java/lang/Object, they are implicit
-        interceptVisitor(::ObjectOverrideFilter)
+        intercept(::ObjectOverrideFilter)
         // remove obfuscated method parameter names, they are a filler from Searge
-        interceptVisitor(::MethodArgSourceFilter)
-        interceptMapper(
-            normalizingInterceptorOf(
-                innerClassCompletionCandidates = listOf("spigot")
+        intercept(::MethodArgSourceFilter)
+
+        analyzer = MappingAnalyzerImpl(
+            MappingAnalyzerImpl.AnalysisOptions(
+                innerClassNameCompletionCandidates = setOf("spigot")
             )
         )
+        analysisResult {
+            problemKinds.forEach { kind ->
+                if (!skipSynthetic && kind == StandardProblemKinds.SYNTHETIC) return@forEach
 
-        provideContributors { versionWorkspace ->
+                acceptResolutions(kind)
+            }
+        }
+
+        contributors { versionWorkspace ->
             val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper)
             val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper)
 
             val prependedClasses = mutableListOf<String>()
 
             listOf(
+                VanillaMappingContributor(versionWorkspace, mojangProvider),
                 MojangServerMappingResolver(versionWorkspace, mojangProvider),
                 IntermediaryMappingResolver(versionWorkspace, sharedCache),
                 YarnMappingResolver(versionWorkspace, yarnProvider),
@@ -148,13 +160,12 @@ fun main(args: Array<String>) {
                 },
                 WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
                     LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses)
-                },
-                VanillaMappingContributor(versionWorkspace, mojangProvider)
+                }
             )
         }
 
         if (noJoined) {
-            provideJoinedOutputPath { null }
+            joinedOutputPath { null }
         }
     }
 

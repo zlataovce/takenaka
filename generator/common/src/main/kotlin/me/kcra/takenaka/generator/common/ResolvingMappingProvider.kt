@@ -34,6 +34,7 @@ import net.fabricmc.mappingio.tree.MemoryMappingTree
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.io.path.*
+import kotlin.system.measureTimeMillis
 
 private val logger = KotlinLogging.logger {}
 
@@ -57,8 +58,7 @@ class ResolvingMappingProvider(
      */
     override suspend fun get(): MutableMappingsMap {
         val manifest = objectMapper.versionManifest()
-
-        return mappingConfig.versions
+        val mappings = mappingConfig.versions
             .map { versionString ->
                 mappingConfig.workspace.createVersionedWorkspace {
                     this.version = manifest[versionString] ?: error("did not find version $versionString in manifest")
@@ -99,8 +99,12 @@ class ResolvingMappingProvider(
                 val tree = buildMappingTree {
                     contributor(contributors)
 
-                    interceptorsBefore += mappingConfig.visitorInterceptors
-                    interceptorsAfter += mappingConfig.mapperInterceptors
+                    interceptors += mappingConfig.interceptors
+                }
+
+                if (mappingConfig.analyzer != null) {
+                    val time = measureTimeMillis { mappingConfig.analyzer.accept(tree) }
+                    logger.info { "analyzed ${workspace.version.id} mappings in ${time}ms" }
                 }
 
                 if (outputFile != null && !outputFile.isDirectory()) {
@@ -111,6 +115,9 @@ class ResolvingMappingProvider(
                 workspace.version to tree
             }
             .toMap()
+
+        mappingConfig.analyzer?.apply(mappingConfig.analysisResultConsumer)
+        return mappings
     }
 }
 

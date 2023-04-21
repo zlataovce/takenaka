@@ -15,16 +15,20 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.mapping.analysis
+package me.kcra.takenaka.core.mapping.analysis.impl
+
+import me.kcra.takenaka.core.mapping.analysis.ProblemKind
 
 /**
  * Basic mapping problems, analyzed by [MappingAnalyzerImpl].
  *
  * @property description the problem description
- * @property resolvableByDeletion whether the problem should be resolved by deleting the element
+ * @property deletesElement whether the problem is resolved by deleting the element
  * @author Matouš Kučera
  */
-enum class StandardProblemKinds(override val description: String?, override val resolvableByDeletion: Boolean) : ProblemKind {
+enum class StandardProblemKinds(override val description: String?, override val deletesElement: Boolean) : ProblemKind {
     NON_EXISTENT_MAPPING("mapping does not have modifiers visited or they are malformed, likely a client class", true),
-    SYNTHETIC("mapping is synthetic, it does not exist at compile-time", true)
+    SYNTHETIC("mapping is synthetic, it does not exist at compile-time", true),
+    INNER_CLASS_OWNER_NOT_MAPPED("inner/anonymous class mapping does not have the owner name remapped", false),
+    INHERITANCE_ERROR("method is overridden from a super type, but the mapping does not match", false)
 }
