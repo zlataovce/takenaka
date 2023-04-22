@@ -21,7 +21,6 @@ import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MapperIntercept
 import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
 import java.nio.file.Path
 import kotlin.properties.Delegates
 
@@ -36,11 +35,6 @@ typealias ContributorProvider = (VersionedWorkspace) -> List<MappingContributor>
 typealias WorkspacePathProvider = (VersionedWorkspace) -> Path?
 
 /**
- * A function for finishing the analysis.
- */
-typealias AnalysisResultConsumer = MappingAnalyzer.() -> Unit
-
-/**
  * A configuration class for [ResolvingMappingProvider].
  *
  * @property versions the mapping candidate versions
@@ -48,8 +42,6 @@ typealias AnalysisResultConsumer = MappingAnalyzer.() -> Unit
  * @property contributorProvider a function that provides mapping contributors based on a version
  * @property interceptors functions that sequentially wrap a tree visitor before any mappings are visited to it, useful for simple filtering
  * @property joinedOutputProvider the joined mapping file path provider, returns null if it should not be persisted (rebuilt in memory every run)
- * @property analyzer the mapping analyzer, null if no analysis should be performed
- * @property analysisResultConsumer a function that finishes the analysis
  * @author Matouš Kučera
  */
 data class MappingConfiguration(
@@ -57,9 +49,7 @@ data class MappingConfiguration(
     val workspace: CompositeWorkspace,
     val contributorProvider: ContributorProvider,
     val interceptors: List<MapperIntercept>,
-    val joinedOutputProvider: WorkspacePathProvider,
-    val analyzer: MappingAnalyzer?,
-    val analysisResultConsumer: AnalysisResultConsumer
+    val joinedOutputProvider: WorkspacePathProvider
 )
 
 /**
@@ -92,16 +82,6 @@ class MappingConfigurationBuilder {
      * The joined mapping file path provider, returns null if it should not be persisted (rebuilt in memory every run).
      */
     var joinedOutputProvider: WorkspacePathProvider = { workspace -> workspace["joined.tiny"] }
-
-    /**
-     * The mapping analyzer.
-     */
-    var analyzer: MappingAnalyzer? = null
-
-    /**
-     * The function for finishing the analysis.
-     */
-    var analysisResultConsumer: AnalysisResultConsumer = {}
 
     /**
      * Appends versions.
@@ -149,15 +129,6 @@ class MappingConfigurationBuilder {
     }
 
     /**
-     * Sets [analysisResultConsumer].
-     *
-     * @param block the finalizer
-     */
-    fun analysisResult(block: AnalysisResultConsumer) {
-        analysisResultConsumer = block
-    }
-
-    /**
      * Builds a mapping configuration out of this builder.
      *
      * @return the configuration
@@ -167,9 +138,7 @@ class MappingConfigurationBuilder {
         mappingWorkspace,
         contributorProvider,
         interceptors,
-        joinedOutputProvider,
-        analyzer,
-        analysisResultConsumer
+        joinedOutputProvider
     )
 }
 

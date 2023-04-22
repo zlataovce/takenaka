@@ -18,6 +18,7 @@
 package me.kcra.takenaka.generator.common
 
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
+import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
 
 /**
  * A class that provides a set of mappings required for generation.
@@ -28,7 +29,8 @@ interface MappingProvider {
     /**
      * Provides the mappings.
      *
+     * @param analyzer an analyzer which the mappings should be visited to as they are resolved
      * @return the mappings
      */
-    suspend fun get(): MutableMappingsMap
+    suspend fun get(analyzer: MappingAnalyzer? = null): MutableMappingsMap
 }

@@ -32,7 +32,6 @@ private val logger = KotlinLogging.logger {}
  * @author Matouš Kučera
  */
 abstract class AbstractMappingAnalyzer : MappingAnalyzer {
-    // sort by kind deletion status -> delete elements first and then accept non-deletion resolutions
     override val problems = mutableListOf<Problem<*>>()
 
     /**

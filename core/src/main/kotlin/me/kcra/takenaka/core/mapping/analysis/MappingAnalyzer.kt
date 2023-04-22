@@ -32,6 +32,8 @@ interface MappingAnalyzer {
 
     /**
      * Kinds of problems currently discovered by this analyzer.
+     *
+     * The resulting list is sorted in descending order; problem kinds, which remove the element are first.
      */
     val problemKinds: List<ProblemKind>
         get() = problems.mapTo(mutableSetOf(), transform = Problem<*>::kind).sortedByDescending(ProblemKind::deletesElement)

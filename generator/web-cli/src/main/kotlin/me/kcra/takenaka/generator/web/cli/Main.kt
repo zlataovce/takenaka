@@ -128,19 +128,6 @@ fun main(args: Array<String>) {
         // remove obfuscated method parameter names, they are a filler from Searge
         intercept(::MethodArgSourceFilter)
 
-        analyzer = MappingAnalyzerImpl(
-            MappingAnalyzerImpl.AnalysisOptions(
-                innerClassNameCompletionCandidates = setOf("spigot")
-            )
-        )
-        analysisResult {
-            problemKinds.forEach { kind ->
-                if (!skipSynthetic && kind == StandardProblemKinds.SYNTHETIC) return@forEach
-
-                acceptResolutions(kind)
-            }
-        }
-
         contributors { versionWorkspace ->
             val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper)
             val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper)
@@ -170,6 +157,11 @@ fun main(args: Array<String>) {
     }
 
     val mappingProvider = ResolvingMappingProvider(mappingConfig, objectMapper, xmlMapper)
+    val analyzer = MappingAnalyzerImpl(
+        MappingAnalyzerImpl.AnalysisOptions(
+            innerClassNameCompletionCandidates = setOf("spigot")
+        )
+    )
 
     val webConfig = buildWebConfig {
         logger.info { "using minification mode $minifier" }
@@ -210,7 +202,14 @@ fun main(args: Array<String>) {
     logger.info { "starting generator" }
     val time = measureTimeMillis {
         runBlocking {
-            generator.generate(mappingProvider)
+            val mappings = mappingProvider.get(analyzer)
+            analyzer.problemKinds.forEach { kind ->
+                if (!skipSynthetic && kind == StandardProblemKinds.SYNTHETIC) return@forEach
+
+                analyzer.acceptResolutions(kind)
+            }
+
+            generator.generate(mappings)
         }
     }
     logger.info { "generator finished in ${time / 1000} second(s)" }
