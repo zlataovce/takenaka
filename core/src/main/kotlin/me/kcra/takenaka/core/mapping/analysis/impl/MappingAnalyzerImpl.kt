@@ -36,13 +36,16 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
     /**
      * The super types of the last visited class.
      */
-    private var superTypes: List<MappingTree.ClassMapping>? = null
+    protected var superTypes: List<MappingTree.ClassMapping>? = null
 
     /**
      * Whether inheritance error correction should be skipped for further visited members.
      */
-    private var skipInheritanceChecks = false
+    protected var skipInheritanceChecks = false
 
+    /**
+     * Visits a class for analysis.
+     */
     override fun acceptClass(klass: MappingTree.ClassMapping) {
         superTypes = klass.superTypes
 
@@ -84,12 +87,18 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
         }
     }
 
+    /**
+     * Visits a field for analysis.
+     */
     override fun acceptField(field: MappingTree.FieldMapping) {
         checkElementModifiers(field) {
             element.owner.fields.remove(element)
         }
     }
 
+    /**
+     * Visits a field for analysis.
+     */
     override fun acceptMethod(method: MappingTree.MethodMapping) {
         checkElementModifiers(method) {
             element.owner.methods.remove(element)
