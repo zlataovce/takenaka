@@ -14,7 +14,7 @@ Options:
     --strictCache [false] -> Enforces strict cache validation 
     --clean [false] -> Removes previous build output and cache before launching 
     --noJoined [false] -> Don't save joined mapping files 
-    --minifier, -m [DETERMINISTIC] -> The minifier implementation used for minifying the documentation { Value should be one of [deterministic, normal, none] }
+    --minifier, -m [NORMAL] -> The minifier implementation used for minifying the documentation { Value should be one of [deterministic, normal, none] }
     --javadoc, -j -> Javadoc site that should be referenced in the documentation, can be specified multiple times { String }
     --skipSynthetic [true] -> Excludes synthetic classes and class members from the documentation 
     --help, -h -> Usage info

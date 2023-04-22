@@ -22,6 +22,7 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.coroutines.*
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.adapter.MissingDescriptorFilter
+import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
 import me.kcra.takenaka.core.mapping.buildMappingTree
 import me.kcra.takenaka.core.mapping.resolve.OutputContainer
 import me.kcra.takenaka.core.mapping.unwrap
@@ -34,11 +35,12 @@ import net.fabricmc.mappingio.tree.MemoryMappingTree
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.io.path.*
+import kotlin.system.measureTimeMillis
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * A [MappingProvider] implementation that fetches, corrects and caches mappings.
+ * A [MappingProvider] implementation that fetches and caches mappings.
  *
  * @property mappingConfig configuration to alter the mapping fetching and correction process
  * @property objectMapper a JSON object mapper instance for this provider
@@ -53,9 +55,10 @@ class ResolvingMappingProvider(
     /**
      * Resolves the mappings.
      *
+     * @param analyzer an analyzer which the mappings should be visited to as they are resolved
      * @return the mappings
      */
-    override suspend fun get(): MutableMappingsMap {
+    override suspend fun get(analyzer: MappingAnalyzer?): MutableMappingsMap {
         val manifest = objectMapper.versionManifest()
 
         return mappingConfig.versions
@@ -99,8 +102,12 @@ class ResolvingMappingProvider(
                 val tree = buildMappingTree {
                     contributor(contributors)
 
-                    interceptorsBefore += mappingConfig.visitorInterceptors
-                    interceptorsAfter += mappingConfig.mapperInterceptors
+                    interceptors += mappingConfig.interceptors
+                }
+
+                if (analyzer != null) {
+                    val time = measureTimeMillis { analyzer.accept(tree) }
+                    logger.info { "analyzed ${workspace.version.id} mappings in ${time}ms" }
                 }
 
                 if (outputFile != null && !outputFile.isDirectory()) {

@@ -8,6 +8,7 @@ The goal of this project is to improve the maintainability and performance of th
 
 * fetching and deserialization of various mappings
 * parsing of the server JAR (modifiers, superclasses, superinterfaces and more)
+* mapping semantic analysis and error correction
 * cross-version mapping history comparison
 * web documentation generation (including generics!)
 
@@ -22,8 +23,8 @@ The goal of this project is to improve the maintainability and performance of th
 - [x] Searge (Forge) mappings
 - [x] Spigot mappings
 - [x] Yarn (FabricMC) mappings
-- [ ] Hashed (QuiltMC) mappings
-- [ ] QuiltMC mappings
+- [ ] Hashed (QuiltMC) mappings (PRs welcome!)
+- [ ] QuiltMC mappings (PRs welcome!)
 
 ## Acknowledgements
 

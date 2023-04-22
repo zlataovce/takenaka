@@ -22,14 +22,15 @@ package me.kcra.takenaka.generator.web.cli
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.cli.*
 import kotlinx.coroutines.runBlocking
-import me.kcra.takenaka.core.*
+import me.kcra.takenaka.core.buildResolverOptions
+import me.kcra.takenaka.core.compositeWorkspace
 import me.kcra.takenaka.core.mapping.WrappingContributor
-import me.kcra.takenaka.core.mapping.adapter.LegacySpigotMappingPrepender
-import me.kcra.takenaka.core.mapping.adapter.MethodArgSourceFilter
-import me.kcra.takenaka.core.mapping.adapter.NamespaceFilter
-import me.kcra.takenaka.core.mapping.normalizingInterceptorOf
+import me.kcra.takenaka.core.mapping.adapter.*
+import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
+import me.kcra.takenaka.core.mapping.analysis.impl.StandardProblemKinds
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.objectMapper
+import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.common.ResolvingMappingProvider
 import me.kcra.takenaka.generator.common.buildMappingConfig
 import me.kcra.takenaka.generator.web.*
@@ -116,26 +117,25 @@ fun main(args: Array<String>) {
         version(version)
         mappingWorkspace = mappingsCache
 
-        // remove obfuscated method parameter names, they are a filler from Searge
-        interceptVisitor(::MethodArgSourceFilter)
         // remove Searge's ID namespace, it's not necessary
-        interceptVisitor { v ->
+        intercept { v ->
             NamespaceFilter(v, "searge_id")
         }
-        interceptMapper(
-            normalizingInterceptorOf(
-                skipSynthetic = skipSynthetic,
-                innerClassCompletionCandidates = listOf("spigot")
-            )
-        )
+        // remove static initializers, not needed in the documentation
+        intercept(::StaticInitializerFilter)
+        // remove overrides of java/lang/Object, they are implicit
+        intercept(::ObjectOverrideFilter)
+        // remove obfuscated method parameter names, they are a filler from Searge
+        intercept(::MethodArgSourceFilter)
 
-        provideContributors { versionWorkspace ->
+        contributors { versionWorkspace ->
             val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper)
             val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper)
 
             val prependedClasses = mutableListOf<String>()
 
             listOf(
+                VanillaMappingContributor(versionWorkspace, mojangProvider),
                 MojangServerMappingResolver(versionWorkspace, mojangProvider),
                 IntermediaryMappingResolver(versionWorkspace, sharedCache),
                 YarnMappingResolver(versionWorkspace, yarnProvider),
@@ -147,17 +147,21 @@ fun main(args: Array<String>) {
                 },
                 WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
                     LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses)
-                },
-                VanillaMappingContributor(versionWorkspace, mojangProvider)
+                }
             )
         }
 
         if (noJoined) {
-            provideJoinedOutputPath { null }
+            joinedOutputPath { null }
         }
     }
 
     val mappingProvider = ResolvingMappingProvider(mappingConfig, objectMapper, xmlMapper)
+    val analyzer = MappingAnalyzerImpl(
+        MappingAnalyzerImpl.AnalysisOptions(
+            innerClassNameCompletionCandidates = setOf("spigot")
+        )
+    )
 
     val webConfig = buildWebConfig {
         logger.info { "using minification mode $minifier" }
@@ -198,7 +202,14 @@ fun main(args: Array<String>) {
     logger.info { "starting generator" }
     val time = measureTimeMillis {
         runBlocking {
-            generator.generate(mappingProvider)
+            val mappings = mappingProvider.get(analyzer)
+            analyzer.problemKinds.forEach { kind ->
+                if (!skipSynthetic && kind == StandardProblemKinds.SYNTHETIC) return@forEach
+
+                analyzer.acceptResolutions(kind)
+            }
+
+            generator.generate(mappings)
         }
     }
     logger.info { "generator finished in ${time / 1000} second(s)" }

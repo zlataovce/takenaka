@@ -17,19 +17,21 @@
 
 package me.kcra.takenaka.core.mapping.adapter
 
-import me.kcra.takenaka.core.mapping.matchers.isStaticInitializer
-import mu.KotlinLogging
-import net.fabricmc.mappingio.tree.MappingTree
-
-private val logger = KotlinLogging.logger {}
+import net.fabricmc.mappingio.MappingVisitor
+import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
 
 /**
  * Filters out static initializers (&lt;clinit&gt;).
+ *
+ * @param next the visitor to delegate to
+ * @author Matouš Kučera
  */
-fun MappingTree.removeStaticInitializers() {
-    classes.forEach { klass ->
-        if (klass.methods.removeIf { it.isStaticInitializer }) {
-            logger.debug { "removed static initializer of ${klass.srcName}" }
+class StaticInitializerFilter(next: MappingVisitor) : ForwardingMappingVisitor(next) {
+    override fun visitMethod(srcName: String, srcDesc: String?): Boolean {
+        if (srcName == "<clinit>") {
+            return false
         }
+
+        return super.visitMethod(srcName, srcDesc)
     }
 }

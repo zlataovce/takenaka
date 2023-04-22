@@ -15,22 +15,21 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.generator.common
-
-import me.kcra.takenaka.core.mapping.MutableMappingsMap
-import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
+package me.kcra.takenaka.core.mapping.analysis
 
 /**
- * A class that provides a set of mappings required for generation.
+ * A type of a problem.
  *
  * @author Matouš Kučera
  */
-interface MappingProvider {
+interface ProblemKind {
     /**
-     * Provides the mappings.
-     *
-     * @param analyzer an analyzer which the mappings should be visited to as they are resolved
-     * @return the mappings
+     * The problem description.
      */
-    suspend fun get(analyzer: MappingAnalyzer? = null): MutableMappingsMap
+    val description: String?
+
+    /**
+     * Whether this problem is resolved by deleting the element from the tree.
+     */
+    val deletesElement: Boolean
 }
