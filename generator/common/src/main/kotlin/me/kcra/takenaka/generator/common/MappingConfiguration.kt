@@ -19,8 +19,7 @@ package me.kcra.takenaka.generator.common
 
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.VersionedWorkspace
-import me.kcra.takenaka.core.mapping.InterceptAfter
-import me.kcra.takenaka.core.mapping.InterceptBefore
+import me.kcra.takenaka.core.mapping.MapperIntercept
 import me.kcra.takenaka.core.mapping.MappingContributor
 import java.nio.file.Path
 import kotlin.properties.Delegates
@@ -41,8 +40,7 @@ typealias WorkspacePathProvider = (VersionedWorkspace) -> Path?
  * @property versions the mapping candidate versions
  * @property workspace the mapping cache workspace
  * @property contributorProvider a function that provides mapping contributors based on a version
- * @property mapperInterceptors functions that sequentially modify every mapping tree, useful for normalization and correction
- * @property visitorInterceptors functions that sequentially wrap a tree visitor before any mappings are visited to it, useful for simple filtering
+ * @property interceptors functions that sequentially wrap a tree visitor before any mappings are visited to it, useful for simple filtering
  * @property joinedOutputProvider the joined mapping file path provider, returns null if it should not be persisted (rebuilt in memory every run)
  * @author Matouš Kučera
  */
@@ -50,8 +48,7 @@ data class MappingConfiguration(
     val versions: List<String>,
     val workspace: CompositeWorkspace,
     val contributorProvider: ContributorProvider,
-    val mapperInterceptors: List<InterceptAfter>,
-    val visitorInterceptors: List<InterceptBefore>,
+    val interceptors: List<MapperIntercept>,
     val joinedOutputProvider: WorkspacePathProvider
 )
 
@@ -77,14 +74,9 @@ class MappingConfigurationBuilder {
     var contributorProvider by Delegates.notNull<ContributorProvider>()
 
     /**
-     * Function that sequentially modify every mapping tree, useful for normalization and correction.
-     */
-    var mapperInterceptors = mutableListOf<InterceptAfter>()
-
-    /**
      * Functions that sequentially wrap a tree visitor before any mappings are visited to it, useful for simple filtering.
      */
-    var visitorInterceptors = mutableListOf<InterceptBefore>()
+    var interceptors = mutableListOf<MapperIntercept>()
 
     /**
      * The joined mapping file path provider, returns null if it should not be persisted (rebuilt in memory every run).
@@ -114,7 +106,7 @@ class MappingConfigurationBuilder {
      *
      * @param block the provider
      */
-    fun provideContributors(block: ContributorProvider) {
+    fun contributors(block: ContributorProvider) {
         contributorProvider = block
     }
 
@@ -123,26 +115,17 @@ class MappingConfigurationBuilder {
      *
      * @param block the provider
      */
-    fun provideJoinedOutputPath(block: WorkspacePathProvider) {
+    fun joinedOutputPath(block: WorkspacePathProvider) {
         joinedOutputProvider = block
     }
 
     /**
-     * Appends to [mapperInterceptors].
+     * Appends to [interceptors].
      *
      * @param block the interceptor
      */
-    fun interceptMapper(block: InterceptAfter) {
-        mapperInterceptors += block
-    }
-
-    /**
-     * Appends to [visitorInterceptors].
-     *
-     * @param block the interceptor
-     */
-    fun interceptVisitor(block: InterceptBefore) {
-        visitorInterceptors += block
+    fun intercept(block: MapperIntercept) {
+        interceptors += block
     }
 
     /**
@@ -154,8 +137,7 @@ class MappingConfigurationBuilder {
         versions,
         mappingWorkspace,
         contributorProvider,
-        mapperInterceptors,
-        visitorInterceptors,
+        interceptors,
         joinedOutputProvider
     )
 }

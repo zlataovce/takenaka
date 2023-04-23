@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.test.mapping.adapter
+package me.kcra.takenaka.core.test.mapping.analysis.impl
 
-import me.kcra.takenaka.core.mapping.adapter.batchCompleteMethodOverrides
-import me.kcra.takenaka.core.mapping.adapter.completeMethodOverrides
+import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
+import me.kcra.takenaka.core.mapping.analysis.impl.StandardProblemKinds
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
@@ -29,48 +29,62 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-class MethodOverrideCompleterTest {
+class MappingAnalyzerImplTest {
     @Test
     fun `missing method names should be added for a single namespace`() {
         val tree = createMockTree()
         val klass = assertNotNull(tree.getClass("ConcreteClass"))
         val method = assertNotNull(klass.getMethod("overriddenMethod", "(Ltest/Class;)V"))
 
+        val analyzer = MappingAnalyzerImpl(
+            MappingAnalyzerImpl.AnalysisOptions(
+                inheritanceErrorExemptions = setOf("wrong_namespace")
+            )
+        )
+        analyzer.accept(tree)
+
         assertNull(method.getName("missing_namespace"))
-        tree.completeMethodOverrides("missing_namespace")
+
+        analyzer.acceptResolutions(StandardProblemKinds.INHERITANCE_ERROR)
+
         assertEquals("correctMappedName", method.getName("missing_namespace"))
     }
-    
+
     @Test
     fun `incorrect method names should be corrected for a single namespace`() {
         val tree = createMockTree()
         val klass = assertNotNull(tree.getClass("ConcreteClass"))
         val method = assertNotNull(klass.getMethod("overriddenMethod", "(Ltest/Class;)V"))
-        
+
+        val analyzer = MappingAnalyzerImpl(
+            MappingAnalyzerImpl.AnalysisOptions(
+                inheritanceErrorExemptions = setOf("missing_namespace")
+            )
+        )
+        analyzer.accept(tree)
+
         assertEquals("wrongMappedName", method.getName("wrong_namespace"))
-        tree.completeMethodOverrides("wrong_namespace")
+
+        analyzer.acceptResolutions(StandardProblemKinds.INHERITANCE_ERROR)
+
         assertEquals("correctMappedName", method.getName("wrong_namespace"))
     }
 
     @Test
-    fun `missing method names should be added for multiple namespaces`() {
+    fun `missing and incorrect method names should be added and corrected for multiple namespaces`() {
         val tree = createMockTree()
         val klass = assertNotNull(tree.getClass("ConcreteClass"))
         val method = assertNotNull(klass.getMethod("overriddenMethod", "(Ltest/Class;)V"))
+
+        val analyzer = MappingAnalyzerImpl()
+        analyzer.accept(tree)
 
         assertNull(method.getName("missing_namespace"))
-        tree.batchCompleteMethodOverrides(listOf("missing_namespace"))
-        assertEquals("correctMappedName", method.getName("missing_namespace"))
-    }
-
-    @Test
-    fun `incorrect method names should be corrected for multiple namespaces`() {
-        val tree = createMockTree()
-        val klass = assertNotNull(tree.getClass("ConcreteClass"))
-        val method = assertNotNull(klass.getMethod("overriddenMethod", "(Ltest/Class;)V"))
-
         assertEquals("wrongMappedName", method.getName("wrong_namespace"))
-        tree.batchCompleteMethodOverrides(listOf("wrong_namespace"))
+
+        analyzer.acceptResolutions(StandardProblemKinds.INHERITANCE_ERROR)
+
+        assertEquals("correctMappedName", method.getName("missing_namespace"))
         assertEquals("correctMappedName", method.getName("wrong_namespace"))
     }
 
@@ -97,7 +111,7 @@ class MethodOverrideCompleterTest {
                         }
                     }
                 }
-                
+
                 // class SuperClass {
                 //     void overriddenMethod(test.Class arg0) {
                 //     }

@@ -42,3 +42,11 @@ inline val MappingTreeView.allNamespaceIds: IntRange
  */
 inline val MappingTreeView.dstNamespaceIds: IntRange
     get() = 0 until maxNamespaceId
+
+/**
+ * Returns whether the tree has a namespace with the specified name.
+ *
+ * @param ns the namespace name
+ * @return does the namespace exist in the tree?
+ */
+fun MappingTreeView.hasNamespace(ns: String): Boolean = getNamespaceId(ns) != MappingTreeView.NULL_NAMESPACE_ID

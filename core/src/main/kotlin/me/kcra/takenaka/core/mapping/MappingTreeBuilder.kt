@@ -17,8 +17,6 @@
 
 package me.kcra.takenaka.core.mapping
 
-import me.kcra.takenaka.core.mapping.adapter.*
-import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MemoryMappingTree
@@ -26,12 +24,7 @@ import net.fabricmc.mappingio.tree.MemoryMappingTree
 /**
  * A function that wraps a mapping tree (maybe already wrapped) before contributors visit it.
  */
-typealias InterceptBefore = (MappingVisitor) -> MappingVisitor
-
-/**
- * A function that mutates a mapping tree.
- */
-typealias InterceptAfter = (MemoryMappingTree) -> Unit
+typealias MapperIntercept = (MappingVisitor) -> MappingVisitor
 
 /**
  * A mapping tree builder.
@@ -47,12 +40,7 @@ class MappingTreeBuilder {
     /**
      * Functions that wrap the tree into a mapping visitor, maintains insertion order.
      */
-    var interceptorsBefore = mutableListOf<InterceptBefore>()
-
-    /**
-     * Functions that mutate the finalized tree, maintains insertion order.
-     */
-    var interceptorsAfter = mutableListOf<InterceptAfter>()
+    var interceptors = mutableListOf<MapperIntercept>()
 
     /**
      * Appends mapping contributors.
@@ -87,17 +75,8 @@ class MappingTreeBuilder {
      *
      * @param block the wrapping function
      */
-    fun interceptBefore(block: InterceptBefore) {
-        interceptorsBefore += block
-    }
-
-    /**
-     * Appends a new tree mutating function.
-     *
-     * @param block the mutator
-     */
-    fun interceptAfter(block: InterceptAfter) {
-        interceptorsAfter += block
+    fun intercept(block: MapperIntercept) {
+        interceptors += block
     }
 
     /**
@@ -105,49 +84,11 @@ class MappingTreeBuilder {
      *
      * @return the mapping tree
      */
-    fun toMappingTree(): MappingTree {
-        val tree = MemoryMappingTree()
-        val wrappedTree = interceptorsBefore.fold<InterceptBefore, MappingVisitor>(tree) { v, interceptor -> interceptor(v) }
+    fun toMappingTree(): MappingTree = MemoryMappingTree().apply {
+        val wrappedTree = interceptors.fold<MapperIntercept, MappingVisitor>(this) { v, interceptor -> interceptor(v) }
 
         contributors.forEach { contributor -> contributor.accept(wrappedTree) }
-        interceptorsAfter.forEach { interceptor -> interceptor(tree) }
-
-        return tree
     }
-}
-
-/**
- * Creates an [InterceptAfter] that normalizes a mapping tree.
- *
- * Normalization includes multiple processes:
- *  - removal of classes and class members that aren't backed by modifiers visited by [VanillaMappingContributor]
- *  - removal of synthetic classes and class members, if [skipSynthetic] is true
- *  - removal of static initializer blocks (&lt;clinit&gt; methods)
- *  - removal of methods overridden from java.lang.Object
- *  - renaming of owner classes of unmapped anonymous and inner classes in [innerClassCompletionCandidates] namespaces
- *  - inheritance error corrections in all namespaces except [correctNamespaces]
- *
- * @param skipSynthetic should the interceptor skip all synthetic classes and class members?
- * @param correctNamespaces namespaces that should not have inheritance error corrections applied, these are artificial (non-mapping) namespaces defined in the core library by default
- * @param innerClassCompletionCandidates namespaces that should have their inner classes' owner names corrected, these will most likely be Spigot mapping namespaces
- * @return the interceptor
- */
-fun normalizingInterceptorOf(
-    skipSynthetic: Boolean = true,
-    correctNamespaces: List<String> = VanillaMappingContributor.NAMESPACES,
-    innerClassCompletionCandidates: List<String> = emptyList()
-): InterceptAfter = { tree ->
-    tree.removeElementsWithoutModifiers()
-
-    if (skipSynthetic) {
-        tree.removeSyntheticElements()
-    }
-
-    tree.removeStaticInitializers()
-    tree.removeObjectOverrides()
-
-    innerClassCompletionCandidates.forEach(tree::completeInnerClassNames)
-    tree.batchCompleteMethodOverrides(tree.dstNamespaces.filterNot(correctNamespaces::contains))
 }
 
 /**

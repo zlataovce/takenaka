@@ -126,7 +126,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                     }
 
                     val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
-                    val classMap = mutableMapOf<String, MutableMap<String, ClassType>>()
+                    val classMap = sortedMapOf<String, MutableMap<String, ClassType>>()
 
                     // class index format, similar to a CSV:
                     // first line is a "header", this is a tab-delimited string with friendly namespace names + its badge colors, which are delimited by a colon ("namespace:#color")
@@ -158,7 +158,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                                     .serialize(versionWorkspace, "$friendlyName.html")
                             }
 
-                            classMap.getOrPut(friendlyName.substringBeforeLast('/')) { mutableMapOf() } +=
+                            classMap.getOrPut(friendlyName.substringBeforeLast('/')) { sortedMapOf() } +=
                                 friendlyName.substringAfterLast('/') to classTypeOf(klass.modifiers)
 
                             appendLine(namespaces.values.joinToString("\t") { klass.getName(it) ?: "" })

@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.benchmark.mapping.adapter
+package me.kcra.takenaka.core.benchmark.mapping.analysis.impl
 
 import kotlinx.benchmark.*
-import me.kcra.takenaka.core.mapping.adapter.batchCompleteMethodOverrides
-import me.kcra.takenaka.core.mapping.adapter.completeMethodOverrides
+import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
+import me.kcra.takenaka.core.mapping.analysis.impl.StandardProblemKinds
 import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
 import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-class MethodOverrideCompleterBenchmark {
+class MappingAnalyzerImplBenchmark {
     private lateinit var tree: MappingTree
 
     @Setup(Level.Invocation)
@@ -40,14 +40,11 @@ class MethodOverrideCompleterBenchmark {
     }
 
     @Benchmark
-    fun complete() {
-        tree.completeMethodOverrides("missing_namespace")
-        tree.completeMethodOverrides("wrong_namespace")
-    }
+    fun acceptInheritanceCorrections() {
+        val analyzer = MappingAnalyzerImpl()
 
-    @Benchmark
-    fun completeBatch() {
-        tree.batchCompleteMethodOverrides(listOf("missing_namespace", "wrong_namespace"))
+        analyzer.accept(tree)
+        analyzer.acceptResolutions(StandardProblemKinds.INHERITANCE_ERROR)
     }
 
     private fun createMockTree(): MappingTree {
