@@ -40,6 +40,8 @@
     --search-subtitle: #6b7280;
     --code-block: #101010;
     --spacer: #374151;
+    --diff-addition: rgba(46, 160, 67, 0.15);
+    --diff-deletion: rgba(248, 81, 73, 0.15);
 }
 
 [data-theme="light"] {
@@ -98,6 +100,7 @@ h1 {
     color: var(--text);
     font-size: 1.25rem;
     line-height: 1.75rem;
+    word-break: break-word;
 }
 
 h3 {
@@ -399,7 +402,8 @@ input::placeholder {
     color: var(--text);
     font-size: 0.875rem;
     line-height: 1.25rem;
-    background-color: rgba(46, 160, 67, 0.15);
+    background-color: var(--diff-addition);
+    word-break: break-word;
 }
 
 .diff-addition > * {
@@ -415,7 +419,8 @@ input::placeholder {
     color: var(--text);
     font-size: 0.875rem;
     line-height: 1.25rem;
-    background-color: rgba(248, 81, 73, 0.15);
+    background-color: var(--diff-deletion);
+    word-break: break-word;
 }
 
 .diff-deletion > * {
