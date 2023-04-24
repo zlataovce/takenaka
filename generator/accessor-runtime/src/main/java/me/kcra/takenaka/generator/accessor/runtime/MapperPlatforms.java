@@ -19,9 +19,9 @@ package me.kcra.takenaka.generator.accessor.runtime;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,16 +38,14 @@ public enum MapperPlatforms implements MapperPlatform {
      * An abstraction for platforms that implement the Bukkit API.
      */
     BUKKIT {
-        private final boolean isSupported = Reflect.has("org.bukkit.Bukkit");
         private String minecraftVersion = null;
 
         {
-            if (isSupported) {
-                try {
-                    final Class<?> bukkitClass = Class.forName("org.bukkit.Bukkit");
-                    final Method getVersionMethod = bukkitClass.getMethod("getVersion");
+            final MethodHandle getVersionHandle = Reflect.findVirtualSafe("org.bukkit.Bukkit", "getVersion", String.class);
 
-                    final String versionString = (String) getVersionMethod.invoke(null);
+            if (getVersionHandle != null) {
+                try {
+                    final String versionString = (String) getVersionHandle.invokeExact();
 
                     final Pattern versionPattern = Pattern.compile("\\(MC: ([A-Za-z0-9-_. ]+)\\)");
                     final Matcher matcher = versionPattern.matcher(versionString);
@@ -56,20 +54,20 @@ public enum MapperPlatforms implements MapperPlatform {
                     }
 
                     minecraftVersion = matcher.group(1);
-                } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                    throw new RuntimeException("Failed to get Minecraft version", e);
+                } catch (Throwable t) {
+                    throw new RuntimeException("Failed to get Minecraft version", t);
                 }
             }
         }
 
         @Override
         public boolean isSupported() {
-            return isSupported;
+            return minecraftVersion != null;
         }
 
         @Override
         public @NotNull String getVersion() {
-            if (!isSupported) {
+            if (!isSupported()) {
                 throw new UnsupportedOperationException("Bukkit is not supported by this environment");
             }
             return minecraftVersion;
@@ -85,35 +83,29 @@ public enum MapperPlatforms implements MapperPlatform {
      * An abstraction for Forge-based platforms.
      */
     FORGE {
-        private final boolean isSupported = Reflect.has("net.minecraftforge.common.MinecraftForge");
         private String minecraftVersion = null;
 
         {
-            if (isSupported) {
+            final MethodHandle getVersionHandle = Optional.ofNullable(Reflect.findStaticSafe("net.minecraftforge.versions.mcp.MCPVersion", "getMCVersion", String.class))
+                    .orElseGet(() -> Reflect.findStaticGetterSafe("net.minecraftforge.common.MinecraftForge", "MC_VERSION", String.class));
+
+            if (getVersionHandle != null) {
                 try {
-                    try {
-                        // Flattening versions
-                        final Class<?> mcpVersionClass = Class.forName("net.minecraftforge.versions.mcp.MCPVersion");
-                        minecraftVersion = (String) mcpVersionClass.getMethod("getMCVersion").invoke(null);
-                    } catch (ClassNotFoundException | NoSuchMethodException ignored) {
-                        // Legacy versions
-                        final Class<?> forgeClass = Class.forName("net.minecraftforge.common.MinecraftForge");
-                        minecraftVersion = (String) forgeClass.getField("MC_VERSION").get(null);
-                    }
-                } catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException | InvocationTargetException e) {
-                    throw new RuntimeException("Failed to get Minecraft version", e);
+                    minecraftVersion = (String) getVersionHandle.invokeExact();
+                } catch (Throwable t) {
+                    throw new RuntimeException("Failed to get Minecraft version", t);
                 }
             }
         }
 
         @Override
         public boolean isSupported() {
-            return isSupported;
+            return minecraftVersion != null;
         }
 
         @Override
         public @NotNull String getVersion() {
-            if (!isSupported) {
+            if (!isSupported()) {
                 throw new UnsupportedOperationException("Forge is not supported by this environment");
             }
             return minecraftVersion;
