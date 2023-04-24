@@ -40,6 +40,7 @@
     --search-subtitle: #6b7280;
     --code-block: #101010;
     --spacer: #374151;
+    --spacer-table: #1f2937;
     --diff-addition: rgba(46, 160, 67, 0.15);
     --diff-deletion: rgba(248, 81, 73, 0.15);
 }
@@ -326,7 +327,7 @@ input::placeholder {
     padding: 0.375rem;
     font-size: 0.75rem;
     font-weight: 600;
-    line-height: .75rem;
+    line-height: 0.75rem;
     color: var(--text-badge);
 }
 
@@ -366,7 +367,7 @@ input::placeholder {
 }
 
 .styled-table > tbody > tr {
-    border: 1px solid #1f2937;
+    border: 1px solid var(--spacer-table);
     border-right-width: 0;
     border-left-width: 0;
 }
