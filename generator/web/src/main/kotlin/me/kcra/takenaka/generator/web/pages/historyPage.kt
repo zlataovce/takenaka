@@ -258,7 +258,10 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                 } else {
                     p(classes = "diff-status diff-no-changes")
                 }
-                spacerYComponent()
+
+                if (i != (classNameRows.size - 1)) {
+                    spacerYComponent()
+                }
             }
         }
         footerPlaceholderComponent()

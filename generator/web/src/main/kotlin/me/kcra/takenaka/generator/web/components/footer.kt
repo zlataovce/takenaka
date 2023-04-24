@@ -24,7 +24,7 @@ import kotlinx.html.*
  */
 fun FlowContent.footerComponent() {
     footer {
-        spacerBottomComponent()
+        spacerBottomSlimComponent()
         div(classes = "footer-content") {
             p {
                 +"Built with lots of coffee and ❤️, for people by people."

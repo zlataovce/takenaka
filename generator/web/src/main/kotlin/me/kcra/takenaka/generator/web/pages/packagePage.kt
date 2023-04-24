@@ -51,7 +51,7 @@ fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: St
                 if (classes.none { (_, v) -> v == type }) return@forEach
 
                 spacerBottomComponent()
-                table(classes = "member-table") {
+                table(classes = "styled-table") {
                     thead {
                         tr {
                             th {

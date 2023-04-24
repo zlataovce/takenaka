@@ -44,7 +44,7 @@ fun GenerationContext.overviewPage(workspace: VersionedWorkspace, packages: Set<
                 +workspace.version.id
             }
             spacerBottomComponent()
-            table(classes = "member-table") {
+            table(classes = "styled-table") {
                 thead {
                     tr {
                         th {

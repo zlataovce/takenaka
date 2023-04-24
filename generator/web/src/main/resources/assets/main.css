@@ -296,8 +296,20 @@ input::placeholder {
     background-color: var(--spacer);
 }
 
+.spacer-top-slim {
+    margin-top: 1.25rem;
+    height: 1px;
+    background-color: var(--spacer);
+}
+
 .spacer-bottom {
     margin-top: 0.5rem;
+    margin-bottom: 1.25rem;
+    height: 1px;
+    background-color: var(--spacer);
+}
+
+.spacer-bottom-slim {
     margin-bottom: 1.25rem;
     height: 1px;
     background-color: var(--spacer);
@@ -333,38 +345,44 @@ input::placeholder {
     padding-left: 0.5rem;
 }
 
-.member-table {
+.styled-table {
     width: 100%;
     border-collapse: collapse;
 }
 
-.member-table tbody {
+/* TODO: clean up these child combinators */
+
+.styled-table tbody {
     font-size: 0.875rem;
     line-height: 1.25rem;
 }
 
-.member-table > thead > tr {
+.styled-table > thead > tr {
     border-bottom: 2px solid var(--spacer);
 }
 
-.member-table > tbody > tr {
+.styled-table > thead > tr :not(:last-child) {
+    padding-right: 0.5rem;
+}
+
+.styled-table > tbody > tr {
     border: 1px solid #1f2937;
     border-right-width: 0;
     border-left-width: 0;
 }
 
-.member-table > tbody > tr:last-child {
+.styled-table > tbody > tr:last-child {
     border-bottom: none;
 }
 
-.member-table > tbody > tr > td {
-    padding-right: 0.5rem;
+.styled-table > tbody > tr > td {
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
+    padding-right: 0.5rem;
 }
 
-.member-table > tbody > tr > td.member-modifiers {
-    padding-right: 0.5rem;
+.styled-table > tbody > tr > td:last-child {
+    padding-right: 0;
 }
 
 .member-modifiers {
@@ -384,6 +402,7 @@ input::placeholder {
 
 .mapping-badges {
     display: flex;
+    flex-wrap: wrap;
 }
 
 .license-header {

@@ -102,12 +102,23 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                     }
                 }
             }
+
+            var nextSpacerSlim = false
+            fun addContentSpacer() {
+                if (nextSpacerSlim) {
+                    spacerBottomSlimComponent()
+                } else {
+                    spacerBottomComponent()
+                    nextSpacerSlim = true
+                }
+            }
+
             if (klass.fields.isNotEmpty()) {
-                spacerBottomComponent()
+                addContentSpacer()
                 h4 {
                     +"Field summary"
                 }
-                table(classes = "member-table") {
+                table(classes = "styled-table") {
                     thead {
                         tr {
                             th {
@@ -158,11 +169,11 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
 
             val constructors = klass.methods.filter(MappingTreeView.MethodMappingView::isConstructor)
             if (constructors.isNotEmpty()) {
-                spacerBottomComponent()
+                addContentSpacer()
                 h4 {
                     +"Constructor summary"
                 }
-                table(classes = "member-table") {
+                table(classes = "styled-table") {
                     thead {
                         tr {
                             th {
@@ -199,11 +210,11 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
             // skip constructors and implicit enum methods
             val methods = klass.methods.filter { !it.isConstructor && ((klassDeclaration.modifiers and Opcodes.ACC_ENUM) == 0 || !(it.isEnumValueOf || it.isEnumValues)) }
             if (methods.isNotEmpty()) {
-                spacerBottomComponent()
+                addContentSpacer()
                 h4 {
                     +"Method summary"
                 }
-                table(classes = "member-table") {
+                table(classes = "styled-table") {
                     thead {
                         tr {
                             th {

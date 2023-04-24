@@ -27,10 +27,24 @@ fun FlowContent.spacerTopComponent() {
 }
 
 /**
+ * Appends a spacer component with a top margin, but without a bottom margin.
+ */
+fun FlowContent.spacerTopSlimComponent() {
+    p(classes = "spacer-top-slim")
+}
+
+/**
  * Appends a spacer component with a bottom margin.
  */
 fun FlowContent.spacerBottomComponent() {
     p(classes = "spacer-bottom")
+}
+
+/**
+ * Appends a spacer component with a bottom margin, but without a top margin.
+ */
+fun FlowContent.spacerBottomSlimComponent() {
+    p(classes = "spacer-bottom-slim")
 }
 
 /**
