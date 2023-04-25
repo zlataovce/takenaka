@@ -54,7 +54,17 @@ import java.lang.reflect.Modifier
 fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, workspace: VersionedWorkspace, friendlyNameRemapper: ElementRemapper): Document = createHTMLDocument().html {
     val klassDeclaration = formatClassDescriptor(klass, workspace.version, friendlyNameRemapper)
 
-    headComponent("${workspace.version.id} - ${klassDeclaration.friendlyName}", workspace.version.id)
+    head {
+        defaultResourcesComponent(workspace.version.id)
+        if (generator.config.emitMetaTags) {
+            metadataComponent(
+                title = klassDeclaration.friendlyName,
+                description = "version: ${workspace.version.id}",
+                themeColor = "#21ff21"
+            )
+        }
+        title(content = "${workspace.version.id} - ${klassDeclaration.friendlyName}")
+    }
     body {
         navPlaceholderComponent()
         main {

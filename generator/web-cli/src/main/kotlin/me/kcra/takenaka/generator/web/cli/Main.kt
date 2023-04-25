@@ -77,6 +77,7 @@ fun main(args: Array<String>) {
     val minifier by parser.option(ArgType.Choice<MinifierImpls>(), shortName = "m", description = "The minifier implementation used for minifying the documentation").default(MinifierImpls.NORMAL)
     val javadoc by parser.option(ArgType.String, shortName = "j", description = "Javadoc site that should be referenced in the documentation, can be specified multiple times").multiple()
     val skipSynthetic by parser.option(ArgType.Boolean, description = "Excludes synthetic classes and class members from the documentation").default(true)
+    val emitMeta by parser.option(ArgType.Boolean, description = "Emit HTML metadata tags in OpenGraph format").default(true)
 
     parser.parse(args)
 
@@ -171,6 +172,8 @@ fun main(args: Array<String>) {
             }
             MinifierImpls.NONE -> {}
         }
+
+        emitMetaTags = emitMeta
 
         val indexers = mutableListOf<ClassSearchIndex>(objectMapper.modularClassSearchIndexOf(JDK_17_BASE_URL))
 

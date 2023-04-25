@@ -24,6 +24,7 @@ import net.fabricmc.mappingio.MappingUtil
 /**
  * Configuration for [WebGenerator].
  *
+ * @property emitMetaTags whether HTML metadata tags (per [me.kcra.takenaka.generator.web.components.metadataComponent]) should be added to pages
  * @property transformers a list of transformers that transform the output
  * @property namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @property namespaces a map of namespaces and their descriptions, unspecified namespaces will not be shown
@@ -33,6 +34,7 @@ import net.fabricmc.mappingio.MappingUtil
  * @author Matouš Kučera
  */
 data class WebConfiguration(
+    val emitMetaTags: Boolean = true,
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaces: Map<String, NamespaceDescription> = emptyMap(),
@@ -47,6 +49,11 @@ data class WebConfiguration(
  * @author Matouš Kučera
  */
 class WebConfigurationBuilder {
+    /**
+     * Whether HTML metadata tags (per [me.kcra.takenaka.generator.web.components.metadataComponent]) should be added to pages.
+     */
+    var emitMetaTags = true
+
     /**
      * Transformers that transform the output.
      */
@@ -164,6 +171,7 @@ class WebConfigurationBuilder {
      * @return the configuration
      */
     fun toWebConfig() = WebConfiguration(
+        emitMetaTags,
         transformers,
         namespaceFriendlinessIndex,
         namespaces,

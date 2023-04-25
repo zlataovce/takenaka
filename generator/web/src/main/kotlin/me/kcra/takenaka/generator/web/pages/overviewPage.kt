@@ -22,10 +22,7 @@ import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.web.GenerationContext
-import me.kcra.takenaka.generator.web.components.footerPlaceholderComponent
-import me.kcra.takenaka.generator.web.components.headComponent
-import me.kcra.takenaka.generator.web.components.navPlaceholderComponent
-import me.kcra.takenaka.generator.web.components.spacerBottomComponent
+import me.kcra.takenaka.generator.web.components.*
 import org.w3c.dom.Document
 
 /**
@@ -36,7 +33,17 @@ import org.w3c.dom.Document
  * @return the generated document
  */
 fun GenerationContext.overviewPage(workspace: VersionedWorkspace, packages: Set<String>): Document = createHTMLDocument().html {
-    headComponent("${workspace.version.id} - overview", workspace.version.id)
+    head {
+        defaultResourcesComponent(workspace.version.id)
+        if (generator.config.emitMetaTags) {
+            metadataComponent(
+                title = workspace.version.id,
+                description = if (packages.size == 1) "1 package" else "${packages.size} packages",
+                themeColor = "#21ff21"
+            )
+        }
+        title(content = "overview - ${workspace.version.id}")
+    }
     body {
         navPlaceholderComponent()
         main {

@@ -20,19 +20,29 @@ package me.kcra.takenaka.generator.web.components
 import kotlinx.html.*
 
 /**
- * Appends a head component.
+ * Appends default resources (scripts, stylesheets, meta, ...) to a head element.
+ *
+ * @param version the Minecraft version of the page's context, the corresponding class search index is added if not null
  */
-fun HTML.headComponent(title: String, version: String? = null) {
-    head {
-        meta(name = "viewport", content = "width=device-width, initial-scale=1")
-        link(href = "/assets/main.css", rel = "stylesheet")
-        script(src = "/assets/main.js") {}
-        script(src = "/assets/components.js") {}
-        if (version != null) {
-            script(src = "/$version/class-index.js") {
-                attributes["async"] = "true"
-            }
+fun HEAD.defaultResourcesComponent(version: String? = null) {
+    meta(name = "viewport", content = "width=device-width, initial-scale=1")
+    link(href = "/assets/main.css", rel = "stylesheet")
+    script(src = "/assets/main.js") {}
+    script(src = "/assets/components.js") {}
+    if (version != null) {
+        script(src = "/$version/class-index.js") {
+            async = true
         }
-        title(content = title)
     }
+}
+
+/**
+ * Appends [OpenGraph](https://ogp.me/#metadata) and `theme-color` metadata to a head element.
+ */
+fun HEAD.metadataComponent(title: String? = null, description: String? = null, themeColor: String? = null) {
+    if (themeColor != null) meta(name = "theme-color", content = themeColor)
+
+    // https://ogp.me/#metadata
+    if (title != null) meta(name = "og:title", content = title)
+    if (description != null) meta(name = "og:description", content = description)
 }

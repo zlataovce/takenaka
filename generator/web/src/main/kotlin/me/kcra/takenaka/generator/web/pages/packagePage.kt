@@ -23,10 +23,7 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.web.ClassType
 import me.kcra.takenaka.generator.web.GenerationContext
-import me.kcra.takenaka.generator.web.components.footerPlaceholderComponent
-import me.kcra.takenaka.generator.web.components.headComponent
-import me.kcra.takenaka.generator.web.components.navPlaceholderComponent
-import me.kcra.takenaka.generator.web.components.spacerBottomComponent
+import me.kcra.takenaka.generator.web.components.*
 import org.w3c.dom.Document
 
 /**
@@ -40,7 +37,17 @@ import org.w3c.dom.Document
 fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: String, classes: Map<String, ClassType>): Document = createHTMLDocument().html {
     val packageName0 = packageName.fromInternalName()
 
-    headComponent("${workspace.version.id} - $packageName0", workspace.version.id)
+    head {
+        defaultResourcesComponent(workspace.version.id)
+        if (generator.config.emitMetaTags) {
+            metadataComponent(
+                title = packageName0,
+                description = if (classes.size == 1) "1 class" else "${classes.size} classes",
+                themeColor = "#21ff21"
+            )
+        }
+        title(content = "${workspace.version.id} - $packageName0")
+    }
     body {
         navPlaceholderComponent()
         main {
