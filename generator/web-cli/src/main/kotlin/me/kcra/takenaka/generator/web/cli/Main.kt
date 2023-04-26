@@ -22,7 +22,7 @@ package me.kcra.takenaka.generator.web.cli
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.cli.*
 import kotlinx.coroutines.runBlocking
-import me.kcra.takenaka.core.buildResolverOptions
+import me.kcra.takenaka.core.buildWorkspaceOptions
 import me.kcra.takenaka.core.compositeWorkspace
 import me.kcra.takenaka.core.mapping.WrappingContributor
 import me.kcra.takenaka.core.mapping.adapter.*
@@ -70,7 +70,7 @@ fun main(args: Array<String>) {
     val cache by parser.option(ArgType.String, shortName = "c", description = "Caching directory for mappings and other resources").default("cache")
     val strictCache by parser.option(ArgType.Boolean, description = "Enforces strict cache validation").default(false)
     val clean by parser.option(ArgType.Boolean, description = "Removes previous build output and cache before launching").default(false)
-    val noJoined by parser.option(ArgType.Boolean, description = "Don't save joined mapping files").default(false)
+    val noJoined by parser.option(ArgType.Boolean, description = "Don't cache joined mapping files").default(false)
 
     // generator-specific settings below
 
@@ -81,19 +81,19 @@ fun main(args: Array<String>) {
 
     parser.parse(args)
 
-    val options = buildResolverOptions {
+    val options = buildWorkspaceOptions {
         if (!strictCache) {
             relaxedCache()
         }
     }
 
     val workspace = workspace {
+        options(options)
         rootDirectory(output)
-        resolverOptions = options
     }
     val cacheWorkspace = compositeWorkspace {
+        options(options)
         rootDirectory(cache)
-        resolverOptions = options
     }
 
     if (clean) {
@@ -107,16 +107,16 @@ fun main(args: Array<String>) {
     val xmlMapper = XmlMapper()
 
     val mappingsCache = cacheWorkspace.createCompositeWorkspace {
-        this.name = "mappings"
+        name = "mappings"
     }
     val sharedCache = cacheWorkspace.createWorkspace {
-        this.name = "shared"
+        name = "shared"
     }
 
     val yarnProvider = YarnMetadataProvider(sharedCache, xmlMapper)
     val mappingConfig = buildMappingConfig {
         version(version)
-        mappingWorkspace = mappingsCache
+        workspace(mappingsCache)
 
         // remove Searge's ID namespace, it's not necessary
         intercept { v ->
@@ -165,18 +165,14 @@ fun main(args: Array<String>) {
     )
 
     val webConfig = buildWebConfig {
+        emitMetaTags(emitMeta)
+
         logger.info { "using minification mode $minifier" }
-        when (minifier) {
-            MinifierImpls.NORMAL, MinifierImpls.DETERMINISTIC -> {
-                transformer(Minifier(isDeterministic = minifier == MinifierImpls.DETERMINISTIC))
-            }
-            MinifierImpls.NONE -> {}
+        if (minifier != MinifierImpls.NONE) {
+            transformer(Minifier(isDeterministic = minifier == MinifierImpls.DETERMINISTIC))
         }
 
-        emitMetaTags = emitMeta
-
         val indexers = mutableListOf<ClassSearchIndex>(objectMapper.modularClassSearchIndexOf(JDK_17_BASE_URL))
-
         javadoc.mapTo(indexers) { javadocDef ->
             val javadocParams = javadocDef.split('+', limit = 2)
 
@@ -186,9 +182,11 @@ fun main(args: Array<String>) {
             }
         }
 
-        index(indexers)
         logger.info { "using ${indexers.size} javadoc indexer(s)" }
 
+        index(indexers)
+
+        replaceCraftBukkitVersions("spigot")
         namespaceFriendliness("mojang", "spigot", "yarn", "searge", "intermediary", "source")
         namespace("mojang", "Mojang", "#4D7C0F", MojangServerMappingResolver.META_LICENSE)
         namespace("spigot", "Spigot", "#CA8A04", AbstractSpigotMappingResolver.META_LICENSE)
@@ -196,8 +194,6 @@ fun main(args: Array<String>) {
         namespace("searge", "Searge", "#B91C1C", SeargeMappingResolver.META_LICENSE)
         namespace("intermediary", "Intermediary", "#0369A1", IntermediaryMappingResolver.META_LICENSE)
         namespace("source", "Obfuscated", "#581C87")
-
-        craftBukkitVersionReplaceCandidates += "spigot"
     }
 
     val generator = WebGenerator(workspace, webConfig)

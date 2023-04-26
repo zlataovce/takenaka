@@ -59,7 +59,12 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
         if (generator.config.emitMetaTags) {
             metadataComponent(
                 title = klassDeclaration.friendlyName,
-                description = "version: ${workspace.version.id}",
+                description = buildString {
+                    append("version: ${workspace.version.id}")
+                    if (hash != null) {
+                        append(", hash: $hash")
+                    }
+                },
                 themeColor = "#21ff21"
             )
         }

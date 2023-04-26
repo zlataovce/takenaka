@@ -22,8 +22,6 @@ import kotlinx.html.dom.serialize
 import kotlinx.html.dom.write
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.dstNamespaceIds
-import me.kcra.takenaka.core.util.hexValue
-import me.kcra.takenaka.core.util.threadLocalMessageDigest
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.w3c.dom.Document
 import kotlin.io.path.createDirectories
@@ -31,12 +29,7 @@ import kotlin.io.path.writeText
 import kotlin.io.path.writer
 
 /**
- * A thread-local MD5 digest.
- */
-val md5Digest by threadLocalMessageDigest("MD5")
-
-/**
- * A generation context.
+ * A generation context, not version-bound.
  *
  * @author Matouš Kučera
  */
@@ -96,24 +89,6 @@ class GenerationContext(val generator: WebGenerator, val styleConsumer: StyleCon
      * @return the color
      */
     fun getFriendlyNamespaceBadgeColor(ns: String): String = generator.namespacesByFriendlyNames[ns]?.color ?: "#94a3b8"
-
-    /**
-     * Computes a hash of all destination mappings of this element.
-     *
-     * The resulting hash is stable, meaning the order of namespaces won't affect it.
-     */
-    val MappingTreeView.ElementMappingView.hash: String
-        get() = md5Digest
-            .apply {
-                update(
-                    tree.dstNamespaceIds
-                        .mapNotNull { getDstName(it) }
-                        .sorted()
-                        .joinToString(",")
-                        .encodeToByteArray()
-                )
-            }
-            .hexValue
 }
 
 /**

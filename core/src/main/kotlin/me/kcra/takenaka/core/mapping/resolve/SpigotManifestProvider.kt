@@ -56,7 +56,7 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
         return workspace.withLock("spigot-manifest") {
             val file = workspace[MANIFEST]
 
-            if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && MANIFEST in workspace) {
+            if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && MANIFEST in workspace) {
                 try {
                     return@withLock objectMapper.readValue<SpigotVersionManifest>(file).apply {
                         logger.info { "read cached ${workspace.version.id} Spigot manifest" }
@@ -82,7 +82,7 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
         return workspace.withLock("spigot-manifest") {
             val file = workspace[BUILDDATA_INFO]
 
-            if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && BUILDDATA_INFO in workspace) {
+            if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && BUILDDATA_INFO in workspace) {
                 try {
                     return@withLock objectMapper.readValue<SpigotVersionAttributes>(file).apply {
                         logger.info { "read cached ${workspace.version.id} Spigot attributes" }

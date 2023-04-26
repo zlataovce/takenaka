@@ -18,7 +18,7 @@
 package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.DefaultResolverOptions
+import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
@@ -182,7 +182,7 @@ class YarnMappingResolver(override val workspace: VersionedWorkspace, val yarnPr
     private fun findMappingFile(file: Path): Path {
         val mappingFile = workspace[MAPPINGS]
 
-        if (DefaultResolverOptions.RELAXED_CACHE !in workspace.resolverOptions || !mappingFile.isRegularFile()) {
+        if (DefaultWorkspaceOptions.RELAXED_CACHE !in workspace.options || !mappingFile.isRegularFile()) {
             ZipFile(file.toFile()).use {
                 val entry = it.stream()
                     .filter { e -> e.name == "mappings/mappings.tiny" }

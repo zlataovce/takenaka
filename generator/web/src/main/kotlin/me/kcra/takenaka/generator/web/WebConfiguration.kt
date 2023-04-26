@@ -85,6 +85,15 @@ class WebConfigurationBuilder {
     var historicalNamespaces = mutableListOf<String>()
 
     /**
+     * Sets [emitMetaTags].
+     *
+     * @param value the value
+     */
+    fun emitMetaTags(value: Boolean) {
+        emitMetaTags = value
+    }
+
+    /**
      * Appends transformers.
      *
      * @param items the transformers
@@ -163,6 +172,24 @@ class WebConfigurationBuilder {
         if (items.isNotEmpty()) {
             index = if (items.size == 1) items[0] else CompositeClassSearchIndex(items)
         }
+    }
+
+    /**
+     * Appends namespaces to [craftBukkitVersionReplaceCandidates].
+     *
+     * @param namespaces the namespaces
+     */
+    fun replaceCraftBukkitVersions(vararg namespaces: String) {
+        craftBukkitVersionReplaceCandidates += namespaces
+    }
+
+    /**
+     * Appends namespaces to [historicalNamespaces].
+     *
+     * @param namespaces the namespaces
+     */
+    fun preferredHistoryNamespaces(vararg namespaces: String) {
+        historicalNamespaces += namespaces
     }
 
     /**

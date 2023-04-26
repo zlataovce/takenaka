@@ -45,6 +45,11 @@ fun threadLocalMessageDigest(algorithm: String) =
 val sha1Digest by threadLocalMessageDigest("SHA-1")
 
 /**
+ * A thread-local MD5 digest.
+ */
+val md5Digest by threadLocalMessageDigest("MD5")
+
+/**
  * Computes a checksum using the provided digest, outputting it in a hexadecimal format.
  *
  * @param digest the digest

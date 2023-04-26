@@ -34,7 +34,7 @@ import org.w3c.dom.Document
  * @param classes the friendly class names
  * @return the generated document
  */
-fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: String, classes: Map<String, ClassType>): Document = createHTMLDocument().html {
+fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: String, classes: Map<ClassType, Set<String>>): Document = createHTMLDocument().html {
     val packageName0 = packageName.fromInternalName()
 
     head {
@@ -42,7 +42,15 @@ fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: St
         if (generator.config.emitMetaTags) {
             metadataComponent(
                 title = packageName0,
-                description = if (classes.size == 1) "1 class" else "${classes.size} classes",
+                description = classes
+                    .map { (type, names) ->
+                        if (names.size == 1) {
+                            "1 ${type.name.lowercase()}"
+                        } else {
+                            "${names.size} ${type.plural}"
+                        }
+                    }
+                    .joinToString(),
                 themeColor = "#21ff21"
             )
         }
@@ -54,9 +62,7 @@ fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: St
             h1 {
                 +packageName0
             }
-            ClassType.values().forEach { type ->
-                if (classes.none { (_, v) -> v == type }) return@forEach
-
+            classes.forEach { (type, names) ->
                 spacerBottomComponent()
                 table(classes = "styled-table") {
                     thead {
@@ -67,13 +73,11 @@ fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: St
                         }
                     }
                     tbody {
-                        classes.forEach { (klass, klassType) ->
-                            if (klassType == type) {
-                                tr {
-                                    td {
-                                        a(href = "/${workspace.version.id}/$packageName/$klass.html") {
-                                            +klass
-                                        }
+                        names.forEach { klass ->
+                            tr {
+                                td {
+                                    a(href = "/${workspace.version.id}/$packageName/$klass.html") {
+                                        +klass
                                     }
                                 }
                             }

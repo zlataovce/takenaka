@@ -18,7 +18,7 @@
 package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.DefaultResolverOptions
+import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
@@ -94,7 +94,7 @@ abstract class AbstractSpigotMappingResolver(
             val file = workspace[mappingAttribute0]
 
             // Spigot's stash doesn't seem to support sending Content-Length headers
-            if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && file.isRegularFile()) {
+            if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && file.isRegularFile()) {
                 logger.info { "found cached ${version.id} Spigot mappings ($mappingAttribute0)" }
                 return@resolver file
             }
@@ -140,7 +140,7 @@ abstract class AbstractSpigotMappingResolver(
         resolver {
             val file = workspace[CRAFTBUKKIT_POM]
 
-            if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && file.isRegularFile()) {
+            if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && file.isRegularFile()) {
                 logger.info { "found cached ${version.id} CraftBukkit pom.xml ($mappingAttribute)" }
                 return@resolver file
             }
