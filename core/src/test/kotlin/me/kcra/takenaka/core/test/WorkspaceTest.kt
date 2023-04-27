@@ -34,7 +34,7 @@ class WorkspaceTest {
         val workspace = workspace {
             rootDirectory("simple")
         }
-        assertEquals(0, workspace.resolverOptions)
+        assertEquals(0, workspace.options)
 
         workspace.remove()
     }
@@ -43,11 +43,11 @@ class WorkspaceTest {
     fun `when creating a simple workspace with custom resolver options, then the resolverOptions property should reflect the custom options`() {
         val workspace = workspace {
             rootDirectory("simple")
-            resolverOptions {
+            options {
                 relaxedCache()
             }
         }
-        assertTrue(workspace.resolverOptions.contains(DefaultResolverOptions.RELAXED_CACHE))
+        assertTrue(workspace.options.contains(DefaultWorkspaceOptions.RELAXED_CACHE))
 
         workspace.remove()
     }
@@ -56,10 +56,10 @@ class WorkspaceTest {
     fun `when creating a composite workspace, then its rootDirectory and resolverOptions should be set to the values from the builder`() {
         val workspace = compositeWorkspace {
             rootDirectory("composite")
-            resolverOptions = DefaultResolverOptions.RELAXED_CACHE
+            options = DefaultWorkspaceOptions.RELAXED_CACHE
         }
         assertEquals("composite", workspace.rootDirectory.toString())
-        assertEquals(DefaultResolverOptions.RELAXED_CACHE, workspace.resolverOptions)
+        assertEquals(DefaultWorkspaceOptions.RELAXED_CACHE, workspace.options)
 
         workspace.remove()
     }
@@ -113,26 +113,26 @@ class WorkspaceTest {
 
     @Test
     fun `when building resolver options with multiple options, then the resulting options should contain all the specified options`() {
-        val options = resolverOptionsOf(DefaultResolverOptions.RELAXED_CACHE, 2)
-        assertTrue(options.contains(DefaultResolverOptions.RELAXED_CACHE))
+        val options = workspaceOptionsOf(DefaultWorkspaceOptions.RELAXED_CACHE, 2)
+        assertTrue(options.contains(DefaultWorkspaceOptions.RELAXED_CACHE))
         assertTrue(options.contains(2))
     }
 
     @Test
     fun `when building resolver options with a single option, then the resulting options should contain the specified option`() {
-        val options = resolverOptionsOf(DefaultResolverOptions.RELAXED_CACHE)
-        assertTrue(options.contains(DefaultResolverOptions.RELAXED_CACHE))
+        val options = workspaceOptionsOf(DefaultWorkspaceOptions.RELAXED_CACHE)
+        assertTrue(options.contains(DefaultWorkspaceOptions.RELAXED_CACHE))
     }
 
     @Test
     fun `when checking if resolver options contain an option, then it should return true if the options contain the option`() {
-        val options = resolverOptionsOf(DefaultResolverOptions.RELAXED_CACHE, 2)
+        val options = workspaceOptionsOf(DefaultWorkspaceOptions.RELAXED_CACHE, 2)
         assertTrue(options.contains(2))
     }
 
     @Test
     fun `when checking if resolver options contain an option, then it should return false if the options do not contain the option`() {
-        val options = resolverOptionsOf(DefaultResolverOptions.RELAXED_CACHE, 2)
+        val options = workspaceOptionsOf(DefaultWorkspaceOptions.RELAXED_CACHE, 2)
         assertFalse(options.contains(4))
     }
 

@@ -18,6 +18,8 @@
 package me.kcra.takenaka.core.mapping
 
 import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.core.util.hexValue
+import me.kcra.takenaka.core.util.md5Digest
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 
@@ -50,3 +52,21 @@ inline val MappingTreeView.dstNamespaceIds: IntRange
  * @return does the namespace exist in the tree?
  */
 fun MappingTreeView.hasNamespace(ns: String): Boolean = getNamespaceId(ns) != MappingTreeView.NULL_NAMESPACE_ID
+
+/**
+ * Computes a hash of all destination mappings of this element.
+ *
+ * The resulting hash is stable, meaning the order of namespaces won't affect it.
+ */
+val MappingTreeView.ElementMappingView.hash: String
+    get() = md5Digest
+        .apply {
+            update(
+                tree.dstNamespaceIds
+                    .mapNotNull { getDstName(it) }
+                    .sorted()
+                    .joinToString(",")
+                    .encodeToByteArray()
+            )
+        }
+        .hexValue

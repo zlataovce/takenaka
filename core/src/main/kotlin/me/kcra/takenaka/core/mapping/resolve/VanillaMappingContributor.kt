@@ -18,7 +18,7 @@
 package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.DefaultResolverOptions
+import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
@@ -186,7 +186,7 @@ class VanillaMappingContributor(
             if (zf.getEntry("net/minecraft/bundler/Main.class") != null) {
                 file = file.resolveSibling(file.nameWithoutExtension + "-bundled.jar")
 
-                if (DefaultResolverOptions.RELAXED_CACHE !in workspace.resolverOptions || !file.isRegularFile()) {
+                if (DefaultWorkspaceOptions.RELAXED_CACHE !in workspace.options || !file.isRegularFile()) {
                     zf.getInputStream(zf.getEntry("META-INF/versions/${workspace.version.id}/server-${workspace.version.id}.jar")).use {
                         Files.copy(it, file, StandardCopyOption.REPLACE_EXISTING)
                     }

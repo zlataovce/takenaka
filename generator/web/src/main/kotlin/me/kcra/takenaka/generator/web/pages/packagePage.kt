@@ -23,10 +23,7 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.web.ClassType
 import me.kcra.takenaka.generator.web.GenerationContext
-import me.kcra.takenaka.generator.web.components.footerPlaceholderComponent
-import me.kcra.takenaka.generator.web.components.headComponent
-import me.kcra.takenaka.generator.web.components.navPlaceholderComponent
-import me.kcra.takenaka.generator.web.components.spacerBottomComponent
+import me.kcra.takenaka.generator.web.components.*
 import org.w3c.dom.Document
 
 /**
@@ -37,21 +34,37 @@ import org.w3c.dom.Document
  * @param classes the friendly class names
  * @return the generated document
  */
-fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: String, classes: Map<String, ClassType>): Document = createHTMLDocument().html {
+fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: String, classes: Map<ClassType, Set<String>>): Document = createHTMLDocument().html {
     val packageName0 = packageName.fromInternalName()
 
-    headComponent("${workspace.version.id} - $packageName0", workspace.version.id)
+    head {
+        defaultResourcesComponent(workspace.version.id)
+        if (generator.config.emitMetaTags) {
+            metadataComponent(
+                title = packageName0,
+                description = classes
+                    .map { (type, names) ->
+                        if (names.size == 1) {
+                            "1 ${type.name.lowercase()}"
+                        } else {
+                            "${names.size} ${type.plural}"
+                        }
+                    }
+                    .joinToString(),
+                themeColor = "#21ff21"
+            )
+        }
+        title(content = "${workspace.version.id} - $packageName0")
+    }
     body {
         navPlaceholderComponent()
         main {
             h1 {
                 +packageName0
             }
-            ClassType.values().forEach { type ->
-                if (classes.none { (_, v) -> v == type }) return@forEach
-
+            classes.forEach { (type, names) ->
                 spacerBottomComponent()
-                table(classes = "member-table") {
+                table(classes = "styled-table") {
                     thead {
                         tr {
                             th {
@@ -60,13 +73,11 @@ fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: St
                         }
                     }
                     tbody {
-                        classes.forEach { (klass, klassType) ->
-                            if (klassType == type) {
-                                tr {
-                                    td {
-                                        a(href = "/${workspace.version.id}/$packageName/$klass.html") {
-                                            +klass
-                                        }
+                        names.forEach { klass ->
+                            tr {
+                                td {
+                                    a(href = "/${workspace.version.id}/$packageName/$klass.html") {
+                                        +klass
                                     }
                                 }
                             }

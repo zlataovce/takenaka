@@ -17,21 +17,29 @@
 
 package me.kcra.takenaka.core
 
+import java.io.File
 import java.nio.file.Path
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
-import kotlin.io.path.Path
-import kotlin.io.path.createDirectories
-import kotlin.io.path.isRegularFile
-import kotlin.io.path.name
+import kotlin.io.path.*
 import kotlin.properties.Delegates
 import kotlin.reflect.KProperty
 
 /**
- * Options for resolvers, these are integers ORed together.
+ * Boolean options for workspace consumers, these are integers ORed together.
  */
-typealias ResolverOptions = Int
+typealias WorkspaceOptions = Int
+
+/**
+ * A group of resolver options used in the core library.
+ */
+object DefaultWorkspaceOptions {
+    /**
+     * Requests resolvers to cache items without a checksum.
+     */
+    const val RELAXED_CACHE = 0x00000001
+}
 
 /**
  * Checks if the options contain an option.
@@ -39,28 +47,28 @@ typealias ResolverOptions = Int
  * @param option the option to check
  * @return do the options contain the option?
  */
-operator fun ResolverOptions.contains(option: Int): Boolean = (this and option) != 0
+operator fun WorkspaceOptions.contains(option: Int): Boolean = (this and option) != 0
 
 /**
- * Creates resolver options from multiple options.
+ * Creates workspace options from multiple options.
  *
  * @param options the options
  * @return the resolver options
  */
-fun resolverOptionsOf(vararg options: Int): ResolverOptions = options.reduceOrNull { v1, v2 -> v1 or v2 } ?: 0
+fun workspaceOptionsOf(vararg options: Int): WorkspaceOptions = options.reduceOrNull { v1, v2 -> v1 or v2 } ?: 0
 
 /**
- * A builder for [ResolverOptions].
+ * A builder for [WorkspaceOptions].
  *
  * @property value the integer value, internal use only (for adding additional resolver options)
  * @author Matouš Kučera
  */
-class ResolverOptionsBuilder(var value: ResolverOptions = 0) {
+class WorkspaceOptionsBuilder(var value: WorkspaceOptions = 0) {
     /**
-     * Appends the [DefaultResolverOptions.RELAXED_CACHE] option.
+     * Appends the [DefaultWorkspaceOptions.RELAXED_CACHE] option.
      */
     fun relaxedCache() {
-        value = value or DefaultResolverOptions.RELAXED_CACHE
+        value = value or DefaultWorkspaceOptions.RELAXED_CACHE
     }
 
     /**
@@ -72,30 +80,21 @@ class ResolverOptionsBuilder(var value: ResolverOptions = 0) {
     operator fun contains(option: Int): Boolean = (value and option) != 0
 
     /**
-     * Returns the resolver options.
+     * Returns the workspace options.
      *
      * @return the value
      */
-    fun toResolverOptions(): ResolverOptions = value
+    fun toWorkspaceOptions(): WorkspaceOptions = value
 }
 
 /**
- * Creates resolver options from a builder.
+ * Creates workspace options from a builder.
  *
  * @param block the builder action
- * @return the resolver options
+ * @return the workspace options
  */
-inline fun buildResolverOptions(block: ResolverOptionsBuilder.() -> Unit): ResolverOptions = ResolverOptionsBuilder().apply(block).toResolverOptions()
-
-/**
- * A group of resolver options used in the core library.
- */
-object DefaultResolverOptions {
-    /**
-     * Requests resolvers to cache items without a checksum.
-     */
-    const val RELAXED_CACHE: ResolverOptions = 0x00000001
-}
+inline fun buildWorkspaceOptions(block: WorkspaceOptionsBuilder.() -> Unit): WorkspaceOptions =
+    WorkspaceOptionsBuilder().apply(block).toWorkspaceOptions()
 
 /**
  * A filesystem-based workspace.
@@ -107,9 +106,9 @@ interface Workspace {
     val rootDirectory: Path
 
     /**
-     * Options for resolvers.
+     * Workspace options.
      */
-    val resolverOptions: ResolverOptions
+    val options: WorkspaceOptions
 
     /**
      * Cleans this workspace.
@@ -131,6 +130,13 @@ interface Workspace {
     fun <T> withLock(key: String, block: () -> T): T
 
     /**
+     * Converts this workspace to a composite one.
+     *
+     * @return the composite workspace
+     */
+    fun asComposite(): CompositeWorkspace
+
+    /**
      * Checks if this workspace contains the specified file.
      *
      * @param file the file name
@@ -147,11 +153,9 @@ interface Workspace {
     operator fun get(file: String): Path = rootDirectory.resolve(file)
 
     /**
-     * Converts this workspace to a composite one.
-     *
-     * @return the composite workspace
+     * A delegation alias for [asComposite].
      */
-    operator fun getValue(thisRef: Any?, property: KProperty<*>): CompositeWorkspace
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): CompositeWorkspace = asComposite()
 }
 
 /**
@@ -166,26 +170,62 @@ open class WorkspaceBuilder {
     open var rootDirectory by Delegates.notNull<Path>()
 
     /**
+     * The resolver options.
+     */
+    var options = 0
+
+    /**
      * Sets the root directory.
-     * 
+     *
      * @param path the root directory path
      */
     fun rootDirectory(path: String) {
-        rootDirectory = Path(path)
+        rootDirectory(Path(path))
     }
 
     /**
-     * The resolver options.
+     * Sets the root directory.
+     *
+     * @param file the root directory
      */
-    var resolverOptions = 0
+    fun rootDirectory(file: File) {
+        rootDirectory(file.toPath())
+    }
 
     /**
-     * Builds and sets [resolverOptions] using [block].
+     * Sets the root directory.
+     *
+     * @param path the root directory path
+     */
+    fun rootDirectory(path: Path) {
+        rootDirectory = path
+    }
+
+    /**
+     * Sets [options].
+     *
+     * @param value the options
+     */
+    fun options(value: WorkspaceOptions) {
+        options = value
+    }
+
+    /**
+     * Sets [options].
+     *
+     * @param values the options
+     */
+    fun options(vararg values: WorkspaceOptions) {
+        options = workspaceOptionsOf(*values)
+    }
+
+    /**
+     * Builds and sets [options] using [block].
      *
      * @param block the builder action
      */
-    inline fun resolverOptions(block: ResolverOptionsBuilder.() -> Unit) {
-        resolverOptions = buildResolverOptions(block)
+    inline fun options(block: WorkspaceOptionsBuilder.() -> Unit) {
+        options = buildWorkspaceOptions(block)
     }
 
     /**
@@ -193,27 +233,28 @@ open class WorkspaceBuilder {
      *
      * @return the simple workspace
      */
-    open fun toWorkspace(): Workspace = Simple(rootDirectory, resolverOptions)
+    open fun toWorkspace(): Workspace = Simple(rootDirectory, options)
 }
 
 /**
  * A simple workspace.
  */
-private class Simple(override val rootDirectory: Path, override val resolverOptions: ResolverOptions = resolverOptionsOf()) : Workspace {
-    private val composite by lazy { CompositeWorkspace(rootDirectory, resolverOptions, locks) }
+private class Simple(override val rootDirectory: Path, override val options: WorkspaceOptions = workspaceOptionsOf()) : Workspace {
+    private val composite by lazy { CompositeWorkspace(rootDirectory, options, locks) }
     private val locks = mutableMapOf<String, Lock>()
-    private val mapLock: Lock = ReentrantLock()
 
     init {
         rootDirectory.createDirectories()
     }
 
     override fun <T> withLock(key: String, block: () -> T): T {
-        val keyedLock = mapLock.withLock { locks.getOrPut(key, ::ReentrantLock) }
+        val keyedLock = synchronized(this) {
+            locks.getOrPut(key, ::ReentrantLock)
+        }
 
         return keyedLock.withLock(block)
     }
-    override operator fun getValue(thisRef: Any?, property: KProperty<*>) = composite
+    override fun asComposite() = composite
 }
 
 /**
@@ -222,7 +263,8 @@ private class Simple(override val rootDirectory: Path, override val resolverOpti
  * @param block the builder action
  * @return the workspace
  */
-inline fun workspace(block: WorkspaceBuilder.() -> Unit): Workspace = WorkspaceBuilder().apply(block).toWorkspace()
+inline fun workspace(block: WorkspaceBuilder.() -> Unit): Workspace =
+    WorkspaceBuilder().apply(block).toWorkspace()
 
 /**
  * A composite workspace builder.
@@ -235,7 +277,7 @@ open class CompositeWorkspaceBuilder : WorkspaceBuilder() {
      *
      * @return the composite workspace
      */
-    override fun toWorkspace() = CompositeWorkspace(rootDirectory, resolverOptions)
+    override fun toWorkspace() = CompositeWorkspace(rootDirectory, options)
 }
 
 /**
@@ -244,52 +286,56 @@ open class CompositeWorkspaceBuilder : WorkspaceBuilder() {
  * @param block the builder action
  * @return the workspace
  */
-inline fun compositeWorkspace(block: CompositeWorkspaceBuilder.() -> Unit): CompositeWorkspace = CompositeWorkspaceBuilder().apply(block).toWorkspace()
+inline fun compositeWorkspace(block: CompositeWorkspaceBuilder.() -> Unit): CompositeWorkspace =
+    CompositeWorkspaceBuilder().apply(block).toWorkspace()
 
 /**
  * A workspace, which houses multiple sub-workspaces.
  *
  * @property rootDirectory the workspace root
- * @property resolverOptions the resolver options
+ * @property options the resolver options
  */
 class CompositeWorkspace(
     override val rootDirectory: Path,
-    override val resolverOptions: ResolverOptions = resolverOptionsOf(),
+    override val options: WorkspaceOptions = workspaceOptionsOf(),
     private val locks: MutableMap<String, Lock> = mutableMapOf()
 ) : Workspace {
-    private val mapLock: Lock = ReentrantLock()
-
     init {
         rootDirectory.createDirectories()
     }
 
     override fun <T> withLock(key: String, block: () -> T): T {
-        val keyedLock = mapLock.withLock { locks.getOrPut(key, ::ReentrantLock) }
+        val keyedLock = synchronized(this) {
+            locks.getOrPut(key, ::ReentrantLock)
+        }
 
         return keyedLock.withLock(block)
     }
-    override operator fun getValue(thisRef: Any?, property: KProperty<*>) = this
+    override fun asComposite() = this
 
     /**
      * Creates a new sub-workspace with a unique name.
      *
      * @return the sub-workspace
      */
-    inline fun createWorkspace(crossinline block: MemberBuilder.() -> Unit): Workspace = MemberBuilder(this).apply(block).toWorkspace()
+    inline fun createWorkspace(crossinline block: MemberBuilder.() -> Unit): Workspace =
+        MemberBuilder(this).apply(block).toWorkspace()
 
     /**
      * Creates a new composite sub-workspace with a unique name.
      *
      * @return the sub-workspace
      */
-    inline fun createCompositeWorkspace(crossinline block: CompositeMemberBuilder.() -> Unit): CompositeWorkspace = CompositeMemberBuilder(this).apply(block).toWorkspace()
+    inline fun createCompositeWorkspace(crossinline block: CompositeMemberBuilder.() -> Unit): CompositeWorkspace =
+        CompositeMemberBuilder(this).apply(block).toWorkspace()
 
     /**
      * Creates a new versioned sub-workspace.
      *
      * @return the sub-workspace
      */
-    inline fun createVersionedWorkspace(crossinline block: VersionedMemberBuilder.() -> Unit): VersionedWorkspace = VersionedMemberBuilder(this).apply(block).toWorkspace()
+    inline fun createVersionedWorkspace(crossinline block: VersionedMemberBuilder.() -> Unit): VersionedWorkspace =
+        VersionedMemberBuilder(this).apply(block).toWorkspace()
 
     /**
      * A base sub-workspace builder.
@@ -301,13 +347,13 @@ class CompositeWorkspace(
          * The workspace name.
          */
         var name: String
-            get() = rootDirectory.name
+            get() = rootDirectory.relativize(parent.rootDirectory).pathString
             set(value) {
-                rootDirectory = parent.rootDirectory.resolve(value)
+                rootDirectory = parent[value]
             }
 
         init {
-            resolverOptions = parent.resolverOptions
+            options = parent.options
         }
     }
 
@@ -321,13 +367,13 @@ class CompositeWorkspace(
          * The workspace name.
          */
         var name: String
-            get() = rootDirectory.name
+            get() = rootDirectory.relativize(parent.rootDirectory).pathString
             set(value) {
-                rootDirectory = parent.rootDirectory.resolve(value)
+                rootDirectory = parent[value]
             }
 
         init {
-            resolverOptions = parent.resolverOptions
+            options = parent.options
         }
     }
 
@@ -346,13 +392,13 @@ class CompositeWorkspace(
          * Returns the user-defined root directory or a directory named by the version.
          */
         override var rootDirectory: Path
-            get() = rootDirectory_ ?: parent.rootDirectory.resolve(version.id)
+            get() = rootDirectory_ ?: parent[version.id]
             set(value) {
                 rootDirectory_ = value
             }
 
         init {
-            resolverOptions = parent.resolverOptions
+            options = parent.options
         }
     }
 }
@@ -371,7 +417,7 @@ open class VersionedWorkspaceBuilder : WorkspaceBuilder() {
      *
      * @return the versioned workspace
      */
-    override fun toWorkspace() = VersionedWorkspace(rootDirectory, resolverOptions, version)
+    override fun toWorkspace() = VersionedWorkspace(rootDirectory, options, version)
 }
 
 /**
@@ -380,28 +426,30 @@ open class VersionedWorkspaceBuilder : WorkspaceBuilder() {
  * @param block the builder action
  * @return the workspace
  */
-inline fun versionedWorkspace(block: VersionedWorkspaceBuilder.() -> Unit): VersionedWorkspace = VersionedWorkspaceBuilder().apply(block).toWorkspace()
+inline fun versionedWorkspace(block: VersionedWorkspaceBuilder.() -> Unit): VersionedWorkspace =
+    VersionedWorkspaceBuilder().apply(block).toWorkspace()
 
 /**
  * A workspace, which belongs to a specific Minecraft version.
  *
  * @property rootDirectory the workspace root
- * @property resolverOptions the resolver options
+ * @property options the resolver options
  * @property version the version which this workspace belongs to
  */
-class VersionedWorkspace(override val rootDirectory: Path, override val resolverOptions: ResolverOptions = resolverOptionsOf(), val version: Version) : Workspace {
-    private val composite by lazy { CompositeWorkspace(rootDirectory, resolverOptions, locks) }
+class VersionedWorkspace(override val rootDirectory: Path, override val options: WorkspaceOptions = workspaceOptionsOf(), val version: Version) : Workspace {
+    private val composite by lazy { CompositeWorkspace(rootDirectory, options, locks) }
     private val locks = mutableMapOf<String, Lock>()
-    private val mapLock: Lock = ReentrantLock()
 
     init {
         rootDirectory.createDirectories()
     }
 
     override fun <T> withLock(key: String, block: () -> T): T {
-        val keyedLock = mapLock.withLock { locks.getOrPut(key, ::ReentrantLock) }
+        val keyedLock = synchronized(this) {
+            locks.getOrPut(key, ::ReentrantLock)
+        }
 
         return keyedLock.withLock(block)
     }
-    override operator fun getValue(thisRef: Any?, property: KProperty<*>) = composite
+    override fun asComposite() = composite
 }

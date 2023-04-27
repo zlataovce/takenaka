@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import me.kcra.takenaka.core.mapping.fromInternalName
+import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.readText
 import java.net.HttpURLConnection
@@ -49,7 +50,10 @@ const val JDK_17_BASE_URL = "https://docs.oracle.com/en/java/javase/17/docs/api"
  */
 fun ObjectMapper.modularClassSearchIndexOf(baseUrl: String): ModularClassSearchIndex {
     val content = URL("$baseUrl/package-search-index.js").httpRequest(action = HttpURLConnection::readText)
-    val nodeArray = content.dropWhile { it != '[' }.dropLastWhile { it != ']' }
+    val nodeArray = content.substring(
+        content.indexOf('['),
+        content.lastIndexOf(']') + 1
+    )
 
     return ModularClassSearchIndex(baseUrl, readValue(nodeArray))
 }
@@ -60,8 +64,7 @@ fun ObjectMapper.modularClassSearchIndexOf(baseUrl: String): ModularClassSearchI
  * @param indexes the indexers
  * @return the index
  */
-fun compositeClassSearchIndexOf(vararg indexes: ClassSearchIndex): CompositeClassSearchIndex =
-    CompositeClassSearchIndex(indexes.toList())
+fun compositeClassSearchIndexOf(vararg indexes: ClassSearchIndex) = CompositeClassSearchIndex(indexes.toList())
 
 /**
  * Creates a class indexer for a pre-modular Javadoc site.
@@ -70,8 +73,8 @@ fun compositeClassSearchIndexOf(vararg indexes: ClassSearchIndex): CompositeClas
  * @param supportedPackage the package that this indexer supports
  * @return the index
  */
-fun classSearchIndexOf(baseUrl: String, supportedPackage: String): PreModularClassSearchIndex =
-    PreModularClassSearchIndex(baseUrl, supportedPackage.replace('.', '/'))
+fun classSearchIndexOf(baseUrl: String, supportedPackage: String) =
+    PreModularClassSearchIndex(baseUrl, supportedPackage.toInternalName())
 
 /**
  * Returns an empty class search index.
@@ -116,23 +119,22 @@ class CompositeClassSearchIndex(val indexes: List<ClassSearchIndex>) : ClassSear
      * @param internalName the classes' internal name
      * @return the URL or null, if it's not in this index
      */
-    override fun linkClass(internalName: String): String? {
-        indexes.forEach { indexer ->
-            return indexer.linkClass(internalName) ?: return@forEach
-        }
-        return null
-    }
+    override fun linkClass(internalName: String): String? =
+        indexes.firstNotNullOfOrNull { it.linkClass(internalName) }
 }
 
 /**
  * A module-to-package mapping of a Javadoc site.
  *
  * @property baseUrl the base URL of the Javadoc site
- * @property index the package nodes
+ * @property nodes the package nodes
  * @author Matouš Kučera
  */
-data class ModularClassSearchIndex(override val baseUrl: String, val index: List<Node>) : ClassSearchIndex {
-    private val packageIndex: Map<String, Node> = index.associateBy { it.`package` }
+class ModularClassSearchIndex(override val baseUrl: String, val nodes: List<Node>) : ClassSearchIndex {
+    /**
+     * A package-keyed index of [nodes].
+     */
+    private val packageIndex = nodes.associateBy(keySelector = Node::`package`)
 
     /**
      * Tries to make a URL to a foreign class.
@@ -167,7 +169,7 @@ data class ModularClassSearchIndex(override val baseUrl: String, val index: List
  * @property supportedPackage the package that this indexer supports
  * @author Matouš Kučera
  */
-data class PreModularClassSearchIndex(override val baseUrl: String, val supportedPackage: String) : ClassSearchIndex {
+class PreModularClassSearchIndex(override val baseUrl: String, val supportedPackage: String) : ClassSearchIndex {
     /**
      * Tries to make a URL to a foreign class.
      *

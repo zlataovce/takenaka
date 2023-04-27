@@ -20,7 +20,7 @@ package me.kcra.takenaka.core.mapping.resolve
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.DefaultResolverOptions
+import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.util.copyTo
@@ -79,7 +79,7 @@ class YarnMetadataProvider(val workspace: Workspace, private val xmlMapper: Obje
     private fun readMetadata(): JsonNode {
         val file = workspace[METADATA]
 
-        if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && METADATA in workspace) {
+        if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && METADATA in workspace) {
             try {
                 return xmlMapper.readTree(file).apply {
                     logger.info { "read cached Yarn metadata" }

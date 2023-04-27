@@ -23,10 +23,14 @@ import java.util.*
 /**
  * A class type.
  *
+ * @param plural the plural version of the type
  * @author Matouš Kučera
  */
-enum class ClassType {
-    CLASS, INTERFACE, ENUM;
+enum class ClassType(val plural: String) {
+    CLASS("classes"),
+    INTERFACE("interfaces"),
+    ENUM("enums"),
+    ANNOTATION("annotations");
 
     override fun toString(): String = name.lowercase()
         .replaceFirstChar { it.titlecase(Locale.getDefault()) }
@@ -39,6 +43,7 @@ enum class ClassType {
  * @return the type
  */
 fun classTypeOf(mod: Int): ClassType = when {
+    (mod and Opcodes.ACC_ANNOTATION) != 0 -> ClassType.ANNOTATION // annotations are interfaces, so this must be before ACC_INTERFACE
     (mod and Opcodes.ACC_INTERFACE) != 0 -> ClassType.INTERFACE
     (mod and Opcodes.ACC_ENUM) != 0 -> ClassType.ENUM
     else -> ClassType.CLASS

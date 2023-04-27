@@ -43,7 +43,148 @@ import java.util.*
 fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Document = createHTMLDocument().html {
     val lastFriendlyMapping = getFriendlyDstName(node.last.value).fromInternalName()
 
-    headComponent("history - $lastFriendlyMapping")
+    val classNameRows = buildDiff {
+        node.forEach { (version, klass) ->
+            klass.tree.allNamespaceIds.forEach { id ->
+                val ns = klass.tree.getNamespaceName(id)
+
+                val nsFriendlyName = getNamespaceFriendlyName(ns)
+                if (nsFriendlyName != null) {
+                    append(version, nsFriendlyName, klass.getName(id)?.fromInternalName())
+                }
+            }
+        }
+    }
+
+    val fieldTree = fieldAncestryTreeOf(node)
+    val fieldRows = buildFieldDiff {
+        node.keys.forEach { version ->
+            val tree = fieldTree.trees[version] ?: error("Field tree does not have parent's version")
+            val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
+
+            fieldTree.forEach { fieldNode ->
+                val nullableField = fieldNode[version]
+
+                append(
+                    version,
+                    fieldNode,
+                    nullableField?.let { field ->
+                        HistoricalDescriptableDetail(
+                            formatFieldDescriptor(field, version, friendlyNameRemapper),
+                            tree.allNamespaceIds
+                                .mapNotNull { id ->
+                                    id to (getNamespaceFriendlyName(tree.getNamespaceName(id)) ?: return@mapNotNull null)
+                                }
+                                .sortedBy { generator.config.namespaceFriendlinessIndex.indexOf(it.second) }
+                                .mapNotNull { (id, ns) ->
+                                    field.getName(id)?.let { name ->
+                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name
+                                    }
+                                }
+                                .joinToString()
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    val methodTree = methodAncestryTreeOf(node)
+    val methodRows = buildMethodDiff {
+        node.keys.forEach { version ->
+            val tree = methodTree.trees[version] ?: error("Method tree does not have parent's version")
+            val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
+
+            methodTree.forEach { methodNode ->
+                val nullableMethod = methodNode[version]
+
+                append(
+                    version,
+                    methodNode,
+                    nullableMethod?.let { method ->
+                        val methodDeclaration = formatMethodDescriptor(
+                            method,
+                            method.modifiers,
+                            version,
+                            friendlyNameRemapper,
+                            generateNamedParameters = false
+                        )
+
+                        HistoricalDescriptableDetail(
+                            buildString {
+                                methodDeclaration.formals?.let { append(it).append(' ') }
+                                append(methodDeclaration.returnType)
+                                append(' ')
+                                append(methodDeclaration.args)
+                                methodDeclaration.exceptions
+                                    ?.let { append(" throws $it") }
+                            },
+                            tree.allNamespaceIds
+                                .mapNotNull { id ->
+                                    id to (getNamespaceFriendlyName(tree.getNamespaceName(id)) ?: return@mapNotNull null)
+                                }
+                                .sortedBy { generator.config.namespaceFriendlinessIndex.indexOf(it.second) }
+                                .mapNotNull { (id, ns) ->
+                                    method.getName(id)?.let { name ->
+                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name
+                                    }
+                                }
+                                .joinToString()
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    val constructorTree = methodAncestryTreeOf(node, constructorMode = ConstructorComputationMode.ONLY)
+    val constructorRows = buildMethodDiff {
+        node.keys.forEach { version ->
+            val tree = methodTree.trees[version] ?: error("Constructor tree does not have parent's version")
+            val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
+
+            constructorTree.forEach { ctorNode ->
+                val nullableMethod = ctorNode[version]
+
+                append(
+                    version,
+                    ctorNode,
+                    nullableMethod?.let { method ->
+                        val methodDeclaration = formatMethodDescriptor(
+                            method,
+                            method.modifiers,
+                            version,
+                            friendlyNameRemapper,
+                            generateNamedParameters = false
+                        )
+
+                        HistoricalDescriptableDetail(
+                            buildString {
+                                methodDeclaration.formals?.let { append(it).append(' ') }
+                                append(methodDeclaration.args)
+                                methodDeclaration.exceptions
+                                    ?.let { append(" throws $it") }
+                            },
+                            // hack the diff builder for code reuse
+                            "<init>"
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    head {
+        defaultResourcesComponent()
+        if (generator.config.emitMetaTags) {
+            metadataComponent(
+                title = lastFriendlyMapping,
+                description = if (node.size == 1) "1 version, ${node.first.key.id}" else "${node.size} versions, ${node.first.key.id} - ${node.last.key.id}",
+                themeColor = "#21ff21"
+            )
+        }
+        title(content = "history - $lastFriendlyMapping")
+    }
     body {
         navPlaceholderComponent()
         main {
@@ -51,137 +192,6 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                 +"History - $lastFriendlyMapping"
             }
             spacerBottomComponent()
-
-            val classNameRows = buildDiff {
-                node.forEach { (version, klass) ->
-                    klass.tree.allNamespaceIds.forEach { id ->
-                        val ns = klass.tree.getNamespaceName(id)
-
-                        val nsFriendlyName = getNamespaceFriendlyName(ns)
-                        if (nsFriendlyName != null) {
-                            append(version, nsFriendlyName, klass.getName(id)?.fromInternalName())
-                        }
-                    }
-                }
-            }
-
-            val fieldTree = fieldAncestryTreeOf(node)
-            val fieldRows = buildFieldDiff {
-                node.keys.forEach { version ->
-                    val tree = fieldTree.trees[version] ?: error("Field tree does not have parent's version")
-                    val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
-
-                    fieldTree.forEach { fieldNode ->
-                        val nullableField = fieldNode[version]
-
-                        append(
-                            version,
-                            fieldNode,
-                            nullableField?.let { field ->
-                                HistoricalDescriptableDetail(
-                                    formatFieldDescriptor(field, version, friendlyNameRemapper),
-                                    tree.allNamespaceIds
-                                        .mapNotNull { id ->
-                                            id to (getNamespaceFriendlyName(tree.getNamespaceName(id)) ?: return@mapNotNull null)
-                                        }
-                                        .sortedBy { generator.config.namespaceFriendlinessIndex.indexOf(it.second) }
-                                        .mapNotNull { (id, ns) ->
-                                            field.getName(id)?.let { name ->
-                                                textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name
-                                            }
-                                        }
-                                        .joinToString()
-                                )
-                            }
-                        )
-                    }
-                }
-            }
-
-            val methodTree = methodAncestryTreeOf(node)
-            val methodRows = buildMethodDiff {
-                node.keys.forEach { version ->
-                    val tree = methodTree.trees[version] ?: error("Method tree does not have parent's version")
-                    val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
-
-                    methodTree.forEach { methodNode ->
-                        val nullableMethod = methodNode[version]
-
-                        append(
-                            version,
-                            methodNode,
-                            nullableMethod?.let { method ->
-                                val methodDeclaration = formatMethodDescriptor(
-                                    method,
-                                    method.modifiers,
-                                    version,
-                                    friendlyNameRemapper,
-                                    generateNamedParameters = false
-                                )
-
-                                HistoricalDescriptableDetail(
-                                    buildString {
-                                        methodDeclaration.formals?.let { append(it).append(' ') }
-                                        append(methodDeclaration.returnType)
-                                        append(' ')
-                                        append(methodDeclaration.args)
-                                        methodDeclaration.exceptions
-                                            ?.let { append(" throws $it") }
-                                    },
-                                    tree.allNamespaceIds
-                                        .mapNotNull { id ->
-                                            id to (getNamespaceFriendlyName(tree.getNamespaceName(id)) ?: return@mapNotNull null)
-                                        }
-                                        .sortedBy { generator.config.namespaceFriendlinessIndex.indexOf(it.second) }
-                                        .mapNotNull { (id, ns) ->
-                                            method.getName(id)?.let { name ->
-                                                textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name
-                                            }
-                                        }
-                                        .joinToString()
-                                )
-                            }
-                        )
-                    }
-                }
-            }
-
-            val constructorTree = methodAncestryTreeOf(node, constructorMode = ConstructorComputationMode.ONLY)
-            val constructorRows = buildMethodDiff {
-                node.keys.forEach { version ->
-                    val tree = methodTree.trees[version] ?: error("Constructor tree does not have parent's version")
-                    val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
-
-                    constructorTree.forEach { ctorNode ->
-                        val nullableMethod = ctorNode[version]
-
-                        append(
-                            version,
-                            ctorNode,
-                            nullableMethod?.let { method ->
-                                val methodDeclaration = formatMethodDescriptor(
-                                    method,
-                                    method.modifiers,
-                                    version,
-                                    friendlyNameRemapper,
-                                    generateNamedParameters = false
-                                )
-
-                                HistoricalDescriptableDetail(
-                                    buildString {
-                                        methodDeclaration.formals?.let { append(it).append(' ') }
-                                        append(methodDeclaration.args)
-                                        methodDeclaration.exceptions
-                                            ?.let { append(" throws $it") }
-                                    },
-                                    // hack the diff builder for code reuse
-                                    "<init>"
-                                )
-                            }
-                        )
-                    }
-                }
-            }
 
             classNameRows.entries.forEachIndexed { i, (version, rows) ->
                 val klass = node[version] ?: error("Could not resolve ${version.id} mapping of $lastFriendlyMapping")
@@ -258,7 +268,10 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
                 } else {
                     p(classes = "diff-status diff-no-changes")
                 }
-                spacerYComponent()
+
+                if (i != (classNameRows.size - 1)) {
+                    spacerYComponent()
+                }
             }
         }
         footerPlaceholderComponent()

@@ -22,8 +22,8 @@ import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.badgeComponent
+import me.kcra.takenaka.generator.web.components.defaultResourcesComponent
 import me.kcra.takenaka.generator.web.components.footerPlaceholderComponent
-import me.kcra.takenaka.generator.web.components.headComponent
 import me.kcra.takenaka.generator.web.components.navPlaceholderComponent
 import org.w3c.dom.Document
 
@@ -34,11 +34,14 @@ import org.w3c.dom.Document
  * @return the generated document
  */
 fun GenerationContext.versionsPage(versions: Map<Version, List<String>>): Document = createHTMLDocument().html {
-    headComponent("mappings")
+    head {
+        defaultResourcesComponent()
+        title(content = "mappings")
+    }
     body {
         navPlaceholderComponent()
         main {
-            table(classes = "member-table") {
+            table(classes = "styled-table") {
                 thead {
                     tr {
                         th {

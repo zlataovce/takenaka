@@ -19,6 +19,7 @@ package me.kcra.takenaka.generator.common
 
 import me.kcra.takenaka.core.CompositeWorkspace
 import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MapperIntercept
 import me.kcra.takenaka.core.mapping.MappingContributor
 import java.nio.file.Path
@@ -99,6 +100,15 @@ class MappingConfigurationBuilder {
      */
     fun version(items: List<String>) {
         versions += items
+    }
+
+    /**
+     * Sets [mappingWorkspace].
+     *
+     * @param value the workspace
+     */
+    fun workspace(value: Workspace) {
+        mappingWorkspace = value.asComposite()
     }
 
     /**

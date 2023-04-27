@@ -40,6 +40,9 @@
     --search-subtitle: #6b7280;
     --code-block: #101010;
     --spacer: #374151;
+    --spacer-table: #1f2937;
+    --diff-addition: rgba(46, 160, 67, 0.15);
+    --diff-deletion: rgba(248, 81, 73, 0.15);
 }
 
 [data-theme="light"] {
@@ -98,6 +101,7 @@ h1 {
     color: var(--text);
     font-size: 1.25rem;
     line-height: 1.75rem;
+    word-break: break-word;
 }
 
 h3 {
@@ -293,8 +297,20 @@ input::placeholder {
     background-color: var(--spacer);
 }
 
+.spacer-top-slim {
+    margin-top: 1.25rem;
+    height: 1px;
+    background-color: var(--spacer);
+}
+
 .spacer-bottom {
     margin-top: 0.5rem;
+    margin-bottom: 1.25rem;
+    height: 1px;
+    background-color: var(--spacer);
+}
+
+.spacer-bottom-slim {
     margin-bottom: 1.25rem;
     height: 1px;
     background-color: var(--spacer);
@@ -311,7 +327,7 @@ input::placeholder {
     padding: 0.375rem;
     font-size: 0.75rem;
     font-weight: 600;
-    line-height: .75rem;
+    line-height: 0.75rem;
     color: var(--text-badge);
 }
 
@@ -330,38 +346,44 @@ input::placeholder {
     padding-left: 0.5rem;
 }
 
-.member-table {
+.styled-table {
     width: 100%;
     border-collapse: collapse;
 }
 
-.member-table tbody {
+/* TODO: clean up these child combinators */
+
+.styled-table tbody {
     font-size: 0.875rem;
     line-height: 1.25rem;
 }
 
-.member-table > thead > tr {
+.styled-table > thead > tr {
     border-bottom: 2px solid var(--spacer);
 }
 
-.member-table > tbody > tr {
-    border: 1px solid #1f2937;
+.styled-table > thead > tr :not(:last-child) {
+    padding-right: 0.5rem;
+}
+
+.styled-table > tbody > tr {
+    border: 1px solid var(--spacer-table);
     border-right-width: 0;
     border-left-width: 0;
 }
 
-.member-table > tbody > tr:last-child {
+.styled-table > tbody > tr:last-child {
     border-bottom: none;
 }
 
-.member-table > tbody > tr > td {
-    padding-right: 0.5rem;
+.styled-table > tbody > tr > td {
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
+    padding-right: 0.5rem;
 }
 
-.member-table > tbody > tr > td.member-modifiers {
-    padding-right: 0.5rem;
+.styled-table > tbody > tr > td:last-child {
+    padding-right: 0;
 }
 
 .member-modifiers {
@@ -381,6 +403,7 @@ input::placeholder {
 
 .mapping-badges {
     display: flex;
+    flex-wrap: wrap;
 }
 
 .license-header {
@@ -399,7 +422,8 @@ input::placeholder {
     color: var(--text);
     font-size: 0.875rem;
     line-height: 1.25rem;
-    background-color: rgba(46, 160, 67, 0.15);
+    background-color: var(--diff-addition);
+    word-break: break-word;
 }
 
 .diff-addition > * {
@@ -415,7 +439,8 @@ input::placeholder {
     color: var(--text);
     font-size: 0.875rem;
     line-height: 1.25rem;
-    background-color: rgba(248, 81, 73, 0.15);
+    background-color: var(--diff-deletion);
+    word-break: break-word;
 }
 
 .diff-deletion > * {

@@ -19,7 +19,7 @@ package me.kcra.takenaka.core.mapping.resolve
 
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.DefaultResolverOptions
+import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.VersionAttributes
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
@@ -54,7 +54,7 @@ class MojangManifestAttributeProvider(val workspace: VersionedWorkspace, private
         return workspace.withLock("mojang-manifest") {
             val file = workspace[ATTRIBUTES]
 
-            if (DefaultResolverOptions.RELAXED_CACHE in workspace.resolverOptions && ATTRIBUTES in workspace) {
+            if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && ATTRIBUTES in workspace) {
                 try {
                     return@withLock objectMapper.readValue<VersionAttributes>(file).apply {
                         logger.info { "read cached ${workspace.version.id} attributes" }

@@ -41,14 +41,21 @@ data class ComponentDefinition(
 
 /**
  * An HTML component builder.
- *
- * @property tag the main tag of the component, any tag that is empty and has the same name, will be replaced with the component
- * @property content the component content/body
- * @property callback a raw JS script that is called after the component has been loaded onto the site, an `e` variable of type `HTMLElement` is available
  */
 class ComponentDefinitionBuilder {
+    /**
+     * The main tag of the component, any tag that is empty and has the same name, will be replaced with the component.
+     */
     var tag by Delegates.notNull<String>()
+
+    /**
+     * The component content/body.
+     */
     var content by Delegates.notNull<Document>()
+
+    /**
+     * A raw JS script that is called after the component has been loaded onto the site, a variable `e` of type `HTMLElement` is available.
+     */
     var callback: String? = null
 
     /**
@@ -58,7 +65,7 @@ class ComponentDefinitionBuilder {
      */
     inline fun content(crossinline block: BODY.() -> Unit) {
         content = document {
-            append.filter { if (it.tagName in listOf("html", "body")) SKIP else PASS }
+            append.filter { if (it.tagName == "html" || it.tagName == "body") SKIP else PASS }
                 .html {
                     body {
                         block()
@@ -81,4 +88,5 @@ class ComponentDefinitionBuilder {
  * @param block the builder action
  * @return the component
  */
-inline fun component(block: ComponentDefinitionBuilder.() -> Unit): ComponentDefinition = ComponentDefinitionBuilder().apply(block).toComponent()
+inline fun component(block: ComponentDefinitionBuilder.() -> Unit): ComponentDefinition =
+    ComponentDefinitionBuilder().apply(block).toComponent()
