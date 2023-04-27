@@ -16,8 +16,8 @@ Options:
     --noJoined [false] -> Don't cache joined mapping files 
     --minifier, -m [NORMAL] -> The minifier implementation used for minifying the documentation { Value should be one of [deterministic, normal, none] }
     --javadoc, -j -> Javadoc site that should be referenced in the documentation, can be specified multiple times { String }
-    --skipSynthetic [true] -> Excludes synthetic classes and class members from the documentation 
-    --emitMeta [true] -> Emit HTML metadata tags in OpenGraph format 
+    --synthetic, -s [false] -> Includes synthetic classes and class members in the documentation 
+    --noMeta [false] -> Don't emit HTML metadata tags in OpenGraph format 
     --help, -h -> Usage info
 ```
 

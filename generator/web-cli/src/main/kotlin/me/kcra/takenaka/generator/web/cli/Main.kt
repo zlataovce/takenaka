@@ -76,8 +76,8 @@ fun main(args: Array<String>) {
 
     val minifier by parser.option(ArgType.Choice<MinifierImpls>(), shortName = "m", description = "The minifier implementation used for minifying the documentation").default(MinifierImpls.NORMAL)
     val javadoc by parser.option(ArgType.String, shortName = "j", description = "Javadoc site that should be referenced in the documentation, can be specified multiple times").multiple()
-    val skipSynthetic by parser.option(ArgType.Boolean, description = "Excludes synthetic classes and class members from the documentation").default(true)
-    val emitMeta by parser.option(ArgType.Boolean, description = "Emit HTML metadata tags in OpenGraph format").default(true)
+    val synthetic by parser.option(ArgType.Boolean, shortName = "s", description = "Includes synthetic classes and class members in the documentation").default(false)
+    val noMeta by parser.option(ArgType.Boolean, description = "Don't emit HTML metadata tags in OpenGraph format").default(false)
 
     parser.parse(args)
 
@@ -165,7 +165,7 @@ fun main(args: Array<String>) {
     )
 
     val webConfig = buildWebConfig {
-        emitMetaTags(emitMeta)
+        emitMetaTags(!noMeta)
 
         logger.info { "using minification mode $minifier" }
         if (minifier != MinifierImpls.NONE) {
@@ -203,7 +203,7 @@ fun main(args: Array<String>) {
         runBlocking {
             val mappings = mappingProvider.get(analyzer)
             analyzer.problemKinds.forEach { kind ->
-                if (!skipSynthetic && kind == StandardProblemKinds.SYNTHETIC) return@forEach
+                if (!synthetic && kind == StandardProblemKinds.SYNTHETIC) return@forEach
 
                 analyzer.acceptResolutions(kind)
             }
