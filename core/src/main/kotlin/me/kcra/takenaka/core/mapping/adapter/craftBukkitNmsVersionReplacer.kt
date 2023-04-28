@@ -17,7 +17,7 @@
 
 package me.kcra.takenaka.core.mapping.adapter
 
-import me.kcra.takenaka.core.mapping.resolve.AbstractSpigotMappingResolver
+import me.kcra.takenaka.core.mapping.resolve.impl.AbstractSpigotMappingResolver
 import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTree
 

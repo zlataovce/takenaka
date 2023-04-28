@@ -122,12 +122,12 @@ interface Workspace {
     }
 
     /**
-     * Acquires a workspace-level lock by a string key.
+     * Acquires a workspace-level lock by a key.
      *
      * @param key the lock key
      * @param block the lambda, which will be executed when the lock is acquired
      */
-    fun <T> withLock(key: String, block: () -> T): T
+    fun <T> withLock(key: Any, block: () -> T): T
 
     /**
      * Converts this workspace to a composite one.
@@ -241,13 +241,13 @@ open class WorkspaceBuilder {
  */
 private class Simple(override val rootDirectory: Path, override val options: WorkspaceOptions = workspaceOptionsOf()) : Workspace {
     private val composite by lazy { CompositeWorkspace(rootDirectory, options, locks) }
-    private val locks = mutableMapOf<String, Lock>()
+    private val locks = mutableMapOf<Any, Lock>()
 
     init {
         rootDirectory.createDirectories()
     }
 
-    override fun <T> withLock(key: String, block: () -> T): T {
+    override fun <T> withLock(key: Any, block: () -> T): T {
         val keyedLock = synchronized(this) {
             locks.getOrPut(key, ::ReentrantLock)
         }
@@ -298,13 +298,13 @@ inline fun compositeWorkspace(block: CompositeWorkspaceBuilder.() -> Unit): Comp
 class CompositeWorkspace(
     override val rootDirectory: Path,
     override val options: WorkspaceOptions = workspaceOptionsOf(),
-    private val locks: MutableMap<String, Lock> = mutableMapOf()
+    private val locks: MutableMap<Any, Lock> = mutableMapOf()
 ) : Workspace {
     init {
         rootDirectory.createDirectories()
     }
 
-    override fun <T> withLock(key: String, block: () -> T): T {
+    override fun <T> withLock(key: Any, block: () -> T): T {
         val keyedLock = synchronized(this) {
             locks.getOrPut(key, ::ReentrantLock)
         }
@@ -438,13 +438,13 @@ inline fun versionedWorkspace(block: VersionedWorkspaceBuilder.() -> Unit): Vers
  */
 class VersionedWorkspace(override val rootDirectory: Path, override val options: WorkspaceOptions = workspaceOptionsOf(), val version: Version) : Workspace {
     private val composite by lazy { CompositeWorkspace(rootDirectory, options, locks) }
-    private val locks = mutableMapOf<String, Lock>()
+    private val locks = mutableMapOf<Any, Lock>()
 
     init {
         rootDirectory.createDirectories()
     }
 
-    override fun <T> withLock(key: String, block: () -> T): T {
+    override fun <T> withLock(key: Any, block: () -> T): T {
         val keyedLock = synchronized(this) {
             locks.getOrPut(key, ::ReentrantLock)
         }

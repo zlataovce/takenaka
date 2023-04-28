@@ -20,9 +20,9 @@ package me.kcra.takenaka.core.mapping.analysis.impl
 import me.kcra.takenaka.core.mapping.analysis.AbstractMappingAnalyzer
 import me.kcra.takenaka.core.mapping.analysis.ProblemResolution
 import me.kcra.takenaka.core.mapping.hasNamespace
-import me.kcra.takenaka.core.mapping.resolve.VanillaMappingContributor
-import me.kcra.takenaka.core.mapping.resolve.interfaces
-import me.kcra.takenaka.core.mapping.resolve.superClass
+import me.kcra.takenaka.core.mapping.resolve.impl.VanillaMappingContributor
+import me.kcra.takenaka.core.mapping.resolve.impl.interfaces
+import me.kcra.takenaka.core.mapping.resolve.impl.superClass
 import net.fabricmc.mappingio.tree.MappingTree
 import org.objectweb.asm.Opcodes
 
@@ -51,7 +51,8 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
 
         // exempt class from inheritance error correction when there are only java.* super types
         // VanillaMappingContributor.NS_INTERFACES and/or VanillaMappingContributor.NS_SUPER should be present
-        skipInheritanceChecks = (!klass.tree.hasNamespace(VanillaMappingContributor.NS_INTERFACES) && !klass.tree.hasNamespace(VanillaMappingContributor.NS_SUPER))
+        skipInheritanceChecks = (!klass.tree.hasNamespace(VanillaMappingContributor.NS_INTERFACES) && !klass.tree.hasNamespace(
+            VanillaMappingContributor.NS_SUPER))
                 || (klass.superClass.startsWith("java/") && klass.interfaces.all { it.startsWith("java/") })
 
         checkElementModifiers(klass) {
@@ -97,7 +98,7 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
     }
 
     /**
-     * Visits a field for analysis.
+     * Visits a method for analysis.
      */
     override fun acceptMethod(method: MappingTree.MethodMapping) {
         checkElementModifiers(method) {
