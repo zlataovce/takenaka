@@ -27,10 +27,10 @@ import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import me.kcra.takenaka.core.mapping.matchers.isEnumValueOf
 import me.kcra.takenaka.core.mapping.matchers.isEnumValues
-import me.kcra.takenaka.core.mapping.resolve.interfaces
-import me.kcra.takenaka.core.mapping.resolve.modifiers
-import me.kcra.takenaka.core.mapping.resolve.signature
-import me.kcra.takenaka.core.mapping.resolve.superClass
+import me.kcra.takenaka.core.mapping.resolve.impl.interfaces
+import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
+import me.kcra.takenaka.core.mapping.resolve.impl.signature
+import me.kcra.takenaka.core.mapping.resolve.impl.superClass
 import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.components.*

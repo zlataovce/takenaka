@@ -15,13 +15,14 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.mapping.resolve
+package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
+import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.*
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
@@ -47,7 +48,8 @@ private val logger = KotlinLogging.logger {}
  * @property yarnProvider the Yarn metadata provider
  * @author Matouš Kučera
  */
-class YarnMappingResolver(override val workspace: VersionedWorkspace, val yarnProvider: YarnMetadataProvider) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
+class YarnMappingResolver(override val workspace: VersionedWorkspace, val yarnProvider: YarnMetadataProvider) : AbstractMappingResolver(), MappingContributor,
+    LicenseResolver {
     override val licenseSource: String
         get() = "https://raw.githubusercontent.com/FabricMC/yarn/${version.id}/LICENSE"
     override val targetNamespace: String = "yarn"

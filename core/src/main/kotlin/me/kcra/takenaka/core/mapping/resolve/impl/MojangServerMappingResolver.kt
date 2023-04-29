@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.mapping.resolve
+package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
+import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.*
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingUtil

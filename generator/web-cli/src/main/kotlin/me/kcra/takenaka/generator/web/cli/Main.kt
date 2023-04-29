@@ -28,7 +28,7 @@ import me.kcra.takenaka.core.mapping.WrappingContributor
 import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.analysis.impl.StandardProblemKinds
-import me.kcra.takenaka.core.mapping.resolve.*
+import me.kcra.takenaka.core.mapping.resolve.impl.*
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.common.ResolvingMappingProvider

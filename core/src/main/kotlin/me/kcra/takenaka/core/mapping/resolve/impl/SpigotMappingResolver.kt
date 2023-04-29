@@ -15,13 +15,14 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.mapping.resolve
+package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
+import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
@@ -189,7 +190,8 @@ abstract class AbstractSpigotMappingResolver(
         
         val pomPath by pomOutput
         
-        pomPath?.reader()?.use { xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v -> visitor.visitMetadata(META_CB_NMS_VERSION, v) } }
+        pomPath?.reader()?.use { xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v -> visitor.visitMetadata(
+            META_CB_NMS_VERSION, v) } }
     }
 
     companion object {

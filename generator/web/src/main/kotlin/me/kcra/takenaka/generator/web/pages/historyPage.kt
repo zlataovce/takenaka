@@ -27,7 +27,7 @@ import me.kcra.takenaka.core.mapping.ancestry.ConstructorComputationMode
 import me.kcra.takenaka.core.mapping.ancestry.fieldAncestryTreeOf
 import me.kcra.takenaka.core.mapping.ancestry.methodAncestryTreeOf
 import me.kcra.takenaka.core.mapping.fromInternalName
-import me.kcra.takenaka.core.mapping.resolve.modifiers
+import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.*
 import net.fabricmc.mappingio.tree.MappingTreeView.*

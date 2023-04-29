@@ -34,7 +34,7 @@ interface Output<T> {
     val value: T
 
     /**
-     * Is the output up-to-date (e.g. if it's a File, does the file still exist?)?
+     * Is the output up-to-date (e.g. if it's a [java.nio.file.Path], does the file still exist?)?
      */
     val isUpToDate: Boolean
 
@@ -149,4 +149,5 @@ class OutputBuilder<T> {
  * @param block the builder action
  * @return the output
  */
-inline fun <T> lazyOutput(block: OutputBuilder<T>.() -> Unit): Output<T> = OutputBuilder<T>().apply(block).toLazyOutput()
+inline fun <T> lazyOutput(block: OutputBuilder<T>.() -> Unit): Output<T> =
+    OutputBuilder<T>().apply(block).toLazyOutput()

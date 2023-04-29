@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.mapping.resolve
+package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
