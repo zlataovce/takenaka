@@ -15,16 +15,13 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.generator.accessor.runtime;
+package me.kcra.takenaka.accessor.mapping;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.invoke.MethodHandle;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.ServiceLoader;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -40,7 +37,8 @@ public enum MapperPlatforms implements MapperPlatform {
     BUKKIT {
         private String minecraftVersion = null;
 
-        {
+        // TODO: uncomment after finalizing the Reflect API
+        /*{
             final MethodHandle getVersionHandle = Reflect.findVirtualSafe("org.bukkit.Bukkit", "getVersion", String.class);
 
             if (getVersionHandle != null) {
@@ -58,7 +56,7 @@ public enum MapperPlatforms implements MapperPlatform {
                     throw new RuntimeException("Failed to get Minecraft version", t);
                 }
             }
-        }
+        }*/
 
         @Override
         public boolean isSupported() {
@@ -85,7 +83,8 @@ public enum MapperPlatforms implements MapperPlatform {
     FORGE {
         private String minecraftVersion = null;
 
-        {
+        // TODO: uncomment after finalizing the Reflect API
+        /*{
             final MethodHandle getVersionHandle = Optional.ofNullable(Reflect.findStaticSafe("net.minecraftforge.versions.mcp.MCPVersion", "getMCVersion", String.class))
                     .orElseGet(() -> Reflect.findStaticGetterSafe("net.minecraftforge.common.MinecraftForge", "MC_VERSION", String.class));
 
@@ -96,7 +95,7 @@ public enum MapperPlatforms implements MapperPlatform {
                     throw new RuntimeException("Failed to get Minecraft version", t);
                 }
             }
-        }
+        }*/
 
         @Override
         public boolean isSupported() {
@@ -125,7 +124,7 @@ public enum MapperPlatforms implements MapperPlatform {
     /**
      * The current mapper platform implementation.
      */
-    private static volatile MapperPlatform CURRENT = null;
+    private static final AtomicReference<MapperPlatform> CURRENT = new AtomicReference<>(null);
 
     /**
      * Gets the current mapper platform, discovering a supported one, if not set.
@@ -133,7 +132,12 @@ public enum MapperPlatforms implements MapperPlatform {
      * @return the current mapper platform
      */
     public static @NotNull MapperPlatform getCurrentPlatform() {
-        return CURRENT == null ? (CURRENT = findSupportedPlatform()) : CURRENT;
+        return CURRENT.updateAndGet(mapperPlatform -> {
+            if (mapperPlatform == null) {
+                mapperPlatform = findSupportedPlatform();
+            }
+            return mapperPlatform;
+        });
     }
 
     /**
@@ -142,7 +146,7 @@ public enum MapperPlatforms implements MapperPlatform {
      * @param platform the platform
      */
     public static void setCurrentPlatform(@NotNull MapperPlatform platform) {
-        CURRENT = platform;
+        CURRENT.set(platform);
     }
 
     /**

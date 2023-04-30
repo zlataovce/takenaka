@@ -85,6 +85,8 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
 
     /**
      * Launches the generator with a pre-determined set of mappings.
+     *
+     * @param mappings the mappings
      */
     override suspend fun generate(mappings: MutableMappingsMap) {
         val styleConsumer = DefaultStyleConsumer()

@@ -4,6 +4,7 @@ asm = "9.5"
 jackson = "2.15.0"
 jmh = "1.36"
 kotlinx-benchmark = "0.4.7"
+kotlinpoet = "1.13.1"
 
 [libraries]
 kotlin-stdlib-jdk8 = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib-jdk8", version.ref = "kotlin" }
@@ -23,6 +24,9 @@ kotlinx-html-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-html-jvm",
 kotlinx-cli-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-cli-jvm", version = "0.3.5" }
 kotlinx-benchmark-runtime = { group = "org.jetbrains.kotlinx", name = "kotlinx-benchmark-runtime", version.ref = "kotlinx-benchmark" }
 jb-annotations = { group = "org.jetbrains", name = "annotations", version = "24.0.1" }
+javapoet = { group = "com.squareup", name = "javapoet", version = "1.13.0" }
+kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotlinpoet" }
+kotlinpoet-javapoet = { group = "com.squareup", name = "kotlinpoet-javapoet", version.ref = "kotlinpoet" }
 build-licenser = { group = "org.cadixdev.licenser", name = "org.cadixdev.licenser.gradle.plugin", version = "0.6.1" }
 build-gradle-versions = { group = "com.github.ben-manes", name = "gradle-versions-plugin", version = "0.46.0" }
 
