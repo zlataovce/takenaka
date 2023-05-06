@@ -75,6 +75,11 @@ class ResolvingMappingProvider(
                         return@parallelMap workspace.version to MemoryMappingTree().apply {
                             outputFile.reader().use { r -> Tiny2Reader.read(r, this) }
                             logger.info { "read ${workspace.version.id} joined mapping file from ${outputFile.pathString}" }
+
+                            if (analyzer != null) {
+                                val time = measureTimeMillis { analyzer.accept(this) }
+                                logger.info { "analyzed ${workspace.version.id} mappings in ${time}ms" }
+                            }
                         }
                     } catch (e: Exception) {
                         logger.error(e) { "failed to read ${workspace.version.id} joined mapping file from ${outputFile.pathString}" }
