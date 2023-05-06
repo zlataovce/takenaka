@@ -21,10 +21,8 @@ package me.kcra.takenaka.generator.accessor.model
  * A class type accessor declaration.
  *
  * @property name the class name
- * @property namespace the namespace, defaults to `<auto>` (friendly name namespace)
  * @author Matouš Kučera
  */
 data class ClassAccessor(
-    val name: String,
-    val namespace: String = "<auto>"
+    val name: String
 )

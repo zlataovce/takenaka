@@ -22,10 +22,7 @@ import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.allNamespaceIds
-import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
-import me.kcra.takenaka.core.mapping.ancestry.ConstructorComputationMode
-import me.kcra.takenaka.core.mapping.ancestry.fieldAncestryTreeOf
-import me.kcra.takenaka.core.mapping.ancestry.methodAncestryTreeOf
+import me.kcra.takenaka.core.mapping.ancestry.*
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.generator.web.GenerationContext
@@ -40,7 +37,7 @@ import java.util.*
  * @param node the ancestry node
  * @return the generated document
  */
-fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Document = createHTMLDocument().html {
+fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTMLDocument().html {
     val lastFriendlyMapping = getFriendlyDstName(node.last.value).fromInternalName()
 
     val classNameRows = buildDiff {

@@ -19,8 +19,14 @@ package me.kcra.takenaka.generator.accessor
 
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
+import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
+import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
 import me.kcra.takenaka.generator.accessor.context.generationContext
 import me.kcra.takenaka.generator.common.Generator
+import mu.KotlinLogging
+import net.fabricmc.mappingio.tree.MappingTree
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * A generator that generates source code for accessing obfuscated elements using mapped names across versions.
@@ -40,9 +46,27 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
      * @param mappings the mappings
      */
     override suspend fun generate(mappings: MutableMappingsMap) {
+        val tree = classAncestryTreeOf(mappings, config.historicalNamespaces)
+
+        // replace the CraftBukkit NMS version for spigot-like namespaces
+        // must be after ancestry tree computation, because replacing the VVV package breaks (the remaining) uniformity of the mappings
+        mappings.forEach { (_, tree) ->
+            config.craftBukkitVersionReplaceCandidates.forEach { ns ->
+                if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
+                    tree.replaceCraftBukkitNMSVersion(ns)
+                }
+            }
+        }
+
         generationContext(config.flavor) {
             config.accessors.forEach { classAccessor ->
+                val node = tree[classAccessor.name]
+                if (node == null) {
+                    logger.warn { "did not find class ancestry node with name ${classAccessor.name}" }
+                    return@forEach
+                }
 
+                generateClass(classAccessor, node)
             }
         }
     }

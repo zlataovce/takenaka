@@ -18,7 +18,9 @@
 package me.kcra.takenaka.generator.accessor.context
 
 import kotlinx.coroutines.CoroutineScope
+import me.kcra.takenaka.core.mapping.ancestry.ClassAncestryNode
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
+import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 
 /**
  * A generation context that emits Java code.
@@ -27,4 +29,17 @@ import me.kcra.takenaka.generator.accessor.AccessorGenerator
  * @param contextScope the coroutine scope of this context
  * @author Matouš Kučera
  */
-class JavaGenerationContext(override val generator: AccessorGenerator, contextScope: CoroutineScope) : GenerationContext, CoroutineScope by contextScope
+open class JavaGenerationContext(
+    override val generator: AccessorGenerator,
+    contextScope: CoroutineScope
+) : GenerationContext, CoroutineScope by contextScope {
+    /**
+     * Generates an accessor class from a model in Java.
+     *
+     * @param model the accessor model
+     * @param node the ancestry node of the class defined by the model
+     */
+    override fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
+        TODO("Not yet implemented")
+    }
+}

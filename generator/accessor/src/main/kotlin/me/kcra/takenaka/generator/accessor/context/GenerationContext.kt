@@ -19,8 +19,10 @@ package me.kcra.takenaka.generator.accessor.context
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
+import me.kcra.takenaka.core.mapping.ancestry.ClassAncestryNode
 import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
+import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 
 /**
  * A base generation context.
@@ -32,20 +34,28 @@ interface GenerationContext : CoroutineScope {
      * The generator.
      */
     val generator: AccessorGenerator
+
+    /**
+     * Generates an accessor class from a model.
+     *
+     * @param model the accessor model
+     * @param node the ancestry node of the class defined by the model
+     */
+    fun generateClass(model: ClassAccessor, node: ClassAncestryNode)
 }
 
 /**
- * Opens a generation context of a specific flavor.
+ * Opens a generation context of the specified flavor.
  *
- * @param flavor the context flavor
+ * @param flavor the accessor flavor of the context
  * @param block the context user
  */
 suspend inline fun <R> AccessorGenerator.generationContext(flavor: AccessorFlavor, crossinline block: suspend GenerationContext.() -> R): R =
     coroutineScope {
-        val context = when (flavor) {
-            AccessorFlavor.JAVA -> JavaGenerationContext(this@generationContext, this)
-            AccessorFlavor.KOTLIN -> KotlinGenerationContext(this@generationContext, this)
-        }
-
-        block(context)
+        block(
+            when (flavor) {
+                AccessorFlavor.JAVA -> JavaGenerationContext(this@generationContext, this)
+                else -> throw UnsupportedOperationException("Flavor $flavor not supported")
+            }
+        )
     }

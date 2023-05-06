@@ -221,6 +221,11 @@ inline fun <T : ElementMappingView> buildAncestryTree(block: AncestryTreeBuilder
     AncestryTreeBuilder<T>().apply(block).toAncestryTree()
 
 /**
+ * An alias to shorten generics.
+ */
+typealias ClassAncestryNode = AncestryTree.Node<ClassMappingView>
+
+/**
  * Computes an ancestry tree of all classes in the supplied versions.
  *
  * @param mappings the joined version mapping files
@@ -264,12 +269,17 @@ fun classAncestryTreeOf(mappings: MappingsMap, allowedNamespaces: List<String> =
 }
 
 /**
+ * An alias to shorten generics.
+ */
+typealias FieldAncestryNode = AncestryTree.Node<FieldMappingView>
+
+/**
  * Computes an ancestry tree of all fields in the supplied class ancestry node.
  *
  * @param klass the class node
  * @return the ancestry tree
  */
-fun fieldAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTree<FieldMappingView> = buildAncestryTree {
+fun fieldAncestryTreeOf(klass: ClassAncestryNode): AncestryTree<FieldMappingView> = buildAncestryTree {
     inheritTrees(klass.tree)
     inheritNamespaces(klass.tree)
 
@@ -318,6 +328,11 @@ fun fieldAncestryTreeOf(klass: AncestryTree.Node<ClassMappingView>): AncestryTre
 }
 
 /**
+ * An alias to shorten generics.
+ */
+typealias MethodAncestryNode = AncestryTree.Node<MethodMappingView>
+
+/**
  * The method ancestry tree computation constructor handling.
  */
 enum class ConstructorComputationMode {
@@ -345,7 +360,7 @@ enum class ConstructorComputationMode {
  * @return the ancestry tree
  */
 fun methodAncestryTreeOf(
-    klass: AncestryTree.Node<ClassMappingView>,
+    klass: ClassAncestryNode,
     constructorMode: ConstructorComputationMode = ConstructorComputationMode.EXCLUDE
 ): AncestryTree<MethodMappingView> = buildAncestryTree {
     inheritTrees(klass.tree)

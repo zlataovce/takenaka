@@ -23,10 +23,18 @@ import me.kcra.takenaka.generator.accessor.model.ClassAccessor
  * Configuration for [AccessorGenerator].
  *
  * @property accessors the class accessor models
+ * @property basePackage the base package of the generated accessors
  * @property flavor the flavor of the generated code
+ * @property namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
+ * @property craftBukkitVersionReplaceCandidates namespaces that should have [me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion] applied (most likely Spigot mappings or a flavor of them)
+ * @property historicalNamespaces namespaces that should be used for computing history, all destination namespaces are considered by default
  * @author Matouš Kučera
  */
 data class AccessorConfiguration(
     val accessors: List<ClassAccessor>,
-    val flavor: AccessorFlavor = AccessorFlavor.JAVA
+    val basePackage: String,
+    val flavor: AccessorFlavor = AccessorFlavor.JAVA,
+    val namespaceFriendlinessIndex: List<String> = emptyList(),
+    val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
+    val historicalNamespaces: List<String> = emptyList()
 )
