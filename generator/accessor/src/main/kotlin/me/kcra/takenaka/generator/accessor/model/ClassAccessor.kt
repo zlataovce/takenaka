@@ -17,12 +17,17 @@
 
 package me.kcra.takenaka.generator.accessor.model
 
+import me.kcra.takenaka.core.mapping.toInternalName
+
 /**
  * A class type accessor declaration.
  *
  * @property name the class name
  * @author Matouš Kučera
  */
-data class ClassAccessor(
-    val name: String
-)
+data class ClassAccessor(val name: String) {
+    /**
+     * Internalized variant of [name].
+     */
+    val internalName by lazy(name::toInternalName)
+}

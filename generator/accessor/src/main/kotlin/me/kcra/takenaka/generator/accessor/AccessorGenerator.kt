@@ -21,7 +21,6 @@ import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
-import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.accessor.context.generationContext
 import me.kcra.takenaka.generator.common.Generator
 import mu.KotlinLogging
@@ -61,11 +60,9 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
 
         generationContext(config.flavor) {
             config.accessors.forEach { classAccessor ->
-                val name = classAccessor.name.toInternalName()
-
-                val node = tree[name]
+                val node = tree[classAccessor.internalName]
                 if (node == null) {
-                    logger.warn { "did not find class ancestry node with name $name" }
+                    logger.warn { "did not find class ancestry node with name ${classAccessor.internalName}" }
                     return@forEach
                 }
 

@@ -47,7 +47,7 @@ open class JavaGenerationContext(
      * @param node the ancestry node of the class defined by the model
      */
     override fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
-        val spec = TypeSpec.interfaceBuilder("${getFriendlyDstName(node.last.value).substringAfterLast('/')}Accessor")
+        val spec = TypeSpec.interfaceBuilder("${model.internalName.substringAfterLast('/')}Accessor")
             .addModifiers(Modifier.PUBLIC)
             .addField(
                 FieldSpec.builder(SourceTypes.CLASS_MAPPING, "MAPPING", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
@@ -67,6 +67,11 @@ open class JavaGenerationContext(
                             .unindent()
                             .build()
                     )
+                    .build()
+            )
+            .addField(
+                FieldSpec.builder(SourceTypes.CLASS_WILDCARD, "TYPE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                    .initializer("MAPPING.getClassByCurrentPlatform()")
                     .build()
             )
             .build()

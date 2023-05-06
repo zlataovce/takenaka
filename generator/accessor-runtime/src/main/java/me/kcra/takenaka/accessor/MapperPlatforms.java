@@ -19,9 +19,13 @@ package me.kcra.takenaka.accessor;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -37,13 +41,13 @@ public enum MapperPlatforms implements MapperPlatform {
     BUKKIT {
         private String minecraftVersion = null;
 
-        // TODO: uncomment after finalizing the Reflect API
-        /*{
-            final MethodHandle getVersionHandle = Reflect.findVirtualSafe("org.bukkit.Bukkit", "getVersion", String.class);
-
-            if (getVersionHandle != null) {
+        {
+            try {
+                final Class<?> bukkitClass = Class.forName("org.bukkit.Bukkit");
                 try {
-                    final String versionString = (String) getVersionHandle.invokeExact();
+                    final Method getVersionMethod = bukkitClass.getMethod("getVersion");
+
+                    final String versionString = (String) getVersionMethod.invoke(null);
 
                     final Pattern versionPattern = Pattern.compile("\\(MC: ([A-Za-z0-9-_. ]+)\\)");
                     final Matcher matcher = versionPattern.matcher(versionString);
@@ -52,11 +56,12 @@ public enum MapperPlatforms implements MapperPlatform {
                     }
 
                     minecraftVersion = matcher.group(1);
-                } catch (Throwable t) {
-                    throw new RuntimeException("Failed to get Minecraft version", t);
+                } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                    throw new RuntimeException("Failed to get Minecraft version", e);
                 }
+            } catch (ClassNotFoundException ignored) {
             }
-        }*/
+        }
 
         @Override
         public boolean isSupported() {
@@ -72,8 +77,8 @@ public enum MapperPlatforms implements MapperPlatform {
         }
 
         @Override
-        public @NotNull String getMappingNamespace() {
-            return "spigot";
+        public @NotNull String[] getMappingNamespaces() {
+            return new String[] { "spigot", "source" };
         }
     },
 
@@ -83,19 +88,22 @@ public enum MapperPlatforms implements MapperPlatform {
     FORGE {
         private String minecraftVersion = null;
 
-        // TODO: uncomment after finalizing the Reflect API
-        /*{
-            final MethodHandle getVersionHandle = Optional.ofNullable(Reflect.findStaticSafe("net.minecraftforge.versions.mcp.MCPVersion", "getMCVersion", String.class))
-                    .orElseGet(() -> Reflect.findStaticGetterSafe("net.minecraftforge.common.MinecraftForge", "MC_VERSION", String.class));
-
-            if (getVersionHandle != null) {
+        {
+            try {
                 try {
-                    minecraftVersion = (String) getVersionHandle.invokeExact();
-                } catch (Throwable t) {
-                    throw new RuntimeException("Failed to get Minecraft version", t);
+                    // Flattening versions
+                    final Class<?> mcpVersionClass = Class.forName("net.minecraftforge.versions.mcp.MCPVersion");
+                    minecraftVersion = (String) mcpVersionClass.getMethod("getMCVersion").invoke(null);
+                } catch (ClassNotFoundException | NoSuchMethodException ignored) {
+                    // Legacy versions
+                    final Class<?> forgeClass = Class.forName("net.minecraftforge.common.MinecraftForge");
+                    minecraftVersion = (String) forgeClass.getField("MC_VERSION").get(null);
                 }
+            } catch (NoSuchFieldException | IllegalAccessException | InvocationTargetException e) {
+                throw new RuntimeException("Failed to get Minecraft version", e);
+            } catch (ClassNotFoundException ignored) {
             }
-        }*/
+        }
 
         @Override
         public boolean isSupported() {
@@ -111,8 +119,8 @@ public enum MapperPlatforms implements MapperPlatform {
         }
 
         @Override
-        public @NotNull String getMappingNamespace() {
-            return "searge";
+        public @NotNull String[] getMappingNamespaces() {
+            return new String[] { "searge" };
         }
     };
 
