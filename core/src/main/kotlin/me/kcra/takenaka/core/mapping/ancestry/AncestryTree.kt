@@ -90,10 +90,15 @@ class AncestryTree<T : ElementMappingView>(
     /**
      * Tries to find a node with [key] as a mapping in the last mapped version.
      *
-     * @param key the mapping; [String] for classes, [NameDescriptorPair] for members (field, method)
+     * @param key the mapping; [String] for classes, [NameDescriptorPair] for members (field, method) and [Collection]s of them (all mappings must match)
      * @return the node, null if not found
      */
-    operator fun get(key: Any): Node<T>? = find { key in it.lastNames }
+    operator fun get(key: Any): Node<T>? =
+        if (key is Collection<*>) {
+            find { key.all(it.lastNames::contains) }
+        } else {
+            find { key in it.lastNames }
+        }
 }
 
 /**

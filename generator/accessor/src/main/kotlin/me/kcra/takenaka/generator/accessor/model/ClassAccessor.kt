@@ -22,7 +22,7 @@ import me.kcra.takenaka.core.mapping.toInternalName
 /**
  * A class type accessor declaration.
  *
- * @property name the class name
+ * @property name the last (newest) mapped class name of the accessed class
  * @author Matouš Kučera
  */
 data class ClassAccessor(val name: String) {

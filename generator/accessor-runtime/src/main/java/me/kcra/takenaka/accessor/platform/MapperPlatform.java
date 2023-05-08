@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.accessor;
+package me.kcra.takenaka.accessor.platform;
 
 import org.jetbrains.annotations.NotNull;
 

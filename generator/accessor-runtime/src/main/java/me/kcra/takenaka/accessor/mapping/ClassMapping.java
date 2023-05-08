@@ -2,8 +2,8 @@ package me.kcra.takenaka.accessor.mapping;
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import me.kcra.takenaka.accessor.MapperPlatform;
-import me.kcra.takenaka.accessor.MapperPlatforms;
+import me.kcra.takenaka.accessor.platform.MapperPlatform;
+import me.kcra.takenaka.accessor.platform.MapperPlatforms;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -22,6 +22,8 @@ import java.util.Map;
 public class ClassMapping {
     /**
      * The mappings, a map of namespace-mapping maps keyed by version.
+     * <p>
+     * Fully qualified class name parts are delimited by <strong>dots, not slashes</strong> (non-internal names).
      */
     private final Map<String, Map<String, String>> mappings;
 
@@ -89,15 +91,24 @@ public class ClassMapping {
     }
 
     /**
+     * Gets a mapped class name by the version and namespaces of the supplied {@link MapperPlatform},
+     * and attempts to resolve it in the current thread class loader.
+     *
+     * @param platform the platform
+     * @return the class, null if it's not mapped
+     */
+    public @Nullable Class<?> getClassByPlatform(@NotNull MapperPlatform platform) {
+        return getClass(platform.getVersion(), platform.getMappingNamespaces());
+    }
+
+    /**
      * Gets a mapped class name by the version and namespaces of the current {@link MapperPlatform},
      * and attempts to resolve it in the current thread class loader.
      *
      * @return the class, null if it's not mapped
      */
     public @Nullable Class<?> getClassByCurrentPlatform() {
-        final MapperPlatform currentPlatform = MapperPlatforms.getCurrentPlatform();
-
-        return getClass(currentPlatform.getVersion(), currentPlatform.getMappingNamespaces());
+        return getClassByPlatform(MapperPlatforms.getCurrentPlatform());
     }
 
     /**
