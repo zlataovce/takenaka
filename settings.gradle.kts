@@ -12,4 +12,4 @@ fun includeComposite(name: String, vararg modules: String) {
 rootProject.name = "takenaka"
 
 include("core")
-includeComposite("generator", "common", "web", "web-cli", "accessor", "accessor-runtime")
+includeComposite("generator", "common", "web", "web-cli", "accessor", "accessor-runtime", "accessor-plugin")

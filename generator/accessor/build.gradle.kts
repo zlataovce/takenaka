@@ -1,5 +1,6 @@
 plugins {
     id("takenaka.base-conventions")
+    id("takenaka.publish-conventions")
 }
 
 apply(plugin = "org.jetbrains.kotlin.jvm")
