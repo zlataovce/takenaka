@@ -15,20 +15,26 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.generator.accessor.model
-
-import me.kcra.takenaka.core.mapping.toInternalName
+package me.kcra.takenaka.core.mapping.ancestry.impl
 
 /**
- * A class type accessor declaration.
+ * The method ancestry tree computation constructor handling.
  *
- * @property name the last (newest) mapped class name of the accessed class
- * @property fields the accessed fields of the class
  * @author Matouš Kučera
  */
-data class ClassAccessor(val name: String, val fields: List<FieldAccessor>) {
+enum class ConstructorComputationMode {
     /**
-     * Internalized variant of [name].
+     * Excludes all constructors.
      */
-    val internalName by lazy(name::toInternalName)
+    EXCLUDE,
+
+    /**
+     * Includes all constructors.
+     */
+    INCLUDE,
+
+    /**
+     * Excludes all methods except constructors.
+     */
+    ONLY
 }

@@ -28,6 +28,7 @@ import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.accessor.model.FieldAccessor
 import me.kcra.takenaka.generator.common.ResolvingMappingProvider
 import me.kcra.takenaka.generator.common.buildMappingConfig
 import kotlin.test.Test
@@ -106,7 +107,16 @@ class AccessorGeneratorTest {
         val generator = AccessorGenerator(
             resultWorkspace,
             AccessorConfiguration(
-                listOf(ClassAccessor("net.minecraft.network.protocol.game.ClientboundAddEntityPacket")),
+                listOf(
+                    ClassAccessor(
+                        "net.minecraft.network.protocol.game.ClientboundAddEntityPacket",
+                        listOf(
+                            FieldAccessor("x", "D"),
+                            FieldAccessor("y", "D"),
+                            FieldAccessor("z", "D")
+                        )
+                    )
+                ),
                 "me.kcra.takenaka.accessors",
                 namespaceFriendlinessIndex = listOf("mojang", "spigot", "yarn", "searge", "intermediary", "source"),
                 accessedNamespaces = listOf("spigot", "source"),

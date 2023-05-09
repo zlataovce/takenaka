@@ -20,7 +20,7 @@ package me.kcra.takenaka.generator.accessor
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
-import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
+import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
 import me.kcra.takenaka.generator.accessor.context.generationContext
 import me.kcra.takenaka.generator.common.Generator
 import mu.KotlinLogging

@@ -31,6 +31,9 @@ import com.squareup.kotlinpoet.javapoet.toKClassName
 object SourceTypes {
     val CLASS_MAPPING: ClassName = ClassName.get("me.kcra.takenaka.accessor.mapping", "ClassMapping")
     val KT_CLASS_MAPPING = CLASS_MAPPING.toKClassName()
+    val FIELD_MAPPING: ClassName = ClassName.get("me.kcra.takenaka.accessor.mapping", "FieldMapping")
+    val KT_FIELD_MAPPING = FIELD_MAPPING.toKClassName()
+    val NOT_NULL: ClassName = ClassName.get("org.jetbrains.annotations", "NotNull")
     val NULLABLE: ClassName = ClassName.get("org.jetbrains.annotations", "Nullable")
     val CLASS: ClassName = ClassName.get(java.lang.Class::class.java)
     val CLASS_WILDCARD: ParameterizedTypeName = ParameterizedTypeName.get(CLASS, WildcardTypeName.subtypeOf(ClassName.OBJECT))

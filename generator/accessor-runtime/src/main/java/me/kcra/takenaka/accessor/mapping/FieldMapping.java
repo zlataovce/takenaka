@@ -26,36 +26,35 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
+import java.lang.reflect.Field;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
- * A multi-version multi-namespace class mapping.
+ * A multi-version multi-namespace field mapping.
  *
  * @author Matouš Kučera
  */
 @Data
 @RequiredArgsConstructor
-public class ClassMapping {
+public class FieldMapping {
+    /**
+     * The parent class mapping.
+     */
+    private final ClassMapping parent;
+
     /**
      * The mappings, a map of namespace-mapping maps keyed by version.
-     * <p>
-     * Fully qualified class name parts are delimited by <strong>dots, not slashes</strong> (non-internal names).
      */
     private final Map<String, Map<String, String>> mappings;
 
     /**
-     * Field mappings of this class.
+     * Constructs a new {@link FieldMapping} without any initial mappings.
+     *
+     * @param parent the parent class mapping
      */
-    private final List<FieldMapping> fields;
-
-    /**
-     * Constructs a new {@link ClassMapping} without any initial mappings or members.
-     */
-    public ClassMapping() {
-        this(new HashMap<>(), new ArrayList<>());
+    public FieldMapping(@NotNull ClassMapping parent) {
+        this(parent, new HashMap<>());
     }
 
     /**
@@ -69,7 +68,7 @@ public class ClassMapping {
     }
 
     /**
-     * Gets a mapped class name by the version and namespaces.
+     * Gets a mapped field name by the version and namespaces.
      * <p>
      * Namespaces are iterated in order, the first mapped namespace's name is returned.
      *
@@ -93,89 +92,76 @@ public class ClassMapping {
     }
 
     /**
-     * Gets a mapped class name by the version and namespaces, and attempts to resolve it in the current thread class loader.
+     * Gets a mapped field name by the version and namespaces, and attempts to find it in the parent class.
      * <p>
      * Namespaces are iterated in order, the first mapped namespace's name is returned.
      *
      * @param version the version
      * @param namespaces the namespaces
-     * @return the class, null if it's not mapped
+     * @return the field, null if it's not mapped
      */
-    public @Nullable Class<?> getClass(@NotNull String version, @NotNull String... namespaces) {
+    public @Nullable Field getField(@NotNull String version, @NotNull String... namespaces) {
+        Class<?> clazz = parent.getClass(version, namespaces);
+        if (clazz == null) {
+            return null;
+        }
+
         final String name = getName(version, namespaces);
         if (name == null) {
             return null;
         }
 
         try {
-            return Class.forName(name);
-        } catch (ClassNotFoundException ignored) {
+            return clazz.getField(name);
+        } catch (NoSuchFieldException ignored) {
+            do {
+                try {
+                    final Field field = clazz.getDeclaredField(name);
+                    field.setAccessible(true);
+
+                    return field;
+                } catch (NoSuchFieldException ignored2) {
+                }
+            } while ((clazz = clazz.getSuperclass()) != null && clazz != Object.class);
         }
         return null;
     }
 
     /**
-     * Gets a mapped class name by the version and namespaces of the supplied {@link MapperPlatform},
-     * and attempts to resolve it in the current thread class loader.
+     * Gets a mapped field name by the version and namespaces of the supplied {@link MapperPlatform},
+     * and attempts to find it in the parent class.
      *
      * @param platform the platform
-     * @return the class, null if it's not mapped
+     * @return the field, null if it's not mapped
      */
-    public @Nullable Class<?> getClassByPlatform(@NotNull MapperPlatform platform) {
-        return getClass(platform.getVersion(), platform.getMappingNamespaces());
+    public @Nullable Field getFieldByPlatform(@NotNull MapperPlatform platform) {
+        return getField(platform.getVersion(), platform.getMappingNamespaces());
     }
 
     /**
-     * Gets a mapped class name by the version and namespaces of the current {@link MapperPlatform},
-     * and attempts to resolve it in the current thread class loader.
+     * Gets a mapped field name by the version and namespaces of the current {@link MapperPlatform},
+     * and attempts to find it in the parent class.
      *
-     * @return the class, null if it's not mapped
+     * @return the field, null if it's not mapped
      */
-    public @Nullable Class<?> getClassByCurrentPlatform() {
-        return getClassByPlatform(MapperPlatforms.getCurrentPlatform());
+    public @Nullable Field getFieldByCurrentPlatform() {
+        return getFieldByPlatform(MapperPlatforms.getCurrentPlatform());
     }
 
     /**
-     * Gets a field mapping indexed by its insertion order.
-     *
-     * @param index the index
-     * @return the field mapping, null if index is out of bounds
-     */
-    public @Nullable FieldMapping getField(int index) {
-        if (index < 0 || index >= fields.size()) return null;
-
-        return fields.get(index);
-    }
-
-    /**
-     * Puts a new mapping into this {@link ClassMapping}.
+     * Puts a new mapping into this {@link FieldMapping}.
      * <p>
      * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
      *
      * @param version the mapping's version
      * @param namespace the mapping's namespace
      * @param mapping the mapped name
-     * @return this {@link ClassMapping}
+     * @return this {@link FieldMapping}
      */
     @ApiStatus.Internal
     @Contract("_, _, _ -> this")
-    public @NotNull ClassMapping put(@NotNull String version, @NotNull String namespace, @NotNull String mapping) {
+    public @NotNull FieldMapping put(@NotNull String version, @NotNull String namespace, @NotNull String mapping) {
         mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, mapping);
         return this;
-    }
-
-    /**
-     * Puts a new field mapping into this {@link ClassMapping}.
-     * <p>
-     * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
-     *
-     * @return the new {@link FieldMapping}
-     */
-    @ApiStatus.Internal
-    public @NotNull FieldMapping putField() {
-        final FieldMapping mapping = new FieldMapping(this);
-
-        fields.add(mapping);
-        return mapping;
     }
 }

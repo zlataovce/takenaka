@@ -20,15 +20,17 @@ package me.kcra.takenaka.generator.accessor.model
 import me.kcra.takenaka.core.mapping.toInternalName
 
 /**
- * A class type accessor declaration.
+ * A field accessor declaration.
  *
- * @property name the last (newest) mapped class name of the accessed class
- * @property fields the accessed fields of the class
+ * @property name the last (newest) mapped name of the field
+ * @property type the field type, null if it should be inferred (**inferring the type can lead to matching the wrong field - use with care**)
  * @author Matouš Kučera
  */
-data class ClassAccessor(val name: String, val fields: List<FieldAccessor>) {
+data class FieldAccessor(val name: String, val type: String?) {
     /**
-     * Internalized variant of [name].
+     * Internalized variant of [type].
      */
-    val internalName by lazy(name::toInternalName)
+    val internalType by lazy {
+        type?.toInternalName()
+    }
 }
