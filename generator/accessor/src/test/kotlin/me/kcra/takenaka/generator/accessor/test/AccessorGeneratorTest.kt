@@ -111,9 +111,9 @@ class AccessorGeneratorTest {
                     ClassAccessor(
                         "net.minecraft.network.protocol.game.ClientboundAddEntityPacket",
                         listOf(
-                            FieldAccessor("x", "D"),
-                            FieldAccessor("y", "D"),
-                            FieldAccessor("z", "D")
+                            FieldAccessor("x"),
+                            FieldAccessor("y"),
+                            FieldAccessor("z")
                         )
                     )
                 ),

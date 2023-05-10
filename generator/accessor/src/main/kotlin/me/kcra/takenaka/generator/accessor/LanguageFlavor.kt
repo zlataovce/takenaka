@@ -22,7 +22,7 @@ package me.kcra.takenaka.generator.accessor
  *
  * @author Matouš Kučera
  */
-enum class AccessorFlavor {
+enum class LanguageFlavor {
     /**
      * Java code.
      */

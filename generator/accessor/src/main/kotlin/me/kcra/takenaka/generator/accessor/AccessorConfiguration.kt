@@ -35,7 +35,7 @@ import net.fabricmc.mappingio.MappingUtil
 data class AccessorConfiguration(
     val accessors: List<ClassAccessor>,
     val basePackage: String,
-    val flavor: AccessorFlavor = AccessorFlavor.JAVA,
+    val flavor: LanguageFlavor = LanguageFlavor.JAVA,
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val accessedNamespaces: List<String> = namespaceFriendlinessIndex,
     val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),

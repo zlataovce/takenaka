@@ -26,9 +26,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -47,15 +45,15 @@ public class ClassMapping {
     private final Map<String, Map<String, String>> mappings;
 
     /**
-     * Field mappings of this class.
+     * Field mappings of this class keyed by the name declared in the accessor model.
      */
-    private final List<FieldMapping> fields; // TODO: key by model name
+    private final Map<String, FieldMapping> fields;
 
     /**
      * Constructs a new {@link ClassMapping} without any initial mappings or members.
      */
     public ClassMapping() {
-        this(new HashMap<>(), new ArrayList<>());
+        this(new HashMap<>(), new HashMap<>());
     }
 
     /**
@@ -136,15 +134,13 @@ public class ClassMapping {
     }
 
     /**
-     * Gets a field mapping indexed by its insertion order.
+     * Gets a field mapping by its name ({@link FieldMapping#getName()}).
      *
-     * @param index the index
+     * @param name the field name
      * @return the field mapping, null if index is out of bounds
      */
-    public @Nullable FieldMapping getField(int index) {
-        if (index < 0 || index >= fields.size()) return null;
-
-        return fields.get(index);
+    public @Nullable FieldMapping getField(@NotNull String name) {
+        return fields.get(name);
     }
 
     /**
@@ -169,13 +165,14 @@ public class ClassMapping {
      * <p>
      * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
      *
+     * @param name the field name declared in the accessor model
      * @return the new {@link FieldMapping}
      */
     @ApiStatus.Internal
-    public @NotNull FieldMapping putField() {
-        final FieldMapping mapping = new FieldMapping(this);
+    public @NotNull FieldMapping putField(@NotNull String name) {
+        final FieldMapping mapping = new FieldMapping(this, name);
 
-        fields.add(mapping);
+        fields.put(name, mapping);
         return mapping;
     }
 }

@@ -21,7 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
 import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
-import me.kcra.takenaka.generator.accessor.AccessorFlavor
+import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import net.fabricmc.mappingio.tree.MappingTreeView
@@ -65,11 +65,11 @@ interface GenerationContext : CoroutineScope {
  * @param flavor the accessor flavor of the context
  * @param block the context user
  */
-suspend inline fun <R> AccessorGenerator.generationContext(flavor: AccessorFlavor, crossinline block: suspend GenerationContext.() -> R): R =
+suspend inline fun <R> AccessorGenerator.generationContext(flavor: LanguageFlavor, crossinline block: suspend GenerationContext.() -> R): R =
     coroutineScope {
         block(
             when (flavor) {
-                AccessorFlavor.JAVA -> JavaGenerationContext(this@generationContext, this)
+                LanguageFlavor.JAVA -> JavaGenerationContext(this@generationContext, this)
                 else -> throw UnsupportedOperationException("Flavor $flavor not supported")
             }
         )

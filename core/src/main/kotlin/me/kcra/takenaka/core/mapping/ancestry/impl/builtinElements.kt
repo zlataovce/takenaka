@@ -17,8 +17,10 @@
 
 package me.kcra.takenaka.core.mapping.ancestry.impl
 
+import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
+import me.kcra.takenaka.core.mapping.ancestry.NameDescriptorPair
 import me.kcra.takenaka.core.mapping.ancestry.buildAncestryTree
 import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
@@ -208,3 +210,24 @@ fun methodAncestryTreeOf(
         }
     }
 }
+
+/**
+ * Searches for a member node in a tree, an alternative to [AncestryTree.get] if you don't know the descriptor or only the arguments.
+ *
+ * @param name the mapped field name
+ * @param descriptor the mapped descriptor, may be partial, descriptors are not checked if null
+ * @param version the version in which [name] is located, presumes last (newest) if null
+ */
+fun <T : MappingTreeView.MemberMappingView> AncestryTree<T>.find(name: String, descriptor: String? = null, version: Version? = null): AncestryTree.Node<T>? =
+    find stdFind@ { node ->
+        if (version == null) {
+            @Suppress("UNCHECKED_CAST") // should always be NameDescriptorPair, since it's a field or a method
+            (node.lastNames as Set<NameDescriptorPair>).any { (pairName, pairDesc) ->
+                pairName == name && (descriptor == null || pairDesc.startsWith(descriptor))
+            }
+        } else {
+            val member = node[version] ?: return@stdFind false
+
+            node.tree.allowedNamespaces[version]?.any { ns -> member.getDstName(ns) == name && (descriptor == null || member.getDstDesc(ns).startsWith(descriptor)) } == true
+        }
+    }

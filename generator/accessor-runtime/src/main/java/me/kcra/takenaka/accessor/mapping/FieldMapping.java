@@ -44,6 +44,11 @@ public class FieldMapping {
     private final ClassMapping parent;
 
     /**
+     * The accessed field name declared in the accessor model.
+     */
+    private final String name;
+
+    /**
      * The mappings, a map of namespace-mapping maps keyed by version.
      */
     private final Map<String, Map<String, String>> mappings;
@@ -52,9 +57,10 @@ public class FieldMapping {
      * Constructs a new {@link FieldMapping} without any initial mappings.
      *
      * @param parent the parent class mapping
+     * @param name the field name declared in the accessor model
      */
-    public FieldMapping(@NotNull ClassMapping parent) {
-        this(parent, new HashMap<>());
+    public FieldMapping(@NotNull ClassMapping parent, @NotNull String name) {
+        this(parent, name, new HashMap<>());
     }
 
     /**

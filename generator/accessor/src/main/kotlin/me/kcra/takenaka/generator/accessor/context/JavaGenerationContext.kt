@@ -23,8 +23,10 @@ import com.squareup.javapoet.JavaFile
 import com.squareup.javapoet.TypeSpec
 import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
+import me.kcra.takenaka.core.mapping.ancestry.NameDescriptorPair
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
 import me.kcra.takenaka.core.mapping.ancestry.impl.fieldAncestryTreeOf
+import me.kcra.takenaka.core.mapping.ancestry.impl.find
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
@@ -61,10 +63,17 @@ open class JavaGenerationContext(
      * @param node the ancestry node of the class defined by the model
      */
     override fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
+        logger.debug { "generating accessors for class '${model.internalName}'" }
+
         val fieldTree = fieldAncestryTreeOf(node)
         val fieldAccessors = model.fields.mapNotNull { fieldAccessor ->
-            // TODO: type inferring
-            val fieldNode = fieldTree[fieldAccessor.name to fieldAccessor.internalType]
+            val fieldNode = if (fieldAccessor.type == null) {
+                fieldTree.find(fieldAccessor.name, version = fieldAccessor.version)?.apply {
+                    logger.debug { "inferred type '${Type.getType(getFriendlyDstDesc(last.value)).className}' for field ${fieldAccessor.name}" }
+                }
+            } else {
+                fieldTree[NameDescriptorPair(fieldAccessor.name, fieldAccessor.internalType!!)]
+            }
             if (fieldNode == null) {
                 logger.warn { "did not find field ancestry node with name ${fieldAccessor.name} and type ${fieldAccessor.internalType}" }
                 return@mapNotNull null
@@ -83,61 +92,66 @@ open class JavaGenerationContext(
                     @version ${node.last.key.id}
                 """.trimIndent()
             )
-            .addField(
-                FieldSpec.builder(SourceTypes.CLASS_MAPPING, "MAPPING", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                    .initializer(
-                        CodeBlock.builder()
-                            .add("new \$T()", SourceTypes.CLASS_MAPPING)
-                            .indent()
-                            .apply {
-                                node.forEach { (version, klass) ->
-                                    generator.config.accessedNamespaces.forEach { ns ->
-                                        klass.getName(ns)?.let { name ->
-                                            // de-internalize the name beforehand to meet the ClassMapping contract
-                                            add("\n.put(\$S, \$S, \$S)", version.id, ns, name.fromInternalName())
-                                        }
-                                    }
-                                }
-
-                                fieldAccessors.forEach { (_, fieldNode) ->
-                                    add("\n.putField()")
-                                    indent()
-                                    fieldNode.forEach { (version, field) ->
-                                        generator.config.accessedNamespaces.forEach { ns ->
-                                            field.getName(ns)?.let { name ->
-                                                add("\n.put(\$S, \$S, \$S)", version.id, ns, name)
+            .addType(
+                TypeSpec.interfaceBuilder("Mappings")
+                    .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                    .addField(
+                        FieldSpec.builder(SourceTypes.CLASS_MAPPING, "MAPPING", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                            .initializer(
+                                CodeBlock.builder()
+                                    .add("new \$T()", SourceTypes.CLASS_MAPPING)
+                                    .indent()
+                                    .apply {
+                                        node.forEach { (version, klass) ->
+                                            generator.config.accessedNamespaces.forEach { ns ->
+                                                klass.getName(ns)?.let { name ->
+                                                    // de-internalize the name beforehand to meet the ClassMapping contract
+                                                    add("\n.put(\$S, \$S, \$S)", version.id, ns, name.fromInternalName())
+                                                }
                                             }
                                         }
+
+                                        fieldAccessors.forEach { (fieldAccessor, fieldNode) ->
+                                            add("\n.putField(\$S)", fieldAccessor.name)
+                                            indent()
+                                            fieldNode.forEach { (version, field) ->
+                                                generator.config.accessedNamespaces.forEach { ns ->
+                                                    field.getName(ns)?.let { name ->
+                                                        add("\n.put(\$S, \$S, \$S)", version.id, ns, name)
+                                                    }
+                                                }
+                                            }
+                                            add("\n.getParent()")
+                                            unindent()
+                                        }
                                     }
-                                    add("\n.getParent()")
-                                    unindent()
-                                }
-                            }
-                            .unindent()
+                                    .unindent()
+                                    .build()
+                            )
                             .build()
                     )
+                    .apply {
+                        fieldAccessors.forEach { (fieldAccessor, fieldNode) ->
+                            val accessorName = fieldAccessor.name.camelToUpperSnakeCase()
+
+                            addField(
+                                FieldSpec.builder(SourceTypes.FIELD_MAPPING, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                    .addAnnotation(SourceTypes.NOT_NULL)
+                                    .addJavadoc(
+                                        """
+                                            Mapping for the {@code ${Type.getType(getFriendlyDstDesc(fieldNode.last.value)).className} ${fieldAccessor.name}} field.
+                                                                
+                                            @since ${fieldNode.first.key.id}
+                                            @version ${fieldNode.last.key.id}
+                                        """.trimIndent()
+                                    )
+                                    .initializer("MAPPING.getField(\$S)", fieldAccessor.name)
+                                    .build()
+                            )
+                        }
+                    }
                     .build()
             )
-            .apply {
-                fieldAccessors.forEachIndexed { index, (fieldAccessor, fieldNode) ->
-                    val accessorName = fieldAccessor.name.camelToUpperSnakeCase()
-
-                    addField(
-                        FieldSpec.builder(SourceTypes.FIELD_MAPPING, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                            .addAnnotation(SourceTypes.NOT_NULL)
-                            .addJavadoc(
-                                """
-                                    Mapping for the {@code ${Type.getType(getFriendlyDstDesc(fieldNode.last.value)).className} ${fieldAccessor.name}} field.
-                                                        
-                                    @since ${fieldNode.first.key.id}
-                                    @version ${fieldNode.last.key.id}
-                                """.trimIndent()
-                            )
-                            .initializer("MAPPING.getField(\$L)", index)
-                            .build()
-                    )
-                }
-            }
             .build()
 
         JavaFile.builder(generator.config.basePackage, spec)
