@@ -25,7 +25,8 @@ import net.fabricmc.mappingio.MappingUtil
  *
  * @property accessors the class accessor models
  * @property basePackage the base package of the generated accessors
- * @property flavor the flavor of the generated code
+ * @property languageFlavor the language of the generated code
+ * @property accessorFlavor the way how classes and their members are accessed
  * @property namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @property accessedNamespaces the namespaces that should be used in accessors
  * @property craftBukkitVersionReplaceCandidates namespaces that should have [me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion] applied (most likely Spigot mappings or a flavor of them)
@@ -35,7 +36,8 @@ import net.fabricmc.mappingio.MappingUtil
 data class AccessorConfiguration(
     val accessors: List<ClassAccessor>,
     val basePackage: String,
-    val flavor: LanguageFlavor = LanguageFlavor.JAVA,
+    val languageFlavor: LanguageFlavor = LanguageFlavor.JAVA,
+    val accessorFlavor: AccessorFlavor = AccessorFlavor.METHOD_HANDLES,
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val accessedNamespaces: List<String> = namespaceFriendlinessIndex,
     val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),

@@ -37,4 +37,6 @@ object SourceTypes {
     val NULLABLE: ClassName = ClassName.get("org.jetbrains.annotations", "Nullable")
     val CLASS: ClassName = ClassName.get(java.lang.Class::class.java)
     val CLASS_WILDCARD: ParameterizedTypeName = ParameterizedTypeName.get(CLASS, WildcardTypeName.subtypeOf(ClassName.OBJECT))
+    val FIELD: ClassName = ClassName.get(java.lang.reflect.Field::class.java)
+    val METHOD_HANDLE: ClassName = ClassName.get(java.lang.invoke.MethodHandle::class.java)
 }

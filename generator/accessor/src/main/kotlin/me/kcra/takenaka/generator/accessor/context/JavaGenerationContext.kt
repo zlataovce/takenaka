@@ -28,6 +28,7 @@ import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
 import me.kcra.takenaka.core.mapping.ancestry.impl.fieldAncestryTreeOf
 import me.kcra.takenaka.core.mapping.ancestry.impl.find
 import me.kcra.takenaka.core.mapping.fromInternalName
+import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.accessor.util.camelToUpperSnakeCase
@@ -82,7 +83,8 @@ open class JavaGenerationContext(
             return@mapNotNull fieldAccessor to fieldNode
         }
 
-        val spec = TypeSpec.interfaceBuilder("${model.internalName.substringAfterLast('/')}Accessor")
+        val className = "${model.internalName.substringAfterLast('/')}Accessor"
+        val spec = TypeSpec.interfaceBuilder(className)
             .addModifiers(Modifier.PUBLIC)
             .addJavadoc(
                 """
@@ -92,6 +94,51 @@ open class JavaGenerationContext(
                     @version ${node.last.key.id}
                 """.trimIndent()
             )
+            .apply {
+                if (generator.config.accessorFlavor != AccessorFlavor.NONE) {
+                    addField(
+                        FieldSpec.builder(SourceTypes.CLASS_WILDCARD, "TYPE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                            .addAnnotation(SourceTypes.NULLABLE)
+                            .addJavadoc("The {@link java.lang.Class} object of the accessed class.")
+                            .initializer("MAPPING.getClassByCurrentPlatform()")
+                            .build()
+                    )
+
+                    fieldAccessors.forEach { (fieldAccessor, fieldNode) ->
+                        val type = Type.getType(getFriendlyDstDesc(fieldNode.last.value)).className
+                        val accessorName = fieldAccessor.name.camelToUpperSnakeCase()
+
+                        when (generator.config.accessorFlavor) {
+                            AccessorFlavor.REFLECTION -> {
+                                addField(
+                                    FieldSpec.builder(SourceTypes.FIELD, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                        .addAnnotation(SourceTypes.NULLABLE)
+                                        .addJavadoc("The {@link java.lang.reflect.Field} object of the accessed {@code $type ${fieldAccessor.name}} field.")
+                                        .initializer("$className.Mappings.$accessorName.getFieldByCurrentPlatform()")
+                                        .build()
+                                )
+                            }
+                            AccessorFlavor.METHOD_HANDLES -> {
+                                addField(
+                                    FieldSpec.builder(SourceTypes.METHOD_HANDLE, "${accessorName}_GETTER", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                        .addAnnotation(SourceTypes.NULLABLE)
+                                        .addJavadoc("The getter {@link java.lang.invoke.MethodHandle} object of the accessed {@code $type ${fieldAccessor.name}} field.")
+                                        .initializer("$className.Mappings.$accessorName.getFieldGetterByCurrentPlatform()")
+                                        .build()
+                                )
+                                addField(
+                                    FieldSpec.builder(SourceTypes.METHOD_HANDLE, "${accessorName}_SETTER", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                        .addAnnotation(SourceTypes.NULLABLE)
+                                        .addJavadoc("The setter {@link java.lang.invoke.MethodHandle} object of the accessed {@code $type ${fieldAccessor.name}} field.")
+                                        .initializer("$className.Mappings.$accessorName.getFieldSetterByCurrentPlatform()")
+                                        .build()
+                                )
+                            }
+                            else -> throw UnsupportedOperationException("Flavor ${generator.config.accessorFlavor} not supported")
+                        }
+                    }
+                }
+            }
             .addType(
                 TypeSpec.interfaceBuilder("Mappings")
                     .addModifiers(Modifier.PUBLIC, Modifier.STATIC)

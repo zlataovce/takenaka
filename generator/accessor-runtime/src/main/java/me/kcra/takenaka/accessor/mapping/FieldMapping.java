@@ -19,6 +19,7 @@ package me.kcra.takenaka.accessor.mapping;
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import me.kcra.takenaka.accessor.platform.MapperPlatform;
 import me.kcra.takenaka.accessor.platform.MapperPlatforms;
 import org.jetbrains.annotations.ApiStatus;
@@ -26,6 +27,8 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,7 +40,7 @@ import java.util.Map;
  */
 @Data
 @RequiredArgsConstructor
-public class FieldMapping {
+public final class FieldMapping {
     /**
      * The parent class mapping.
      */
@@ -98,7 +101,8 @@ public class FieldMapping {
     }
 
     /**
-     * Gets a mapped field name by the version and namespaces, and attempts to find it in the parent class.
+     * Gets a mapped field name by the version and namespaces,
+     * and attempts to find it in the parent class reflectively.
      * <p>
      * Namespaces are iterated in order, the first mapped namespace's name is returned.
      *
@@ -135,7 +139,7 @@ public class FieldMapping {
 
     /**
      * Gets a mapped field name by the version and namespaces of the supplied {@link MapperPlatform},
-     * and attempts to find it in the parent class.
+     * and attempts to find it in the parent class reflectively.
      *
      * @param platform the platform
      * @return the field, null if it's not mapped
@@ -146,12 +150,94 @@ public class FieldMapping {
 
     /**
      * Gets a mapped field name by the version and namespaces of the current {@link MapperPlatform},
-     * and attempts to find it in the parent class.
+     * and attempts to find it in the parent class reflectively.
      *
      * @return the field, null if it's not mapped
      */
     public @Nullable Field getFieldByCurrentPlatform() {
         return getFieldByPlatform(MapperPlatforms.getCurrentPlatform());
+    }
+
+    /**
+     * Gets a mapped field name by the version and namespaces,
+     * attempts to find it in the parent class and creates a getter {@link MethodHandle} if successful.
+     * <p>
+     * Namespaces are iterated in order, the first mapped namespace's name is returned.
+     *
+     * @param version the version
+     * @param namespaces the namespaces
+     * @return the field getter handle, null if it's not mapped
+     */
+    @SneakyThrows
+    public @Nullable MethodHandle getFieldGetter(@NotNull String version, @NotNull String... namespaces) {
+        final Field field = getField(version, namespaces);
+        if (field == null) {
+            return null;
+        }
+
+        return MethodHandles.lookup().unreflectGetter(field);
+    }
+
+    /**
+     * Gets a mapped field name by the version and namespaces of the supplied {@link MapperPlatform},
+     * attempts to find it in the parent class and creates a getter {@link MethodHandle} if successful.
+     *
+     * @param platform the platform
+     * @return the field getter handle, null if it's not mapped
+     */
+    public @Nullable MethodHandle getFieldGetter(@NotNull MapperPlatform platform) {
+        return getFieldGetter(platform.getVersion(), platform.getMappingNamespaces());
+    }
+
+    /**
+     * Gets a mapped field name by the version and namespaces of the current {@link MapperPlatform},
+     * attempts to find it in the parent class and creates a getter {@link MethodHandle} if successful.
+     *
+     * @return the field getter handle, null if it's not mapped
+     */
+    public @Nullable MethodHandle getFieldGetterByCurrentPlatform() {
+        return getFieldGetter(MapperPlatforms.getCurrentPlatform());
+    }
+
+    /**
+     * Gets a mapped field name by the version and namespaces,
+     * attempts to find it in the parent class and creates a setter {@link MethodHandle} if successful.
+     * <p>
+     * Namespaces are iterated in order, the first mapped namespace's name is returned.
+     *
+     * @param version the version
+     * @param namespaces the namespaces
+     * @return the field setter handle, null if it's not mapped
+     */
+    @SneakyThrows
+    public @Nullable MethodHandle getFieldSetter(@NotNull String version, @NotNull String... namespaces) {
+        final Field field = getField(version, namespaces);
+        if (field == null) {
+            return null;
+        }
+
+        return MethodHandles.lookup().unreflectSetter(field);
+    }
+
+    /**
+     * Gets a mapped field name by the version and namespaces of the supplied {@link MapperPlatform},
+     * attempts to find it in the parent class and creates a setter {@link MethodHandle} if successful.
+     *
+     * @param platform the platform
+     * @return the field setter handle, null if it's not mapped
+     */
+    public @Nullable MethodHandle getFieldSetter(@NotNull MapperPlatform platform) {
+        return getFieldSetter(platform.getVersion(), platform.getMappingNamespaces());
+    }
+
+    /**
+     * Gets a mapped field name by the version and namespaces of the current {@link MapperPlatform},
+     * attempts to find it in the parent class and creates a setter {@link MethodHandle} if successful.
+     *
+     * @return the field setter handle, null if it's not mapped
+     */
+    public @Nullable MethodHandle getFieldSetterByCurrentPlatform() {
+        return getFieldSetter(MapperPlatforms.getCurrentPlatform());
     }
 
     /**

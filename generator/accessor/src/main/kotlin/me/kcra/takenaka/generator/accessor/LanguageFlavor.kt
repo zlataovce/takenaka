@@ -18,7 +18,7 @@
 package me.kcra.takenaka.generator.accessor
 
 /**
- * The flavor of the generated code.
+ * Generated code languages.
  *
  * @author Matouš Kučera
  */
@@ -31,5 +31,5 @@ enum class LanguageFlavor {
     /**
      * Kotlin code.
      */
-    KOTLIN;
+    KOTLIN
 }

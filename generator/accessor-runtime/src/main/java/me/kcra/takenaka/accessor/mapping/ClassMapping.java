@@ -36,7 +36,7 @@ import java.util.Map;
  */
 @Data
 @RequiredArgsConstructor
-public class ClassMapping {
+public final class ClassMapping {
     /**
      * The mappings, a map of namespace-mapping maps keyed by version.
      * <p>

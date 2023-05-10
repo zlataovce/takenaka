@@ -61,7 +61,7 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
             }
         }
 
-        generationContext(config.flavor) {
+        generationContext(config.languageFlavor) {
             config.accessors.forEach { classAccessor ->
                 launch(Dispatchers.Default + CoroutineName("generate-coro")) {
                     val node = tree[classAccessor.internalName]
