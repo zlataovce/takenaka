@@ -20,7 +20,7 @@ package me.kcra.takenaka.generator.accessor.context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
-import me.kcra.takenaka.core.mapping.dstNamespaceIds
+import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
@@ -44,19 +44,6 @@ interface GenerationContext : CoroutineScope {
      * @param node the ancestry node of the class defined by the model
      */
     fun generateClass(model: ClassAccessor, node: ClassAncestryNode)
-
-    /**
-     * Gets a "friendly" destination name of an element.
-     *
-     * @param elem the element
-     * @return the name
-     */
-    fun getFriendlyDstName(elem: MappingTreeView.ElementMappingView): String {
-        generator.config.namespaceFriendlinessIndex.forEach { ns ->
-            elem.getName(ns)?.let { return it }
-        }
-        return elem.tree.dstNamespaceIds.firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
-    }
 
     /**
      * Gets a "friendly" destination descriptor of a class member.

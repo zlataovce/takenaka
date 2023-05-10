@@ -22,7 +22,7 @@ import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
-import me.kcra.takenaka.core.mapping.allNamespaceIds
+import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import me.kcra.takenaka.core.mapping.matchers.isEnumValueOf
@@ -32,6 +32,7 @@ import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.resolve.impl.signature
 import me.kcra.takenaka.core.mapping.resolve.impl.superClass
 import me.kcra.takenaka.core.mapping.toInternalName
+import me.kcra.takenaka.core.mapping.util.formatModifiers
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.components.*
 import net.fabricmc.mappingio.tree.MappingTree
@@ -148,7 +149,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                         klass.fields.forEach { field ->
                             tr {
                                 td(classes = "member-modifiers") {
-                                    +formatModifiers(field.modifiers, Modifier.fieldModifiers())
+                                    +field.modifiers.formatModifiers(Modifier.fieldModifiers())
 
                                     unsafe {
                                         +formatFieldDescriptor(field, workspace.version, friendlyNameRemapper)
@@ -204,7 +205,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                             val ctorMod = ctor.modifiers
                             tr {
                                 td(classes = "member-modifiers") {
-                                    +formatModifiers(ctorMod, Modifier.constructorModifiers())
+                                    +ctorMod.formatModifiers(Modifier.constructorModifiers())
                                 }
                                 td {
                                     unsafe {
@@ -252,7 +253,7 @@ fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, 
                                             mask = mask and Modifier.PUBLIC.inv() and Modifier.ABSTRACT.inv()
                                         }
 
-                                        +formatModifiers(methodMod, mask)
+                                        +methodMod.formatModifiers(mask)
 
                                         val methodDeclaration = formatMethodDescriptor(method, methodMod, workspace.version, friendlyNameRemapper)
                                         methodDeclaration.formals?.let { +"$it " }
@@ -328,7 +329,7 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
     val mod = klass.modifiers
 
     val modifiersAndName = buildString {
-        append(formatModifiers(mod, Modifier.classModifiers()))
+        append(mod.formatModifiers(Modifier.classModifiers()))
         when {
             (mod and Opcodes.ACC_ANNOTATION) != 0 -> append("@interface ") // annotations are interfaces, so this must be before ACC_INTERFACE
             (mod and Opcodes.ACC_INTERFACE) != 0 -> append("interface ")

@@ -49,7 +49,7 @@ public class ClassMapping {
     /**
      * Field mappings of this class.
      */
-    private final List<FieldMapping> fields;
+    private final List<FieldMapping> fields; // TODO: key by model name
 
     /**
      * Constructs a new {@link ClassMapping} without any initial mappings or members.

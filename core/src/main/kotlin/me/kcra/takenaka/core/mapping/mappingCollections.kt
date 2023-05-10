@@ -15,23 +15,18 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.generator.accessor.model
+package me.kcra.takenaka.core.mapping
 
-import me.kcra.takenaka.core.mapping.toInternalName
+import me.kcra.takenaka.core.Version
+import net.fabricmc.mappingio.tree.MappingTree
+import net.fabricmc.mappingio.tree.MappingTreeView
 
 /**
- * A field accessor declaration.
- *
- * @property name the mapped name of the field
- * @property type the field descriptor, null if it should be inferred
- * @property version the version ID of the declared reference name, null for last (newest)
- * @author Matouš Kučera
+ * A collection of version keyed joined mapping trees.
  */
-data class FieldAccessor(val name: String, val type: String? = null, val version: String? = null) {
-    /**
-     * Internalized variant of [type].
-     */
-    val internalType by lazy {
-        type?.toInternalName()
-    }
-}
+typealias MappingsMap = Map<Version, MappingTreeView>
+
+/**
+ * A collection of version keyed joined mutable mapping trees.
+ */
+typealias MutableMappingsMap = Map<Version, MappingTree>

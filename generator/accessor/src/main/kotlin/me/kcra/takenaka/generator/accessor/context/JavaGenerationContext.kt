@@ -24,12 +24,11 @@ import com.squareup.javapoet.TypeSpec
 import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
-import me.kcra.takenaka.core.mapping.ancestry.impl.FieldAncestryNode
 import me.kcra.takenaka.core.mapping.ancestry.impl.fieldAncestryTreeOf
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
-import me.kcra.takenaka.generator.accessor.model.FieldAccessor
+import me.kcra.takenaka.generator.accessor.util.camelToUpperSnakeCase
 import mu.KotlinLogging
 import org.objectweb.asm.Type
 import java.nio.file.Path
@@ -63,8 +62,17 @@ open class JavaGenerationContext(
      */
     override fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
         val fieldTree = fieldAncestryTreeOf(node)
+        val fieldAccessors = model.fields.mapNotNull { fieldAccessor ->
+            // TODO: type inferring
+            val fieldNode = fieldTree[fieldAccessor.name to fieldAccessor.internalType]
+            if (fieldNode == null) {
+                logger.warn { "did not find field ancestry node with name ${fieldAccessor.name} and type ${fieldAccessor.internalType}" }
+                return@mapNotNull null
+            }
 
-        val mappedFields = mutableListOf<Pair<FieldAccessor, FieldAncestryNode>>()
+            return@mapNotNull fieldAccessor to fieldNode
+        }
+
         val spec = TypeSpec.interfaceBuilder("${model.internalName.substringAfterLast('/')}Accessor")
             .addModifiers(Modifier.PUBLIC)
             .addJavadoc(
@@ -91,14 +99,7 @@ open class JavaGenerationContext(
                                     }
                                 }
 
-                                model.fields.forEach { fieldAccessor ->
-                                    // TODO: infer type if null
-                                    val fieldNode = fieldTree[fieldAccessor.name to fieldAccessor.internalType]
-                                    if (fieldNode == null) {
-                                        logger.warn { "did not find field ancestry node with name ${fieldAccessor.name} and type ${fieldAccessor.internalType}" }
-                                        return@forEach
-                                    }
-
+                                fieldAccessors.forEach { (_, fieldNode) ->
                                     add("\n.putField()")
                                     indent()
                                     fieldNode.forEach { (version, field) ->
@@ -110,8 +111,6 @@ open class JavaGenerationContext(
                                     }
                                     add("\n.getParent()")
                                     unindent()
-
-                                    mappedFields += fieldAccessor to fieldNode
                                 }
                             }
                             .unindent()
@@ -119,51 +118,22 @@ open class JavaGenerationContext(
                     )
                     .build()
             )
-            .addField(
-                FieldSpec.builder(SourceTypes.CLASS_WILDCARD, "TYPE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                    .addAnnotation(SourceTypes.NULLABLE)
-                    .addJavadoc(
-                        """
-                            The {@link java.lang.Class} object of the accessed class,
-                            null if it is not present in mappings of the current platform.
-                            
-                            @see me.kcra.takenaka.accessor.platform.MapperPlatforms#getCurrentPlatform()
-                        """.trimIndent()
-                    )
-                    .initializer("MAPPING.getClassByCurrentPlatform()")
-                    .build()
-            )
             .apply {
-                mappedFields.forEachIndexed { index, (fieldAccessor, fieldNode) ->
+                fieldAccessors.forEachIndexed { index, (fieldAccessor, fieldNode) ->
                     val accessorName = fieldAccessor.name.camelToUpperSnakeCase()
-                    val mappingName = "${accessorName}_MAPPING"
 
                     addField(
-                        FieldSpec.builder(SourceTypes.FIELD_MAPPING, mappingName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                        FieldSpec.builder(SourceTypes.FIELD_MAPPING, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                             .addAnnotation(SourceTypes.NOT_NULL)
                             .addJavadoc(
                                 """
-                                    Mapping for the {@code ${fieldAccessor.name}} field of type {@code ${Type.getType(getFriendlyDstDesc(fieldNode.last.value)).className}}.
+                                    Mapping for the {@code ${Type.getType(getFriendlyDstDesc(fieldNode.last.value)).className} ${fieldAccessor.name}} field.
                                                         
                                     @since ${fieldNode.first.key.id}
                                     @version ${fieldNode.last.key.id}
                                 """.trimIndent()
                             )
                             .initializer("MAPPING.getField(\$L)", index)
-                            .build()
-                    )
-                    addField(
-                        FieldSpec.builder(java.lang.reflect.Field::class.java, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                            .addAnnotation(SourceTypes.NULLABLE)
-                            .addJavadoc(
-                                """
-                                    The {@link java.lang.reflect.Field} object of the {@code #$mappingName} field mapping,
-                                    null if it is not present in mappings of the current platform.
-                                    
-                                    @see me.kcra.takenaka.accessor.platform.MapperPlatforms#getCurrentPlatform()
-                                """.trimIndent()
-                            )
-                            .initializer("$mappingName.getFieldByCurrentPlatform()", index)
                             .build()
                     )
                 }
@@ -193,6 +163,3 @@ open class JavaGenerationContext(
  * @return the file where the source was actually written
  */
 fun JavaFile.writeTo(workspace: Workspace): Path = writeToPath(workspace.rootDirectory)
-
-val CAMEL_REGEX = "(?<=[a-zA-Z])[A-Z]".toRegex()
-fun String.camelToUpperSnakeCase(): String = CAMEL_REGEX.replace(this) { "_${it.value}" }.uppercase()

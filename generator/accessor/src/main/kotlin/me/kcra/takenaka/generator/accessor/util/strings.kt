@@ -15,23 +15,16 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.generator.accessor.model
-
-import me.kcra.takenaka.core.mapping.toInternalName
+package me.kcra.takenaka.generator.accessor.util
 
 /**
- * A field accessor declaration.
- *
- * @property name the mapped name of the field
- * @property type the field descriptor, null if it should be inferred
- * @property version the version ID of the declared reference name, null for last (newest)
- * @author Matouš Kučera
+ * A regular expression for matching lowerCamelCases and UpperCamelCases.
  */
-data class FieldAccessor(val name: String, val type: String? = null, val version: String? = null) {
-    /**
-     * Internalized variant of [type].
-     */
-    val internalType by lazy {
-        type?.toInternalName()
-    }
-}
+private val CAMEL_REGEX = "(?<=[a-zA-Z])[A-Z]".toRegex()
+
+/**
+ * Converts a camelCase string (of any kind) to a UPPER_SNAKE_CASE variant.
+ *
+ * @return the UPPER_SNAKE_CASE string
+ */
+fun String.camelToUpperSnakeCase(): String = CAMEL_REGEX.replace(this) { "_${it.value}" }.uppercase()

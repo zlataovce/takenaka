@@ -21,7 +21,7 @@ import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ElementRemapper
-import me.kcra.takenaka.core.mapping.allNamespaceIds
+import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.core.mapping.ancestry.*
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
 import me.kcra.takenaka.core.mapping.ancestry.impl.ConstructorComputationMode

@@ -20,7 +20,7 @@ package me.kcra.takenaka.core.mapping.ancestry.impl
 import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
 import me.kcra.takenaka.core.mapping.ancestry.buildAncestryTree
-import me.kcra.takenaka.core.mapping.dstNamespaceIds
+import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import net.fabricmc.mappingio.tree.MappingTreeView
 

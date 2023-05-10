@@ -25,9 +25,9 @@ import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
-import me.kcra.takenaka.core.mapping.allNamespaceIds
+import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
-import me.kcra.takenaka.core.mapping.hash
+import me.kcra.takenaka.core.mapping.util.hash
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.web.components.footerComponent
