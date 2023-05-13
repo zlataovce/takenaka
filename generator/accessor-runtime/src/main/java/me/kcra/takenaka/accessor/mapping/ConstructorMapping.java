@@ -29,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.Map;
@@ -123,11 +124,7 @@ public final class ConstructorMapping {
 
         final Class<?>[] paramClasses = new Class<?>[types.length];
         for (int i = 0; i < types.length; i++) {
-            try {
-                paramClasses[i] = Class.forName(types[i]);
-            } catch (ClassNotFoundException ignored) {
-                return null;
-            }
+            paramClasses[i] = parseClass(types[i]);
         }
 
         try {
@@ -200,5 +197,58 @@ public final class ConstructorMapping {
     public @NotNull ConstructorMapping put(@NotNull String version, @NotNull String namespace, @NotNull String... types) {
         mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, types);
         return this;
+    }
+
+    /**
+     * Parses a human-readable class name (java.lang.Integer, double, double[][], ...).
+     *
+     * @param className the class name
+     * @return the class, null if the (element) type is not a primitive and couldn't be found using {@link Class#forName(String)}
+     */
+    private static @Nullable Class<?> parseClass(String className) {
+        final String elementType = className.replace("[]", "");
+        final int dimensions = (className.length() - elementType.length()) / 2;
+
+        Class<?> element;
+        switch (elementType) {
+            case "boolean":
+                element = boolean.class;
+                break;
+            case "byte":
+                element = byte.class;
+                break;
+            case "short":
+                element = short.class;
+                break;
+            case "int":
+                element = int.class;
+                break;
+            case "long":
+                element = long.class;
+                break;
+            case "float":
+                element = float.class;
+                break;
+            case "double":
+                element = double.class;
+                break;
+            case "char":
+                element = char.class;
+                break;
+            case "void":
+                element = void.class;
+                break;
+            default:
+                try {
+                    element = Class.forName(elementType);
+                } catch (ClassNotFoundException ignored) {
+                    return null;
+                }
+        }
+
+        if (dimensions == 0) {
+            return element;
+        }
+        return Array.newInstance(element, new int[dimensions]).getClass();
     }
 }

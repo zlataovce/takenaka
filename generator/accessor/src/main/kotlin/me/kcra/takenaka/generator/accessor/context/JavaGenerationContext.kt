@@ -150,7 +150,14 @@ open class JavaGenerationContext(
                                                 val args = Type.getArgumentTypes(desc)
                                                 if (args.isNotEmpty()) {
                                                     add(", ")
-                                                    add(CodeBlock.join(args.map { CodeBlock.of("\$S", it.internalName) }, ", "))
+                                                    add(
+                                                        CodeBlock.join(
+                                                            args.map { arg ->
+                                                                CodeBlock.of("\$S", arg.className)
+                                                            },
+                                                            ", "
+                                                        )
+                                                    )
                                                 }
 
                                                 add(")")
