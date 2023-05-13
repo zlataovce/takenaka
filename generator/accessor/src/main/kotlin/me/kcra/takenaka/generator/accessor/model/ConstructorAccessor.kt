@@ -17,23 +17,10 @@
 
 package me.kcra.takenaka.generator.accessor.model
 
-import me.kcra.takenaka.core.mapping.toInternalName
-
 /**
- * A class type accessor declaration.
+ * A constructor accessor declaration.
  *
- * @property name the last (newest) mapped class name of the accessed class
- * @property fields the accessed fields of the class
- * @property constructors the accessed constructors of the class
+ * @property type the constructor descriptor
  * @author Matouš Kučera
  */
-data class ClassAccessor(
-    val name: String,
-    val fields: List<FieldAccessor>,
-    val constructors: List<ConstructorAccessor>
-) {
-    /**
-     * Internalized variant of [name].
-     */
-    val internalName by lazy(name::toInternalName)
-}
+data class ConstructorAccessor(val type: String)

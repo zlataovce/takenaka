@@ -86,7 +86,7 @@ public final class FieldMapping {
      * @return the name, null if it's not mapped
      */
     public @Nullable String getName(@NotNull String version, @NotNull String... namespaces) {
-        final Map<String, String> versionMappings = mappings.get(version);
+        final Map<String, String> versionMappings = getMappings(version);
         if (versionMappings == null) {
             return null;
         }
@@ -144,7 +144,7 @@ public final class FieldMapping {
      * @param platform the platform
      * @return the field, null if it's not mapped
      */
-    public @Nullable Field getFieldByPlatform(@NotNull MapperPlatform platform) {
+    public @Nullable Field getField(@NotNull MapperPlatform platform) {
         return getField(platform.getVersion(), platform.getMappingNamespaces());
     }
 
@@ -154,8 +154,8 @@ public final class FieldMapping {
      *
      * @return the field, null if it's not mapped
      */
-    public @Nullable Field getFieldByCurrentPlatform() {
-        return getFieldByPlatform(MapperPlatforms.getCurrentPlatform());
+    public @Nullable Field getField() {
+        return getField(MapperPlatforms.getCurrentPlatform());
     }
 
     /**
@@ -195,7 +195,7 @@ public final class FieldMapping {
      *
      * @return the field getter handle, null if it's not mapped
      */
-    public @Nullable MethodHandle getFieldGetterByCurrentPlatform() {
+    public @Nullable MethodHandle getFieldGetter() {
         return getFieldGetter(MapperPlatforms.getCurrentPlatform());
     }
 
@@ -236,7 +236,7 @@ public final class FieldMapping {
      *
      * @return the field setter handle, null if it's not mapped
      */
-    public @Nullable MethodHandle getFieldSetterByCurrentPlatform() {
+    public @Nullable MethodHandle getFieldSetter() {
         return getFieldSetter(MapperPlatforms.getCurrentPlatform());
     }
 

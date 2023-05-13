@@ -28,6 +28,7 @@ import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.accessor.model.ConstructorAccessor
 import me.kcra.takenaka.generator.accessor.model.FieldAccessor
 import me.kcra.takenaka.generator.common.ResolvingMappingProvider
 import me.kcra.takenaka.generator.common.buildMappingConfig
@@ -114,6 +115,9 @@ class AccessorGeneratorTest {
                             FieldAccessor("x"),
                             FieldAccessor("y"),
                             FieldAccessor("z")
+                        ),
+                        listOf(
+                            ConstructorAccessor("(Lnet/minecraft/world/entity/Entity;)V")
                         )
                     )
                 ),

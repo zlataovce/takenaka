@@ -19,24 +19,21 @@
 
 package me.kcra.takenaka.generator.accessor.context
 
-import com.squareup.javapoet.ClassName
-import com.squareup.javapoet.ParameterizedTypeName
-import com.squareup.javapoet.WildcardTypeName
-import com.squareup.kotlinpoet.javapoet.KotlinPoetJavaPoetPreview
-import com.squareup.kotlinpoet.javapoet.toKClassName
+import com.squareup.kotlinpoet.javapoet.*
 
 /**
  * JavaPoet/KotlinPoet types.
  */
 object SourceTypes {
-    val CLASS_MAPPING: ClassName = ClassName.get("me.kcra.takenaka.accessor.mapping", "ClassMapping")
+    val CLASS_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "ClassMapping")
     val KT_CLASS_MAPPING = CLASS_MAPPING.toKClassName()
-    val FIELD_MAPPING: ClassName = ClassName.get("me.kcra.takenaka.accessor.mapping", "FieldMapping")
+    val FIELD_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "FieldMapping")
     val KT_FIELD_MAPPING = FIELD_MAPPING.toKClassName()
-    val NOT_NULL: ClassName = ClassName.get("org.jetbrains.annotations", "NotNull")
-    val NULLABLE: ClassName = ClassName.get("org.jetbrains.annotations", "Nullable")
-    val CLASS: ClassName = ClassName.get(java.lang.Class::class.java)
-    val CLASS_WILDCARD: ParameterizedTypeName = ParameterizedTypeName.get(CLASS, WildcardTypeName.subtypeOf(ClassName.OBJECT))
-    val FIELD: ClassName = ClassName.get(java.lang.reflect.Field::class.java)
-    val METHOD_HANDLE: ClassName = ClassName.get(java.lang.invoke.MethodHandle::class.java)
+    val CONSTRUCTOR_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "ConstructorMapping")
+    val KT_CONSTRUCTOR_MAPPING = CONSTRUCTOR_MAPPING.toKClassName()
+    val NOT_NULL: JClassName = JClassName.get("org.jetbrains.annotations", "NotNull")
+    val NULLABLE: JClassName = JClassName.get("org.jetbrains.annotations", "Nullable")
+    val CLASS: JClassName = JClassName.get(java.lang.Class::class.java)
+    val CLASS_WILDCARD: JParameterizedTypeName = JParameterizedTypeName.get(CLASS, JWildcardTypeName.subtypeOf(JClassName.OBJECT))
+    val FIELD: JClassName = JClassName.get(java.lang.reflect.Field::class.java)
 }

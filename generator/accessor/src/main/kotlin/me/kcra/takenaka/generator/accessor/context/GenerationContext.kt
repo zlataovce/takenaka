@@ -21,10 +21,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
 import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
-import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
+import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
-import net.fabricmc.mappingio.tree.MappingTreeView
+import net.fabricmc.mappingio.tree.MappingTreeView.MemberMappingView
+import org.objectweb.asm.Type
 
 /**
  * A base generation context.
@@ -46,16 +47,16 @@ interface GenerationContext : CoroutineScope {
     fun generateClass(model: ClassAccessor, node: ClassAncestryNode)
 
     /**
-     * Gets a "friendly" destination descriptor of a class member.
+     * Returns a parsed [Type] of a member descriptor picked based on the friendliness index.
      *
-     * @param elem the member
-     * @return the descriptor
+     * @param member the member
+     * @return the [Type]
      */
-    fun getFriendlyDstDesc(elem: MappingTreeView.MemberMappingView): String {
+    fun getFriendlyType(member: MemberMappingView): Type {
         generator.config.namespaceFriendlinessIndex.forEach { ns ->
-            elem.getDesc(ns)?.let { return it }
+            member.getDesc(ns)?.let { return Type.getType(it) }
         }
-        return elem.tree.dstNamespaceIds.firstNotNullOfOrNull(elem::getDstDesc) ?: elem.srcDesc
+        return Type.getType(member.tree.dstNamespaceIds.firstNotNullOfOrNull(member::getDstDesc) ?: member.srcDesc)
     }
 }
 

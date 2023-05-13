@@ -298,8 +298,8 @@ class SpigotMemberMappingResolver(
         }
 
         val namespaceId = visitor0.getNamespaceId(targetNamespace)
-        if (namespaceId == MappingTree.NULL_NAMESPACE_ID) {
-            error("Mapping tree has not visited Spigot class mappings before")
+        require(namespaceId != MappingTree.NULL_NAMESPACE_ID) {
+            "Mapping tree has not visited Spigot class mappings before"
         }
 
         fun getPrefixedClass(name: String): MappingTreeView.ClassMappingView? =

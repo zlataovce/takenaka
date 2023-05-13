@@ -465,7 +465,7 @@ fun GenerationContext.formatMethodDescriptor(
         return MethodDeclaration(
             formatter.formals.ifBlank { null },
             formatter.args,
-            formatter.returnType ?: error("Method signature without a return type"),
+            checkNotNull(formatter.returnType) { "Method signature without a return type" },
             formatter.exceptions
         )
     }

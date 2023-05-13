@@ -18,10 +18,7 @@
 package me.kcra.takenaka.core.mapping.adapter
 
 import me.kcra.takenaka.core.mapping.resolve.impl.AbstractSpigotMappingResolver
-import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTree
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * Replaces `VVV` in Spigot mappings for the appropriate CraftBukkit NMS version string.
@@ -32,19 +29,19 @@ private val logger = KotlinLogging.logger {}
  */
 fun MappingTree.replaceCraftBukkitNMSVersion(namespace: String) {
     val namespaceId = getNamespaceId(namespace)
-    if (namespaceId == MappingTree.NULL_NAMESPACE_ID) {
-        error("Namespace is not present in the mapping tree")
+    require(namespaceId != MappingTree.NULL_NAMESPACE_ID) {
+        "Namespace is not present in the mapping tree"
     }
 
-    val nmsVersion = getMetadata(AbstractSpigotMappingResolver.META_CB_NMS_VERSION)
-        ?: error("cb_nms_version metadata is not present")
+    val nmsVersion = requireNotNull(getMetadata(AbstractSpigotMappingResolver.META_CB_NMS_VERSION)) {
+        "cb_nms_version metadata is not present"
+    }
 
     classes.forEach { klass ->
         val original = klass.getDstName(namespaceId) ?: return@forEach
         val replaced = original.replace("VVV", nmsVersion)
 
         if (original != replaced) {
-            logger.debug { "replaced $original -> $replaced" }
             klass.setDstName(replaced, namespaceId)
         }
     }

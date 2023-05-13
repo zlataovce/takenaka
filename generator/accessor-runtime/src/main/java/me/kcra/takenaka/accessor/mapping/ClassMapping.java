@@ -26,7 +26,9 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -50,10 +52,15 @@ public final class ClassMapping {
     private final Map<String, FieldMapping> fields;
 
     /**
+     * Constructor mappings of this class indexed as declared in the accessor model.
+     */
+    private final List<ConstructorMapping> constructors;
+
+    /**
      * Constructs a new {@link ClassMapping} without any initial mappings or members.
      */
     public ClassMapping() {
-        this(new HashMap<>(), new HashMap<>());
+        this(new HashMap<>(), new HashMap<>(), new ArrayList<>());
     }
 
     /**
@@ -76,7 +83,7 @@ public final class ClassMapping {
      * @return the name, null if it's not mapped
      */
     public @Nullable String getName(@NotNull String version, @NotNull String... namespaces) {
-        final Map<String, String> versionMappings = mappings.get(version);
+        final Map<String, String> versionMappings = getMappings(version);
         if (versionMappings == null) {
             return null;
         }
@@ -119,7 +126,7 @@ public final class ClassMapping {
      * @param platform the platform
      * @return the class, null if it's not mapped
      */
-    public @Nullable Class<?> getClassByPlatform(@NotNull MapperPlatform platform) {
+    public @Nullable Class<?> getClass(@NotNull MapperPlatform platform) {
         return getClass(platform.getVersion(), platform.getMappingNamespaces());
     }
 
@@ -129,18 +136,32 @@ public final class ClassMapping {
      *
      * @return the class, null if it's not mapped
      */
-    public @Nullable Class<?> getClassByCurrentPlatform() {
-        return getClassByPlatform(MapperPlatforms.getCurrentPlatform());
+    public @Nullable Class<?> getClazz() {
+        return getClass(MapperPlatforms.getCurrentPlatform());
     }
 
     /**
      * Gets a field mapping by its name ({@link FieldMapping#getName()}).
      *
      * @param name the field name
-     * @return the field mapping, null if index is out of bounds
+     * @return the field mapping, null if not found
      */
     public @Nullable FieldMapping getField(@NotNull String name) {
         return fields.get(name);
+    }
+
+    /**
+     * Gets a field mapping by its index ({@link ConstructorMapping#getIndex()}).
+     *
+     * @param index the constructor index
+     * @return the constructor mapping, null if index is out of bounds
+     */
+    public @Nullable ConstructorMapping getConstructor(int index) {
+        if (index < 0 || index >= constructors.size()) {
+            return null;
+        }
+
+        return constructors.get(index);
     }
 
     /**
@@ -173,6 +194,21 @@ public final class ClassMapping {
         final FieldMapping mapping = new FieldMapping(this, name);
 
         fields.put(name, mapping);
+        return mapping;
+    }
+
+    /**
+     * Puts a new constructor mapping into this {@link ClassMapping}.
+     * <p>
+     * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
+     *
+     * @return the new {@link ConstructorMapping}
+     */
+    @ApiStatus.Internal
+    public @NotNull ConstructorMapping putConstructor() {
+        final ConstructorMapping mapping = new ConstructorMapping(this, constructors.size());
+
+        constructors.add(mapping);
         return mapping;
     }
 }

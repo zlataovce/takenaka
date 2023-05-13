@@ -60,7 +60,9 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
     val fieldTree = fieldAncestryTreeOf(node)
     val fieldRows = buildFieldDiff {
         node.keys.forEach { version ->
-            val tree = fieldTree.trees[version] ?: error("Field tree does not have parent's version")
+            val tree = checkNotNull(fieldTree.trees[version]) {
+                "Field tree does not have parent's version"
+            }
             val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
 
             fieldTree.forEach { fieldNode ->
@@ -93,7 +95,9 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
     val methodTree = methodAncestryTreeOf(node)
     val methodRows = buildMethodDiff {
         node.keys.forEach { version ->
-            val tree = methodTree.trees[version] ?: error("Method tree does not have parent's version")
+            val tree = checkNotNull(methodTree.trees[version]) {
+                "Method tree does not have parent's version"
+            }
             val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
 
             methodTree.forEach { methodNode ->
@@ -141,7 +145,9 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
     val constructorTree = methodAncestryTreeOf(node, constructorMode = ConstructorComputationMode.ONLY)
     val constructorRows = buildMethodDiff {
         node.keys.forEach { version ->
-            val tree = methodTree.trees[version] ?: error("Constructor tree does not have parent's version")
+            val tree = checkNotNull(methodTree.trees[version]) {
+                "Constructor tree does not have parent's version"
+            }
             val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
 
             constructorTree.forEach { ctorNode ->
@@ -195,7 +201,9 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
             spacerBottomComponent()
 
             classNameRows.entries.forEachIndexed { i, (version, rows) ->
-                val klass = node[version] ?: error("Could not resolve ${version.id} mapping of $lastFriendlyMapping")
+                val klass = checkNotNull(node[version]) {
+                    "Could not resolve ${version.id} mapping of $lastFriendlyMapping"
+                }
 
                 h3 {
                     a(href = "/${version.id}/${getFriendlyDstName(klass)}.html") {

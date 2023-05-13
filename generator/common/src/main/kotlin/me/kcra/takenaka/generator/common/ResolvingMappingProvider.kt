@@ -64,7 +64,9 @@ class ResolvingMappingProvider(
         return mappingConfig.versions
             .map { versionString ->
                 mappingConfig.workspace.createVersionedWorkspace {
-                    this.version = manifest[versionString] ?: error("did not find version $versionString in manifest")
+                    this.version = requireNotNull(manifest[versionString]) {
+                        "Version $versionString was not found in manifest"
+                    }
                 }
             }
             .parallelMap(Dispatchers.Default + CoroutineName("mapping-coro")) { workspace ->

@@ -242,8 +242,9 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
      * @param name the asset path, **must not begin with a slash**
      */
     fun copyAsset(name: String) {
-        val inputStream = javaClass.getResourceAsStream("/assets/$name")
-            ?: error("Could not copy over /assets/$name from resources")
+        val inputStream = checkNotNull(javaClass.getResourceAsStream("/assets/$name")) {
+            "Could not copy over /assets/$name from resources"
+        }
 
         val destination = assetWorkspace[name]
         if (config.transformers.isNotEmpty()) {
