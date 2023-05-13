@@ -29,7 +29,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.Map;
@@ -86,7 +85,7 @@ public final class ConstructorMapping {
      * @param namespaces the namespaces
      * @return the types, null if it's not mapped
      */
-    public @Nullable String[] getParameters(@NotNull String version, @NotNull String... namespaces) {
+    public @Nullable String[] getName(@NotNull String version, @NotNull String... namespaces) {
         final Map<String, String[]> versionMappings = getMappings(version);
         if (versionMappings == null) {
             return null;
@@ -117,14 +116,19 @@ public final class ConstructorMapping {
             return null;
         }
 
-        final String[] types = getParameters(version, namespaces);
+        final String[] types = getName(version, namespaces);
         if (types == null) {
             return null;
         }
 
         final Class<?>[] paramClasses = new Class<?>[types.length];
         for (int i = 0; i < types.length; i++) {
-            paramClasses[i] = parseClass(types[i]);
+            final Class<?> paramClass = MethodMapping.parseClass(types[i]);
+            if (paramClass == null) {
+                return null;
+            }
+
+            paramClasses[i] = paramClass;
         }
 
         try {
@@ -139,6 +143,27 @@ public final class ConstructorMapping {
             }
         }
         return null;
+    }
+
+    /**
+     * Gets mapped constructor parameter types by the version and namespaces of the supplied {@link MapperPlatform},
+     * and attempts to find a constructor in the parent class reflectively using them.
+     *
+     * @param platform the platform
+     * @return the constructor, null if it's not mapped
+     */
+    public @Nullable Constructor<?> getConstructor(@NotNull MapperPlatform platform) {
+        return getConstructor(platform.getVersion(), platform.getMappingNamespaces());
+    }
+
+    /**
+     * Gets mapped constructor parameter types by the version and namespaces of the current {@link MapperPlatform},
+     * and attempts to find a constructor in the parent class reflectively using them.
+     *
+     * @return the constructor, null if it's not mapped
+     */
+    public @Nullable Constructor<?> getConstructor() {
+        return getConstructor(MapperPlatforms.getCurrentPlatform());
     }
 
     /**
@@ -176,7 +201,7 @@ public final class ConstructorMapping {
      * Gets mapped constructor parameter types by the version and namespaces of the current {@link MapperPlatform},
      * attempts to find a constructor reflectively using them and creates a {@link MethodHandle} if successful.
      *
-     * @return the field getter handle, null if it's not mapped
+     * @return the constructor handle, null if it's not mapped
      */
     public @Nullable MethodHandle getConstructorHandle() {
         return getConstructorHandle(MapperPlatforms.getCurrentPlatform());
@@ -197,58 +222,5 @@ public final class ConstructorMapping {
     public @NotNull ConstructorMapping put(@NotNull String version, @NotNull String namespace, @NotNull String... types) {
         mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, types);
         return this;
-    }
-
-    /**
-     * Parses a human-readable class name (java.lang.Integer, double, double[][], ...).
-     *
-     * @param className the class name
-     * @return the class, null if the (element) type is not a primitive and couldn't be found using {@link Class#forName(String)}
-     */
-    private static @Nullable Class<?> parseClass(String className) {
-        final String elementType = className.replace("[]", "");
-        final int dimensions = (className.length() - elementType.length()) / 2;
-
-        Class<?> element;
-        switch (elementType) {
-            case "boolean":
-                element = boolean.class;
-                break;
-            case "byte":
-                element = byte.class;
-                break;
-            case "short":
-                element = short.class;
-                break;
-            case "int":
-                element = int.class;
-                break;
-            case "long":
-                element = long.class;
-                break;
-            case "float":
-                element = float.class;
-                break;
-            case "double":
-                element = double.class;
-                break;
-            case "char":
-                element = char.class;
-                break;
-            case "void":
-                element = void.class;
-                break;
-            default:
-                try {
-                    element = Class.forName(elementType);
-                } catch (ClassNotFoundException ignored) {
-                    return null;
-                }
-        }
-
-        if (dimensions == 0) {
-            return element;
-        }
-        return Array.newInstance(element, new int[dimensions]).getClass();
     }
 }

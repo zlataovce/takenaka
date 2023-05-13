@@ -101,6 +101,39 @@ public final class FieldMapping {
     }
 
     /**
+     * Creates a new {@link FieldMapping} that combines mappings of this mapping and {@code other}.
+     * <p>
+     * This mapping is given precedence over the other mapping when combining (if versions overlap).
+     *
+     * @param other the other field mapping
+     * @throws IllegalArgumentException if the mapping's parents are not the same
+     * @return the new {@link FieldMapping}
+     */
+    @Contract(pure = true)
+    public @NotNull FieldMapping chain(@NotNull FieldMapping other) {
+        if (this.parent != other.parent) {
+            throw new IllegalArgumentException("Could not chain field mappings, disassociated mapping parent");
+        }
+
+        final Map<String, Map<String, String>> newMappings = new HashMap<>(other.mappings.size());
+
+        // add mappings of the other instance
+        for (final Map.Entry<String, Map<String, String>> entry : other.mappings.entrySet()) {
+            final Map<String, String> newMappings1 = new HashMap<>(entry.getValue().size());
+            newMappings1.putAll(entry.getValue());
+
+            newMappings.put(entry.getKey(), newMappings1);
+        }
+
+        // add mappings of this instance, overwrite existing
+        for (final Map.Entry<String, Map<String, String>> entry : this.mappings.entrySet()) {
+            newMappings.computeIfAbsent(entry.getKey(), (k) -> new HashMap<>(entry.getValue().size())).putAll(entry.getValue());
+        }
+
+        return new FieldMapping(this.parent, this.name, newMappings);
+    }
+
+    /**
      * Gets a mapped field name by the version and namespaces,
      * and attempts to find it in the parent class reflectively.
      * <p>

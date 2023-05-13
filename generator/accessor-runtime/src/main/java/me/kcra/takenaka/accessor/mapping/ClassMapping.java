@@ -57,10 +57,15 @@ public final class ClassMapping {
     private final List<ConstructorMapping> constructors;
 
     /**
+     * Method mappings of this class keyed by the name declared in the accessor model.
+     */
+    private final Map<String, List<MethodMapping>> methods;
+
+    /**
      * Constructs a new {@link ClassMapping} without any initial mappings or members.
      */
     public ClassMapping() {
-        this(new HashMap<>(), new HashMap<>(), new ArrayList<>());
+        this(new HashMap<>(), new HashMap<>(), new ArrayList<>(), new HashMap<>());
     }
 
     /**
@@ -151,7 +156,7 @@ public final class ClassMapping {
     }
 
     /**
-     * Gets a field mapping by its index ({@link ConstructorMapping#getIndex()}).
+     * Gets a constructor mapping by its index ({@link ConstructorMapping#getIndex()}).
      *
      * @param index the constructor index
      * @return the constructor mapping, null if index is out of bounds
@@ -162,6 +167,26 @@ public final class ClassMapping {
         }
 
         return constructors.get(index);
+    }
+
+    /**
+     * Gets a method mapping by its name ({@link MethodMapping#getName()}) and overload index ({@link MethodMapping#getIndex()}).
+     *
+     * @param name the method name
+     * @param index the method overload index
+     * @return the method mapping, null if index is out of bounds
+     */
+    public @Nullable MethodMapping getMethod(@NotNull String name, int index) {
+        final List<MethodMapping> overloads = methods.get(name);
+        if (overloads == null) {
+            return null;
+        }
+
+        if (index < 0 || index >= overloads.size()) {
+            return null;
+        }
+
+        return overloads.get(index);
     }
 
     /**
@@ -209,6 +234,23 @@ public final class ClassMapping {
         final ConstructorMapping mapping = new ConstructorMapping(this, constructors.size());
 
         constructors.add(mapping);
+        return mapping;
+    }
+
+    /**
+     * Puts a new method mapping into this {@link ClassMapping}.
+     * <p>
+     * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
+     *
+     * @param name the method name declared in the accessor model
+     * @return the new {@link MethodMapping}
+     */
+    @ApiStatus.Internal
+    public @NotNull MethodMapping putMethod(@NotNull String name) {
+        final List<MethodMapping> overloads = methods.computeIfAbsent(name, (k) -> new ArrayList<>());
+        final MethodMapping mapping = new MethodMapping(this, name, overloads.size());
+
+        overloads.add(mapping);
         return mapping;
     }
 }

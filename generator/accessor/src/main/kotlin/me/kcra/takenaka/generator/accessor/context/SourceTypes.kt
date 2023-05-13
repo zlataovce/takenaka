@@ -31,6 +31,8 @@ object SourceTypes {
     val KT_FIELD_MAPPING = FIELD_MAPPING.toKClassName()
     val CONSTRUCTOR_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "ConstructorMapping")
     val KT_CONSTRUCTOR_MAPPING = CONSTRUCTOR_MAPPING.toKClassName()
+    val METHOD_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "MethodMapping")
+    val KT_METHOD_MAPPING = METHOD_MAPPING.toKClassName()
     val NOT_NULL: JClassName = JClassName.get("org.jetbrains.annotations", "NotNull")
     val NULLABLE: JClassName = JClassName.get("org.jetbrains.annotations", "Nullable")
     val CLASS: JClassName = JClassName.get(java.lang.Class::class.java)

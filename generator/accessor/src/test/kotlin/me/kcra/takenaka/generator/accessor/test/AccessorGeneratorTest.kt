@@ -30,6 +30,7 @@ import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.accessor.model.ConstructorAccessor
 import me.kcra.takenaka.generator.accessor.model.FieldAccessor
+import me.kcra.takenaka.generator.accessor.model.MethodAccessor
 import me.kcra.takenaka.generator.common.ResolvingMappingProvider
 import me.kcra.takenaka.generator.common.buildMappingConfig
 import kotlin.test.Test
@@ -118,6 +119,9 @@ class AccessorGeneratorTest {
                         ),
                         listOf(
                             ConstructorAccessor("(Lnet/minecraft/world/entity/Entity;)V")
+                        ),
+                        listOf(
+                            MethodAccessor("getId", "()")
                         )
                     )
                 ),

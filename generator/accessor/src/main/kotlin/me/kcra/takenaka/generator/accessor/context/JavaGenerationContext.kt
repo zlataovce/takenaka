@@ -91,6 +91,24 @@ open class JavaGenerationContext(
             }
         }
 
+        val methodTree = methodAncestryTreeOf(node)
+        val methodAccessors = model.methods.map { methodAccessor ->
+            val methodNode = if (methodAccessor.isIncomplete || methodAccessor.version != null) {
+                methodTree.find(methodAccessor.name, methodAccessor.type, version = methodAccessor.version)?.apply {
+                    if (methodAccessor.isIncomplete) {
+                        logger.debug { "inferred return type '${getFriendlyType(last.value).returnType.className}' for method ${methodAccessor.name}" }
+                    }
+                }
+            } else {
+                methodTree[NameDescriptorPair(methodAccessor.name, methodAccessor.type)]
+            }
+
+            return@map methodAccessor to checkNotNull(methodNode) {
+                "Method ancestry node with name ${methodAccessor.name} and type ${methodAccessor.type} not found"
+            }
+        }
+
+        val overloadCount = mutableMapOf<String, Int>()
         val accessedQualifiedName = model.name.fromInternalName()
         val accessedSimpleName = model.internalName.substringAfterLast('/')
 
@@ -148,20 +166,42 @@ open class JavaGenerationContext(
                                                 add("\n.put(\$S, \$S", version.id, ns)
 
                                                 val args = Type.getArgumentTypes(desc)
+                                                    .map { CodeBlock.of("\$S", it.className) }
+
                                                 if (args.isNotEmpty()) {
                                                     add(", ")
-                                                    add(
-                                                        CodeBlock.join(
-                                                            args.map { arg ->
-                                                                CodeBlock.of("\$S", arg.className)
-                                                            },
-                                                            ", "
-                                                        )
-                                                    )
+                                                    add(CodeBlock.join(args, ", "))
                                                 }
 
                                                 add(")")
                                             }
+                                        }
+                                    }
+
+                                    add("\n.getParent()")
+                                    unindent()
+                                }
+
+                                methodAccessors.forEach { (methodAccessor, methodNode) ->
+                                    add("\n.putMethod(\$S)", methodAccessor.name)
+                                    indent()
+
+                                    methodNode.forEach { (version, method) ->
+                                        generator.config.accessedNamespaces.forEach nsEach@ { ns ->
+                                            val name = method.getName(ns) ?: return@nsEach
+                                            val desc = method.getDesc(ns) ?: return@nsEach
+
+                                            add("\n.put(\$S, \$S, \$S", version.id, ns, name)
+
+                                            val args = Type.getArgumentTypes(desc)
+                                                .map { CodeBlock.of("\$S", it.className) }
+
+                                            if (args.isNotEmpty()) {
+                                                add(", ")
+                                                add(CodeBlock.join(args, ", "))
+                                            }
+
+                                            add(")")
                                         }
                                     }
 
@@ -212,43 +252,33 @@ open class JavaGenerationContext(
                         .build()
                 }
             )
+            .addFields(
+                methodAccessors.map { (methodAccessor, methodNode) ->
+                    val overloadIndex = overloadCount.compute(methodAccessor.name) { _, i -> i?.inc() ?: 0 }
+
+                    val accessorName = "METHOD_${methodAccessor.name.camelToUpperSnakeCase()}_$overloadIndex"
+                    val methodType = if (methodAccessor.isIncomplete) {
+                        getFriendlyType(methodNode.last.value)
+                    } else {
+                        Type.getType(methodAccessor.type)
+                    }
+
+                    FieldSpec.builder(SourceTypes.METHOD_MAPPING, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                        .addAnnotation(SourceTypes.NOT_NULL)
+                        .addJavadoc(
+                            """
+                                Mapping for the {@code ${methodType.returnType.className} ${methodAccessor.name}(${methodType.argumentTypes.joinToString(transform = Type::getClassName)})} method.
+                                                    
+                                @since ${methodNode.first.key.id}
+                                @version ${methodNode.last.key.id}
+                            """.trimIndent()
+                        )
+                        .initializer("MAPPING.getMethod(\$S, \$L)", methodAccessor.name, overloadIndex)
+                        .build()
+                }
+            )
             .build()
             .writeTo(generator.workspace)
-
-        // TODO: implement accessors
-        /*if (!generator.config.onlyMappings) {
-            TypeSpec.interfaceBuilder("${accessedSimpleName}Accessor")
-                .addModifiers(Modifier.PUBLIC)
-                .addJavadoc(
-                    """
-                        Accessors for the {@code $accessedQualifiedName} class.
-                        
-                        @see ${mappingClassName.canonicalName()}
-                    """.trimIndent()
-                )
-                .addField(
-                    FieldSpec.builder(SourceTypes.CLASS_WILDCARD, "TYPE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                        .addAnnotation(SourceTypes.NULLABLE)
-                        .addJavadoc("The {@link java.lang.Class} object of the accessed class.")
-                        .initializer("\$T.MAPPING.getClazz()", mappingClassName)
-                        .build()
-                )
-                .apply {
-                    fieldAccessors.forEach { (fieldAccessor, fieldNode) ->
-                        val accessorName = fieldAccessor.name.camelToUpperSnakeCase()
-
-                        addField(
-                            FieldSpec.builder(SourceTypes.FIELD, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                .addAnnotation(SourceTypes.NULLABLE)
-                                .addJavadoc("The {@link java.lang.reflect.Field} object of the accessed {@code ${Type.getType(getFriendlyDstDesc(fieldNode.last.value)).className} ${fieldAccessor.name}} field.")
-                                .initializer("\$T.$accessorName.getField()", mappingClassName)
-                                .build()
-                        )
-                    }
-                }
-                .build()
-                .writeTo(generator.workspace)
-        }*/
     }
 
     /**

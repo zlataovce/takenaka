@@ -25,15 +25,17 @@ import me.kcra.takenaka.core.mapping.toInternalName
  * @property name the last (newest) mapped class name of the accessed class
  * @property fields the accessed fields of the class
  * @property constructors the accessed constructors of the class
+ * @property methods the accessed methods of the class
  * @author Matouš Kučera
  */
 data class ClassAccessor(
     val name: String,
     val fields: List<FieldAccessor>,
-    val constructors: List<ConstructorAccessor>
+    val constructors: List<ConstructorAccessor>,
+    val methods: List<MethodAccessor>
 ) {
     /**
      * Internalized variant of [name].
      */
-    val internalName by lazy(name::toInternalName)
+    val internalName = name.toInternalName()
 }
