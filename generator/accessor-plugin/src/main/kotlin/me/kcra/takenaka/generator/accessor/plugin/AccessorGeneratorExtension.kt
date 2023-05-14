@@ -7,6 +7,7 @@ import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.accessor.model.ConstructorAccessor
 import me.kcra.takenaka.generator.accessor.model.FieldAccessor
 import me.kcra.takenaka.generator.accessor.model.MethodAccessor
+import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -14,48 +15,56 @@ import org.gradle.api.provider.Property
 /**
  * A Gradle-specific builder for [AccessorConfiguration] with Minecraft presets.
  *
+ * @property project the project
  * @author Matouš Kučera
  */
-interface AccessorGeneratorExtension {
+abstract class AccessorGeneratorExtension(val project: Project) {
     /**
      * Versions to be mapped.
      */
-    val versions: ListProperty<String>
+    abstract val versions: ListProperty<String>
 
     /**
      * The output directory, defaults to `build/takenaka/output`.
      */
-    val outputDirectory: DirectoryProperty
+    abstract val outputDirectory: DirectoryProperty
 
     /**
      * The cache directory, defaults to `build/takenaka/cache`.
      */
-    val cacheDirectory: DirectoryProperty
+    abstract val cacheDirectory: DirectoryProperty
 
     /**
      * Whether cache should be validated strictly.
      */
-    val strictCache: Property<Boolean>
+    abstract val strictCache: Property<Boolean>
 
     /**
      * Class accessor models.
      */
-    val accessors: ListProperty<ClassAccessor>
+    abstract val accessors: ListProperty<ClassAccessor>
 
     /**
      * Base package of the generated accessors.
      */
-    val basePackage: Property<String>
+    abstract val basePackage: Property<String>
 
     /**
      * The language of the generated code.
      */
-    val languageFlavor: Property<LanguageFlavor>
+    abstract val languageFlavor: Property<LanguageFlavor>
 
     /**
      * Namespaces that should be used in accessors, empty if all namespaces should be used.
      */
-    val accessedNamespaces: ListProperty<String>
+    abstract val accessedNamespaces: ListProperty<String>
+
+    init {
+        outputDirectory.convention(project.layout.buildDirectory.dir("takenaka/output"))
+        cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
+        languageFlavor.convention(LanguageFlavor.JAVA)
+        strictCache.convention(false)
+    }
 
     fun requireClass(name: String, block: ClassAccessorBuilder.() -> Unit = {}) {
         accessors.add(ClassAccessorBuilder(name).apply(block).toClassAccessor())

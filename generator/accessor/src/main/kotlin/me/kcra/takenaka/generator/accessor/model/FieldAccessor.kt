@@ -19,6 +19,7 @@ package me.kcra.takenaka.generator.accessor.model
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.toInternalName
+import java.io.Serializable
 
 /**
  * A field accessor declaration.
@@ -34,9 +35,13 @@ data class FieldAccessor(
     val type: String? = null,
     val version: Version? = null,
     val chain: FieldAccessor? = null
-) {
+) : Serializable {
     /**
      * Internalized variant of [type].
      */
     val internalType = type?.toInternalName()
+
+    companion object {
+        private const val serialVersionUID = 1L
+    }
 }

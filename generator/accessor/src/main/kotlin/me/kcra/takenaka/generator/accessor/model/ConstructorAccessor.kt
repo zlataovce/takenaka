@@ -17,10 +17,16 @@
 
 package me.kcra.takenaka.generator.accessor.model
 
+import java.io.Serializable
+
 /**
  * A constructor accessor declaration.
  *
  * @property type the constructor descriptor
  * @author Matouš Kučera
  */
-data class ConstructorAccessor(val type: String)
+data class ConstructorAccessor(val type: String) : Serializable {
+    companion object {
+        private const val serialVersionUID = 1L
+    }
+}

@@ -18,6 +18,7 @@
 package me.kcra.takenaka.generator.accessor.model
 
 import me.kcra.takenaka.core.Version
+import java.io.Serializable
 
 /**
  * A method accessor declaration.
@@ -33,9 +34,13 @@ data class MethodAccessor(
     val type: String,
     val version: Version? = null,
     val chain: MethodAccessor? = null
-) {
+) : Serializable {
     /**
      * Whether the method descriptor ([type]) is incomplete, i.e. ends just before the return type is declared.
      */
     val isIncomplete = type.endsWith(')')
+
+    companion object {
+        private const val serialVersionUID = 1L
+    }
 }

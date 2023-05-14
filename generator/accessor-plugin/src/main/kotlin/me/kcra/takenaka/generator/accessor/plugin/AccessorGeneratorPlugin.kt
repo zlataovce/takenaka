@@ -20,6 +20,7 @@ package me.kcra.takenaka.generator.accessor.plugin
 import me.kcra.takenaka.core.buildWorkspaceOptions
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.plugin.tasks.GenerateAccessorsTask
+import me.kcra.takenaka.generator.accessor.plugin.tasks.ResolveMappingsTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -35,15 +36,24 @@ class AccessorGeneratorPlugin : Plugin<Project> {
      * @param target The target object
      */
     override fun apply(target: Project) {
-        val config = target.extensions.create("accessors", AccessorGeneratorExtension::class.java)
+        val config = target.extensions.create("accessors", AccessorGeneratorExtension::class.java, target)
 
-        target.tasks.create("generateAccessors", GenerateAccessorsTask::class.java) { task ->
-            task.outputDir.set(config.outputDirectory)
+        val mappingTask = target.tasks.create("resolveMappings", ResolveMappingsTask::class.java) { task ->
+            task.group = "takenaka"
+
             task.cacheDir.set(config.cacheDirectory)
             task.versions.set(config.versions)
+        }
+        target.tasks.create("generateAccessors", GenerateAccessorsTask::class.java) { task ->
+            task.group = "takenaka"
+            task.dependsOn("resolveMappings")
+
+            task.outputDir.set(config.outputDirectory)
+            task.mappings.set(mappingTask.mappings)
             task.accessors.set(config.accessors)
             task.basePackage.set(config.basePackage)
             task.languageFlavor.set(config.languageFlavor)
+            task.accessedNamespaces.set(config.accessedNamespaces)
             task.options.set(
                 config.strictCache.map { isStrict ->
                     buildWorkspaceOptions {

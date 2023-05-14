@@ -18,6 +18,7 @@
 package me.kcra.takenaka.generator.accessor.model
 
 import me.kcra.takenaka.core.mapping.toInternalName
+import java.io.Serializable
 
 /**
  * A class type accessor declaration.
@@ -33,9 +34,13 @@ data class ClassAccessor(
     val fields: List<FieldAccessor>,
     val constructors: List<ConstructorAccessor>,
     val methods: List<MethodAccessor>
-) {
+) : Serializable {
     /**
      * Internalized variant of [name].
      */
     val internalName = name.toInternalName()
+
+    companion object {
+        private const val serialVersionUID = 1L
+    }
 }
