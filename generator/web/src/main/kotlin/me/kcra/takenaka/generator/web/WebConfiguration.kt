@@ -116,7 +116,7 @@ class WebConfigurationBuilder {
      *
      * @param items the friendly namespaces
      */
-    fun namespaceFriendliness(vararg items: String) {
+    fun friendlyNamespaces(vararg items: String) {
         namespaceFriendlinessIndex += items
     }
 
@@ -125,7 +125,7 @@ class WebConfigurationBuilder {
      *
      * @param items the friendly namespaces
      */
-    fun namespaceFriendliness(items: List<String>) {
+    fun friendlyNamespaces(items: List<String>) {
         namespaceFriendlinessIndex += items
     }
 

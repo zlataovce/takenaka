@@ -17,7 +17,9 @@
 
 package me.kcra.takenaka.generator.accessor.plugin
 
+import me.kcra.takenaka.core.buildWorkspaceOptions
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
+import me.kcra.takenaka.generator.accessor.plugin.tasks.GenerateAccessorsTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -33,6 +35,24 @@ class AccessorGeneratorPlugin : Plugin<Project> {
      * @param target The target object
      */
     override fun apply(target: Project) {
-        TODO("Not yet implemented")
+        val config = target.extensions.create("accessors", AccessorGeneratorExtension::class.java)
+
+        target.tasks.create("generateAccessors", GenerateAccessorsTask::class.java) { task ->
+            task.outputDir.set(config.outputDirectory)
+            task.cacheDir.set(config.cacheDirectory)
+            task.versions.set(config.versions)
+            task.accessors.set(config.accessors)
+            task.basePackage.set(config.basePackage)
+            task.languageFlavor.set(config.languageFlavor)
+            task.options.set(
+                config.strictCache.map { isStrict ->
+                    buildWorkspaceOptions {
+                        if (!isStrict) {
+                            relaxedCache()
+                        }
+                    }
+                }
+            )
+        }
     }
 }
