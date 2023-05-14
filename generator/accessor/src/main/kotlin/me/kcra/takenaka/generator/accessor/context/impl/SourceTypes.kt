@@ -17,7 +17,7 @@
 
 @file:OptIn(KotlinPoetJavaPoetPreview::class)
 
-package me.kcra.takenaka.generator.accessor.context
+package me.kcra.takenaka.generator.accessor.context.impl
 
 import com.squareup.kotlinpoet.javapoet.*
 

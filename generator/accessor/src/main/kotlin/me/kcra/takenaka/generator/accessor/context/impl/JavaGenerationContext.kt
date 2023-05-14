@@ -17,7 +17,7 @@
 
 @file:OptIn(KotlinPoetJavaPoetPreview::class)
 
-package me.kcra.takenaka.generator.accessor.context
+package me.kcra.takenaka.generator.accessor.context.impl
 
 import com.squareup.javapoet.CodeBlock
 import com.squareup.javapoet.FieldSpec
@@ -27,8 +27,10 @@ import com.squareup.kotlinpoet.javapoet.JTypeSpec
 import com.squareup.kotlinpoet.javapoet.KotlinPoetJavaPoetPreview
 import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.ancestry.NameDescriptorPair
-import me.kcra.takenaka.core.mapping.ancestry.impl.*
+import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
+import me.kcra.takenaka.core.mapping.ancestry.impl.ConstructorComputationMode
+import me.kcra.takenaka.core.mapping.ancestry.impl.fieldAncestryTreeOf
+import me.kcra.takenaka.core.mapping.ancestry.impl.methodAncestryTreeOf
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
@@ -37,7 +39,6 @@ import mu.KotlinLogging
 import org.objectweb.asm.Type
 import java.nio.file.Path
 import java.text.SimpleDateFormat
-import java.util.*
 import javax.lang.model.element.Modifier
 
 private val logger = KotlinLogging.logger {}
@@ -49,15 +50,7 @@ private val logger = KotlinLogging.logger {}
  * @param contextScope the coroutine scope of this context
  * @author Matouš Kučera
  */
-open class JavaGenerationContext(
-    override val generator: AccessorGenerator,
-    contextScope: CoroutineScope
-) : GenerationContext, CoroutineScope by contextScope {
-    /**
-     * The generation timestamp of this context's output.
-     */
-    val generationTime by lazy(::Date)
-
+open class JavaGenerationContext(override val generator: AccessorGenerator, contextScope: CoroutineScope) : AbstractGenerationContext(contextScope) {
     /**
      * Generates an accessor class from a model in Java.
      *
@@ -68,47 +61,19 @@ open class JavaGenerationContext(
         logger.debug { "generating accessors for class '${model.internalName}'" }
 
         val fieldTree = fieldAncestryTreeOf(node)
-        val fieldAccessors = model.fields.map { fieldAccessor ->
-            val fieldNode = if (fieldAccessor.type == null) {
-                fieldTree.find(fieldAccessor.name, version = fieldAccessor.version)?.apply {
-                    logger.debug { "inferred type '${getFriendlyType(last.value).className}' for field ${fieldAccessor.name}" }
-                }
-            } else {
-                fieldTree[NameDescriptorPair(fieldAccessor.name, fieldAccessor.internalType!!)]
-            }
-
-            return@map fieldAccessor to checkNotNull(fieldNode) {
-                "Field ancestry node with name ${fieldAccessor.name} and type ${fieldAccessor.internalType} not found"
-            }
-        }
+        val fieldAccessors = model.fields.flatMap { resolveFieldChain(fieldTree, it) }
 
         val ctorTree = methodAncestryTreeOf(node, constructorMode = ConstructorComputationMode.ONLY)
-        val ctorAccessors = model.constructors.map { ctorAccessor ->
-            val ctorNode = ctorTree[NameDescriptorPair("<init>", ctorAccessor.type)]
-
-            return@map ctorAccessor to checkNotNull(ctorNode) {
-                "Constructor ancestry node with type ${ctorAccessor.type} not found"
-            }
-        }
+        val ctorAccessors = model.constructors.map { ResolvedConstructorPair(it, resolveConstructor(ctorTree, it)) }
 
         val methodTree = methodAncestryTreeOf(node)
-        val methodAccessors = model.methods.map { methodAccessor ->
-            val methodNode = if (methodAccessor.isIncomplete || methodAccessor.version != null) {
-                methodTree.find(methodAccessor.name, methodAccessor.type, version = methodAccessor.version)?.apply {
-                    if (methodAccessor.isIncomplete) {
-                        logger.debug { "inferred return type '${getFriendlyType(last.value).returnType.className}' for method ${methodAccessor.name}" }
-                    }
-                }
-            } else {
-                methodTree[NameDescriptorPair(methodAccessor.name, methodAccessor.type)]
-            }
-
-            return@map methodAccessor to checkNotNull(methodNode) {
-                "Method ancestry node with name ${methodAccessor.name} and type ${methodAccessor.type} not found"
-            }
-        }
+        val methodAccessors = model.methods.flatMap { resolveMethodChain(methodTree, it) }
 
         val overloadCount = mutableMapOf<String, Int>()
+        val overloads = methodAccessors.associate { (methodAccessor, _) ->
+            methodAccessor to overloadCount.compute(methodAccessor.name) { _, i -> i?.inc() ?: 0 }
+        }
+
         val accessedQualifiedName = model.name.fromInternalName()
         val accessedSimpleName = model.internalName.substringAfterLast('/')
 
@@ -121,7 +86,7 @@ open class JavaGenerationContext(
                     
                     @since ${node.first.key.id}
                     @version ${node.last.key.id}
-                """.trimIndent()
+                """.trimIndent().escape()
             )
             .addField(
                 FieldSpec.builder(SourceTypes.CLASS_MAPPING, "MAPPING", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
@@ -228,9 +193,18 @@ open class JavaGenerationContext(
                                                     
                                 @since ${fieldNode.first.key.id}
                                 @version ${fieldNode.last.key.id}
-                            """.trimIndent()
+                            """.trimIndent().escape()
                         )
-                        .initializer("MAPPING.getField(\$S)", fieldAccessor.name)
+                        .initializer(
+                            CodeBlock.builder()
+                                .add("MAPPING.getField(\$S)", fieldAccessor.name)
+                                .apply {
+                                    if (fieldAccessor.chain != null) {
+                                        add(".chain(FIELD_${fieldAccessor.chain.name.camelToUpperSnakeCase()})")
+                                    }
+                                }
+                                .build()
+                        )
                         .build()
                 }
             )
@@ -246,7 +220,7 @@ open class JavaGenerationContext(
                                                     
                                 @since ${ctorNode.first.key.id}
                                 @version ${ctorNode.last.key.id}
-                            """.trimIndent()
+                            """.trimIndent().escape()
                         )
                         .initializer("MAPPING.getConstructor(\$L)", i)
                         .build()
@@ -254,8 +228,7 @@ open class JavaGenerationContext(
             )
             .addFields(
                 methodAccessors.map { (methodAccessor, methodNode) ->
-                    val overloadIndex = overloadCount.compute(methodAccessor.name) { _, i -> i?.inc() ?: 0 }
-
+                    val overloadIndex = overloads[methodAccessor]
                     val accessorName = "METHOD_${methodAccessor.name.camelToUpperSnakeCase()}_$overloadIndex"
                     val methodType = if (methodAccessor.isIncomplete) {
                         getFriendlyType(methodNode.last.value)
@@ -271,9 +244,18 @@ open class JavaGenerationContext(
                                                     
                                 @since ${methodNode.first.key.id}
                                 @version ${methodNode.last.key.id}
-                            """.trimIndent()
+                            """.trimIndent().escape()
                         )
-                        .initializer("MAPPING.getMethod(\$S, \$L)", methodAccessor.name, overloadIndex)
+                        .initializer(
+                            CodeBlock.builder()
+                                .add("MAPPING.getMethod(\$S, \$L)", methodAccessor.name, overloadIndex)
+                                .apply {
+                                    if (methodAccessor.chain != null) {
+                                        add(".chain(METHOD_${methodAccessor.chain.name.camelToUpperSnakeCase()}_${overloads[methodAccessor.chain]})")
+                                    }
+                                }
+                                .build()
+                        )
                         .build()
                 }
             )
@@ -310,3 +292,10 @@ open class JavaGenerationContext(
  * @return the file where the source was actually written
  */
 fun JavaFile.writeTo(workspace: Workspace): Path = writeToPath(workspace.rootDirectory)
+
+/**
+ * Escapes JavaPoet formatting symbols.
+ *
+ * @return the escaped string
+ */
+fun String.escape(): String = replace("$", "$$")

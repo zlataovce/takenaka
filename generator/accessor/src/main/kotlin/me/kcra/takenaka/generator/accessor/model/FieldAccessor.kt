@@ -26,9 +26,15 @@ import me.kcra.takenaka.core.mapping.toInternalName
  * @property name the mapped name of the field
  * @property type the field descriptor, null if it should be inferred
  * @property version the version of the declared reference name, null for last (newest)
+ * @property chain disassociated mapping which should be merged with this one
  * @author Matouš Kučera
  */
-data class FieldAccessor(val name: String, val type: String? = null, val version: Version? = null) {
+data class FieldAccessor(
+    val name: String,
+    val type: String? = null,
+    val version: Version? = null,
+    val chain: FieldAccessor? = null
+) {
     /**
      * Internalized variant of [type].
      */

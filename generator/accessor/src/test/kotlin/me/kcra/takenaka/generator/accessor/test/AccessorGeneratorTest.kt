@@ -28,8 +28,6 @@ import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
-import me.kcra.takenaka.generator.accessor.model.ConstructorAccessor
-import me.kcra.takenaka.generator.accessor.model.FieldAccessor
 import me.kcra.takenaka.generator.accessor.model.MethodAccessor
 import me.kcra.takenaka.generator.common.ResolvingMappingProvider
 import me.kcra.takenaka.generator.common.buildMappingConfig
@@ -111,17 +109,18 @@ class AccessorGeneratorTest {
             AccessorConfiguration(
                 listOf(
                     ClassAccessor(
-                        "net.minecraft.network.protocol.game.ClientboundAddEntityPacket",
+                        "net.minecraft.network.protocol.status.ServerStatus\$Version",
+                        emptyList(),
+                        emptyList(),
                         listOf(
-                            FieldAccessor("x"),
-                            FieldAccessor("y"),
-                            FieldAccessor("z")
-                        ),
-                        listOf(
-                            ConstructorAccessor("(Lnet/minecraft/world/entity/Entity;)V")
-                        ),
-                        listOf(
-                            MethodAccessor("getId", "()")
+                            MethodAccessor(
+                                "protocol",
+                                "()",
+                                chain = MethodAccessor(
+                                    "getProtocol",
+                                    "()"
+                                )
+                            )
                         )
                     )
                 ),

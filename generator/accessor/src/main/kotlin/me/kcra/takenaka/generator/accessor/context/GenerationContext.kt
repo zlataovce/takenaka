@@ -20,12 +20,10 @@ package me.kcra.takenaka.generator.accessor.context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
-import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
+import me.kcra.takenaka.generator.accessor.context.impl.JavaGenerationContext
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
-import net.fabricmc.mappingio.tree.MappingTreeView.MemberMappingView
-import org.objectweb.asm.Type
 
 /**
  * A base generation context.
@@ -45,19 +43,6 @@ interface GenerationContext : CoroutineScope {
      * @param node the ancestry node of the class defined by the model
      */
     fun generateClass(model: ClassAccessor, node: ClassAncestryNode)
-
-    /**
-     * Returns a parsed [Type] of a member descriptor picked based on the friendliness index.
-     *
-     * @param member the member
-     * @return the [Type]
-     */
-    fun getFriendlyType(member: MemberMappingView): Type {
-        generator.config.namespaceFriendlinessIndex.forEach { ns ->
-            member.getDesc(ns)?.let { return Type.getType(it) }
-        }
-        return Type.getType(member.tree.dstNamespaceIds.firstNotNullOfOrNull(member::getDstDesc) ?: member.srcDesc)
-    }
 }
 
 /**

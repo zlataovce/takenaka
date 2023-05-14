@@ -25,9 +25,15 @@ import me.kcra.takenaka.core.Version
  * @property name the method name
  * @property type the method descriptor, may be incomplete (without a return type - inferred)
  * @property version the version of the declared reference name, null for last (newest)
+ * @property chain disassociated mapping which should be merged with this one
  * @author Matouš Kučera
  */
-data class MethodAccessor(val name: String, val type: String, val version: Version? = null) {
+data class MethodAccessor(
+    val name: String,
+    val type: String,
+    val version: Version? = null,
+    val chain: MethodAccessor? = null
+) {
     /**
      * Whether the method descriptor ([type]) is incomplete, i.e. ends just before the return type is declared.
      */
