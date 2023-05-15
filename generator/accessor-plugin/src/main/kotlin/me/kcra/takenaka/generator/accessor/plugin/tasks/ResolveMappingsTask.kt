@@ -1,3 +1,20 @@
+/*
+ * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
+ *
+ * Copyright (c) 2023 Matous Kucera
+ *
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package me.kcra.takenaka.generator.accessor.plugin.tasks
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
@@ -24,21 +41,50 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 
+/**
+ * A [me.kcra.takenaka.core.mapping.MutableMappingsMap], but as a Gradle [MapProperty].
+ */
 typealias MutableMappingsMapProperty = MapProperty<Version, MappingTree>
 
+/**
+ * A Gradle task that resolves, analyzes and saves basic Mojang server mappings.
+ *
+ * @author Matouš Kučera
+ */
 abstract class ResolveMappingsTask : DefaultTask() {
+    /**
+     * The cache directory, defaults to `build/takenaka/cache`.
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.cacheDirectory
+     */
     @get:OutputDirectory
     abstract val cacheDir: DirectoryProperty
 
+    /**
+     * Versions to be mapped.
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.versions
+     */
     @get:Input
     abstract val versions: ListProperty<String>
 
+    /**
+     * The workspace options, defaults to [DefaultWorkspaceOptions.RELAXED_CACHE].
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.strictCache
+     */
     @get:Input
     abstract val options: Property<WorkspaceOptions>
 
+    /**
+     * The resolved mappings.
+     */
     @get:Internal
     abstract val mappings: MutableMappingsMapProperty
 
+    /**
+     * The root cache workspace ([cacheDir]).
+     */
     @get:Internal
     val cacheWorkspace by lazy {
         compositeWorkspace {
@@ -47,6 +93,9 @@ abstract class ResolveMappingsTask : DefaultTask() {
         }
     }
 
+    /**
+     * The shared cache workspace, mainly for manifests and maven-metadata.xml files.
+     */
     @get:Internal
     val sharedCacheWorkspace by lazy {
         cacheWorkspace.createWorkspace {
@@ -54,6 +103,9 @@ abstract class ResolveMappingsTask : DefaultTask() {
         }
     }
 
+    /**
+     * The mapping cache workspace.
+     */
     @get:Internal
     val mappingCacheWorkspace by lazy {
         cacheWorkspace.createCompositeWorkspace {
@@ -66,6 +118,9 @@ abstract class ResolveMappingsTask : DefaultTask() {
         options.convention(DefaultWorkspaceOptions.RELAXED_CACHE)
     }
 
+    /**
+     * Runs the task.
+     */
     @TaskAction
     fun run() {
         val objectMapper = objectMapper()

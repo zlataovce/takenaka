@@ -38,6 +38,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         val config = target.extensions.create("accessors", AccessorGeneratorExtension::class.java, target)
 
+        // automatically adds two dependent tasks for basic Mojang-based server accessor generation
         val mappingTask = target.tasks.create("resolveMappings", ResolveMappingsTask::class.java) { task ->
             task.group = "takenaka"
 
