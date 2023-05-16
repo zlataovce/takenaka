@@ -30,6 +30,7 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.objectweb.asm.Type
+import java.util.*
 import kotlin.reflect.KClass
 
 /**
@@ -120,17 +121,17 @@ class ClassAccessorBuilder(val name: String) {
     var methods = mutableListOf<MethodAccessor>()
 
     /**
-     * Adds a new field accessor model.
+     * Adds a new field accessor model with an explicitly defined type.
      *
      * @param name the mapped field name
-     * @param type the mapped field descriptor
+     * @param type the mapped field type, converted with [Any.asDescriptor]
      */
-    fun field(name: String, type: String) {
-        fields += FieldAccessor(name, type)
+    fun field(name: String, type: Any) {
+        fields += FieldAccessor(name, type.asDescriptor())
     }
 
     /**
-     * Adds a new field accessor model.
+     * Adds a new field accessor model with an inferred type.
      *
      * @param name the mapped field name
      * @param version the version of the [name] declaration, latest if null
@@ -140,12 +141,12 @@ class ClassAccessorBuilder(val name: String) {
     }
 
     /**
-     * Adds a new constructor accessor model.
+     * Adds a new chained field accessor model.
      *
-     * @param type the mapped constructor descriptor (method descriptor with a void return type)
+     * @param block the builder action
      */
-    fun constructor(type: String) {
-        constructors += ConstructorAccessor(type)
+    fun fieldChain(block: FieldChainBuilder.() -> Unit) {
+        fields += FieldChainBuilder().apply(block).toFieldAccessor()
     }
 
     /**
@@ -158,17 +159,7 @@ class ClassAccessorBuilder(val name: String) {
     }
 
     /**
-     * Adds a new method accessor model.
-     *
-     * @param name the mapped method name
-     * @param type the mapped method descriptor
-     */
-    fun method(name: String, type: String) {
-        methods += MethodAccessor(name, type)
-    }
-
-    /**
-     * Adds a new method accessor model.
+     * Adds a new method accessor model with an explicitly defined return type.
      *
      * @param name the mapped method name
      * @param returnType the mapped return type
@@ -179,7 +170,7 @@ class ClassAccessorBuilder(val name: String) {
     }
 
     /**
-     * Adds a new method accessor model.
+     * Adds a new method accessor model with an inferred return type.
      *
      * @param name the mapped method name
      * @param version the version of the [name] and [parameters] declaration, latest if null
@@ -190,11 +181,207 @@ class ClassAccessorBuilder(val name: String) {
     }
 
     /**
+     * Adds a new chained method accessor model.
+     *
+     * @param block the builder action
+     */
+    fun methodChain(block: MethodChainBuilder.() -> Unit) {
+        methods += MethodChainBuilder().apply(block).toMethodAccessor()
+    }
+
+    /**
+     * Adds a new getter method accessor model (`{type} get{name}()` descriptor).
+     *
+     * @param name the mapped method name
+     * @param version the version of the [name] declaration, latest if null
+     */
+    fun getter(name: String, version: Version? = null) {
+        method("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", version)
+    }
+
+    /**
+     * Adds a new getter method accessor model (`{type} get{name}()` descriptor).
+     *
+     * @param name the mapped method name
+     * @param type the mapped getter type, converted with [Any.asDescriptor]
+     */
+    fun getter(name: String, type: Any) {
+        method("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
+    }
+
+    /**
+     * Adds a new chained getter method accessor model, useful for chaining together normal and record getters.
+     *
+     * @param name the mapped method name
+     * @param version the version of the [name] declaration, latest if null
+     */
+    fun getterChain(name: String, version: Version? = null) {
+        methodChain {
+            item(name, version)
+            item("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", version)
+        }
+    }
+
+    /**
+     * Adds a new chained getter method accessor model, useful for chaining together normal and record getters.
+     *
+     * @param name the mapped method name
+     * @param type the mapped getter type, converted with [Any.asDescriptor]
+     */
+    fun getterChain(name: String, type: Any) {
+        methodChain {
+            item(name, type)
+            item("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
+        }
+    }
+
+    /**
+     * Adds a new setter method accessor model (`{type} set{name}({type})` descriptor).
+     *
+     * @param name the mapped method name
+     * @param type the mapped setter type, converted with [Any.asDescriptor]
+     */
+    fun setter(name: String, type: Any) {
+        method("set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type, type)
+    }
+
+    /**
+     * Adds a new chained setter method accessor model, useful for chaining together normal and record setters.
+     *
+     * @param name the mapped method name
+     * @param type the mapped setter type, converted with [Any.asDescriptor]
+     */
+    fun setterChain(name: String, type: Any) {
+        methodChain {
+            item(name, type, type)
+            item("set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type, type)
+        }
+    }
+
+    /**
      * Creates a [ClassAccessor] out of this builder.
      *
      * @return the class accessor
      */
-    fun toClassAccessor() = ClassAccessor(name, fields, constructors, methods)
+    internal fun toClassAccessor() = ClassAccessor(name, fields, constructors, methods)
+}
+
+/**
+ * A single chain step.
+ */
+typealias ChainStep<T> = (T?) -> T
+
+/**
+ * A builder for field mapping chains.
+ *
+ * @author Matouš Kučera
+ */
+class FieldChainBuilder {
+    /**
+     * Members of this chain.
+     */
+    val steps = mutableListOf<ChainStep<FieldAccessor>>()
+
+    /**
+     * Adds a new field accessor model with an explicitly defined type to the chain.
+     *
+     * @param name the mapped field name
+     * @param type the mapped field type, converted with [Any.asDescriptor]
+     */
+    fun item(name: String, type: Any) {
+        steps += { last -> FieldAccessor(name, type.asDescriptor(), chain = last) }
+    }
+
+    /**
+     * Adds a new field accessor model with an inferred type to the chain.
+     *
+     * @param name the mapped field name
+     * @param version the version of the [name] declaration, latest if null
+     */
+    fun item(name: String, version: Version? = null) {
+        steps += { last -> FieldAccessor(name, null, version, chain = last) }
+    }
+
+    /**
+     * Creates a [FieldAccessor] out of this builder.
+     *
+     * @return the field accessor
+     */
+    internal fun toFieldAccessor(): FieldAccessor {
+        var currentAccessor: FieldAccessor? = null
+
+        for (step in steps.reversed()) {
+            currentAccessor = step(currentAccessor)
+        }
+
+        return requireNotNull(currentAccessor) {
+            "Chain was empty"
+        }
+    }
+}
+
+/**
+ * A builder for method mapping chains.
+ *
+ * @author Matouš Kučera
+ */
+class MethodChainBuilder {
+    /**
+     * Members of this chain.
+     */
+    val steps = mutableListOf<ChainStep<MethodAccessor>>()
+
+    /**
+     * Adds a new method accessor model with an explicitly defined return type to the chain.
+     *
+     * @param name the mapped method name
+     * @param returnType the mapped return type
+     * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
+     */
+    fun item(name: String, returnType: Any, vararg parameters: Any) {
+        steps += { last ->
+            MethodAccessor(
+                name,
+                "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})${returnType.asDescriptor()}",
+                chain = last
+            )
+        }
+    }
+
+    /**
+     * Adds a new method accessor model with an inferred return type to the chain.
+     *
+     * @param name the mapped method name
+     * @param version the version of the [name] and [parameters] declaration, latest if null
+     * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
+     */
+    fun item(name: String, version: Version? = null, vararg parameters: Any) {
+       steps += { last ->
+           MethodAccessor(
+               name,
+               "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})",
+               version,
+               chain = last
+           )
+       }
+    }
+
+    /**
+     * Creates a [MethodAccessor] out of this builder.
+     *
+     * @return the method accessor
+     */
+    internal fun toMethodAccessor(): MethodAccessor {
+        var currentAccessor: MethodAccessor? = null
+
+        for (step in steps.reversed()) {
+            currentAccessor = step(currentAccessor)
+        }
+
+        return requireNotNull(currentAccessor) {
+            "Chain was empty"
+        }
+    }
 }
 
 /**
