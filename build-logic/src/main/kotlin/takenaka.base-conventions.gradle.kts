@@ -8,8 +8,6 @@ plugins {
 
 repositories {
     mavenCentral()
-    maven("https://maven.fabricmc.net")
-    maven("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven")
 }
 
 java {

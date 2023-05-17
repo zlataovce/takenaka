@@ -35,8 +35,19 @@ import java.util.*
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * A field accessor and ancestry node pair.
+ */
 typealias ResolvedFieldPair = Pair<FieldAccessor, FieldAncestryNode>
+
+/**
+ * A constructor accessor and ancestry node pair.
+ */
 typealias ResolvedConstructorPair = Pair<ConstructorAccessor, MethodAncestryNode>
+
+/**
+ * A method accessor and ancestry node pair.
+ */
 typealias ResolvedMethodPair = Pair<MethodAccessor, MethodAncestryNode>
 
 /**

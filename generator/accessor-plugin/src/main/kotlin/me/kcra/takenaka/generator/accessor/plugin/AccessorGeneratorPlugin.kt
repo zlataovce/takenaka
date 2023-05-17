@@ -39,14 +39,24 @@ class AccessorGeneratorPlugin : Plugin<Project> {
         val config = target.extensions.create("accessors", AccessorGeneratorExtension::class.java, target)
 
         // automatically adds two dependent tasks for basic Mojang-based server accessor generation
+        val options = config.strictCache.map { isStrict ->
+            buildWorkspaceOptions {
+                if (!isStrict) {
+                    relaxedCache()
+                }
+            }
+        }
         val mappingTask = target.tasks.create("resolveMappings", ResolveMappingsTask::class.java) { task ->
             task.group = "takenaka"
+            task.description = "Resolves a basic set of mappings for development on Mojang-based servers."
 
             task.cacheDir.set(config.cacheDirectory)
             task.versions.set(config.versions)
+            task.options.set(options)
         }
         target.tasks.create("generateAccessors", GenerateAccessorsTask::class.java) { task ->
             task.group = "takenaka"
+            task.description = "Generates reflective accessors."
             task.dependsOn("resolveMappings")
 
             task.outputDir.set(config.outputDirectory)
@@ -55,15 +65,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             task.basePackage.set(config.basePackage)
             task.languageFlavor.set(config.languageFlavor)
             task.accessedNamespaces.set(config.accessedNamespaces)
-            task.options.set(
-                config.strictCache.map { isStrict ->
-                    buildWorkspaceOptions {
-                        if (!isStrict) {
-                            relaxedCache()
-                        }
-                    }
-                }
-            )
+            task.options.set(options)
         }
     }
 }
