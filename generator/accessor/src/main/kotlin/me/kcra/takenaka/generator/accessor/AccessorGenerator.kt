@@ -64,10 +64,10 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
         generationContext(config.languageFlavor) {
             config.accessors.forEach { classAccessor ->
                 launch(Dispatchers.Default + CoroutineName("generate-coro")) {
-                    val node = tree[classAccessor.internalName]
-                    if (node == null) {
-                        logger.warn { "did not find class ancestry node with name ${classAccessor.internalName}" }
-                        return@launch
+                    logger.info { "generating accessors for class '${classAccessor.internalName}'" }
+
+                    val node = checkNotNull(tree[classAccessor.internalName]) {
+                        "Class ancestry node with name ${classAccessor.internalName} not found"
                     }
 
                     generateClass(classAccessor, node)

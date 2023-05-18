@@ -35,13 +35,10 @@ import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.accessor.util.camelToUpperSnakeCase
-import mu.KotlinLogging
 import org.objectweb.asm.Type
 import java.nio.file.Path
 import java.text.SimpleDateFormat
 import javax.lang.model.element.Modifier
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * A generation context that emits Java code.
@@ -58,8 +55,6 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
      * @param node the ancestry node of the class defined by the model
      */
     override fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
-        logger.debug { "generating accessors for class '${model.internalName}'" }
-
         val fieldTree = fieldAncestryTreeOf(node)
         val fieldAccessors = model.fields.flatMap { resolveFieldChain(fieldTree, it) }
 
