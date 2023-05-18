@@ -17,9 +17,7 @@
 
 package me.kcra.takenaka.accessor.mapping;
 
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
+import lombok.*;
 import me.kcra.takenaka.accessor.platform.MapperPlatform;
 import me.kcra.takenaka.accessor.platform.MapperPlatforms;
 import org.jetbrains.annotations.ApiStatus;
@@ -42,6 +40,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public final class FieldMapping {
     /**
+     * A value for {@link #constantValue} representing an uninitialized state.
+     */
+    private static final Object UNINITIALIZED_VALUE = new Object();
+
+    /**
      * The parent class mapping.
      */
     private final ClassMapping parent;
@@ -55,6 +58,13 @@ public final class FieldMapping {
      * The mappings, a map of namespace-mapping maps keyed by version.
      */
     private final Map<String, Map<String, String>> mappings;
+
+    /**
+     * Cached value from {@link }
+     */
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private Object constantValue = UNINITIALIZED_VALUE;
 
     /**
      * Constructs a new {@link FieldMapping} without any initial mappings.
@@ -271,6 +281,28 @@ public final class FieldMapping {
      */
     public @Nullable MethodHandle getFieldSetter() {
         return getFieldSetter(MapperPlatforms.getCurrentPlatform());
+    }
+
+    /**
+     * Gets a mapped field name by the version and namespaces of the current {@link MapperPlatform},
+     * attempts to find it in the parent class, gets the value and caches it.
+     * <p>
+     * Despite the name of this method, it can also be used to cache non-final fields.
+     *
+     * @return the value, null if it's not mapped or the field's value is null
+     */
+    @SneakyThrows
+    public @Nullable Object getConstantValue() {
+        if (constantValue != UNINITIALIZED_VALUE) {
+            return constantValue;
+        }
+
+        final Field field = getField();
+        if (field == null) {
+            return null;
+        }
+
+        return (constantValue = field.get(null));
     }
 
     /**

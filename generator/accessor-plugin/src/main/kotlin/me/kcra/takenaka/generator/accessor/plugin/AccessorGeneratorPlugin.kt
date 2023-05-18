@@ -26,6 +26,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.kotlin.dsl.*
 
 /**
@@ -62,7 +63,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
         val generateAccessors by target.tasks.creating(GenerateAccessorsTask::class) {
             group = "takenaka"
             description = "Generates reflective accessors."
-            dependsOn("resolveMappings")
+            dependsOn(resolveMappings)
 
             this.outputDir.set(config.outputDirectory)
             this.mappings.set(resolveMappings.mappings)
@@ -71,6 +72,10 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.languageFlavor.set(config.languageFlavor)
             this.accessedNamespaces.set(config.accessedNamespaces)
             this.options.set(options)
+        }
+
+        target.tasks.withType<JavaCompile> {
+            dependsOn(generateAccessors)
         }
 
         target.afterEvaluate {

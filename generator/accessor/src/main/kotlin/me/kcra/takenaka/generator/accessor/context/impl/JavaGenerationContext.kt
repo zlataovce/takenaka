@@ -34,7 +34,7 @@ import me.kcra.takenaka.core.mapping.ancestry.impl.methodAncestryTreeOf
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
-import me.kcra.takenaka.generator.accessor.util.camelToUpperSnakeCase
+import me.kcra.takenaka.generator.accessor.model.FieldAccessor
 import org.objectweb.asm.Type
 import java.nio.file.Path
 import java.text.SimpleDateFormat
@@ -56,7 +56,12 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
      */
     override fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
         val fieldTree = fieldAncestryTreeOf(node)
-        val fieldAccessors = model.fields.flatMap { resolveFieldChain(fieldTree, it) }
+
+        // construct a model for bulk declared fields
+        val fieldAccessors = model.fields.flatMap { resolveFieldChain(fieldTree, it) } +
+                resolveRequiredFields(fieldTree, model.requiredTypes).map { fieldNode ->
+                    FieldAccessor(getFriendlyName(fieldNode.last.value), getFriendlyDesc(fieldNode.last.value)) to fieldNode
+                }
 
         val ctorTree = methodAncestryTreeOf(node, constructorMode = ConstructorComputationMode.ONLY)
         val ctorAccessors = model.constructors.map { ResolvedConstructorPair(it, resolveConstructor(ctorTree, it)) }
@@ -64,9 +69,20 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
         val methodTree = methodAncestryTreeOf(node)
         val methodAccessors = model.methods.flatMap { resolveMethodChain(methodTree, it) }
 
-        val overloadCount = mutableMapOf<String, Int>()
-        val overloads = methodAccessors.associate { (methodAccessor, _) ->
-            methodAccessor to overloadCount.compute(methodAccessor.name) { _, i -> i?.inc() ?: 0 }
+        // fields can't be overloaded, but capitalization matters, which is a problem when making uppercase names from everything
+        val fieldOverloadCount = mutableMapOf<String, Int>()
+        val fieldOverloads = fieldAccessors.associate { (fieldAccessor, _) ->
+            val upperName = fieldAccessor.name.uppercase()
+            val overloadIndex = fieldOverloadCount.compute(upperName) { _, i -> i?.inc() ?: 0 }
+
+            fieldAccessor to "FIELD_$upperName${if (overloadIndex != 0) "_$overloadIndex" else ""}"
+        }
+        val methodOverloadCount = mutableMapOf<String, Int>()
+        val methodOverloads = methodAccessors.associate { (methodAccessor, _) ->
+            val upperName = methodAccessor.name.uppercase()
+            val overloadIndex = methodOverloadCount.compute(upperName) { _, i -> i?.inc() ?: 0 }
+
+            methodAccessor to (overloadIndex to "METHOD_$upperName${if (overloadIndex != 0) "_$overloadIndex" else ""}")
         }
 
         val accessedQualifiedName = model.name.fromInternalName()
@@ -176,7 +192,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
             )
             .addFields(
                 fieldAccessors.map { (fieldAccessor, fieldNode) ->
-                    val accessorName = "FIELD_${fieldAccessor.name.camelToUpperSnakeCase()}"
+                    val accessorName = fieldOverloads[fieldAccessor]
                     val fieldType = fieldAccessor.type?.let(Type::getType)
                         ?: getFriendlyType(fieldNode.last.value)
 
@@ -195,7 +211,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                                 .add("MAPPING.getField(\$S)", fieldAccessor.name)
                                 .apply {
                                     if (fieldAccessor.chain != null) {
-                                        add(".chain(FIELD_${fieldAccessor.chain.name.camelToUpperSnakeCase()})")
+                                        add(".chain(${fieldOverloads[fieldAccessor.chain]})")
                                     }
                                 }
                                 .build()
@@ -223,8 +239,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
             )
             .addFields(
                 methodAccessors.map { (methodAccessor, methodNode) ->
-                    val overloadIndex = overloads[methodAccessor]
-                    val accessorName = "METHOD_${methodAccessor.name.camelToUpperSnakeCase()}_$overloadIndex"
+                    val (overloadIndex, accessorName) = methodOverloads[methodAccessor]!!
                     val methodType = if (methodAccessor.isIncomplete) {
                         getFriendlyType(methodNode.last.value)
                     } else {
@@ -246,7 +261,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                                 .add("MAPPING.getMethod(\$S, \$L)", methodAccessor.name, overloadIndex)
                                 .apply {
                                     if (methodAccessor.chain != null) {
-                                        add(".chain(METHOD_${methodAccessor.chain.name.camelToUpperSnakeCase()}_${overloads[methodAccessor.chain]})")
+                                        add(".chain(${methodOverloads[methodAccessor.chain]})")
                                     }
                                 }
                                 .build()

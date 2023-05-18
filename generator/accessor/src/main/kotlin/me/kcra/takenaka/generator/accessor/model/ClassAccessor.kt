@@ -27,13 +27,15 @@ import java.io.Serializable
  * @property fields the accessed fields of the class
  * @property constructors the accessed constructors of the class
  * @property methods the accessed methods of the class
+ * @property requiredTypes the types of class members that should be accessed in bulk
  * @author Matouš Kučera
  */
 data class ClassAccessor(
     val name: String,
     val fields: List<FieldAccessor>,
     val constructors: List<ConstructorAccessor>,
-    val methods: List<MethodAccessor>
+    val methods: List<MethodAccessor>,
+    val requiredTypes: RequiredMemberTypes
 ) : Serializable {
     /**
      * Internalized variant of [name].

@@ -21,10 +21,7 @@ import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
-import me.kcra.takenaka.generator.accessor.model.ClassAccessor
-import me.kcra.takenaka.generator.accessor.model.ConstructorAccessor
-import me.kcra.takenaka.generator.accessor.model.FieldAccessor
-import me.kcra.takenaka.generator.accessor.model.MethodAccessor
+import me.kcra.takenaka.generator.accessor.model.*
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
@@ -164,9 +161,11 @@ abstract class AccessorGeneratorExtension(internal val project: Project) {
      *
      * @param name the mapped class name
      * @param block the builder action
+     * @return the mapped class name ([name]), use this to refer to this class elsewhere
      */
-    fun mapClass(name: String, block: ClassAccessorBuilder.() -> Unit = {}) {
+    fun mapClass(name: String, block: ClassAccessorBuilder.() -> Unit = {}): String {
         accessors.add(ClassAccessorBuilder(name).apply(block).toClassAccessor())
+        return name
     }
 }
 
@@ -191,6 +190,11 @@ class ClassAccessorBuilder(val name: String) {
      * Method accessor models.
      */
     var methods = mutableListOf<MethodAccessor>()
+
+    /**
+     * Member types required in bulk.
+     */
+    var requiredMemberTypes = 0
 
     /**
      * Adds a new field accessor model with an explicitly defined type.
@@ -331,11 +335,21 @@ class ClassAccessorBuilder(val name: String) {
     }
 
     /**
+     * Adds new required member types.
+     *
+     * @param options the member types
+     * @see DefaultRequiredMemberTypes
+     */
+    fun memberTypes(vararg options: Int) {
+        requiredMemberTypes = requiredMemberTypesOf(requiredMemberTypes, *options)
+    }
+
+    /**
      * Creates a [ClassAccessor] out of this builder.
      *
      * @return the class accessor
      */
-    internal fun toClassAccessor() = ClassAccessor(name, fields, constructors, methods)
+    internal fun toClassAccessor() = ClassAccessor(name, fields, constructors, methods, requiredMemberTypes)
 }
 
 /**

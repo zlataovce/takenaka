@@ -144,6 +144,7 @@ abstract class GenerateAccessorsTask : DefaultTask() {
             )
         )
 
+        outputWorkspace.clean()
         runBlocking {
             generator.generate(mappings.get())
         }
