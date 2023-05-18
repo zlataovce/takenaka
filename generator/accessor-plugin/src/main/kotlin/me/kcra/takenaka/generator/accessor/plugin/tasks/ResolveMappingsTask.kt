@@ -19,25 +19,26 @@ package me.kcra.takenaka.generator.accessor.plugin.tasks
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.coroutines.runBlocking
-import me.kcra.takenaka.core.DefaultWorkspaceOptions
-import me.kcra.takenaka.core.Version
-import me.kcra.takenaka.core.WorkspaceOptions
-import me.kcra.takenaka.core.compositeWorkspace
+import me.kcra.takenaka.core.*
 import me.kcra.takenaka.core.mapping.WrappingContributor
 import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.resolve.impl.*
 import me.kcra.takenaka.core.util.objectMapper
+import me.kcra.takenaka.generator.common.BundledMappingProvider
 import me.kcra.takenaka.generator.common.ResolvingMappingProvider
 import me.kcra.takenaka.generator.common.buildMappingConfig
 import net.fabricmc.mappingio.tree.MappingTree
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 
@@ -47,7 +48,10 @@ import org.gradle.api.tasks.TaskAction
 typealias MutableMappingsMapProperty = MapProperty<Version, MappingTree>
 
 /**
- * A Gradle task that resolves, analyzes and saves basic Mojang server mappings.
+ * A Gradle task that resolves and analyzes mappings.
+ *
+ * Mappings can be resolved from a mapping bundle, defined using the [mappingBundle] property, or
+ * fetched and saved directly, defined using the [versions] property (only basic mappings for Mojang-based servers).
  *
  * @author Matouš Kučera
  */
@@ -59,6 +63,13 @@ abstract class ResolveMappingsTask : DefaultTask() {
      */
     @get:OutputDirectory
     abstract val cacheDir: DirectoryProperty
+
+    /**
+     * A mapping bundle, optional, defined via the `mappingBundle` dependency configuration by default.
+     */
+    @get:Optional
+    @get:InputFile
+    abstract val mappingBundle: RegularFileProperty
 
     /**
      * Versions to be mapped.
@@ -124,49 +135,57 @@ abstract class ResolveMappingsTask : DefaultTask() {
     @TaskAction
     fun run() {
         val objectMapper = objectMapper()
-        val xmlMapper = XmlMapper()
+        val manifest = objectMapper.versionManifest()
 
-        val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, xmlMapper)
-        val mappingConfig = buildMappingConfig {
-            version(this@ResolveMappingsTask.versions.get())
-            workspace(mappingCacheWorkspace)
+        // resolve mappings on this system, if a bundle is not available
+        val mappingProvider = if (mappingBundle.isPresent) {
+            BundledMappingProvider(mappingBundle.get().asFile.toPath(), manifest)
+        } else {
+            val xmlMapper = XmlMapper()
 
-            // remove Searge's ID namespace, it's not necessary
-            intercept { v ->
-                NamespaceFilter(v, "searge_id")
+            val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, xmlMapper)
+            val mappingConfig = buildMappingConfig {
+                version(this@ResolveMappingsTask.versions.get())
+                workspace(mappingCacheWorkspace)
+
+                // remove Searge's ID namespace, it's not necessary
+                intercept { v ->
+                    NamespaceFilter(v, "searge_id")
+                }
+                // remove static initializers, not needed in the documentation
+                intercept(::StaticInitializerFilter)
+                // remove overrides of java/lang/Object, they are implicit
+                intercept(::ObjectOverrideFilter)
+                // remove obfuscated method parameter names, they are a filler from Searge
+                intercept(::MethodArgSourceFilter)
+
+                contributors { versionWorkspace ->
+                    val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper)
+                    val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper)
+
+                    val prependedClasses = mutableListOf<String>()
+
+                    listOf(
+                        VanillaMappingContributor(versionWorkspace, mojangProvider),
+                        MojangServerMappingResolver(versionWorkspace, mojangProvider),
+                        IntermediaryMappingResolver(versionWorkspace, sharedCacheWorkspace),
+                        YarnMappingResolver(versionWorkspace, yarnProvider),
+                        SeargeMappingResolver(versionWorkspace, sharedCacheWorkspace),
+                        WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
+                            // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
+                            // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
+                            LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses, prependEverything = versionWorkspace.version.id == "1.16.5")
+                        },
+                        WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
+                            LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses)
+                        }
+                    )
+                }
             }
-            // remove static initializers, not needed in the documentation
-            intercept(::StaticInitializerFilter)
-            // remove overrides of java/lang/Object, they are implicit
-            intercept(::ObjectOverrideFilter)
-            // remove obfuscated method parameter names, they are a filler from Searge
-            intercept(::MethodArgSourceFilter)
 
-            contributors { versionWorkspace ->
-                val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper)
-                val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper)
-
-                val prependedClasses = mutableListOf<String>()
-
-                listOf(
-                    VanillaMappingContributor(versionWorkspace, mojangProvider),
-                    MojangServerMappingResolver(versionWorkspace, mojangProvider),
-                    IntermediaryMappingResolver(versionWorkspace, sharedCacheWorkspace),
-                    YarnMappingResolver(versionWorkspace, yarnProvider),
-                    SeargeMappingResolver(versionWorkspace, sharedCacheWorkspace),
-                    WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
-                        // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
-                        // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
-                        LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses, prependEverything = versionWorkspace.version.id == "1.16.5")
-                    },
-                    WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
-                        LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses)
-                    }
-                )
-            }
+            ResolvingMappingProvider(mappingConfig, manifest, xmlMapper)
         }
 
-        val mappingProvider = ResolvingMappingProvider(mappingConfig, objectMapper, xmlMapper)
         val analyzer = MappingAnalyzerImpl(
             MappingAnalyzerImpl.AnalysisOptions(
                 innerClassNameCompletionCandidates = setOf("spigot")

@@ -6,7 +6,9 @@ plugins {
     id("takenaka.base-conventions")
     alias(libs.plugins.gradle.plugin.publish)
     alias(libs.plugins.shadow)
+    alias(libs.plugins.build.config)
     `java-gradle-plugin`
+    `kotlin-dsl`
 }
 
 apply(plugin = "org.jetbrains.kotlin.jvm")
@@ -28,6 +30,14 @@ gradlePlugin {
             implementationClass = "me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorPlugin"
         }
     }
+}
+
+buildConfig {
+    packageName("me.kcra.takenaka.gradle")
+    useKotlinOutput()
+
+    buildConfigField("String", "BUILD_VERSION", "\"$version\"")
+    buildConfigField("String", "BUILD_MAVEN_GROUP", "\"$group\"")
 }
 
 // needed for com.gradle.plugin-publish to detect the shaded JAR

@@ -39,7 +39,7 @@ import kotlin.reflect.KClass
  * @property project the project
  * @author Matouš Kučera
  */
-abstract class AccessorGeneratorExtension(val project: Project) {
+abstract class AccessorGeneratorExtension(internal val project: Project) {
     /**
      * Versions to be mapped.
      */
@@ -85,6 +85,78 @@ abstract class AccessorGeneratorExtension(val project: Project) {
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
         languageFlavor.convention(LanguageFlavor.JAVA)
         strictCache.convention(false)
+    }
+
+    /**
+     * Adds new versions to the [versions] property.
+     *
+     * @param versions the versions
+     */
+    fun versions(vararg versions: String) {
+        this.versions.addAll(*versions)
+    }
+
+    /**
+     * Sets the [outputDirectory] property.
+     *
+     * @param outputDirectory the file object, interpreted with [Project.file]
+     */
+    fun outputDirectory(outputDirectory: Any) {
+        this.outputDirectory.set(project.file(outputDirectory))
+    }
+
+    /**
+     * Sets the [cacheDirectory] property.
+     *
+     * @param cacheDirectory the file object, interpreted with [Project.file]
+     */
+    fun cacheDirectory(cacheDirectory: Any) {
+        this.cacheDirectory.set(project.file(cacheDirectory))
+    }
+
+    /**
+     * Sets the [strictCache] property.
+     *
+     * @param strictCache the strict cache flag
+     */
+    fun strictCache(strictCache: Boolean) {
+        this.strictCache.set(strictCache)
+    }
+
+    /**
+     * Sets the [basePackage] property.
+     *
+     * @param basePackage the base package
+     */
+    fun basePackage(basePackage: String) {
+        this.basePackage.set(basePackage)
+    }
+
+    /**
+     * Sets the [languageFlavor] property.
+     *
+     * @param languageFlavor the language flavor
+     */
+    fun languageFlavor(languageFlavor: LanguageFlavor) {
+        this.languageFlavor.set(languageFlavor)
+    }
+
+    /**
+     * Sets the [languageFlavor] property.
+     *
+     * @param languageFlavor the language flavor as a string
+     */
+    fun languageFlavor(languageFlavor: String) {
+        this.languageFlavor.set(LanguageFlavor.valueOf(languageFlavor.uppercase()))
+    }
+
+    /**
+     * Adds new namespaces to the [accessedNamespaces] property.
+     *
+     * @param accessedNamespaces the namespaces
+     */
+    fun accessedNamespaces(vararg accessedNamespaces: String) {
+        this.accessedNamespaces.addAll(*accessedNamespaces)
     }
 
     /**
