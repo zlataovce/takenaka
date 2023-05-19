@@ -32,15 +32,10 @@ import net.fabricmc.mappingio.tree.MappingTree
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputFile
-import org.gradle.api.tasks.Internal
-import org.gradle.api.tasks.Optional
-import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.TaskAction
+import org.gradle.api.provider.SetProperty
+import org.gradle.api.tasks.*
 
 /**
  * A [me.kcra.takenaka.core.mapping.MutableMappingsMap], but as a Gradle [MapProperty].
@@ -77,7 +72,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.versions
      */
     @get:Input
-    abstract val versions: ListProperty<String>
+    abstract val versions: SetProperty<String>
 
     /**
      * The workspace options, defaults to [DefaultWorkspaceOptions.RELAXED_CACHE].
@@ -151,7 +146,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
 
             val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, xmlMapper)
             val mappingConfig = buildMappingConfig {
-                version(this@ResolveMappingsTask.versions.get())
+                version(this@ResolveMappingsTask.versions.get().toList())
                 workspace(mappingCacheWorkspace)
 
                 // remove Searge's ID namespace, it's not necessary

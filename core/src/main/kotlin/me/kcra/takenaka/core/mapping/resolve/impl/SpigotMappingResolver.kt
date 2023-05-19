@@ -58,8 +58,8 @@ abstract class AbstractSpigotMappingResolver(
     val xmlMapper: ObjectMapper,
     val spigotProvider: SpigotManifestProvider
 ) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
-    override val licenseSource: String
-        get() = "https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${spigotProvider.manifest.refs["BuildData"]}"
+    override val licenseSource: String?
+        get() = spigotProvider.manifest?.let { "https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${it.refs["BuildData"]}" }
     override val targetNamespace: String = "spigot"
     override val outputs: List<Output<out Path?>>
         get() = listOf(mappingOutput, licenseOutput, pomOutput)
@@ -100,7 +100,8 @@ abstract class AbstractSpigotMappingResolver(
                 return@resolver file
             }
 
-            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute0?at=${spigotProvider.manifest.refs["BuildData"]}").httpRequest {
+            // manifest is going to be non-null, since it's used to fetch mappingAttribute
+            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute0?at=${spigotProvider.manifest!!.refs["BuildData"]}").httpRequest {
                 if (it.ok) {
                     it.copyTo(file)
 
@@ -139,6 +140,12 @@ abstract class AbstractSpigotMappingResolver(
 
     val pomOutput = lazyOutput<Path?> {
         resolver {
+            val manifest = spigotProvider.manifest
+            if (manifest == null) {
+                logger.warn { "did not find ${version.id} CraftBukkit POM (missing Spigot manifest)" }
+                return@resolver null
+            }
+
             val file = workspace[CRAFTBUKKIT_POM]
 
             if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && file.isRegularFile()) {
@@ -146,7 +153,7 @@ abstract class AbstractSpigotMappingResolver(
                 return@resolver file
             }
 
-            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/raw/pom.xml?at=${spigotProvider.manifest.refs["CraftBukkit"]}").httpRequest {
+            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/raw/pom.xml?at=${manifest.refs["CraftBukkit"]}").httpRequest {
                 if (it.ok) {
                     it.copyTo(file)
 
@@ -190,8 +197,7 @@ abstract class AbstractSpigotMappingResolver(
         
         val pomPath by pomOutput
         
-        pomPath?.reader()?.use { xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v -> visitor.visitMetadata(
-            META_CB_NMS_VERSION, v) } }
+        pomPath?.reader()?.use { xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v -> visitor.visitMetadata(META_CB_NMS_VERSION, v) } }
     }
 
     companion object {
@@ -236,7 +242,7 @@ class SpigotClassMappingResolver(
     spigotProvider: SpigotManifestProvider
 ) : AbstractSpigotMappingResolver(workspace, xmlMapper, spigotProvider) {
     override val mappingAttributeName: String = "classMappings"
-    override val mappingAttribute: String? = spigotProvider.attributes.classMappings
+    override val mappingAttribute: String? = spigotProvider.attributes?.classMappings
 
     /**
      * Creates a new resolver with a default metadata provider.
@@ -264,7 +270,7 @@ class SpigotMemberMappingResolver(
 ) : AbstractSpigotMappingResolver(workspace, xmlMapper, spigotProvider) {
     private var expectPrefixedClassNames = false
     override val mappingAttributeName: String = "memberMappings"
-    override val mappingAttribute: String? = spigotProvider.attributes.memberMappings
+    override val mappingAttribute: String? = spigotProvider.attributes?.memberMappings
 
     /**
      * Creates a new resolver with a default metadata provider.
@@ -288,6 +294,7 @@ class SpigotMemberMappingResolver(
      */
     override fun accept(visitor: MappingVisitor) {
         val mappingPath by mappingOutput
+        if (mappingPath == null) return // mappings don't exist, return
 
         var visitor0 = visitor
 
@@ -299,7 +306,7 @@ class SpigotMemberMappingResolver(
 
         val namespaceId = visitor0.getNamespaceId(targetNamespace)
         require(namespaceId != MappingTree.NULL_NAMESPACE_ID) {
-            "Mapping tree has not visited Spigot class mappings before"
+            "Mapping tree has not visited ${workspace.version.id} Spigot class mappings before"
         }
 
         fun getPrefixedClass(name: String): MappingTreeView.ClassMappingView? =

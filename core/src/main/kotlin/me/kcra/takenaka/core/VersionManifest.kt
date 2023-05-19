@@ -39,6 +39,9 @@ fun ObjectMapper.versionManifest(): VersionManifest = readValue(URL(VERSION_MANI
 
 /**
  * Mojang's v2 version manifest.
+ *
+ * @property latest the latest versions
+ * @property versions all versions, sorting is maintained when deserialized (descending in case of [VERSION_MANIFEST_V2])
  */
 data class VersionManifest(
     val latest: Latest,

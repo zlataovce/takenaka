@@ -17,6 +17,7 @@
 
 package me.kcra.takenaka.generator.accessor.plugin
 
+import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
@@ -26,6 +27,7 @@ import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.SetProperty
 import org.objectweb.asm.Type
 import java.util.*
 import kotlin.reflect.KClass
@@ -40,7 +42,7 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     /**
      * Versions to be mapped.
      */
-    abstract val versions: ListProperty<String>
+    abstract val versions: SetProperty<String>
 
     /**
      * The output directory, defaults to `build/takenaka/output`.
@@ -91,6 +93,47 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      */
     fun versions(vararg versions: String) {
         this.versions.addAll(*versions)
+    }
+
+    /**
+     * Adds new release versions to the [versions] property.
+     *
+     * @param older the older version range bound (inclusive)
+     * @param newer the newer version range bound (inclusive)
+     * @param exclude versions excluded from the range
+     */
+    fun versionRange(older: String, newer: String, vararg exclude: String) {
+        versionRange(older, newer, exclude.toSet())
+    }
+
+    /**
+     * Adds new versions to the [versions] property.
+     *
+     * @param older the older version range bound (inclusive)
+     * @param newer the newer version range bound (inclusive)
+     * @param exclude versions excluded from the range
+     * @param includeTypes version types that may be added to the range
+     */
+    @JvmOverloads
+    fun versionRange(older: String, newer: String, exclude: Set<String> = emptySet(), vararg includeTypes: Version.Type = arrayOf(Version.Type.RELEASE)) {
+        this.versions.addAll(
+            manifest.versions
+                .mapNotNull { if (it.type in includeTypes) it.id else null }
+                .minus(exclude)
+                .let { includableVersions ->
+                    val olderIndex = includableVersions.indexOf(older)
+                    require(olderIndex != -1) {
+                        "Version $older not found in manifest"
+                    }
+
+                    val newerIndex = includableVersions.indexOf(newer)
+                    require(newerIndex != -1) {
+                        "Version $newer not found in manifest"
+                    }
+
+                    includableVersions.subList(newerIndex, olderIndex + 1)
+                }
+        )
     }
 
     /**
@@ -260,7 +303,11 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
         methods += MethodAccessor(
             name,
             "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})",
-            version?.let { manifest[it] ?: error("Version $it not found in manifest") }
+            version?.let {
+                requireNotNull(manifest[it]) {
+                    "Version $it not found in manifest"
+                }
+            }
         )
     }
 
@@ -460,7 +507,11 @@ class MethodChainBuilder(internal val manifest: VersionManifest) {
            MethodAccessor(
                name,
                "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})",
-               version?.let { manifest[it] ?: error("Version $it not found in manifest") },
+               version?.let {
+                   requireNotNull(manifest[it]) {
+                       "Version $it not found in manifest"
+                   }
+               },
                chain = last
            )
        }

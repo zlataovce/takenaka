@@ -289,7 +289,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param member the member
      * @return the [Type]
      */
-    protected fun getFriendlyType(member: MappingTreeView.MemberMappingView): Type = Type.getType(getFriendlyName(member))
+    protected fun getFriendlyType(member: MappingTreeView.MemberMappingView): Type = Type.getType(getFriendlyDesc(member))
 }
 
 /**
