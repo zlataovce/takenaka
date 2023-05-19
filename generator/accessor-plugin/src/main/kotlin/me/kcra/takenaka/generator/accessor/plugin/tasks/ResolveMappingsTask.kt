@@ -88,6 +88,12 @@ abstract class ResolveMappingsTask : DefaultTask() {
     abstract val options: Property<WorkspaceOptions>
 
     /**
+     * The version manifest.
+     */
+    @get:Input
+    abstract val manifest: Property<VersionManifest>
+
+    /**
      * The resolved mappings.
      */
     @get:Internal
@@ -127,6 +133,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
     init {
         cacheDir.convention(project.layout.buildDirectory.dir("takenaka/cache"))
         options.convention(DefaultWorkspaceOptions.RELAXED_CACHE)
+        outputs.upToDateWhen { mappings.orNull.isNullOrEmpty() }
     }
 
     /**
@@ -135,11 +142,10 @@ abstract class ResolveMappingsTask : DefaultTask() {
     @TaskAction
     fun run() {
         val objectMapper = objectMapper()
-        val manifest = objectMapper.versionManifest()
 
         // resolve mappings on this system, if a bundle is not available
         val mappingProvider = if (mappingBundle.isPresent) {
-            BundledMappingProvider(mappingBundle.get().asFile.toPath(), manifest)
+            BundledMappingProvider(mappingBundle.get().asFile.toPath(), manifest.get())
         } else {
             val xmlMapper = XmlMapper()
 
@@ -183,7 +189,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
                 }
             }
 
-            ResolvingMappingProvider(mappingConfig, manifest, xmlMapper)
+            ResolvingMappingProvider(mappingConfig, manifest.get(), xmlMapper)
         }
 
         val analyzer = MappingAnalyzerImpl(

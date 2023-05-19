@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import java.io.Serializable
 import java.net.URL
 import java.time.Instant
 
@@ -42,7 +43,7 @@ fun ObjectMapper.versionManifest(): VersionManifest = readValue(URL(VERSION_MANI
 data class VersionManifest(
     val latest: Latest,
     val versions: List<Version>
-) {
+) : Serializable {
     /**
      * The latest release and snapshot versions.
      */
@@ -55,7 +56,11 @@ data class VersionManifest(
          * The ID of the latest snapshot version.
          */
         val snapshot: String
-    )
+    ) : Serializable {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
+    }
 
     /**
      * Finds a version by its ID (e.g. 1.14.4).
@@ -64,6 +69,10 @@ data class VersionManifest(
      * @return the version, null if not found
      */
     operator fun get(id: String): Version? = versions.find { it.id == id }
+
+    companion object {
+        private const val serialVersionUID = 1L
+    }
 }
 
 /**
@@ -99,7 +108,7 @@ data class Version(
      * Its value is 1 otherwise.
      */
     val complianceLevel: Int
-) : Comparable<Version> {
+) : Comparable<Version>, Serializable {
     enum class Type {
         RELEASE, SNAPSHOT, OLD_BETA, OLD_ALPHA
     }
@@ -121,6 +130,10 @@ data class Version(
         return id == other.id
     }
     override fun hashCode(): Int = id.hashCode()
+
+    companion object {
+        private const val serialVersionUID = 1L
+    }
 }
 
 /**

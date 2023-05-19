@@ -18,6 +18,8 @@
 package me.kcra.takenaka.generator.accessor.plugin
 
 import me.kcra.takenaka.core.buildWorkspaceOptions
+import me.kcra.takenaka.core.util.objectMapper
+import me.kcra.takenaka.core.versionManifest
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.plugin.tasks.GenerateAccessorsTask
 import me.kcra.takenaka.generator.accessor.plugin.tasks.ResolveMappingsTask
@@ -41,7 +43,8 @@ class AccessorGeneratorPlugin : Plugin<Project> {
      * @param target The target object
      */
     override fun apply(target: Project) {
-        val config = target.extensions.create<AccessorGeneratorExtension>("accessors", target)
+        val manifest = objectMapper().versionManifest()
+        val config = target.extensions.create<AccessorGeneratorExtension>("accessors", target, manifest)
 
         // automatically adds tasks for basic Mojang-based server accessor generation
         val options = config.strictCache.map { isStrict ->
@@ -59,6 +62,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.cacheDir.set(config.cacheDirectory)
             this.versions.set(config.versions)
             this.options.set(options)
+            this.manifest.set(manifest)
         }
         val generateAccessors by target.tasks.creating(GenerateAccessorsTask::class) {
             group = "takenaka"

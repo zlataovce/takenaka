@@ -17,7 +17,7 @@
 
 package me.kcra.takenaka.generator.accessor.plugin
 
-import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
@@ -36,7 +36,7 @@ import kotlin.reflect.KClass
  * @property project the project
  * @author Matouš Kučera
  */
-abstract class AccessorGeneratorExtension(internal val project: Project) {
+abstract class AccessorGeneratorExtension(internal val project: Project, internal val manifest: VersionManifest) {
     /**
      * Versions to be mapped.
      */
@@ -163,8 +163,9 @@ abstract class AccessorGeneratorExtension(internal val project: Project) {
      * @param block the builder action
      * @return the mapped class name ([name]), use this to refer to this class elsewhere
      */
+    @JvmOverloads
     fun mapClass(name: String, block: ClassAccessorBuilder.() -> Unit = {}): String {
-        accessors.add(ClassAccessorBuilder(name).apply(block).toClassAccessor())
+        accessors.add(ClassAccessorBuilder(name, manifest).apply(block).toClassAccessor())
         return name
     }
 }
@@ -173,9 +174,10 @@ abstract class AccessorGeneratorExtension(internal val project: Project) {
  * A builder for [ClassAccessor].
  *
  * @property name mapped name of the accessed class
+ * @property manifest the Mojang version manifest
  * @author Matouš Kučera
  */
-class ClassAccessorBuilder(val name: String) {
+class ClassAccessorBuilder(val name: String, internal val manifest: VersionManifest) {
     /**
      * Field accessor models.
      */
@@ -212,8 +214,9 @@ class ClassAccessorBuilder(val name: String) {
      * @param name the mapped field name
      * @param version the version of the [name] declaration, latest if null
      */
-    fun field(name: String, version: Version? = null) {
-        fields += FieldAccessor(name, null, version)
+    @JvmOverloads
+    fun field(name: String, version: String? = null) {
+        fields += FieldAccessor(name, null, version?.let { manifest[it] ?: error("Version $it not found in manifest") })
     }
 
     /**
@@ -222,7 +225,7 @@ class ClassAccessorBuilder(val name: String) {
      * @param block the builder action
      */
     fun fieldChain(block: FieldChainBuilder.() -> Unit) {
-        fields += FieldChainBuilder().apply(block).toFieldAccessor()
+        fields += FieldChainBuilder(manifest).apply(block).toFieldAccessor()
     }
 
     /**
@@ -237,11 +240,11 @@ class ClassAccessorBuilder(val name: String) {
     /**
      * Adds a new method accessor model with an explicitly defined return type.
      *
-     * @param name the mapped method name
      * @param returnType the mapped return type
+     * @param name the mapped method name
      * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
      */
-    fun method(name: String, returnType: Any, vararg parameters: Any) {
+    fun method(returnType: Any, name: String, vararg parameters: Any) {
         methods += MethodAccessor(name, "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})${returnType.asDescriptor()}")
     }
 
@@ -252,8 +255,13 @@ class ClassAccessorBuilder(val name: String) {
      * @param version the version of the [name] and [parameters] declaration, latest if null
      * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
      */
-    fun method(name: String, version: Version? = null, vararg parameters: Any) {
-        methods += MethodAccessor(name, "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})", version)
+    @JvmOverloads
+    fun method(name: String, version: String? = null, vararg parameters: Any) {
+        methods += MethodAccessor(
+            name,
+            "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})",
+            version?.let { manifest[it] ?: error("Version $it not found in manifest") }
+        )
     }
 
     /**
@@ -262,7 +270,7 @@ class ClassAccessorBuilder(val name: String) {
      * @param block the builder action
      */
     fun methodChain(block: MethodChainBuilder.() -> Unit) {
-        methods += MethodChainBuilder().apply(block).toMethodAccessor()
+        methods += MethodChainBuilder(manifest).apply(block).toMethodAccessor()
     }
 
     /**
@@ -271,7 +279,8 @@ class ClassAccessorBuilder(val name: String) {
      * @param name the mapped method name
      * @param version the version of the [name] declaration, latest if null
      */
-    fun getter(name: String, version: Version? = null) {
+    @JvmOverloads
+    fun getter(name: String, version: String? = null) {
         method("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", version)
     }
 
@@ -282,7 +291,7 @@ class ClassAccessorBuilder(val name: String) {
      * @param type the mapped getter type, converted with [Any.asDescriptor]
      */
     fun getter(name: String, type: Any) {
-        method("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
+        method(type, "get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}")
     }
 
     /**
@@ -291,7 +300,8 @@ class ClassAccessorBuilder(val name: String) {
      * @param name the mapped method name
      * @param version the version of the [name] declaration, latest if null
      */
-    fun getterChain(name: String, version: Version? = null) {
+    @JvmOverloads
+    fun getterChain(name: String, version: String? = null) {
         methodChain {
             item(name, version)
             item("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", version)
@@ -306,8 +316,8 @@ class ClassAccessorBuilder(val name: String) {
      */
     fun getterChain(name: String, type: Any) {
         methodChain {
-            item(name, type)
-            item("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
+            item(type, name)
+            item(type, "get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}")
         }
     }
 
@@ -318,7 +328,7 @@ class ClassAccessorBuilder(val name: String) {
      * @param type the mapped setter type, converted with [Any.asDescriptor]
      */
     fun setter(name: String, type: Any) {
-        method("set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type, type)
+        method(type, "set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
     }
 
     /**
@@ -329,8 +339,8 @@ class ClassAccessorBuilder(val name: String) {
      */
     fun setterChain(name: String, type: Any) {
         methodChain {
-            item(name, type, type)
-            item("set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type, type)
+            item(type, name, type)
+            item(type, "set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
         }
     }
 
@@ -360,9 +370,10 @@ typealias ChainStep<T> = (T?) -> T
 /**
  * A builder for field mapping chains.
  *
+ * @property manifest the Mojang version manifest
  * @author Matouš Kučera
  */
-class FieldChainBuilder {
+class FieldChainBuilder(internal val manifest: VersionManifest) {
     /**
      * Members of this chain.
      */
@@ -384,8 +395,9 @@ class FieldChainBuilder {
      * @param name the mapped field name
      * @param version the version of the [name] declaration, latest if null
      */
-    fun item(name: String, version: Version? = null) {
-        steps += { last -> FieldAccessor(name, null, version, chain = last) }
+    @JvmOverloads
+    fun item(name: String, version: String? = null) {
+        steps += { last -> FieldAccessor(name, null, version?.let { manifest[it] ?: error("Version $it not found in manifest") }, chain = last) }
     }
 
     /**
@@ -409,9 +421,10 @@ class FieldChainBuilder {
 /**
  * A builder for method mapping chains.
  *
+ * @property manifest the Mojang version manifest
  * @author Matouš Kučera
  */
-class MethodChainBuilder {
+class MethodChainBuilder(internal val manifest: VersionManifest) {
     /**
      * Members of this chain.
      */
@@ -424,7 +437,7 @@ class MethodChainBuilder {
      * @param returnType the mapped return type
      * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
      */
-    fun item(name: String, returnType: Any, vararg parameters: Any) {
+    fun item(returnType: Any, name: String, vararg parameters: Any) {
         steps += { last ->
             MethodAccessor(
                 name,
@@ -441,12 +454,13 @@ class MethodChainBuilder {
      * @param version the version of the [name] and [parameters] declaration, latest if null
      * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
      */
-    fun item(name: String, version: Version? = null, vararg parameters: Any) {
+    @JvmOverloads
+    fun item(name: String, version: String? = null, vararg parameters: Any) {
        steps += { last ->
            MethodAccessor(
                name,
                "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})",
-               version,
+               version?.let { manifest[it] ?: error("Version $it not found in manifest") },
                chain = last
            )
        }
