@@ -37,8 +37,15 @@ data class FieldAccessor(
     val chain: FieldAccessor? = null
 ) : Serializable {
     /**
+     * Upper-case variant of [name].
+     */
+    @Transient
+    val upperName = name.uppercase()
+
+    /**
      * Internalized variant of [type].
      */
+    @Transient
     val internalType = type?.toInternalName()
 
     companion object {

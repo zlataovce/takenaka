@@ -27,14 +27,8 @@ import com.squareup.kotlinpoet.javapoet.JTypeSpec
 import com.squareup.kotlinpoet.javapoet.KotlinPoetJavaPoetPreview
 import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
-import me.kcra.takenaka.core.mapping.ancestry.impl.ConstructorComputationMode
-import me.kcra.takenaka.core.mapping.ancestry.impl.fieldAncestryTreeOf
-import me.kcra.takenaka.core.mapping.ancestry.impl.methodAncestryTreeOf
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
-import me.kcra.takenaka.generator.accessor.model.ClassAccessor
-import me.kcra.takenaka.generator.accessor.model.FieldAccessor
 import org.objectweb.asm.Type
 import java.nio.file.Path
 import java.text.SimpleDateFormat
@@ -51,42 +45,11 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
     /**
      * Generates an accessor class from a model in Java.
      *
-     * @param model the accessor model
-     * @param node the ancestry node of the class defined by the model
+     * @param resolvedAccessor the accessor model
      */
-    override fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
-        val fieldTree = fieldAncestryTreeOf(node)
-
-        // construct a model for bulk declared fields
-        val fieldAccessors = model.fields.flatMap { resolveFieldChain(fieldTree, it) } +
-                resolveRequiredFields(fieldTree, model.requiredTypes).map { fieldNode ->
-                    FieldAccessor(getFriendlyName(fieldNode.last.value), getFriendlyDesc(fieldNode.last.value)) to fieldNode
-                }
-
-        val ctorTree = methodAncestryTreeOf(node, constructorMode = ConstructorComputationMode.ONLY)
-        val ctorAccessors = model.constructors.map { ResolvedConstructorPair(it, resolveConstructor(ctorTree, it)) }
-
-        val methodTree = methodAncestryTreeOf(node)
-        val methodAccessors = model.methods.flatMap { resolveMethodChain(methodTree, it) }
-
-        // fields can't be overloaded, but capitalization matters, which is a problem when making uppercase names from everything
-        val fieldOverloadCount = mutableMapOf<String, Int>()
-        val fieldOverloads = fieldAccessors.associate { (fieldAccessor, _) ->
-            val upperName = fieldAccessor.name.uppercase()
-            val overloadIndex = fieldOverloadCount.compute(upperName) { _, i -> i?.inc() ?: 0 }
-
-            fieldAccessor to "FIELD_$upperName${if (overloadIndex != 0) "_$overloadIndex" else ""}"
-        }
-        val methodOverloadCount = mutableMapOf<String, Int>()
-        val methodOverloads = methodAccessors.associate { (methodAccessor, _) ->
-            val upperName = methodAccessor.name.uppercase()
-            val overloadIndex = methodOverloadCount.compute(upperName) { _, i -> i?.inc() ?: 0 }
-
-            methodAccessor to (overloadIndex to "METHOD_$upperName${if (overloadIndex != 0) "_$overloadIndex" else ""}")
-        }
-
-        val accessedQualifiedName = model.name.fromInternalName()
-        val accessedSimpleName = model.internalName.substringAfterLast('/')
+    override fun generateClass0(resolvedAccessor: ResolvedClassAccessor) {
+        val accessedQualifiedName = resolvedAccessor.model.name.fromInternalName()
+        val accessedSimpleName = resolvedAccessor.model.internalName.substringAfterLast('/')
 
         val mappingClassName = JClassName.get(generator.config.basePackage, "${accessedSimpleName}Mapping")
         JTypeSpec.interfaceBuilder(mappingClassName)
@@ -95,8 +58,8 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                 """
                     Mappings for the {@code $accessedQualifiedName} class.
                     
-                    @since ${node.first.key.id}
-                    @version ${node.last.key.id}
+                    @since ${resolvedAccessor.node.first.key.id}
+                    @version ${resolvedAccessor.node.last.key.id}
                 """.trimIndent().escape()
             )
             .addField(
@@ -107,7 +70,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                             .add("new \$T()", SourceTypes.CLASS_MAPPING)
                             .indent()
                             .apply {
-                                node.forEach { (version, klass) ->
+                                resolvedAccessor.node.forEach { (version, klass) ->
                                     generator.config.accessedNamespaces.forEach { ns ->
                                         klass.getName(ns)?.let { name ->
                                             // de-internalize the name beforehand to meet the ClassMapping contract
@@ -116,7 +79,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                                     }
                                 }
 
-                                fieldAccessors.forEach { (fieldAccessor, fieldNode) ->
+                                resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
                                     add("\n.putField(\$S)", fieldAccessor.name)
                                     indent()
 
@@ -132,7 +95,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                                     unindent()
                                 }
 
-                                ctorAccessors.forEach { (_, ctorNode) ->
+                                resolvedAccessor.constructors.forEach { (_, ctorNode) ->
                                     add("\n.putConstructor()")
                                     indent()
 
@@ -158,7 +121,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                                     unindent()
                                 }
 
-                                methodAccessors.forEach { (methodAccessor, methodNode) ->
+                                resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
                                     add("\n.putMethod(\$S)", methodAccessor.name)
                                     indent()
 
@@ -191,8 +154,8 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                     .build()
             )
             .addFields(
-                fieldAccessors.map { (fieldAccessor, fieldNode) ->
-                    val accessorName = fieldOverloads[fieldAccessor]
+                resolvedAccessor.fields.map { (fieldAccessor, fieldNode) ->
+                    val accessorName = "FIELD_${fieldAccessor.upperName}${resolvedAccessor.fieldOverloads[fieldAccessor]?.let { if (it != 0) "_$it" else "" } ?: ""}"
                     val fieldType = fieldAccessor.type?.let(Type::getType)
                         ?: getFriendlyType(fieldNode.last.value)
 
@@ -211,7 +174,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                                 .add("MAPPING.getField(\$S)", fieldAccessor.name)
                                 .apply {
                                     if (fieldAccessor.chain != null) {
-                                        add(".chain(${fieldOverloads[fieldAccessor.chain]})")
+                                        add(".chain(FIELD_${fieldAccessor.chain.upperName}${resolvedAccessor.fieldOverloads[fieldAccessor.chain]?.let { if (it != 0) "_$it" else "" } ?: ""})")
                                     }
                                 }
                                 .build()
@@ -220,7 +183,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                 }
             )
             .addFields(
-                ctorAccessors.mapIndexed { i, (ctorAccessor, ctorNode) ->
+                resolvedAccessor.constructors.mapIndexed { i, (ctorAccessor, ctorNode) ->
                     val ctorArgs = Type.getArgumentTypes(ctorAccessor.type)
 
                     FieldSpec.builder(SourceTypes.CONSTRUCTOR_MAPPING, "CONSTRUCTOR_$i", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
@@ -238,15 +201,15 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                 }
             )
             .addFields(
-                methodAccessors.map { (methodAccessor, methodNode) ->
-                    val (overloadIndex, accessorName) = methodOverloads[methodAccessor]!!
+                resolvedAccessor.methods.map { (methodAccessor, methodNode) ->
+                    val overloadIndex = resolvedAccessor.methodOverloads[methodAccessor]
                     val methodType = if (methodAccessor.isIncomplete) {
                         getFriendlyType(methodNode.last.value)
                     } else {
                         Type.getType(methodAccessor.type)
                     }
 
-                    FieldSpec.builder(SourceTypes.METHOD_MAPPING, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                    FieldSpec.builder(SourceTypes.METHOD_MAPPING, "METHOD_${methodAccessor.upperName}${overloadIndex?.let { if (it != 0) "_$it" else "" } ?: ""}", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                         .addAnnotation(SourceTypes.NOT_NULL)
                         .addJavadoc(
                             """
@@ -261,7 +224,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                                 .add("MAPPING.getMethod(\$S, \$L)", methodAccessor.name, overloadIndex)
                                 .apply {
                                     if (methodAccessor.chain != null) {
-                                        add(".chain(${methodOverloads[methodAccessor.chain]})")
+                                        add(".chain(METHOD_${methodAccessor.chain.upperName}${resolvedAccessor.methodOverloads[methodAccessor.chain]?.let { if (it != 0) "_$it" else "" } ?: ""})")
                                     }
                                 }
                                 .build()

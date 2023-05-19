@@ -36,8 +36,15 @@ data class MethodAccessor(
     val chain: MethodAccessor? = null
 ) : Serializable {
     /**
+     * Upper-case variant of [name].
+     */
+    @Transient
+    val upperName = name.uppercase()
+
+    /**
      * Whether the method descriptor ([type]) is incomplete, i.e. ends just before the return type is declared.
      */
+    @Transient
     val isIncomplete = type.endsWith(')')
 
     companion object {

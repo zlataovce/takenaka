@@ -40,6 +40,7 @@ data class ClassAccessor(
     /**
      * Internalized variant of [name].
      */
+    @Transient
     val internalName = name.toInternalName()
 
     companion object {

@@ -20,9 +20,7 @@ package me.kcra.takenaka.generator.accessor.context.impl
 import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
 import me.kcra.takenaka.core.mapping.ancestry.NameDescriptorPair
-import me.kcra.takenaka.core.mapping.ancestry.impl.FieldAncestryNode
-import me.kcra.takenaka.core.mapping.ancestry.impl.MethodAncestryNode
-import me.kcra.takenaka.core.mapping.ancestry.impl.find
+import me.kcra.takenaka.core.mapping.ancestry.impl.*
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import me.kcra.takenaka.generator.accessor.context.GenerationContext
@@ -60,6 +58,52 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * The generation timestamp of this context's output.
      */
     val generationTime by lazy(::Date)
+
+    /**
+     * Generates an accessor class from a model.
+     *
+     * @param model the accessor model
+     * @param node the ancestry node of the class defined by the model
+     */
+    override fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
+        val fieldTree = fieldAncestryTreeOf(node)
+        val fieldAccessors = model.fields.flatMap { resolveFieldChain(fieldTree, it) } +
+                resolveRequiredFields(fieldTree, model.requiredTypes).map { fieldNode ->
+                    FieldAccessor(getFriendlyName(fieldNode.last.value), getFriendlyDesc(fieldNode.last.value)) to fieldNode
+                }
+
+        // fields can't be overloaded, but capitalization matters, which is a problem when making uppercase names from everything
+        val fieldOverloadCount = mutableMapOf<String, Int>()
+        val fieldOverloads = fieldAccessors.associate { (fieldAccessor, _) ->
+            fieldAccessor to fieldOverloadCount.compute(fieldAccessor.upperName) { _, i -> i?.inc() ?: 0 }!!
+        }
+
+        val ctorTree = methodAncestryTreeOf(node, constructorMode = ConstructorComputationMode.ONLY)
+        val ctorAccessors = model.constructors.map { ResolvedConstructorPair(it, resolveConstructor(ctorTree, it)) } +
+                resolveRequiredConstructors(ctorTree, model.requiredTypes).map { ctorNode ->
+                    ConstructorAccessor(getFriendlyDesc(ctorNode.last.value)) to ctorNode
+                }
+
+        val methodTree = methodAncestryTreeOf(node)
+        val methodAccessors = model.methods.flatMap { resolveMethodChain(methodTree, it) }  +
+                resolveRequiredMethods(methodTree, model.requiredTypes).map { methodNode ->
+                    MethodAccessor(getFriendlyName(methodNode.last.value), getFriendlyDesc(methodNode.last.value)) to methodNode
+                }
+
+        val methodOverloadCount = mutableMapOf<String, Int>()
+        val methodOverloads = methodAccessors.associate { (methodAccessor, _) ->
+            methodAccessor to methodOverloadCount.compute(methodAccessor.upperName) { _, i -> i?.inc() ?: 0 }!!
+        }
+
+        generateClass0(ResolvedClassAccessor(model, node, fieldAccessors, ctorAccessors, methodAccessors, fieldOverloads, methodOverloads))
+    }
+
+    /**
+     * Generates an accessor class from a resolved model.
+     *
+     * @param resolvedAccessor the resolved accessor model
+     */
+    protected abstract fun generateClass0(resolvedAccessor: ResolvedClassAccessor)
 
     /**
      * Resolves a field ancestry node from a model.
@@ -146,6 +190,17 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
     }
 
     /**
+     * Resolves constructor ancestry nodes that match supplied required types.
+     *
+     * @param tree the ancestry tree
+     * @param types the required types
+     * @return the nodes
+     */
+    protected fun resolveRequiredConstructors(tree: AncestryTree<MappingTreeView.MethodMappingView>, types: RequiredMemberTypes): List<MethodAncestryNode> {
+        return emptyList()
+    }
+
+    /**
      * Resolves a method ancestry node from a model.
      *
      * @param tree the ancestry tree
@@ -192,6 +247,17 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
     }
 
     /**
+     * Resolves method ancestry nodes that match supplied required types.
+     *
+     * @param tree the ancestry tree
+     * @param types the required types
+     * @return the nodes
+     */
+    protected fun resolveRequiredMethods(tree: AncestryTree<MappingTreeView.MethodMappingView>, types: RequiredMemberTypes): List<MethodAncestryNode> {
+        return emptyList()
+    }
+
+    /**
      * Returns a mapped name of a member based on the friendliness index.
      *
      * @param member the member
@@ -225,3 +291,29 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      */
     protected fun getFriendlyType(member: MappingTreeView.MemberMappingView): Type = Type.getType(getFriendlyName(member))
 }
+
+/**
+ * A mapping of an accessor model to its overload index.
+ */
+typealias NameOverloads<T> = Map<T, Int>
+
+/**
+ * A class accessor with members resolved from their ancestry trees.
+ *
+ * @property model the class accessor model
+ * @property node the class ancestry node
+ * @property fields the field accessor models and ancestry nodes
+ * @property constructors the constructor accessor models and ancestry nodes
+ * @property methods the method accessor models and ancestry nodes
+ * @property fieldOverloads the field accessor name overloads (fields can't be overloaded, but capitalization matters, which is a problem when making uppercase names from everything)
+ * @property methodOverloads the method accessor name overloads
+ */
+data class ResolvedClassAccessor(
+    val model: ClassAccessor,
+    val node: ClassAncestryNode,
+    val fields: List<ResolvedFieldPair>,
+    val constructors: List<ResolvedConstructorPair>,
+    val methods: List<ResolvedMethodPair>,
+    val fieldOverloads: NameOverloads<FieldAccessor>,
+    val methodOverloads: NameOverloads<MethodAccessor>
+)
