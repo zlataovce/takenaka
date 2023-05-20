@@ -75,17 +75,24 @@ abstract class AbstractMappingAnalyzer : MappingAnalyzer {
             var acceptedResolutions = problems.filter { problem -> problem.kind == kind }
 
             val time = measureTimeMillis {
-                // remove redundant resolutions, if we're going to remove the element anyway
                 if (kind.deletesElement) {
+                    // remove redundant resolutions, if we're going to remove the element anyway
                     val lastProblems = acceptedResolutions.associateByTo(IdentityHashMap(), keySelector = Problem<*>::element)
                     acceptedResolutions = lastProblems.values.toList()
 
                     problems.removeIf { problem -> problem.element in lastProblems.keys }
+
+                    // perf: accept deletion in batch manually
+                    acceptedResolutions
+                        .groupBy(keySelector = Problem<*>::parentCollection, valueTransform = Problem<*>::element)
+                        .forEach { (parentCollection, elements) ->
+                            parentCollection.removeIf(elements::contains)
+                        }
                 } else {
                     problems.removeIf { problem -> problem.kind == kind }
-                }
 
-                acceptedResolutions.forEach(Problem<*>::acceptResolution)
+                    acceptedResolutions.forEach(Problem<*>::acceptResolution)
+                }
             }
 
             logger.info { "accepted ${acceptedResolutions.size} $kind resolution(s) in ${time}ms" }

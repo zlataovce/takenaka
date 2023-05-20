@@ -32,7 +32,25 @@ typealias ProblemResolution<T> = Problem<T>.() -> Unit
  * @property kind the kind of the problem
  * @property resolution a function for resolving this problem
  */
-class Problem<T : MappingTree.ElementMapping>(val element: T, val namespace: String?, val kind: ProblemKind, val resolution: ProblemResolution<T>) {
+class Problem<T : MappingTree.ElementMapping>(
+    val element: T,
+    val namespace: String?,
+    val kind: ProblemKind,
+    val resolution: ProblemResolution<T>
+) {
+    /**
+     * The collection of the [element]'s parent that holds [element].
+     */
+    val parentCollection by lazy {
+        @Suppress("UNCHECKED_CAST") // it's effectively always going to be Collection<T>
+        when (element) {
+            is MappingTree.ClassMapping -> element.tree.classes
+            is MappingTree.FieldMapping -> element.owner.fields
+            is MappingTree.MethodMapping -> element.owner.methods
+            else -> throw UnsupportedOperationException("Unknown element type ${element.javaClass.name}")
+        } as MutableCollection<T>
+    }
+
     /**
      * Resolves this problem with [resolution].
      */
