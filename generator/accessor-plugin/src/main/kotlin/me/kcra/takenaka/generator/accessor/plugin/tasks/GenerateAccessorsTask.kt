@@ -22,6 +22,7 @@ import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.WorkspaceOptions
 import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
+import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
@@ -86,6 +87,14 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     abstract val languageFlavor: Property<LanguageFlavor>
 
     /**
+     * The form of the generated accessors, defaults to [AccessorFlavor.NONE].
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.accessorFlavor
+     */
+    @get:Input
+    abstract val accessorFlavor: Property<AccessorFlavor>
+
+    /**
      * Namespaces that should be used in accessors, empty if all namespaces should be used.
      *
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.accessedNamespaces
@@ -123,6 +132,7 @@ abstract class GenerateAccessorsTask : DefaultTask() {
         outputDir.convention(project.layout.buildDirectory.dir("takenaka/output"))
         namespaceFriendlinessIndex.convention(listOf("mojang", "spigot", "yarn", "searge", "intermediary", "source"))
         languageFlavor.convention(LanguageFlavor.JAVA)
+        accessorFlavor.convention(AccessorFlavor.NONE)
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
         options.convention(DefaultWorkspaceOptions.RELAXED_CACHE)
     }
@@ -138,6 +148,7 @@ abstract class GenerateAccessorsTask : DefaultTask() {
                 accessors = accessors.get(),
                 basePackage = basePackage.get(),
                 languageFlavor = languageFlavor.get(),
+                accessorFlavor = accessorFlavor.get(),
                 namespaceFriendlinessIndex = namespaceFriendlinessIndex.get(),
                 accessedNamespaces = accessedNamespaces.get(),
                 craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get()

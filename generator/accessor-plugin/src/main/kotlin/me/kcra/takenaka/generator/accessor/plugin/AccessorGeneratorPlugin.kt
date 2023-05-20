@@ -74,6 +74,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.accessors.set(config.accessors)
             this.basePackage.set(config.basePackage)
             this.languageFlavor.set(config.languageFlavor)
+            this.accessorFlavor.set(config.accessorFlavor)
             this.accessedNamespaces.set(config.accessedNamespaces)
             this.options.set(options)
         }

@@ -21,6 +21,7 @@ import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
+import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.model.*
 import org.gradle.api.Project
@@ -75,6 +76,11 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     abstract val languageFlavor: Property<LanguageFlavor>
 
     /**
+     * The form of the generated accessors, defaults to [AccessorFlavor.NONE].
+     */
+    abstract val accessorFlavor: Property<AccessorFlavor>
+
+    /**
      * Namespaces that should be used in accessors, empty if all namespaces should be used.
      */
     abstract val accessedNamespaces: ListProperty<String>
@@ -83,6 +89,7 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
         outputDirectory.convention(project.layout.buildDirectory.dir("takenaka/output"))
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
         languageFlavor.convention(LanguageFlavor.JAVA)
+        accessorFlavor.convention(AccessorFlavor.NONE)
         strictCache.convention(false)
     }
 
@@ -188,6 +195,24 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      */
     fun languageFlavor(languageFlavor: String) {
         this.languageFlavor.set(LanguageFlavor.valueOf(languageFlavor.uppercase()))
+    }
+
+    /**
+     * Sets the [accessorFlavor] property.
+     *
+     * @param accessorFlavor the accessor flavor
+     */
+    fun accessorFlavor(accessorFlavor: AccessorFlavor) {
+        this.accessorFlavor.set(accessorFlavor)
+    }
+
+    /**
+     * Sets the [accessorFlavor] property.
+     *
+     * @param accessorFlavor the accessor flavor as a string
+     */
+    fun accessorFlavor(accessorFlavor: String) {
+        this.accessorFlavor.set(AccessorFlavor.valueOf(accessorFlavor.uppercase()))
     }
 
     /**
