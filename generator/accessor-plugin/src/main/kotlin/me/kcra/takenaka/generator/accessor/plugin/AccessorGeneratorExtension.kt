@@ -272,7 +272,7 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
      * @param name the mapped field name
      * @param type the mapped field type, converted with [Any.asDescriptor]
      */
-    fun field(name: String, type: Any) {
+    fun field(type: Any, name: String) {
         fields += FieldAccessor(name, type.asDescriptor())
     }
 
@@ -283,7 +283,7 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
      * @param version the version of the [name] declaration, latest if null
      */
     @JvmOverloads
-    fun field(name: String, version: String? = null) {
+    fun fieldInferred(name: String, version: String? = null) {
         fields += FieldAccessor(name, null, version?.let { manifest[it] ?: error("Version $it not found in manifest") })
     }
 
@@ -324,7 +324,7 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
      * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
      */
     @JvmOverloads
-    fun method(name: String, version: String? = null, vararg parameters: Any) {
+    fun methodInferred(name: String, version: String? = null, vararg parameters: Any) {
         methods += MethodAccessor(
             name,
             "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})",
@@ -352,17 +352,17 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
      * @param version the version of the [name] declaration, latest if null
      */
     @JvmOverloads
-    fun getter(name: String, version: String? = null) {
-        method("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", version)
+    fun getterInferred(name: String, version: String? = null) {
+        methodInferred("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", version)
     }
 
     /**
      * Adds a new getter method accessor model (`{type} get{name}()` descriptor).
      *
-     * @param name the mapped method name
      * @param type the mapped getter type, converted with [Any.asDescriptor]
+     * @param name the mapped method name
      */
-    fun getter(name: String, type: Any) {
+    fun getter(type: Any, name: String) {
         method(type, "get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}")
     }
 
@@ -373,20 +373,20 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
      * @param version the version of the [name] declaration, latest if null
      */
     @JvmOverloads
-    fun getterChain(name: String, version: String? = null) {
+    fun getterChainInferred(name: String, version: String? = null) {
         methodChain {
-            item(name, version)
-            item("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", version)
+            itemInferred(name, version)
+            itemInferred("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", version)
         }
     }
 
     /**
      * Adds a new chained getter method accessor model, useful for chaining together normal and record getters.
      *
-     * @param name the mapped method name
      * @param type the mapped getter type, converted with [Any.asDescriptor]
+     * @param name the mapped method name
      */
-    fun getterChain(name: String, type: Any) {
+    fun getterChain(type: Any, name: String) {
         methodChain {
             item(type, name)
             item(type, "get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}")
@@ -396,23 +396,23 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
     /**
      * Adds a new setter method accessor model (`{type} set{name}({type})` descriptor).
      *
-     * @param name the mapped method name
      * @param type the mapped setter type, converted with [Any.asDescriptor]
+     * @param name the mapped method name
      */
-    fun setter(name: String, type: Any) {
-        method(type, "set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
+    fun setter(type: Any, name: String) {
+        method(Void.TYPE, "set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
     }
 
     /**
      * Adds a new chained setter method accessor model, useful for chaining together normal and record setters.
      *
-     * @param name the mapped method name
      * @param type the mapped setter type, converted with [Any.asDescriptor]
+     * @param name the mapped method name
      */
-    fun setterChain(name: String, type: Any) {
+    fun setterChain(type: Any, name: String) {
         methodChain {
-            item(type, name, type)
-            item(type, "set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
+            item(Void.TYPE, name, type)
+            item(Void.TYPE, "set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
         }
     }
 
@@ -457,7 +457,7 @@ class FieldChainBuilder(internal val manifest: VersionManifest) {
      * @param name the mapped field name
      * @param type the mapped field type, converted with [Any.asDescriptor]
      */
-    fun item(name: String, type: Any) {
+    fun item(type: Any, name: String) {
         steps += { last -> FieldAccessor(name, type.asDescriptor(), chain = last) }
     }
 
@@ -468,7 +468,7 @@ class FieldChainBuilder(internal val manifest: VersionManifest) {
      * @param version the version of the [name] declaration, latest if null
      */
     @JvmOverloads
-    fun item(name: String, version: String? = null) {
+    fun itemInferred(name: String, version: String? = null) {
         steps += { last -> FieldAccessor(name, null, version?.let { manifest[it] ?: error("Version $it not found in manifest") }, chain = last) }
     }
 
@@ -527,7 +527,7 @@ class MethodChainBuilder(internal val manifest: VersionManifest) {
      * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
      */
     @JvmOverloads
-    fun item(name: String, version: String? = null, vararg parameters: Any) {
+    fun itemInferred(name: String, version: String? = null, vararg parameters: Any) {
        steps += { last ->
            MethodAccessor(
                name,
@@ -571,10 +571,22 @@ internal fun Any.asDescriptor(): String = when (this) {
     is Class<*> -> Type.getDescriptor(this)
     is KClass<*> -> Type.getDescriptor(this.java)
     is String -> {
-        val componentType = this.replace("[]", "").toInternalName()
+        val componentType = this.replace("[]", "")
         val dimensions = (this.length - componentType.length) / 2
+        val componentTypeDescriptor = when (componentType) {
+            "boolean" -> "Z"
+            "byte" -> "B"
+            "short" -> "S"
+            "int" -> "I"
+            "long" -> "J"
+            "float" -> "F"
+            "double" -> "D"
+            "char" -> "C"
+            "void" -> "V"
+            else -> "L${componentType.toInternalName()};"
+        }
 
-        "${"[".repeat(dimensions)}L$componentType;"
+        "${"[".repeat(dimensions)}$componentTypeDescriptor"
     }
     else -> throw IllegalArgumentException("Could not read parameter of type ${this.javaClass.name}")
 }

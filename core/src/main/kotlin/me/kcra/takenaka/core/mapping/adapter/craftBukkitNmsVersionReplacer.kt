@@ -20,6 +20,13 @@ package me.kcra.takenaka.core.mapping.adapter
 import me.kcra.takenaka.core.mapping.resolve.impl.AbstractSpigotMappingResolver
 import net.fabricmc.mappingio.tree.MappingTree
 
+private val CB_VERSION_REGEX = "/\\d+_\\d+_R\\d+/".toRegex()
+
+/**
+ * Removes the NMS version string of a CraftBukkit class name.
+ */
+fun String.normalizeCraftBukkitName(): String = replace(CB_VERSION_REGEX, "/VVV/")
+
 /**
  * Replaces `VVV` in Spigot mappings for the appropriate CraftBukkit NMS version string.
  *

@@ -128,7 +128,14 @@ abstract class ResolveMappingsTask : DefaultTask() {
     init {
         cacheDir.convention(project.layout.buildDirectory.dir("takenaka/cache"))
         options.convention(DefaultWorkspaceOptions.RELAXED_CACHE)
-        outputs.upToDateWhen { mappings.orNull.isNullOrEmpty() }
+
+        // manual up-to-date checking, it's an Internal property
+        outputs.upToDateWhen {
+            val mappings = mappings.orNull?.keys?.map(Version::id) ?: emptyList()
+            val versions = versions.orNull ?: emptySet<String>()
+
+            mappings.size == versions.size && versions.containsAll(mappings)
+        }
     }
 
     /**
