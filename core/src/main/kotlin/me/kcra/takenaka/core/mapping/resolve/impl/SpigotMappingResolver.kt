@@ -229,6 +229,12 @@ abstract class AbstractSpigotMappingResolver(
 }
 
 /**
+ * Returns the CraftBukkit NMS version string from the [AbstractSpigotMappingResolver.META_CB_NMS_VERSION] metadata.
+ */
+inline val MappingTreeView.craftBukkitNmsVersion: String?
+    get() = getMetadata(AbstractSpigotMappingResolver.META_CB_NMS_VERSION)
+
+/**
  * A resolver for Spigot class mapping files.
  *
  * @property workspace the workspace

@@ -19,6 +19,7 @@ package me.kcra.takenaka.core.mapping.ancestry
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.MappingsMap
+import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 
 /**
@@ -65,10 +66,11 @@ class AncestryTree<T : ElementMappingView>(
             val (lastVersion, lastMapping) = last
 
             if (lastMapping is MemberMappingView) {
+                val isConstructor = lastMapping is MethodMappingView && lastMapping.isConstructor
+
                 tree.allowedNamespaces[lastVersion]
                     ?.mapNotNullTo(mutableSetOf()) { ns ->
-                        val name = lastMapping.getDstName(ns)
-                            ?: return@mapNotNullTo null
+                        val name = if (isConstructor) "<init>" else (lastMapping.getDstName(ns) ?: return@mapNotNullTo null)
                         val desc = lastMapping.getDstDesc(ns)
                             ?: return@mapNotNullTo null
 

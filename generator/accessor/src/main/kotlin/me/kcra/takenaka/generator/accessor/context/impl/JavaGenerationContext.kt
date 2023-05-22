@@ -28,7 +28,9 @@ import com.squareup.kotlinpoet.javapoet.JTypeSpec
 import com.squareup.kotlinpoet.javapoet.KotlinPoetJavaPoetPreview
 import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
+import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.fromInternalName
+import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import org.objectweb.asm.Type
@@ -90,10 +92,12 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                             .indent()
                             .apply {
                                 resolvedAccessor.node.forEach { (version, klass) ->
+                                    val nmsVersion = klass.tree.craftBukkitNmsVersion
+
                                     generator.config.accessedNamespaces.forEach { ns ->
                                         klass.getName(ns)?.let { name ->
                                             // de-internalize the name beforehand to meet the ClassMapping contract
-                                            add("\n.put(\$S, \$S, \$S)", version.id, ns, name.fromInternalName())
+                                            add("\n.put(\$S, \$S, \$S)", version.id, ns, name.fromInternalName().replaceCraftBukkitNMSVersion(nmsVersion, separator = '.'))
                                         }
                                     }
                                 }
@@ -119,11 +123,13 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                                     indent()
 
                                     ctorNode.forEach { (version, ctor) ->
+                                        val nmsVersion = ctor.tree.craftBukkitNmsVersion
+
                                         generator.config.accessedNamespaces.forEach { ns ->
                                             ctor.getDesc(ns)?.let { desc ->
                                                 add("\n.put(\$S, \$S", version.id, ns)
 
-                                                val args = Type.getArgumentTypes(desc)
+                                                val args = Type.getArgumentTypes(desc.replaceCraftBukkitNMSVersion(nmsVersion))
                                                     .map { CodeBlock.of("\$S", it.className) }
 
                                                 if (args.isNotEmpty()) {
@@ -145,13 +151,15 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                                     indent()
 
                                     methodNode.forEach { (version, method) ->
+                                        val nmsVersion = method.tree.craftBukkitNmsVersion
+
                                         generator.config.accessedNamespaces.forEach nsEach@ { ns ->
                                             val name = method.getName(ns) ?: return@nsEach
                                             val desc = method.getDesc(ns) ?: return@nsEach
 
                                             add("\n.put(\$S, \$S, \$S", version.id, ns, name)
 
-                                            val args = Type.getArgumentTypes(desc)
+                                            val args = Type.getArgumentTypes(desc.replaceCraftBukkitNMSVersion(nmsVersion))
                                                 .map { CodeBlock.of("\$S", it.className) }
 
                                             if (args.isNotEmpty()) {

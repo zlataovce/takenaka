@@ -22,12 +22,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
-import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
 import me.kcra.takenaka.generator.accessor.context.generationContext
 import me.kcra.takenaka.generator.common.Generator
 import mu.KotlinLogging
-import net.fabricmc.mappingio.tree.MappingTree
 
 private val logger = KotlinLogging.logger {}
 
@@ -50,16 +48,6 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
      */
     override suspend fun generate(mappings: MutableMappingsMap) {
         val tree = classAncestryTreeOf(mappings, config.historicalNamespaces)
-
-        // replace the CraftBukkit NMS version for spigot-like namespaces
-        // must be after ancestry tree computation, because replacing the VVV package breaks (the remaining) uniformity of the mappings
-        mappings.forEach { (_, tree) ->
-            config.craftBukkitVersionReplaceCandidates.forEach { ns ->
-                if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
-                    tree.replaceCraftBukkitNMSVersion(ns)
-                }
-            }
-        }
 
         generationContext(config.languageFlavor) {
             config.accessors.forEach { classAccessor ->
