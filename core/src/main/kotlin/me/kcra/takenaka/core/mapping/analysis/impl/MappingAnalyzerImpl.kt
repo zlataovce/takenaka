@@ -19,7 +19,7 @@ package me.kcra.takenaka.core.mapping.analysis.impl
 
 import me.kcra.takenaka.core.mapping.analysis.AbstractMappingAnalyzer
 import me.kcra.takenaka.core.mapping.analysis.ProblemResolution
-import me.kcra.takenaka.core.mapping.hasNamespace
+import me.kcra.takenaka.core.mapping.util.contains
 import me.kcra.takenaka.core.mapping.resolve.impl.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.resolve.impl.interfaces
 import me.kcra.takenaka.core.mapping.resolve.impl.superClass
@@ -51,8 +51,7 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
 
         // exempt class from inheritance error correction when there are only java.* super types
         // VanillaMappingContributor.NS_INTERFACES and/or VanillaMappingContributor.NS_SUPER should be present
-        skipInheritanceChecks = (!klass.tree.hasNamespace(VanillaMappingContributor.NS_INTERFACES) && !klass.tree.hasNamespace(
-            VanillaMappingContributor.NS_SUPER))
+        skipInheritanceChecks = (VanillaMappingContributor.NS_INTERFACES !in klass.tree && VanillaMappingContributor.NS_SUPER !in klass.tree)
                 || (klass.superClass.startsWith("java/") && klass.interfaces.all { it.startsWith("java/") })
 
         checkElementModifiers(klass) {

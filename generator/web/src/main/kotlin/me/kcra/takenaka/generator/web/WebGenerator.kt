@@ -25,9 +25,9 @@ import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
-import me.kcra.takenaka.core.mapping.allNamespaceIds
-import me.kcra.takenaka.core.mapping.ancestry.classAncestryTreeOf
-import me.kcra.takenaka.core.mapping.hash
+import me.kcra.takenaka.core.mapping.util.allNamespaceIds
+import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
+import me.kcra.takenaka.core.mapping.util.hash
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.web.components.footerComponent
@@ -85,6 +85,8 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
 
     /**
      * Launches the generator with a pre-determined set of mappings.
+     *
+     * @param mappings the mappings
      */
     override suspend fun generate(mappings: MutableMappingsMap) {
         val styleConsumer = DefaultStyleConsumer()
@@ -240,8 +242,9 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
      * @param name the asset path, **must not begin with a slash**
      */
     fun copyAsset(name: String) {
-        val inputStream = javaClass.getResourceAsStream("/assets/$name")
-            ?: error("Could not copy over /assets/$name from resources")
+        val inputStream = checkNotNull(javaClass.getResourceAsStream("/assets/$name")) {
+            "Could not copy over /assets/$name from resources"
+        }
 
         val destination = assetWorkspace[name]
         if (config.transformers.isNotEmpty()) {

@@ -21,7 +21,7 @@ import kotlinx.coroutines.*
 import kotlinx.html.dom.serialize
 import kotlinx.html.dom.write
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.dstNamespaceIds
+import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.w3c.dom.Document
 import kotlin.io.path.createDirectories

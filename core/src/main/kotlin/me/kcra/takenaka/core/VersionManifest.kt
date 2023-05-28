@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import java.io.Serializable
 import java.net.URL
 import java.time.Instant
 
@@ -38,11 +39,14 @@ fun ObjectMapper.versionManifest(): VersionManifest = readValue(URL(VERSION_MANI
 
 /**
  * Mojang's v2 version manifest.
+ *
+ * @property latest the latest versions
+ * @property versions all versions, sorting is maintained when deserialized (descending in case of [VERSION_MANIFEST_V2])
  */
 data class VersionManifest(
     val latest: Latest,
     val versions: List<Version>
-) {
+) : Serializable {
     /**
      * The latest release and snapshot versions.
      */
@@ -55,7 +59,11 @@ data class VersionManifest(
          * The ID of the latest snapshot version.
          */
         val snapshot: String
-    )
+    ) : Serializable {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
+    }
 
     /**
      * Finds a version by its ID (e.g. 1.14.4).
@@ -64,6 +72,10 @@ data class VersionManifest(
      * @return the version, null if not found
      */
     operator fun get(id: String): Version? = versions.find { it.id == id }
+
+    companion object {
+        private const val serialVersionUID = 1L
+    }
 }
 
 /**
@@ -99,7 +111,7 @@ data class Version(
      * Its value is 1 otherwise.
      */
     val complianceLevel: Int
-) : Comparable<Version> {
+) : Comparable<Version>, Serializable {
     enum class Type {
         RELEASE, SNAPSHOT, OLD_BETA, OLD_ALPHA
     }
@@ -121,6 +133,10 @@ data class Version(
         return id == other.id
     }
     override fun hashCode(): Int = id.hashCode()
+
+    companion object {
+        private const val serialVersionUID = 1L
+    }
 }
 
 /**
@@ -187,6 +203,90 @@ data class VersionAttributes(
          */
         val url: String
     )
+}
+
+/**
+ * A builder for a range of Minecraft versions.
+ *
+ * @param manifest the version manifest
+ * @param older the older version bound (inclusive), defaults to the oldest if null
+ * @param newer the newer version bound (inclusive), defaults to the newest if null
+ */
+class VersionRangeBuilder(manifest: VersionManifest, older: String? = null, newer: String? = null) {
+    /**
+     * The current versions.
+     */
+    private val versions: MutableList<Version>
+
+    init {
+        val olderIndex = older?.let { o -> manifest.versions.indexOfFirst { it.id == o } } ?: manifest.versions.lastIndex
+        require(olderIndex != -1) {
+            "Version $older not found in manifest"
+        }
+
+        val newerIndex = newer?.let { n -> manifest.versions.indexOfFirst { it.id == n } } ?: 0
+        require(newerIndex != -1) {
+            "Version $newer not found in manifest"
+        }
+
+        this.versions = manifest.versions.subList(newerIndex, olderIndex + 1).toMutableList()
+    }
+
+    /**
+     * Excludes versions whose ID is contained in [versions].
+     *
+     * @param versions the versions to be excluded
+     */
+    fun exclude(vararg versions: String) {
+        this.versions.removeIf { it.id in versions }
+    }
+
+    /**
+     * Excludes versions whose type is not contained in [types].
+     *
+     * @param types the version types to be included
+     */
+    fun includeTypes(vararg types: Version.Type) {
+        this.versions.retainAll { it.type in types }
+    }
+
+    /**
+     * Excludes versions whose type name **is not** contained in upper-cased [types].
+     *
+     * @param types the version type names to be included
+     */
+    fun includeTypes(vararg types: String) {
+        val upperCaseTypes = types.map(String::uppercase)
+
+        this.versions.retainAll { it.type.name in upperCaseTypes }
+    }
+
+    /**
+     * Excludes versions whose type **is** contained in [types].
+     *
+     * @param types the version types to be excluded
+     */
+    fun excludeTypes(vararg types: Version.Type) {
+        this.versions.removeIf { it.type in types }
+    }
+
+    /**
+     * Excludes versions whose type name **is** contained in upper-cased [types].
+     *
+     * @param types the version type names to be excluded
+     */
+    fun excludeTypes(vararg types: String) {
+        val upperCaseTypes = types.map(String::uppercase)
+
+        this.versions.removeIf { it.type.name in upperCaseTypes }
+    }
+
+    /**
+     * Returns the versions which matched the builder criteria.
+     *
+     * @return the versions
+     */
+    fun toVersionList(): List<Version> = versions
 }
 
 /**

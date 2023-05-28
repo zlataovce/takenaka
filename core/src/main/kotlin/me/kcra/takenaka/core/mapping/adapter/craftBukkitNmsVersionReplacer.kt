@@ -18,10 +18,27 @@
 package me.kcra.takenaka.core.mapping.adapter
 
 import me.kcra.takenaka.core.mapping.resolve.impl.AbstractSpigotMappingResolver
-import mu.KotlinLogging
+import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import net.fabricmc.mappingio.tree.MappingTree
 
-private val logger = KotlinLogging.logger {}
+private val CB_VERSION_REGEX = "/\\d+_\\d+_R\\d+/".toRegex()
+
+/**
+ * Removes the NMS version string of a CraftBukkit class name.
+ *
+ * @return the string with the replacement
+ */
+fun String.normalizeCraftBukkitName(): String = replace(CB_VERSION_REGEX, "/VVV/")
+
+/**
+ * Replaces `VVV` in Spigot mappings for the appropriate CraftBukkit NMS version string.
+ *
+ * @param version the CraftBukkit NMS version string
+ * @param separator the package name part separator
+ * @return the string with the replacement
+ */
+fun String.replaceCraftBukkitNMSVersion(version: String?, separator: Char = '/'): String =
+    version?.let { replace("${separator}VVV${separator}", "${separator}$it${separator}") } ?: this
 
 /**
  * Replaces `VVV` in Spigot mappings for the appropriate CraftBukkit NMS version string.
@@ -32,19 +49,19 @@ private val logger = KotlinLogging.logger {}
  */
 fun MappingTree.replaceCraftBukkitNMSVersion(namespace: String) {
     val namespaceId = getNamespaceId(namespace)
-    if (namespaceId == MappingTree.NULL_NAMESPACE_ID) {
-        error("Namespace is not present in the mapping tree")
+    require(namespaceId != MappingTree.NULL_NAMESPACE_ID) {
+        "Namespace is not present in the mapping tree"
     }
 
-    val nmsVersion = getMetadata(AbstractSpigotMappingResolver.META_CB_NMS_VERSION)
-        ?: error("cb_nms_version metadata is not present")
+    val nmsVersion = requireNotNull(craftBukkitNmsVersion) {
+        "cb_nms_version metadata is not present"
+    }
 
     classes.forEach { klass ->
         val original = klass.getDstName(namespaceId) ?: return@forEach
-        val replaced = original.replace("VVV", nmsVersion)
+        val replaced = original.replaceCraftBukkitNMSVersion(nmsVersion)
 
         if (original != replaced) {
-            logger.debug { "replaced $original -> $replaced" }
             klass.setDstName(replaced, namespaceId)
         }
     }

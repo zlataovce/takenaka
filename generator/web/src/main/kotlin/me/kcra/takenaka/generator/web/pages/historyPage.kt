@@ -21,11 +21,12 @@ import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ElementRemapper
-import me.kcra.takenaka.core.mapping.allNamespaceIds
-import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
-import me.kcra.takenaka.core.mapping.ancestry.ConstructorComputationMode
-import me.kcra.takenaka.core.mapping.ancestry.fieldAncestryTreeOf
-import me.kcra.takenaka.core.mapping.ancestry.methodAncestryTreeOf
+import me.kcra.takenaka.core.mapping.util.allNamespaceIds
+import me.kcra.takenaka.core.mapping.ancestry.*
+import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
+import me.kcra.takenaka.core.mapping.ancestry.impl.ConstructorComputationMode
+import me.kcra.takenaka.core.mapping.ancestry.impl.fieldAncestryTreeOf
+import me.kcra.takenaka.core.mapping.ancestry.impl.methodAncestryTreeOf
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.generator.web.GenerationContext
@@ -40,7 +41,7 @@ import java.util.*
  * @param node the ancestry node
  * @return the generated document
  */
-fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Document = createHTMLDocument().html {
+fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTMLDocument().html {
     val lastFriendlyMapping = getFriendlyDstName(node.last.value).fromInternalName()
 
     val classNameRows = buildDiff {
@@ -59,7 +60,9 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
     val fieldTree = fieldAncestryTreeOf(node)
     val fieldRows = buildFieldDiff {
         node.keys.forEach { version ->
-            val tree = fieldTree.trees[version] ?: error("Field tree does not have parent's version")
+            val tree = checkNotNull(fieldTree.trees[version]) {
+                "Field tree does not have parent's version"
+            }
             val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
 
             fieldTree.forEach { fieldNode ->
@@ -92,7 +95,9 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
     val methodTree = methodAncestryTreeOf(node)
     val methodRows = buildMethodDiff {
         node.keys.forEach { version ->
-            val tree = methodTree.trees[version] ?: error("Method tree does not have parent's version")
+            val tree = checkNotNull(methodTree.trees[version]) {
+                "Method tree does not have parent's version"
+            }
             val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
 
             methodTree.forEach { methodNode ->
@@ -140,7 +145,9 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
     val constructorTree = methodAncestryTreeOf(node, constructorMode = ConstructorComputationMode.ONLY)
     val constructorRows = buildMethodDiff {
         node.keys.forEach { version ->
-            val tree = methodTree.trees[version] ?: error("Constructor tree does not have parent's version")
+            val tree = checkNotNull(methodTree.trees[version]) {
+                "Constructor tree does not have parent's version"
+            }
             val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
 
             constructorTree.forEach { ctorNode ->
@@ -194,7 +201,9 @@ fun GenerationContext.historyPage(node: AncestryTree.Node<ClassMappingView>): Do
             spacerBottomComponent()
 
             classNameRows.entries.forEachIndexed { i, (version, rows) ->
-                val klass = node[version] ?: error("Could not resolve ${version.id} mapping of $lastFriendlyMapping")
+                val klass = checkNotNull(node[version]) {
+                    "Could not resolve ${version.id} mapping of $lastFriendlyMapping"
+                }
 
                 h3 {
                     a(href = "/${version.id}/${getFriendlyDstName(klass)}.html") {

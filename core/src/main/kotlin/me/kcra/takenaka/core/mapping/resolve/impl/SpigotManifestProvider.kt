@@ -21,6 +21,8 @@ import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.*
 import me.kcra.takenaka.core.util.copyTo
+import me.kcra.takenaka.core.util.httpRequest
+import me.kcra.takenaka.core.util.ok
 import me.kcra.takenaka.core.util.readValue
 import mu.KotlinLogging
 import java.net.URL
@@ -52,7 +54,7 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
      *
      * @return the manifest
      */
-    private fun readManifest(): SpigotVersionManifest {
+    private fun readManifest(): SpigotVersionManifest? {
         return workspace.withLock("spigot-manifest") {
             val file = workspace[MANIFEST]
 
@@ -66,10 +68,18 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
                 }
             }
 
-            URL("https://hub.spigotmc.org/versions/${workspace.version.id}.json").copyTo(file)
+            URL("https://hub.spigotmc.org/versions/${workspace.version.id}.json").httpRequest {
+                if (it.ok) {
+                    it.copyTo(file)
 
-            logger.info { "fetched ${workspace.version.id} Spigot manifest" }
-            return@withLock objectMapper.readValue(file)
+                    logger.info { "fetched ${workspace.version.id} Spigot manifest" }
+                    return@withLock objectMapper.readValue(file)
+                }
+
+                logger.warn { "failed to fetch ${workspace.version.id} Spigot manifest, received ${it.responseCode}" }
+            }
+
+            return@withLock null
         }
     }
 
@@ -78,7 +88,9 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
      *
      * @return the attributes
      */
-    private fun readAttributes(): SpigotVersionAttributes {
+    private fun readAttributes(): SpigotVersionAttributes? {
+        if (manifest == null) return null
+
         return workspace.withLock("spigot-manifest") {
             val file = workspace[BUILDDATA_INFO]
 
@@ -92,7 +104,7 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
                 }
             }
 
-            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/info.json?at=${manifest.refs["BuildData"]}").copyTo(file)
+            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/info.json?at=${manifest!!.refs["BuildData"]}").copyTo(file)
 
             logger.info { "fetched ${workspace.version.id} Spigot attributes" }
             return@withLock objectMapper.readValue(file)

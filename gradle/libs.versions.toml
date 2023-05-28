@@ -1,9 +1,10 @@
 [versions]
 kotlin = "1.8.21"
 asm = "9.5"
-jackson = "2.15.0"
+jackson = "2.15.1"
 jmh = "1.36"
-kotlinx-benchmark = "0.4.7"
+kotlinx-benchmark = "0.4.8"
+kotlinpoet = "1.13.2"
 
 [libraries]
 kotlin-stdlib-jdk8 = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib-jdk8", version.ref = "kotlin" }
@@ -11,23 +12,26 @@ kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", vers
 asm = { group = "org.ow2.asm", name = "asm", version.ref = "asm" }
 asm-commons = { group = "org.ow2.asm", name = "asm-commons", version.ref = "asm" }
 asm-tree = { group = "org.ow2.asm", name = "asm-tree", version.ref = "asm" }
-asm-util = { group = "org.ow2.asm", name = "asm-util", version.ref = "asm" }
 jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin", version.ref = "jackson" }
 jackson-datatype-jsr310 = { group = "com.fasterxml.jackson.datatype", name = "jackson-datatype-jsr310", version.ref = "jackson" }
 jackson-dataformat-xml = { group = "com.fasterxml.jackson.dataformat", name = "jackson-dataformat-xml", version.ref = "jackson" }
-mapping-io = { group = "net.fabricmc", name = "mapping-io", version = "0.3.0" }
+mapping-io = { group = "net.fabricmc", name = "mapping-io", version = "0.4.2" }
 kotlin-logging-jvm = { group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.5" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version = "2.0.7" }
-kotlinx-coroutines-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core-jvm", version = "1.6.4" }
+kotlinx-coroutines-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core-jvm", version = "1.7.1" }
 kotlinx-html-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-html-jvm", version = "0.8.1" }
 kotlinx-cli-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-cli-jvm", version = "0.3.5" }
 kotlinx-benchmark-runtime = { group = "org.jetbrains.kotlinx", name = "kotlinx-benchmark-runtime", version.ref = "kotlinx-benchmark" }
+jb-annotations = { group = "org.jetbrains", name = "annotations", version = "24.0.1" }
+javapoet = { group = "com.squareup", name = "javapoet", version = "1.13.0" }
+kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotlinpoet" }
+kotlinpoet-javapoet = { group = "com.squareup", name = "kotlinpoet-javapoet", version.ref = "kotlinpoet" }
 build-licenser = { group = "org.cadixdev.licenser", name = "org.cadixdev.licenser.gradle.plugin", version = "0.6.1" }
 build-gradle-versions = { group = "com.github.ben-manes", name = "gradle-versions-plugin", version = "0.46.0" }
 
 [bundles]
 kotlin = ["kotlin-stdlib-jdk8", "kotlin-reflect"]
-asm = ["asm", "asm-commons", "asm-tree", "asm-util"]
+asm = ["asm", "asm-commons", "asm-tree"]
 jackson = ["jackson-module-kotlin", "jackson-datatype-jsr310", "jackson-dataformat-xml"]
 
 [plugins]
@@ -35,3 +39,6 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 shadow = { id = "com.github.johnrengelman.shadow", version = "8.1.1" }
 kotlinx-benchmark = { id = "org.jetbrains.kotlinx.benchmark", version.ref = "kotlinx-benchmark" }
 kotlin-plugin-allopen = { id = "org.jetbrains.kotlin.plugin.allopen", version.ref = "kotlin" }
+lombok = { id = "io.freefair.lombok", version = "8.0.1" }
+gradle-plugin-publish = { id = "com.gradle.plugin-publish", version = "1.2.0" }
+build-config = { id = "com.github.gmazzo.buildconfig", version = "4.0.4" }

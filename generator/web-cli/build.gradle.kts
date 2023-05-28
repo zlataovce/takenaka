@@ -1,5 +1,6 @@
 plugins {
     id("takenaka.base-conventions")
+    id("takenaka.publish-conventions")
     alias(libs.plugins.shadow)
     application
 }

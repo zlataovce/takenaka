@@ -19,7 +19,11 @@ package me.kcra.takenaka.generator.common
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.adapter.MissingDescriptorFilter
 import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
@@ -32,8 +36,6 @@ import mu.KotlinLogging
 import net.fabricmc.mappingio.format.Tiny2Reader
 import net.fabricmc.mappingio.format.Tiny2Writer
 import net.fabricmc.mappingio.tree.MemoryMappingTree
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.io.path.*
 import kotlin.system.measureTimeMillis
 
@@ -43,15 +45,25 @@ private val logger = KotlinLogging.logger {}
  * A [MappingProvider] implementation that fetches and caches mappings.
  *
  * @property mappingConfig configuration to alter the mapping fetching and correction process
- * @property objectMapper a JSON object mapper instance for this provider
+ * @property manifest the Mojang version manifest
  * @property xmlMapper an XML object mapper instance for this provider
  * @author Matouš Kučera
  */
 class ResolvingMappingProvider(
     val mappingConfig: MappingConfiguration,
-    val objectMapper: ObjectMapper = objectMapper(),
+    val manifest: VersionManifest,
     val xmlMapper: ObjectMapper = XmlMapper()
 ) : MappingProvider {
+    /**
+     * Constructs this provider with a new manifest.
+     *
+     * @property mappingConfig configuration to alter the mapping fetching and correction process
+     * @property objectMapper a JSON object mapper instance
+     * @property xmlMapper an XML object mapper instance
+     */
+    constructor(mappingConfig: MappingConfiguration, objectMapper: ObjectMapper = objectMapper(), xmlMapper: ObjectMapper = XmlMapper())
+            : this(mappingConfig, objectMapper.versionManifest(), xmlMapper)
+
     /**
      * Resolves the mappings.
      *
@@ -59,12 +71,12 @@ class ResolvingMappingProvider(
      * @return the mappings
      */
     override suspend fun get(analyzer: MappingAnalyzer?): MutableMappingsMap {
-        val manifest = objectMapper.versionManifest()
-
         return mappingConfig.versions
             .map { versionString ->
                 mappingConfig.workspace.createVersionedWorkspace {
-                    this.version = manifest[versionString] ?: error("did not find version $versionString in manifest")
+                    this.version = requireNotNull(manifest[versionString]) {
+                        "Version $versionString was not found in manifest"
+                    }
                 }
             }
             .parallelMap(Dispatchers.Default + CoroutineName("mapping-coro")) { workspace ->
@@ -124,18 +136,4 @@ class ResolvingMappingProvider(
             }
             .toMap()
     }
-}
-
-/**
- * Maps an [Iterable] in parallel.
- *
- * @param context the coroutine context
- * @param block the mapping function
- * @return the remapped list
- */
-suspend fun <A, B> Iterable<A>.parallelMap(
-    context: CoroutineContext = EmptyCoroutineContext,
-    block: suspend (A) -> B
-): List<B> = coroutineScope {
-    map { async(context) { block(it) } }.awaitAll()
 }
