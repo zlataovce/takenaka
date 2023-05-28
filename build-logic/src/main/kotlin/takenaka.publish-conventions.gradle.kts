@@ -31,20 +31,4 @@ publishing {
             }
         }
     }
-
-    repositories {
-        maven {
-            url = uri(
-                if ((project.version as String).endsWith("-SNAPSHOT")) {
-                    "https://repo.screamingsandals.org/snapshots"
-                } else {
-                    "https://repo.screamingsandals.org/releases"
-                }
-            )
-            credentials {
-                username = System.getenv("REPO_USERNAME")
-                password = System.getenv("REPO_PASSWORD")
-            }
-        }
-    }
 }

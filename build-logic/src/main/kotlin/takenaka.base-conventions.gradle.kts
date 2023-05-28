@@ -3,6 +3,7 @@ import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
 plugins {
     id("org.cadixdev.licenser")
     id("com.github.ben-manes.versions")
+    `maven-publish`
     `java-library`
 }
 
@@ -36,5 +37,23 @@ fun isStable(version: String): Boolean {
 tasks.withType<DependencyUpdatesTask> {
     rejectVersionIf {
         isStable(currentVersion) && !isStable(candidate.version)
+    }
+}
+
+publishing {
+    repositories {
+        maven {
+            url = uri(
+                if ((project.version as String).endsWith("-SNAPSHOT")) {
+                    "https://repo.screamingsandals.org/snapshots"
+                } else {
+                    "https://repo.screamingsandals.org/releases"
+                }
+            )
+            credentials {
+                username = System.getenv("REPO_USERNAME")
+                password = System.getenv("REPO_PASSWORD")
+            }
+        }
     }
 }
