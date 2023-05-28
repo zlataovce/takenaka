@@ -206,6 +206,90 @@ data class VersionAttributes(
 }
 
 /**
+ * A builder for a range of Minecraft versions.
+ *
+ * @param manifest the version manifest
+ * @param older the older version bound (inclusive), defaults to the oldest if null
+ * @param newer the newer version bound (inclusive), defaults to the newest if null
+ */
+class VersionRangeBuilder(manifest: VersionManifest, older: String? = null, newer: String? = null) {
+    /**
+     * The current versions.
+     */
+    private val versions: MutableList<Version>
+
+    init {
+        val olderIndex = older?.let { o -> manifest.versions.indexOfFirst { it.id == o } } ?: manifest.versions.lastIndex
+        require(olderIndex != -1) {
+            "Version $older not found in manifest"
+        }
+
+        val newerIndex = newer?.let { n -> manifest.versions.indexOfFirst { it.id == n } } ?: 0
+        require(newerIndex != -1) {
+            "Version $newer not found in manifest"
+        }
+
+        this.versions = manifest.versions.subList(newerIndex, olderIndex + 1).toMutableList()
+    }
+
+    /**
+     * Excludes versions whose ID is contained in [versions].
+     *
+     * @param versions the versions to be excluded
+     */
+    fun exclude(vararg versions: String) {
+        this.versions.removeIf { it.id in versions }
+    }
+
+    /**
+     * Excludes versions whose type is not contained in [types].
+     *
+     * @param types the version types to be included
+     */
+    fun includeTypes(vararg types: Version.Type) {
+        this.versions.retainAll { it.type in types }
+    }
+
+    /**
+     * Excludes versions whose type name **is not** contained in upper-cased [types].
+     *
+     * @param types the version type names to be included
+     */
+    fun includeTypes(vararg types: String) {
+        val upperCaseTypes = types.map(String::uppercase)
+
+        this.versions.retainAll { it.type.name in upperCaseTypes }
+    }
+
+    /**
+     * Excludes versions whose type **is** contained in [types].
+     *
+     * @param types the version types to be excluded
+     */
+    fun excludeTypes(vararg types: Version.Type) {
+        this.versions.removeIf { it.type in types }
+    }
+
+    /**
+     * Excludes versions whose type name **is** contained in upper-cased [types].
+     *
+     * @param types the version type names to be excluded
+     */
+    fun excludeTypes(vararg types: String) {
+        val upperCaseTypes = types.map(String::uppercase)
+
+        this.versions.removeIf { it.type.name in upperCaseTypes }
+    }
+
+    /**
+     * Returns the versions which matched the builder criteria.
+     *
+     * @return the versions
+     */
+    fun toVersionList(): List<Version> = versions
+}
+
+/**
  * Spigot's version manifest.
  *
  * @property refs the Git ref hashes (BuildData, Bukkit, CraftBukkit, Spigot)

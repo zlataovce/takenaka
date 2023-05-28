@@ -18,9 +18,13 @@
 package me.kcra.takenaka.generator.accessor.context.impl
 
 import kotlinx.coroutines.CoroutineScope
+import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
 import me.kcra.takenaka.core.mapping.ancestry.NameDescriptorPair
 import me.kcra.takenaka.core.mapping.ancestry.impl.*
+import me.kcra.takenaka.core.mapping.fromInternalName
+import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import me.kcra.takenaka.generator.accessor.context.GenerationContext
@@ -290,30 +294,77 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @return the [Type]
      */
     protected fun getFriendlyType(member: MappingTreeView.MemberMappingView): Type = Type.getType(getFriendlyDesc(member))
+
+    /**
+     * Groups the generator's mappings by version.
+     *
+     * @param node the ancestry node
+     * @return the grouped class mappings
+     */
+    protected fun groupClassNames(node: ClassAncestryNode): Map<ClassKey, List<Version>> = buildMap<ClassKey, MutableList<Version>> {
+        node.forEach { (version, klass) ->
+            val nmsVersion = klass.tree.craftBukkitNmsVersion
+
+            generator.config.accessedNamespaces.forEach { ns ->
+                klass.getName(ns)?.let { name ->
+                    // de-internalize the name beforehand to meet the ClassMapping contract
+                    getOrPut(ClassKey(ns, name.fromInternalName().replaceCraftBukkitNMSVersion(nmsVersion, separator = '.')), ::mutableListOf) += version
+                }
+            }
+        }
+    }
+
+    /**
+     * Groups the generator's mappings by version.
+     *
+     * @param node the ancestry node
+     * @return the grouped field mappings
+     */
+    protected fun groupFieldNames(node: FieldAncestryNode): Map<FieldKey, List<Version>> = buildMap<FieldKey, MutableList<Version>> {
+        node.forEach { (version, field) ->
+            generator.config.accessedNamespaces.forEach { ns ->
+                field.getName(ns)?.let { name ->
+                    getOrPut(FieldKey(ns, name), ::mutableListOf) += version
+                }
+            }
+        }
+    }
+
+    /**
+     * Groups the generator's mappings by version.
+     *
+     * @param node the ancestry node
+     * @return the grouped constructor mappings
+     */
+    protected fun groupConstructorNames(node: MethodAncestryNode): Map<ConstructorKey, List<Version>> = buildMap<ConstructorKey, MutableList<Version>> {
+        node.forEach { (version, ctor) ->
+            val nmsVersion = ctor.tree.craftBukkitNmsVersion
+
+            generator.config.accessedNamespaces.forEach { ns ->
+                ctor.getDesc(ns)?.let { desc ->
+                    getOrPut(ConstructorKey(ns, desc.replaceCraftBukkitNMSVersion(nmsVersion)), ::mutableListOf) += version
+                }
+            }
+        }
+    }
+
+    /**
+     * Groups the generator's mappings by version.
+     *
+     * @param node the ancestry node
+     * @return the grouped method mappings
+     */
+    protected fun groupMethodNames(node: MethodAncestryNode): Map<MethodKey, List<Version>> = buildMap<MethodKey, MutableList<Version>> {
+        node.forEach { (version, method) ->
+            val nmsVersion = method.tree.craftBukkitNmsVersion
+
+            generator.config.accessedNamespaces.forEach nsEach@ { ns ->
+                val name = method.getName(ns) ?: return@nsEach
+                val desc = method.getDesc(ns) ?: return@nsEach
+
+                getOrPut(MethodKey(ns, name, desc.replaceCraftBukkitNMSVersion(nmsVersion)), ::mutableListOf) += version
+            }
+        }
+    }
 }
 
-/**
- * A mapping of an accessor model to its overload index.
- */
-typealias NameOverloads<T> = Map<T, Int>
-
-/**
- * A class accessor with members resolved from their ancestry trees.
- *
- * @property model the class accessor model
- * @property node the class ancestry node
- * @property fields the field accessor models and ancestry nodes
- * @property constructors the constructor accessor models and ancestry nodes
- * @property methods the method accessor models and ancestry nodes
- * @property fieldOverloads the field accessor name overloads (fields can't be overloaded, but capitalization matters, which is a problem when making uppercase names from everything)
- * @property methodOverloads the method accessor name overloads
- */
-data class ResolvedClassAccessor(
-    val model: ClassAccessor,
-    val node: ClassAncestryNode,
-    val fields: List<ResolvedFieldPair>,
-    val constructors: List<ResolvedConstructorPair>,
-    val methods: List<ResolvedMethodPair>,
-    val fieldOverloads: NameOverloads<FieldAccessor>,
-    val methodOverloads: NameOverloads<MethodAccessor>
-)

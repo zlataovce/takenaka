@@ -19,6 +19,7 @@ package me.kcra.takenaka.generator.accessor.model
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.toInternalName
+import me.kcra.takenaka.generator.accessor.util.camelToUpperSnakeCase
 import java.io.Serializable
 
 /**
@@ -40,7 +41,7 @@ data class FieldAccessor(
      * Upper-case variant of [name].
      */
     @Transient
-    val upperName = name.uppercase()
+    val upperName = name.camelToUpperSnakeCase()
 
     /**
      * Internalized variant of [type].

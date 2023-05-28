@@ -212,15 +212,17 @@ public final class ConstructorMapping {
      * <p>
      * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
      *
-     * @param version the mapping's version
      * @param namespace the mapping's namespace
+     * @param versions the versions which include the mapping
      * @param types the mapped parameter types
      * @return this {@link ConstructorMapping}
      */
     @ApiStatus.Internal
     @Contract("_, _, _ -> this")
-    public @NotNull ConstructorMapping put(@NotNull String version, @NotNull String namespace, @NotNull String... types) {
-        mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, types);
+    public @NotNull ConstructorMapping put(@NotNull String namespace, @NotNull String[] versions, @NotNull String... types) {
+        for (final String version : versions) {
+            mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, types);
+        }
         return this;
     }
 }

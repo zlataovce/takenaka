@@ -19,6 +19,7 @@ package me.kcra.takenaka.generator.accessor.plugin
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionManifest
+import me.kcra.takenaka.core.VersionRangeBuilder
 import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorFlavor
@@ -107,40 +108,23 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      *
      * @param older the older version range bound (inclusive)
      * @param newer the newer version range bound (inclusive)
-     * @param exclude versions excluded from the range
      */
-    fun versionRange(older: String, newer: String, vararg exclude: String) {
-        versionRange(older, newer, exclude.toSet())
+    fun versionRange(older: String, newer: String) {
+        versionRange(older, newer) {
+            includeTypes(Version.Type.RELEASE)
+        }
     }
 
     /**
      * Adds new versions to the [versions] property.
      *
      * @param older the older version range bound (inclusive)
-     * @param newer the newer version range bound (inclusive)
-     * @param exclude versions excluded from the range
-     * @param includeTypes version types that may be added to the range
+     * @param newer the newer version range bound (inclusive), defaults to the newest if null
+     * @param builder the version range configurator
      */
     @JvmOverloads
-    fun versionRange(older: String, newer: String, exclude: Set<String> = emptySet(), vararg includeTypes: Version.Type = arrayOf(Version.Type.RELEASE)) {
-        this.versions.addAll(
-            manifest.versions
-                .mapNotNull { if (it.type in includeTypes) it.id else null }
-                .minus(exclude)
-                .let { includableVersions ->
-                    val olderIndex = includableVersions.indexOf(older)
-                    require(olderIndex != -1) {
-                        "Version $older not found in manifest"
-                    }
-
-                    val newerIndex = includableVersions.indexOf(newer)
-                    require(newerIndex != -1) {
-                        "Version $newer not found in manifest"
-                    }
-
-                    includableVersions.subList(newerIndex, olderIndex + 1)
-                }
-        )
+    fun versionRange(older: String, newer: String? = null, builder: VersionRangeBuilder.() -> Unit) {
+        this.versions.addAll(VersionRangeBuilder(manifest, older, newer).apply(builder).toVersionList().map(Version::id))
     }
 
     /**

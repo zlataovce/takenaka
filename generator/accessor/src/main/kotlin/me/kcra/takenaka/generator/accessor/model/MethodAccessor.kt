@@ -18,6 +18,7 @@
 package me.kcra.takenaka.generator.accessor.model
 
 import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.generator.accessor.util.camelToUpperSnakeCase
 import java.io.Serializable
 
 /**
@@ -39,7 +40,7 @@ data class MethodAccessor(
      * Upper-case variant of [name].
      */
     @Transient
-    val upperName = name.uppercase()
+    val upperName = name.camelToUpperSnakeCase()
 
     /**
      * Whether the method descriptor ([type]) is incomplete, i.e. ends just before the return type is declared.

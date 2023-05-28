@@ -194,15 +194,17 @@ public final class ClassMapping {
      * <p>
      * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
      *
-     * @param version the mapping's version
      * @param namespace the mapping's namespace
      * @param mapping the mapped name
+     * @param versions the versions which include the mapping
      * @return this {@link ClassMapping}
      */
     @ApiStatus.Internal
     @Contract("_, _, _ -> this")
-    public @NotNull ClassMapping put(@NotNull String version, @NotNull String namespace, @NotNull String mapping) {
-        mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, mapping);
+    public @NotNull ClassMapping put(@NotNull String namespace, @NotNull String mapping, @NotNull String... versions) {
+        for (final String version : versions) {
+            mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, mapping);
+        }
         return this;
     }
 

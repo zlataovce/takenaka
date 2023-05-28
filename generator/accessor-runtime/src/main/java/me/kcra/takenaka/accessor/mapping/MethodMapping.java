@@ -255,8 +255,8 @@ public final class MethodMapping {
      * <p>
      * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
      *
-     * @param version the mapping's version
      * @param namespace the mapping's namespace
+     * @param versions the versions which include the mapping
      * @param name the mapped method name
      * @param types the mapped parameter types
      * @return this {@link MethodMapping}
@@ -264,12 +264,14 @@ public final class MethodMapping {
     @ApiStatus.Internal
     @Contract("_, _, _, _ -> this")
     public @NotNull MethodMapping put(
-            @NotNull String version,
             @NotNull String namespace,
+            @NotNull String[] versions,
             @NotNull String name,
             @NotNull String... types
     ) {
-        mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, new NameDescriptorPair(name, types));
+        for (final String version : versions) {
+            mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, new NameDescriptorPair(name, types));
+        }
         return this;
     }
 

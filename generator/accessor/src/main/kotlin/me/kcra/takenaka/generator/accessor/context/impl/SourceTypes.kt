@@ -43,4 +43,5 @@ object SourceTypes {
     val CONSTRUCTOR_WILDCARD: JParameterizedTypeName = JParameterizedTypeName.get(CONSTRUCTOR, JWildcardTypeName.subtypeOf(JClassName.OBJECT))
     val METHOD: JClassName = JClassName.get(java.lang.reflect.Method::class.java)
     val METHOD_HANDLE: JClassName = JClassName.get(java.lang.invoke.MethodHandle::class.java)
+    val STRING: JClassName = JClassName.get(java.lang.String::class.java)
 }
