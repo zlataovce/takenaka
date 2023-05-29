@@ -21,7 +21,7 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.MutableMappingsMap
+import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
 import me.kcra.takenaka.generator.accessor.context.generationContext
 import me.kcra.takenaka.generator.common.Generator
@@ -46,7 +46,7 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
      *
      * @param mappings the mappings
      */
-    override suspend fun generate(mappings: MutableMappingsMap) {
+    override suspend fun generate(mappings: MappingsMap) {
         val tree = classAncestryTreeOf(mappings, config.historicalNamespaces)
 
         generationContext(config.languageFlavor) {

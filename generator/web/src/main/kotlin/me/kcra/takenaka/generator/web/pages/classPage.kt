@@ -22,7 +22,6 @@ import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
-import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import me.kcra.takenaka.core.mapping.matchers.isEnumValueOf
@@ -32,10 +31,10 @@ import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.resolve.impl.signature
 import me.kcra.takenaka.core.mapping.resolve.impl.superClass
 import me.kcra.takenaka.core.mapping.toInternalName
+import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.core.mapping.util.formatModifiers
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.components.*
-import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -52,7 +51,7 @@ import java.lang.reflect.Modifier
  * @param friendlyNameRemapper the remapper for remapping signatures
  * @return the generated document
  */
-fun GenerationContext.classPage(klass: MappingTree.ClassMapping, hash: String?, workspace: VersionedWorkspace, friendlyNameRemapper: ElementRemapper): Document = createHTMLDocument().html {
+fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: String?, workspace: VersionedWorkspace, friendlyNameRemapper: ElementRemapper): Document = createHTMLDocument().html {
     val klassDeclaration = formatClassDescriptor(klass, workspace.version, friendlyNameRemapper)
 
     head {

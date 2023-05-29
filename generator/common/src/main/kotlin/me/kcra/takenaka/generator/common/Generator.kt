@@ -18,7 +18,7 @@
 package me.kcra.takenaka.generator.common
 
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.MutableMappingsMap
+import me.kcra.takenaka.core.mapping.MappingsMap
 
 /**
  * An abstract base for a generator.
@@ -38,7 +38,7 @@ interface Generator {
      *
      * @param mappings the mappings
      */
-    suspend fun generate(mappings: MutableMappingsMap)
+    suspend fun generate(mappings: MappingsMap)
 
     /**
      * Launches the generator with mappings provided by the provider.

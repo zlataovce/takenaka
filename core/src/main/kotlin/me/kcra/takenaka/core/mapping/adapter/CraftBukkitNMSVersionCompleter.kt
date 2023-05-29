@@ -19,9 +19,50 @@ package me.kcra.takenaka.core.mapping.adapter
 
 import me.kcra.takenaka.core.mapping.resolve.impl.AbstractSpigotMappingResolver
 import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
+import me.kcra.takenaka.core.mapping.toInternalName
+import net.fabricmc.mappingio.MappedElementKind
+import net.fabricmc.mappingio.MappingVisitor
+import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
 import net.fabricmc.mappingio.tree.MappingTree
 
+/**
+ * A regular expression that matches CraftBukkit NMS version element name parts (`/VVV/`).
+ */
 private val CB_VERSION_REGEX = "/\\d+_\\d+_R\\d+/".toRegex()
+
+/**
+ * A [MappingVisitor] that replaces `VVV` in Spigot mappings for the appropriate CraftBukkit NMS version string.
+ *
+ * @param next the visitor to delegate to
+ * @param nmsVersion the CraftBukkit NMS version string
+ * @param namespaces the replacement candidate namespaces
+ * @author Matouš Kučera
+ */
+class CraftBukkitNMSVersionCompleter(next: MappingVisitor, val nmsVersion: String, val namespaces: List<String>) : ForwardingMappingVisitor(next) {
+    private var namespaceIds = emptyList<Int>()
+
+    override fun visitNamespaces(srcNamespace: String, dstNamespaces: MutableList<String>) {
+        this.namespaceIds = dstNamespaces.intersect(namespaces.toSet()).map(dstNamespaces::indexOf)
+
+        super.visitNamespaces(srcNamespace, dstNamespaces)
+    }
+
+    override fun visitDstName(targetKind: MappedElementKind, namespace: Int, name: String?) {
+        if (targetKind == MappedElementKind.CLASS && namespace in namespaceIds) {
+            super.visitDstName(targetKind, namespace, name?.toInternalName()?.replaceCraftBukkitNMSVersion(nmsVersion))
+        } else {
+            super.visitDstName(targetKind, namespace, name)
+        }
+    }
+
+    override fun visitDstDesc(targetKind: MappedElementKind, namespace: Int, desc: String?) {
+        if (namespace in namespaceIds) {
+            super.visitDstDesc(targetKind, namespace, desc?.replaceCraftBukkitNMSVersion(nmsVersion))
+        } else {
+            super.visitDstDesc(targetKind, namespace, desc)
+        }
+    }
+}
 
 /**
  * Removes the NMS version string of a CraftBukkit class name.

@@ -23,12 +23,13 @@ import kotlinx.coroutines.launch
 import kotlinx.html.dom.serialize
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
+import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
-import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
-import me.kcra.takenaka.core.mapping.util.hash
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
+import me.kcra.takenaka.core.mapping.util.allNamespaceIds
+import me.kcra.takenaka.core.mapping.util.hash
 import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
@@ -37,6 +38,7 @@ import me.kcra.takenaka.generator.web.transformers.Minifier
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
+import net.fabricmc.mappingio.tree.MemoryMappingTree
 import org.w3c.dom.Document
 import java.io.BufferedReader
 import java.nio.file.Files
@@ -88,15 +90,17 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
      *
      * @param mappings the mappings
      */
-    override suspend fun generate(mappings: MutableMappingsMap) {
+    override suspend fun generate(mappings: MappingsMap) {
         val styleConsumer = DefaultStyleConsumer()
 
         generationContext(styleConsumer = styleConsumer::apply) {
-            val tree = classAncestryTreeOf(mappings, config.historicalNamespaces)
+            // FIXME: think of a better solution than copying everything
+            val mappingsCopy: MutableMappingsMap = mappings.mapValues { (_, tree) -> MemoryMappingTree().also(tree::accept) }
+            val tree = classAncestryTreeOf(mappingsCopy, config.historicalNamespaces)
 
             // first pass: replace the CraftBukkit NMS version for spigot-like namespaces
             // must be after ancestry tree computation, because replacing the VVV package breaks (the remaining) uniformity of the mappings
-            mappings.forEach { (_, tree) ->
+            mappingsCopy.forEach { (_, tree) ->
                 config.craftBukkitVersionReplaceCandidates.forEach { ns ->
                     if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
                         tree.replaceCraftBukkitNMSVersion(ns)
@@ -122,7 +126,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
             }
 
             // second pass: generate the documentation
-            mappings.forEach { (version, tree) ->
+            mappingsCopy.forEach { (version, tree) ->
                 launch(Dispatchers.Default + CoroutineName("generate-coro")) {
                     val versionWorkspace = currentComposite.createVersionedWorkspace {
                         this.version = version
@@ -194,7 +198,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                 }
             }
 
-            versionsPage(mappings.mapValues { it.value.dstNamespaces })
+            versionsPage(mappingsCopy.mapValues { it.value.dstNamespaces })
                 .serialize(workspace, "index.html")
         }
 
