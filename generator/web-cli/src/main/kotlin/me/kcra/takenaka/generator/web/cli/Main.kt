@@ -26,6 +26,7 @@ import me.kcra.takenaka.core.buildWorkspaceOptions
 import me.kcra.takenaka.core.compositeWorkspace
 import me.kcra.takenaka.core.mapping.WrappingContributor
 import me.kcra.takenaka.core.mapping.adapter.*
+import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.analysis.impl.StandardProblemKinds
 import me.kcra.takenaka.core.mapping.resolve.impl.*
@@ -159,8 +160,9 @@ fun main(args: Array<String>) {
 
     val mappingProvider = ResolvingMappingProvider(mappingConfig, objectMapper, xmlMapper)
     val analyzer = MappingAnalyzerImpl(
-        MappingAnalyzerImpl.AnalysisOptions(
-            innerClassNameCompletionCandidates = setOf("spigot")
+        AnalysisOptions(
+            innerClassNameCompletionCandidates = setOf("spigot"),
+            inheritanceAdditionalNamespaces = setOf("searge") // mojang could be here too for maximal parity, but that's in exchange for a little bit of performance
         )
     )
 

@@ -21,6 +21,7 @@ import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ElementRemapper
+import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.core.mapping.ancestry.*
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
@@ -28,6 +29,7 @@ import me.kcra.takenaka.core.mapping.ancestry.impl.ConstructorComputationMode
 import me.kcra.takenaka.core.mapping.ancestry.impl.fieldAncestryTreeOf
 import me.kcra.takenaka.core.mapping.ancestry.impl.methodAncestryTreeOf
 import me.kcra.takenaka.core.mapping.fromInternalName
+import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.*
@@ -46,12 +48,14 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
 
     val classNameRows = buildDiff {
         node.forEach { (version, klass) ->
+
             klass.tree.allNamespaceIds.forEach { id ->
                 val ns = klass.tree.getNamespaceName(id)
+                val namespacedNmsVersion = if (ns in versionReplaceCandidates) klass.tree.craftBukkitNmsVersion else null
 
                 val nsFriendlyName = getNamespaceFriendlyName(ns)
                 if (nsFriendlyName != null) {
-                    append(version, nsFriendlyName, klass.getName(id)?.fromInternalName())
+                    append(version, nsFriendlyName, klass.getName(id)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion)?.fromInternalName())
                 }
             }
         }
@@ -80,8 +84,10 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                                 }
                                 .sortedBy { generator.config.namespaceFriendlinessIndex.indexOf(it.second) }
                                 .mapNotNull { (id, ns) ->
+                                    val namespacedNmsVersion = if (ns in versionReplaceCandidates) field.tree.craftBukkitNmsVersion else null
+
                                     field.getName(id)?.let { name ->
-                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name
+                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name.replaceCraftBukkitNMSVersion(namespacedNmsVersion)
                                     }
                                 }
                                 .joinToString()
@@ -130,8 +136,10 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                                 }
                                 .sortedBy { generator.config.namespaceFriendlinessIndex.indexOf(it.second) }
                                 .mapNotNull { (id, ns) ->
+                                    val namespacedNmsVersion = if (ns in versionReplaceCandidates) method.tree.craftBukkitNmsVersion else null
+
                                     method.getName(id)?.let { name ->
-                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name
+                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name.replaceCraftBukkitNMSVersion(namespacedNmsVersion)
                                     }
                                 }
                                 .joinToString()

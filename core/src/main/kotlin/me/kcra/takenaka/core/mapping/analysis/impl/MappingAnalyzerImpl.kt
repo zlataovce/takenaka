@@ -17,13 +17,13 @@
 
 package me.kcra.takenaka.core.mapping.analysis.impl
 
-import me.kcra.takenaka.core.mapping.analysis.AbstractMappingAnalyzer
 import me.kcra.takenaka.core.mapping.analysis.ProblemResolution
-import me.kcra.takenaka.core.mapping.util.contains
 import me.kcra.takenaka.core.mapping.resolve.impl.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.resolve.impl.interfaces
 import me.kcra.takenaka.core.mapping.resolve.impl.superClass
+import me.kcra.takenaka.core.mapping.util.contains
 import net.fabricmc.mappingio.tree.MappingTree
+import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
 
 /**
@@ -34,26 +34,9 @@ import org.objectweb.asm.Opcodes
  */
 open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOptions()) : AbstractMappingAnalyzer() {
     /**
-     * The super types of the last visited class.
-     */
-    protected var superTypes: List<MappingTree.ClassMapping>? = null
-
-    /**
-     * Whether inheritance error correction should be skipped for further visited members.
-     */
-    protected var skipInheritanceChecks = false
-
-    /**
      * Visits a class for analysis.
      */
-    override fun acceptClass(klass: MappingTree.ClassMapping) {
-        superTypes = klass.superTypes
-
-        // exempt class from inheritance error correction when there are only java.* super types
-        // VanillaMappingContributor.NS_INTERFACES and/or VanillaMappingContributor.NS_SUPER should be present
-        skipInheritanceChecks = (VanillaMappingContributor.NS_INTERFACES !in klass.tree && VanillaMappingContributor.NS_SUPER !in klass.tree)
-                || (klass.superClass.startsWith("java/") && klass.interfaces.all { it.startsWith("java/") })
-
+    override fun acceptClass(klass: MappingTree.ClassMapping): ClassAnalysisContext {
         checkElementModifiers(klass) {
             element.tree.classes.remove(element)
         }
@@ -77,7 +60,7 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
                         if (ownerName != null) { // owner has a mapping
                             val name = klass.srcName.substring(dollarIndex + 1)
 
-                            addProblem(klass, ns, StandardProblemKinds.INNER_CLASS_OWNER_NOT_MAPPED) {
+                            problem(klass, ns, StandardProblemKinds.INNER_CLASS_OWNER_NOT_MAPPED) {
                                 klass.setDstName("$ownerName$$name", nsId)
                             }
                         }
@@ -85,58 +68,8 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
                 }
             }
         }
-    }
 
-    /**
-     * Visits a field for analysis.
-     */
-    override fun acceptField(field: MappingTree.FieldMapping) {
-        checkElementModifiers(field) {
-            element.owner.fields.remove(element)
-        }
-    }
-
-    /**
-     * Visits a method for analysis.
-     */
-    override fun acceptMethod(method: MappingTree.MethodMapping) {
-        checkElementModifiers(method) {
-            element.owner.methods.remove(element)
-        }
-
-        if (!skipInheritanceChecks) {
-            // corrects inheritance errors
-
-            // Intermediary & possibly more: overridden methods are not mapped, those are completed
-            // Spigot: replaces wrong names with correct ones from supertypes
-
-            val namespaceIdsToCorrect = (method.tree.dstNamespaces - analysisOptions.inheritanceErrorExemptions)
-                .mapTo(mutableSetOf(), method.tree::getNamespaceId)
-
-            namespaceIdsToCorrect.remove(MappingTree.NULL_NAMESPACE_ID) // pop null id, if it's present
-
-            if (namespaceIdsToCorrect.isNotEmpty()) {
-                superTypes?.forEach { superType ->
-                    superType.methods.forEach superEach@ { superMethod ->
-                        if (superMethod.srcName != method.srcName || superMethod.srcDesc != method.srcDesc) return@superEach
-
-                        namespaceIdsToCorrect.removeIf { nsId ->
-                            val superMethodName = superMethod.getDstName(nsId)
-                                ?: return@removeIf false
-                            val methodName = method.getDstName(nsId)
-
-                            if (methodName != superMethodName) {
-                                addProblem(method, method.tree.getNamespaceName(nsId), StandardProblemKinds.INHERITANCE_ERROR) {
-                                    method.setDstName(superMethodName, nsId)
-                                }
-                            }
-                            return@removeIf true
-                        }
-                        if (namespaceIdsToCorrect.isEmpty()) return // perf: return early when method is corrected on all namespaces
-                    }
-                }
-            }
-        }
+        return ClassContext(this, klass)
     }
 
     /**
@@ -150,23 +83,98 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
         val mod = element.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull()
 
         if (mod == null) {
-            addProblem(element, null, StandardProblemKinds.NON_EXISTENT_MAPPING, removeResolution)
+            problem(element, null, StandardProblemKinds.NON_EXISTENT_MAPPING, removeResolution)
         }
         if (mod != null && (mod and Opcodes.ACC_SYNTHETIC) != 0) {
-            addProblem(element, null, StandardProblemKinds.SYNTHETIC, removeResolution)
+            problem(element, null, StandardProblemKinds.SYNTHETIC, removeResolution)
         }
     }
 
     /**
-     * Basic analysis configuration.
+     * A [MappingAnalyzerImpl]-specific class analysis context.
      *
-     * @property innerClassNameCompletionCandidates namespaces that should have inner class names completed (see [MappingAnalyzerImpl.acceptClass])
-     * @property inheritanceErrorExemptions namespaces that should have inheritance errors/missing override mappings corrected/completed (see [MappingAnalyzerImpl.acceptMethod])
+     * @property analyzer the analyzer which created this context
+     * @property klass the analyzed class
      */
-    data class AnalysisOptions(
-        val innerClassNameCompletionCandidates: Set<String> = emptySet(),
-        val inheritanceErrorExemptions: Set<String> = VanillaMappingContributor.NAMESPACES.toSet()
-    )
+    open class ClassContext(final override val analyzer: MappingAnalyzerImpl, final override val klass: MappingTree.ClassMapping) : ClassAnalysisContext {
+        /**
+         * Super types of the class.
+         */
+        protected val superTypes = klass.superTypes
+
+        /**
+         * Additional namespace IDs of the class' mapping tree.
+         */
+        protected val additionalNamespaceIds = analyzer.analysisOptions.inheritanceAdditionalNamespaces.map(klass.tree::getNamespaceId) - MappingTree.NULL_NAMESPACE_ID
+
+        /**
+         * Whether inheritance error correction should be skipped for further visited members.
+         *
+         * The class is exempt from inheritance correction if there are only `java.*` super types
+         * and/or if both [VanillaMappingContributor.NS_INTERFACES] and [VanillaMappingContributor.NS_SUPER] are missing.
+         */
+        protected var skipInheritanceChecks = (VanillaMappingContributor.NS_INTERFACES !in klass.tree && VanillaMappingContributor.NS_SUPER !in klass.tree)
+                || (klass.superClass.startsWith("java/") && klass.interfaces.all { it.startsWith("java/") })
+
+        /**
+         * Visits a field for analysis.
+         */
+        override fun acceptField(field: MappingTree.FieldMapping) {
+            analyzer.checkElementModifiers(field) {
+                element.owner.fields.remove(element)
+            }
+        }
+
+        /**
+         * Visits a method for analysis.
+         */
+        override fun acceptMethod(method: MappingTree.MethodMapping) {
+            fun MappingTreeView.MethodMappingView.getAdditionalMappingSet(): Set<String> =
+                additionalNamespaceIds.mapNotNullTo(mutableSetOf(), ::getDstName)
+
+            analyzer.checkElementModifiers(method) {
+                element.owner.methods.remove(element)
+            }
+
+            if (!skipInheritanceChecks) {
+                // corrects inheritance errors
+
+                // Intermediary & possibly more: overridden methods are not mapped, those are completed
+                // Spigot: replaces wrong names with correct ones from supertypes
+
+                val namespaceIdsToCorrect = (method.tree.dstNamespaces - analyzer.analysisOptions.inheritanceErrorExemptions)
+                    .mapTo(mutableSetOf(), method.tree::getNamespaceId)
+
+                namespaceIdsToCorrect.remove(MappingTree.NULL_NAMESPACE_ID) // pop null id, if it's present
+
+                if (namespaceIdsToCorrect.isNotEmpty()) {
+                    val srcMethodDesc = method.srcDesc.withoutReturnType
+                    val additionalMappings by lazy(LazyThreadSafetyMode.NONE, method::getAdditionalMappingSet)
+
+                    superTypes.forEach { superType ->
+                        superType.methods.forEach superEach@ { superMethod ->
+                            if (superMethod.srcDesc.withoutReturnType != srcMethodDesc) return@superEach
+                            if (superMethod.srcName != method.srcName && additionalMappings.none(superMethod.getAdditionalMappingSet()::contains)) return@superEach
+
+                            namespaceIdsToCorrect.removeIf { nsId ->
+                                val superMethodName = superMethod.getDstName(nsId)
+                                    ?: return@removeIf false
+                                val methodName = method.getDstName(nsId)
+
+                                if (methodName != superMethodName) {
+                                    analyzer.problem(method, method.tree.getNamespaceName(nsId), StandardProblemKinds.INHERITANCE_ERROR) {
+                                        method.setDstName(superMethodName, nsId)
+                                    }
+                                }
+                                return@removeIf true
+                            }
+                            if (namespaceIdsToCorrect.isEmpty()) return // perf: return early when method is corrected on all namespaces
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -191,4 +199,17 @@ val MappingTree.ClassMapping.superTypes: List<MappingTree.ClassMapping>
         interfaces.forEach(::processType)
 
         return mappedSuperTypes
+    }
+
+/**
+ * Returns a descriptor string with the return type removed.
+ */
+inline val String.withoutReturnType: String
+    get() {
+        val parenthesisIndex = lastIndexOf(')')
+        if (parenthesisIndex == -1) {
+            return this
+        }
+
+        return substring(0, parenthesisIndex + 1)
     }

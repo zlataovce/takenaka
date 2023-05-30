@@ -24,9 +24,9 @@ import kotlinx.html.dom.serialize
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.MappingsMap
-import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
+import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.core.mapping.util.hash
@@ -36,9 +36,7 @@ import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
 import me.kcra.takenaka.generator.web.transformers.Minifier
 import me.kcra.takenaka.generator.web.transformers.Transformer
-import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
-import net.fabricmc.mappingio.tree.MemoryMappingTree
 import org.w3c.dom.Document
 import java.io.BufferedReader
 import java.nio.file.Files
@@ -94,19 +92,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
         val styleConsumer = DefaultStyleConsumer()
 
         generationContext(styleConsumer = styleConsumer::apply) {
-            // FIXME: think of a better solution than copying everything
-            val mappingsCopy: MutableMappingsMap = mappings.mapValues { (_, tree) -> MemoryMappingTree().also(tree::accept) }
-            val tree = classAncestryTreeOf(mappingsCopy, config.historicalNamespaces)
-
-            // first pass: replace the CraftBukkit NMS version for spigot-like namespaces
-            // must be after ancestry tree computation, because replacing the VVV package breaks (the remaining) uniformity of the mappings
-            mappingsCopy.forEach { (_, tree) ->
-                config.craftBukkitVersionReplaceCandidates.forEach { ns ->
-                    if (tree.getNamespaceId(ns) != MappingTree.NULL_NAMESPACE_ID) {
-                        tree.replaceCraftBukkitNMSVersion(ns)
-                    }
-                }
-            }
+            val tree = classAncestryTreeOf(mappings, config.historicalNamespaces)
 
             // used for looking up history hashes - for linking
             val hashMap = IdentityHashMap<MappingTreeView.ClassMappingView, String>()
@@ -126,7 +112,9 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
             }
 
             // second pass: generate the documentation
-            mappingsCopy.forEach { (version, tree) ->
+            mappings.forEach { (version, tree) ->
+                val nmsVersion = tree.craftBukkitNmsVersion
+
                 launch(Dispatchers.Default + CoroutineName("generate-coro")) {
                     val versionWorkspace = currentComposite.createVersionedWorkspace {
                         this.version = version
@@ -161,14 +149,18 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                             val friendlyName = getFriendlyDstName(klass)
 
                             launch(Dispatchers.Default + CoroutineName("page-coro")) {
-                                classPage(klass, hashMap[klass], versionWorkspace, friendlyNameRemapper)
+                                classPage(klass, hashMap[klass], nmsVersion, versionWorkspace, friendlyNameRemapper)
                                     .serialize(versionWorkspace, "$friendlyName.html")
                             }
 
                             classMap.getOrPut(friendlyName.substringBeforeLast('/')) { sortedMapOf(compareBy(ClassType::ordinal)) }
                                 .getOrPut(classTypeOf(klass.modifiers), ::sortedSetOf) += friendlyName.substringAfterLast('/')
 
-                            appendLine(namespaces.values.joinToString("\t") { klass.getName(it) ?: "" })
+                            appendLine(namespaces.values.joinToString("\t") { nsId ->
+                                val namespacedNmsVersion = if (tree.getNamespaceName(nsId) in versionReplaceCandidates) nmsVersion else null
+
+                                klass.getName(nsId)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) ?: ""
+                            })
                         }
                     }.replace("net/minecraft", "%nm").replace("com/mojang", "%cm")
 
@@ -198,7 +190,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                 }
             }
 
-            versionsPage(mappingsCopy.mapValues { it.value.dstNamespaces })
+            versionsPage(mappings.mapValues { it.value.dstNamespaces })
                 .serialize(workspace, "index.html")
         }
 

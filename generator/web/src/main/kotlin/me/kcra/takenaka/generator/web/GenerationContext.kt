@@ -21,7 +21,8 @@ import kotlinx.coroutines.*
 import kotlinx.html.dom.serialize
 import kotlinx.html.dom.write
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
+import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
+import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.w3c.dom.Document
 import kotlin.io.path.createDirectories
@@ -34,6 +35,11 @@ import kotlin.io.path.writer
  * @author Matouš Kučera
  */
 class GenerationContext(val generator: WebGenerator, val styleConsumer: StyleConsumer, contextScope: CoroutineScope) : CoroutineScope by contextScope {
+    /**
+     * A [Set] variant of the [generator]'s [WebConfiguration.craftBukkitVersionReplaceCandidates].
+     */
+    internal val versionReplaceCandidates = generator.config.craftBukkitVersionReplaceCandidates.toSet()
+
     /**
      * Serializes a [Document] to a file in the specified workspace.
      *
@@ -60,10 +66,19 @@ class GenerationContext(val generator: WebGenerator, val styleConsumer: StyleCon
      * @return the name
      */
     fun getFriendlyDstName(elem: MappingTreeView.ElementMappingView): String {
-        generator.config.namespaceFriendlinessIndex.forEach { ns ->
-            elem.getName(ns)?.let { return it }
+        fun getName(elem: MappingTreeView.ElementMappingView, ns: String): String? {
+            val name = elem.getName(ns) ?: return null
+            if (elem is MappingTreeView.ClassMappingView && ns in versionReplaceCandidates) {
+                return name.replaceCraftBukkitNMSVersion(elem.tree.craftBukkitNmsVersion)
+            }
+
+            return name
         }
-        return elem.tree.dstNamespaceIds.firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
+
+        generator.config.namespaceFriendlinessIndex.forEach { ns -> getName(elem, ns)?.let { return it } }
+
+        // we didn't find a preferable name, grab anything
+        return elem.tree.dstNamespaces.firstNotNullOfOrNull { ns -> getName(elem, ns) } ?: elem.srcName
     }
 
     /**

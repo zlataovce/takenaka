@@ -15,8 +15,12 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.mapping.analysis
+package me.kcra.takenaka.core.mapping.analysis.impl
 
+import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
+import me.kcra.takenaka.core.mapping.analysis.Problem
+import me.kcra.takenaka.core.mapping.analysis.ProblemKind
+import me.kcra.takenaka.core.mapping.analysis.ProblemResolution
 import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTree
 import java.util.*
@@ -35,28 +39,19 @@ abstract class AbstractMappingAnalyzer : MappingAnalyzer {
     /**
      * The currently discovered problems.
      */
-    override val problems = mutableListOf<Problem<*>>()
-
-    /**
-     * A write lock for [problems].
-     */
-    protected val lock = object {}
+    override val problems: MutableList<Problem<*>> = Collections.synchronizedList(mutableListOf<Problem<*>>())
 
     /**
      * Reads a mapping tree and appends its problems to this analyzer.
      *
-     * Implementations should read a tree in order to allow for contextual information to be stored temporarily:
-     * `read a class -> read fields of that class -> read methods of that class`
-     *
      * @param tree the mapping tree
      */
-    @Synchronized
     override fun accept(tree: MappingTree) {
         tree.classes.forEach { klass ->
-            acceptClass(klass)
+            val klassCtx = acceptClass(klass)
 
-            klass.fields.forEach(::acceptField)
-            klass.methods.forEach(::acceptMethod)
+            klass.fields.forEach(klassCtx::acceptField)
+            klass.methods.forEach(klassCtx::acceptMethod)
         }
     }
 
@@ -71,7 +66,7 @@ abstract class AbstractMappingAnalyzer : MappingAnalyzer {
      * @return the accepted resolutions
      */
     override fun acceptResolutions(kind: ProblemKind): List<Problem<*>> {
-        synchronized(lock) {
+        synchronized(problems) {
             var acceptedResolutions = problems.filter { problem -> problem.kind == kind }
 
             val time = measureTimeMillis {
@@ -116,7 +111,7 @@ abstract class AbstractMappingAnalyzer : MappingAnalyzer {
         element: T,
         kind: ProblemKind
     ): List<Problem<T>> {
-        synchronized(lock) {
+        synchronized(problems) {
             @Suppress("UNCHECKED_CAST")
             var acceptedResolutions = problems.filter { problem -> problem.kind == kind && problem.element === element } as List<Problem<T>>
 
@@ -143,33 +138,13 @@ abstract class AbstractMappingAnalyzer : MappingAnalyzer {
      *
      * @see Problem
      */
-    protected fun <T : MappingTree.ElementMapping> addProblem(element: T, namespace: String?, kind: ProblemKind, resolution: ProblemResolution<T>) {
-        synchronized(lock) {
-            problems += Problem(element, namespace, kind, resolution)
-        }
+    protected fun <T : MappingTree.ElementMapping> problem(element: T, namespace: String?, kind: ProblemKind, resolution: ProblemResolution<T>) {
+        problems += Problem(element, namespace, kind, resolution)
     }
 
     /**
      * Visits a class for analysis.
-     *
-     * It is guaranteed that this method will be called only by one thread at a time,
-     * therefore the implementation can store information in the class context temporarily.
      */
-    protected abstract fun acceptClass(klass: MappingTree.ClassMapping)
-
-    /**
-     * Visits a field for analysis.
-     *
-     * It is guaranteed that this method will be called only by one thread at a time,
-     * therefore the implementation can store information in the class context temporarily.
-     */
-    protected abstract fun acceptField(field: MappingTree.FieldMapping)
-
-    /**
-     * Visits a method for analysis.
-     *
-     * It is guaranteed that this method will be called only by one thread at a time,
-     * therefore the implementation can store information in the class context temporarily.
-     */
-    protected abstract fun acceptMethod(method: MappingTree.MethodMapping)
+    protected abstract fun acceptClass(klass: MappingTree.ClassMapping): ClassAnalysisContext
 }
+

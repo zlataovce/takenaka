@@ -22,6 +22,7 @@ import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
+import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import me.kcra.takenaka.core.mapping.matchers.isEnumValueOf
@@ -47,11 +48,12 @@ import java.lang.reflect.Modifier
  *
  * @param klass the class
  * @param hash the history file hash
+ * @param nmsVersion the CraftBukkit NMS version string
  * @param workspace the workspace
  * @param friendlyNameRemapper the remapper for remapping signatures
  * @return the generated document
  */
-fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: String?, workspace: VersionedWorkspace, friendlyNameRemapper: ElementRemapper): Document = createHTMLDocument().html {
+fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: String?, nmsVersion: String?, workspace: VersionedWorkspace, friendlyNameRemapper: ElementRemapper): Document = createHTMLDocument().html {
     val klassDeclaration = formatClassDescriptor(klass, workspace.version, friendlyNameRemapper)
 
     head {
@@ -107,7 +109,8 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                         val ns = klass.tree.getNamespaceName(id)
                         val namespace = generator.config.namespaces[ns] ?: return@forEach
 
-                        val name = klass.getName(id) ?: return@forEach
+                        val namespacedNmsVersion = if (ns in versionReplaceCandidates) nmsVersion else null
+                        val name = klass.getName(id)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) ?: return@forEach
                         tr {
                             badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
                             td(classes = "mapping-value") {
@@ -266,6 +269,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                                                 val ns = method.tree.getNamespaceName(id)
                                                 val namespace = generator.config.namespaces[ns]
 
+                                                val namespacedNmsVersion = if (ns in versionReplaceCandidates) nmsVersion else null
                                                 if (namespace != null) {
                                                     val methodName = method.getName(id)
                                                     if (methodName != null) {
@@ -273,7 +277,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                                                             badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
                                                             td(classes = "mapping-value") {
                                                                 unsafe {
-                                                                    val remapper = ElementRemapper(method.tree) { it.getName(id) }
+                                                                    val remapper = ElementRemapper(method.tree) { it.getName(id)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) }
                                                                     val methodDeclaration = formatMethodDescriptor(method, methodMod, workspace.version, remapper, linkRemapper = friendlyNameRemapper)
 
                                                                     +methodName

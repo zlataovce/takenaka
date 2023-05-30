@@ -17,6 +17,7 @@
 
 package me.kcra.takenaka.core.test.mapping.analysis.impl
 
+import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.analysis.impl.StandardProblemKinds
 import me.kcra.takenaka.core.mapping.resolve.impl.VanillaMappingContributor
@@ -37,7 +38,7 @@ class MappingAnalyzerImplTest {
         val method = assertNotNull(klass.getMethod("overriddenMethod", "(Ltest/Class;)V"))
 
         val analyzer = MappingAnalyzerImpl(
-            MappingAnalyzerImpl.AnalysisOptions(
+            AnalysisOptions(
                 inheritanceErrorExemptions = setOf("wrong_namespace")
             )
         )
@@ -57,7 +58,7 @@ class MappingAnalyzerImplTest {
         val method = assertNotNull(klass.getMethod("overriddenMethod", "(Ltest/Class;)V"))
 
         val analyzer = MappingAnalyzerImpl(
-            MappingAnalyzerImpl.AnalysisOptions(
+            AnalysisOptions(
                 inheritanceErrorExemptions = setOf("missing_namespace")
             )
         )
@@ -88,6 +89,26 @@ class MappingAnalyzerImplTest {
         assertEquals("correctMappedName", method.getName("wrong_namespace"))
     }
 
+    @Test
+    fun `missing method names with a differing return type should be added for a single namespace`() {
+        val tree = createMockTree()
+        val klass = assertNotNull(tree.getClass("ConcreteClass"))
+        val method = assertNotNull(klass.getMethod("overriddenMethod1", "(Ltest/Class;)LConcreteClass;"))
+
+        val analyzer = MappingAnalyzerImpl(
+            AnalysisOptions(
+                inheritanceErrorExemptions = setOf("wrong_namespace")
+            )
+        )
+        analyzer.accept(tree)
+
+        assertNull(method.getName("missing_namespace"))
+
+        analyzer.acceptResolutions(StandardProblemKinds.INHERITANCE_ERROR)
+
+        assertEquals("correctMappedName", method.getName("missing_namespace"))
+    }
+
     private fun createMockTree(): MappingTree {
         val tree = MemoryMappingTree()
 
@@ -101,6 +122,9 @@ class MappingAnalyzerImplTest {
                 //     @Override
                 //     void overriddenMethod(test.Class arg0) {
                 //     }
+                //     @Override
+                //     ConcreteClass overriddenMethod1(test.Class arg0) {
+                //     }
                 // }
                 if (tree.visitClass("ConcreteClass")) {
                     tree.visitDstName(MappedElementKind.CLASS, 2, "SuperClass")
@@ -109,11 +133,16 @@ class MappingAnalyzerImplTest {
                             tree.visitDstName(MappedElementKind.METHOD, 1, "wrongMappedName")
                             tree.visitElementContent(MappedElementKind.METHOD)
                         }
+                        if (tree.visitMethod("overriddenMethod1", "(Ltest/Class;)LConcreteClass;")) {
+                            tree.visitElementContent(MappedElementKind.METHOD)
+                        }
                     }
                 }
 
                 // class SuperClass {
                 //     void overriddenMethod(test.Class arg0) {
+                //     }
+                //     SuperClass overriddenMethod1(test.Class arg0) {
                 //     }
                 // }
                 if (tree.visitClass("SuperClass")) {
@@ -122,6 +151,10 @@ class MappingAnalyzerImplTest {
                         if (tree.visitMethod("overriddenMethod", "(Ltest/Class;)V")) {
                             tree.visitDstName(MappedElementKind.METHOD, 0, "correctMappedName")
                             tree.visitDstName(MappedElementKind.METHOD, 1, "correctMappedName")
+                            tree.visitElementContent(MappedElementKind.METHOD)
+                        }
+                        if (tree.visitMethod("overriddenMethod1", "(Ltest/Class;)LSuperClass;")) {
+                            tree.visitDstName(MappedElementKind.METHOD, 0, "correctMappedName")
                             tree.visitElementContent(MappedElementKind.METHOD)
                         }
                     }
