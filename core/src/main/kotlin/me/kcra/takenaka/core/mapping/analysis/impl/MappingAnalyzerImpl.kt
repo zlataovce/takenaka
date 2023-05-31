@@ -20,14 +20,18 @@ package me.kcra.takenaka.core.mapping.analysis.impl
 import me.kcra.takenaka.core.mapping.analysis.ProblemResolution
 import me.kcra.takenaka.core.mapping.resolve.impl.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.resolve.impl.interfaces
+import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.resolve.impl.superClass
 import me.kcra.takenaka.core.mapping.util.contains
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
+import java.util.*
 
 /**
  * A base implementation of [me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer] that corrects problems defined in [StandardProblemKinds].
+ *
+ * This analyzer expects [VanillaMappingContributor.NS_SUPER], [VanillaMappingContributor.NS_INTERFACES] and [VanillaMappingContributor.NS_MODIFIERS] namespaces to be present.
  *
  * @property analysisOptions the analysis configuration
  * @author Matouš Kučera
@@ -100,12 +104,13 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
         /**
          * Super types of the class.
          */
-        protected val superTypes = klass.superTypes
+        protected val superTypes: List<MappingTree.ClassMapping> = klass.superTypes
 
         /**
          * Additional namespace IDs of the class' mapping tree.
          */
-        protected val additionalNamespaceIds = analyzer.analysisOptions.inheritanceAdditionalNamespaces.map(klass.tree::getNamespaceId) - MappingTree.NULL_NAMESPACE_ID
+        protected val additionalNamespaceIds: Set<Int> = analyzer.analysisOptions.inheritanceAdditionalNamespaces.mapTo(mutableSetOf(), klass.tree::getNamespaceId)
+            .apply { remove(MappingTree.NULL_NAMESPACE_ID) } // pop null id, if it's present
 
         /**
          * Whether inheritance error correction should be skipped for further visited members.
@@ -113,7 +118,7 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
          * The class is exempt from inheritance correction if there are only `java.*` super types
          * and/or if both [VanillaMappingContributor.NS_INTERFACES] and [VanillaMappingContributor.NS_SUPER] are missing.
          */
-        protected var skipInheritanceChecks = (VanillaMappingContributor.NS_INTERFACES !in klass.tree && VanillaMappingContributor.NS_SUPER !in klass.tree)
+        protected var skipInheritanceChecks: Boolean = (VanillaMappingContributor.NS_INTERFACES !in klass.tree && VanillaMappingContributor.NS_SUPER !in klass.tree)
                 || (klass.superClass.startsWith("java/") && klass.interfaces.all { it.startsWith("java/") })
 
         /**
@@ -136,8 +141,10 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
                 element.owner.methods.remove(element)
             }
 
-            if (!skipInheritanceChecks) {
-                // corrects inheritance errors
+            // don't check inheritance for private methods, they can't technically be overridden
+            // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-8.4.8.3
+            if (!skipInheritanceChecks && (method.modifiers and Opcodes.ACC_PRIVATE) == 0) {
+                // correct inheritance errors
 
                 // Intermediary & possibly more: overridden methods are not mapped, those are completed
                 // Spigot: replaces wrong names with correct ones from supertypes
@@ -148,19 +155,24 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
                 namespaceIdsToCorrect.remove(MappingTree.NULL_NAMESPACE_ID) // pop null id, if it's present
 
                 if (namespaceIdsToCorrect.isNotEmpty()) {
-                    val srcMethodDesc = method.srcDesc.withoutReturnType
+                    val srcMethodDesc = method.srcDesc.withoutReturnTypeIfClass
                     val additionalMappings by lazy(LazyThreadSafetyMode.NONE, method::getAdditionalMappingSet)
 
                     superTypes.forEach { superType ->
                         superType.methods.forEach superEach@ { superMethod ->
-                            if (superMethod.srcDesc.withoutReturnType != srcMethodDesc) return@superEach
-                            if (superMethod.srcName != method.srcName && additionalMappings.none(superMethod.getAdditionalMappingSet()::contains)) return@superEach
+                            // don't match against private methods, they can't technically be overridden
+                            if (superMethod.srcDesc.withoutReturnTypeIfClass != srcMethodDesc || (superMethod.modifiers and Opcodes.ACC_PRIVATE) != 0) return@superEach
+
+                            val rejectedByName = superMethod.srcName != method.srcName
+                            if (rejectedByName && Collections.disjoint(additionalMappings, superMethod.getAdditionalMappingSet())) return@superEach
 
                             namespaceIdsToCorrect.removeIf { nsId ->
                                 val superMethodName = superMethod.getDstName(nsId)
                                     ?: return@removeIf false
                                 val methodName = method.getDstName(nsId)
 
+                                // don't correct this name, it was chosen based on additional mappings
+                                if (rejectedByName && methodName != null) return@removeIf false
                                 if (methodName != superMethodName) {
                                     analyzer.problem(method, method.tree.getNamespaceName(nsId), StandardProblemKinds.INHERITANCE_ERROR) {
                                         method.setDstName(superMethodName, nsId)
@@ -202,14 +214,12 @@ val MappingTree.ClassMapping.superTypes: List<MappingTree.ClassMapping>
     }
 
 /**
- * Returns a descriptor string with the return type removed.
+ * Returns a descriptor string with the return type removed, **if the return type is a class type**.
  */
-inline val String.withoutReturnType: String
+inline val String.withoutReturnTypeIfClass: String
     get() {
         val parenthesisIndex = lastIndexOf(')')
-        if (parenthesisIndex == -1) {
-            return this
-        }
+        if (parenthesisIndex == -1) return this
 
-        return substring(0, parenthesisIndex + 1)
+        return if (get(parenthesisIndex + 1) == 'L') substring(0, parenthesisIndex + 1) else this
     }
