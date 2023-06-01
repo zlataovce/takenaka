@@ -11,10 +11,7 @@ The goal of this project is to improve the maintainability and performance of th
 * mapping semantic analysis and error correction
 * cross-version mapping history comparison
 * web documentation generation (including generics!)
-
-### Planned features
-
-- [ ] reflective accessor generation
+* reflective/MethodHandle accessor generation
 
 ### Mappings
 
