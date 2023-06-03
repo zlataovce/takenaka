@@ -33,6 +33,7 @@ object SourceTypes {
     val KT_CONSTRUCTOR_MAPPING = CONSTRUCTOR_MAPPING.toKClassName()
     val METHOD_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "MethodMapping")
     val KT_METHOD_MAPPING = METHOD_MAPPING.toKClassName()
+    val SUPPLIER: JClassName = JClassName.get(java.util.function.Supplier::class.java)
     val LAZY_SUPPLIER: JClassName = JClassName.get("me.kcra.takenaka.accessor.util", "LazySupplier")
     val NOT_NULL: JClassName = JClassName.get("org.jetbrains.annotations", "NotNull")
     val NULLABLE: JClassName = JClassName.get("org.jetbrains.annotations", "Nullable")

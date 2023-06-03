@@ -17,10 +17,8 @@
 
 package me.kcra.takenaka.accessor.util;
 
-import lombok.AccessLevel;
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.EqualsAndHashCode;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.util.function.Supplier;
@@ -32,7 +30,7 @@ import java.util.function.Supplier;
  * @author Matouš Kučera
  */
 @Data(staticConstructor = "of")
-public final class LazySupplier<T> {
+public final class LazySupplier<T> implements Supplier<T> {
     /**
      * A default object for {@link #value} meaning that the result was not yet initialized.
      */
@@ -45,11 +43,11 @@ public final class LazySupplier<T> {
     private final Supplier<T> resultSupplier;
 
     /**
-     * The cached supplier result.
+     * The cached supplier result, set to {@link #UNINITIALIZED_VALUE} if it wasn't yet initialized.
      */
     @SuppressWarnings("unchecked")
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
+    @ApiStatus.Internal
+    @EqualsAndHashCode.Exclude
     private volatile T value = (T) UNINITIALIZED_VALUE;
 
     /**
@@ -57,11 +55,21 @@ public final class LazySupplier<T> {
      *
      * @return a result
      */
+    @Override
     public T get() {
-        if (value == UNINITIALIZED_VALUE) {
+        if (!isInitialized()) {
             value = resultSupplier.get();
         }
 
         return value;
+    }
+
+    /**
+     * Checks if this supplier has had its value initialized already.
+     *
+     * @return is it initialized?
+     */
+    public boolean isInitialized() {
+        return value != UNINITIALIZED_VALUE;
     }
 }

@@ -253,6 +253,9 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
     /**
      * Adds a new field accessor model with an explicitly defined type.
      *
+     * **The type and name must both be mapped by the same namespace, else generation will fail!**
+     * (e.g. both [type] and [name] must be Mojang names)
+     *
      * @param name the mapped field name
      * @param type the mapped field type, converted with [Any.asDescriptor]
      */
@@ -281,7 +284,40 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
     }
 
     /**
+     * Adds new field accessor models with a type that matches [ClassAccessorBuilder.name].
+     *
+     * **The names must all be mapped by the same namespace as [ClassAccessorBuilder.name], else generation will fail!**
+     * (e.g. both [ClassAccessorBuilder.name] and [name] must be Mojang names)
+     *
+     * @param names the mapped enum constant names
+     */
+    fun enumConstant(vararg names: String) {
+        names.forEach { name ->
+            field(this.name, name)
+        }
+    }
+
+    /**
+     * Adds a new chained field accessor model with a type that matches [ClassAccessorBuilder.name].
+     *
+     * **The names must all be mapped by the same namespace as [ClassAccessorBuilder.name], else generation will fail!**
+     * (e.g. both [ClassAccessorBuilder.name] and [name] must be Mojang names)
+     *
+     * @param names the mapped enum constant names to be chained
+     */
+    fun enumConstantChain(vararg names: String) {
+        fieldChain {
+            names.forEach { name ->
+                item(this@ClassAccessorBuilder.name, name)
+            }
+        }
+    }
+
+    /**
      * Adds a new constructor accessor model.
+     *
+     * **The parameter types must all be mapped by the same namespace, else generation will fail!**
+     * (e.g. all types in [parameters] must be Mojang names)
      *
      * @param parameters the mapped constructor parameters, converted with [Any.asDescriptor]
      */
@@ -291,6 +327,9 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
 
     /**
      * Adds a new method accessor model with an explicitly defined return type.
+     *
+     * **The return type, method name and parameter types must all be mapped by the same namespace, else generation will fail!**
+     * (e.g. [returnType], [name] and all types in [parameters] must be Mojang names)
      *
      * @param returnType the mapped return type
      * @param name the mapped method name
@@ -302,6 +341,9 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
 
     /**
      * Adds a new method accessor model with an inferred return type.
+     *
+     * **The method name and parameter types must both be mapped by the same namespace, else generation will fail!**
+     * (e.g. [name] and all types in [parameters] must be Mojang names)
      *
      * @param name the mapped method name
      * @param version the version of the [name] and [parameters] declaration, latest if null
@@ -332,6 +374,8 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
     /**
      * Adds a new getter method accessor model (`{type} get{name}()` descriptor).
      *
+     * **This method does not account for boolean-abbreviated getters (`isSomething`).**
+     *
      * @param name the mapped method name
      * @param version the version of the [name] declaration, latest if null
      */
@@ -343,6 +387,11 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
     /**
      * Adds a new getter method accessor model (`{type} get{name}()` descriptor).
      *
+     * **This method does not account for boolean-abbreviated getters (`isSomething`).**
+     *
+     * **The type and name must both be mapped by the same namespace, else generation will fail!**
+     * (e.g. both [type] and [name] must be Mojang names)
+     *
      * @param type the mapped getter type, converted with [Any.asDescriptor]
      * @param name the mapped method name
      */
@@ -352,6 +401,8 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
 
     /**
      * Adds a new chained getter method accessor model, useful for chaining together normal and record getters.
+     *
+     * **This method does not account for boolean-abbreviated getters (`isSomething`).**
      *
      * @param name the mapped method name
      * @param version the version of the [name] declaration, latest if null
@@ -367,6 +418,11 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
     /**
      * Adds a new chained getter method accessor model, useful for chaining together normal and record getters.
      *
+     * **This method does not account for boolean-abbreviated getters (`isSomething`).**
+     *
+     * **The type and name must both be mapped by the same namespace, else generation will fail!**
+     * (e.g. both [type] and [name] must be Mojang names)
+     *
      * @param type the mapped getter type, converted with [Any.asDescriptor]
      * @param name the mapped method name
      */
@@ -380,6 +436,9 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
     /**
      * Adds a new setter method accessor model (`{type} set{name}({type})` descriptor).
      *
+     * **The type and name must both be mapped by the same namespace, else generation will fail!**
+     * (e.g. both [type] and [name] must be Mojang names)
+     *
      * @param type the mapped setter type, converted with [Any.asDescriptor]
      * @param name the mapped method name
      */
@@ -389,6 +448,9 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
 
     /**
      * Adds a new chained setter method accessor model, useful for chaining together normal and record setters.
+     *
+     * **The type and name must both be mapped by the same namespace, else generation will fail!**
+     * (e.g. both [type] and [name] must be Mojang names)
      *
      * @param type the mapped setter type, converted with [Any.asDescriptor]
      * @param name the mapped method name

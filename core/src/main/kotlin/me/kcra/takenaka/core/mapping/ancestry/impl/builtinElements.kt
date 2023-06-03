@@ -38,42 +38,42 @@ typealias ClassAncestryNode = AncestryTree.Node<MappingTreeView.ClassMappingView
  * @param allowedNamespaces namespaces that are used in this tree for tracing history, not distinguished by version; empty if all namespaces should be considered
  * @return the ancestry tree
  */
-fun classAncestryTreeOf(mappings: MappingsMap, allowedNamespaces: List<String> = emptyList()): AncestryTree<MappingTreeView.ClassMappingView> =
-    buildAncestryTree {
-        trees += mappings
+fun classAncestryTreeOf(mappings: MappingsMap, allowedNamespaces: List<String> = emptyList()): AncestryTree<MappingTreeView.ClassMappingView> = buildAncestryTree {
+    trees += mappings
 
-        // convert to sorted map to ensure proper ordering
-        mappings.toSortedMap().forEach { (version, tree) ->
-            val treeAllowedNamespaces = allowedNamespaces
-                .map(tree::getNamespaceId)
-                .filter { it != MappingTreeView.NULL_NAMESPACE_ID }
-                .ifEmpty { tree.dstNamespaceIds.toList() }
-                .toTypedArray()
+    // convert to sorted map to ensure proper ordering
+    mappings.toSortedMap().forEach { (version, tree) ->
+        val treeAllowedNamespaces = allowedNamespaces
+            .map(tree::getNamespaceId)
+            .filter { it != MappingTreeView.NULL_NAMESPACE_ID }
+            .ifEmpty { tree.dstNamespaceIds.toList() }
+            .toTypedArray()
 
-            this@buildAncestryTree.allowedNamespaces[version] = treeAllowedNamespaces
+        this@buildAncestryTree.allowedNamespaces[version] = treeAllowedNamespaces
 
-            tree.classes.forEach { klass ->
-                val classMappings = treeAllowedNamespaces.mapNotNullTo(mutableSetOf(), klass::getDstName)
-                val classMappingsArray = classMappings.toTypedArray() // perf: use array due to marginally better iteration performance
+        tree.classes.forEach { klass ->
+            val classMappings = treeAllowedNamespaces.mapNotNullTo(mutableSetOf(), klass::getDstName)
+            val classMappingsArray = classMappings.toTypedArray() // perf: use array due to marginally better iteration performance
 
-                // do we have a node with one or more equal names in the last version?
-                // if we don't, make a new node and append it to the tree
-                val node = findOrEmpty { node ->
-                    val (lastVersion, lastMapping) = node.last
-                    val lastNames = (node.lastNames ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNull(lastMapping::getDstName))
-                        ?: error("Version ${version.id} has not been mapped yet, make sure mappings are sorted correctly")
+            // do we have a node with one or more equal names in the last version?
+            // if we don't, make a new node and append it to the tree
+            val node = findOrEmpty { node ->
+                val (lastVersion, lastMapping) = node.last
+                val lastNames = (node.lastNames ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNull(lastMapping::getDstName))
+                    ?: error("Version ${version.id} has not been mapped yet, make sure mappings are sorted correctly")
 
-                    return@findOrEmpty classMappingsArray.any(lastNames::contains)
-                }
+                return@findOrEmpty classMappingsArray.any(lastNames::contains)
+            }
 
-                // add the entry for this version to the node
-                val lastValue = node.put(version, klass)
-                if (lastValue == null) {
-                    node.lastNames = classMappings
-                }
+            // add the entry for this version to the node
+            val lastValue = node.put(version, klass)
+            if (lastValue == null) {
+                node.lastNames = classMappings
             }
         }
     }
+}
+
 /**
  * An alias to shorten generics.
  */

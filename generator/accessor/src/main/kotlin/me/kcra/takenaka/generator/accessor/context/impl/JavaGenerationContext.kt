@@ -67,7 +67,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                 """.trimIndent().escape()
             )
             .addField(
-                FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.LAZY_SUPPLIER, SourceTypes.CLASS_WILDCARD), "TYPE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.CLASS_WILDCARD), "TYPE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                     .addAnnotation(SourceTypes.NOT_NULL)
                     .initializer("\$T.of(\$T.MAPPING::getClazz)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
                     .build()
@@ -176,7 +176,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                     val mod = fieldNode.last.value.modifiers
                     if ((mod and Opcodes.ACC_STATIC) != 0 && (mod and Opcodes.ACC_FINAL) != 0) { // constant
                         accessorBuilder.addField(
-                            FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.LAZY_SUPPLIER, JClassName.OBJECT), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                            FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, JClassName.OBJECT), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                 .addAnnotation(SourceTypes.NOT_NULL)
                                 .addJavadoc(
                                     """
@@ -192,7 +192,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                         when (generator.config.accessorFlavor) {
                             AccessorFlavor.REFLECTION -> {
                                 accessorBuilder.addField(
-                                    FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.LAZY_SUPPLIER, SourceTypes.FIELD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                    FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.FIELD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                         .addAnnotation(SourceTypes.NOT_NULL)
                                         .addJavadoc(
                                             """
@@ -207,7 +207,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                             }
                             AccessorFlavor.METHOD_HANDLES -> {
                                 accessorBuilder.addField(
-                                    FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.LAZY_SUPPLIER, SourceTypes.METHOD_HANDLE), "${accessorName}_GETTER", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                    FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), "${accessorName}_GETTER", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                         .addAnnotation(SourceTypes.NOT_NULL)
                                         .addJavadoc(
                                             """
@@ -220,7 +220,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                                         .build()
                                 )
                                 accessorBuilder.addField(
-                                    FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.LAZY_SUPPLIER, SourceTypes.METHOD_HANDLE), "${accessorName}_SETTER", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                    FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), "${accessorName}_SETTER", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                         .addAnnotation(SourceTypes.NOT_NULL)
                                         .addJavadoc(
                                             """
@@ -268,7 +268,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                     when (generator.config.accessorFlavor) {
                         AccessorFlavor.REFLECTION -> {
                             accessorBuilder.addField(
-                                FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.LAZY_SUPPLIER, SourceTypes.CONSTRUCTOR_WILDCARD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.CONSTRUCTOR_WILDCARD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                     .addAnnotation(SourceTypes.NOT_NULL)
                                     .addJavadoc(
                                         """
@@ -283,7 +283,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                         }
                         AccessorFlavor.METHOD_HANDLES -> {
                             accessorBuilder.addField(
-                                FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.LAZY_SUPPLIER, SourceTypes.METHOD_HANDLE), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                     .addAnnotation(SourceTypes.NOT_NULL)
                                     .addJavadoc(
                                         """
@@ -326,7 +326,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                     when (generator.config.accessorFlavor) {
                         AccessorFlavor.REFLECTION -> {
                             accessorBuilder.addField(
-                                FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.LAZY_SUPPLIER, SourceTypes.METHOD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                     .addAnnotation(SourceTypes.NOT_NULL)
                                     .addJavadoc(
                                         """
@@ -341,7 +341,7 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
                         }
                         AccessorFlavor.METHOD_HANDLES -> {
                             accessorBuilder.addField(
-                                FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.LAZY_SUPPLIER, SourceTypes.METHOD_HANDLE), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                     .addAnnotation(SourceTypes.NOT_NULL)
                                     .addJavadoc(
                                         """
