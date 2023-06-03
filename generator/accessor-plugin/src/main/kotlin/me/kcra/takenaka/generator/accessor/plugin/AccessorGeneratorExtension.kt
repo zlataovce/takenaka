@@ -25,6 +25,7 @@ import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.model.*
+import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
@@ -120,11 +121,11 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      *
      * @param older the older version range bound (inclusive)
      * @param newer the newer version range bound (inclusive), defaults to the newest if null
-     * @param builder the version range configurator
+     * @param block the version range configurator
      */
     @JvmOverloads
-    fun versionRange(older: String, newer: String? = null, builder: VersionRangeBuilder.() -> Unit) {
-        this.versions.addAll(VersionRangeBuilder(manifest, older, newer).apply(builder).toVersionList().map(Version::id))
+    fun versionRange(older: String, newer: String? = null, block: Action<VersionRangeBuilder>) {
+        this.versions.addAll(VersionRangeBuilder(manifest, older, newer).apply(block::execute).toVersionList().map(Version::id))
     }
 
     /**
@@ -212,12 +213,19 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      * Creates a new accessor model with the supplied name.
      *
      * @param name the mapped class name
+     * @return the mapped class name ([name]), use this to refer to this class elsewhere
+     */
+    fun mapClass(name: String): String = mapClass(name) {}
+
+    /**
+     * Creates a new accessor model with the supplied name.
+     *
+     * @param name the mapped class name
      * @param block the builder action
      * @return the mapped class name ([name]), use this to refer to this class elsewhere
      */
-    @JvmOverloads
-    fun mapClass(name: String, block: ClassAccessorBuilder.() -> Unit = {}): String {
-        accessors.add(ClassAccessorBuilder(name, manifest).apply(block).toClassAccessor())
+    fun mapClass(name: String, block: Action<ClassAccessorBuilder>): String {
+        accessors.add(ClassAccessorBuilder(name, manifest).apply(block::execute).toClassAccessor())
         return name
     }
 }
@@ -279,8 +287,8 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
      *
      * @param block the builder action
      */
-    fun fieldChain(block: FieldChainBuilder.() -> Unit) {
-        fields += FieldChainBuilder(manifest).apply(block).toFieldAccessor()
+    fun fieldChain(block: Action<FieldChainBuilder>) {
+        fields += FieldChainBuilder(manifest).apply(block::execute).toFieldAccessor()
     }
 
     /**
@@ -367,8 +375,8 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
      *
      * @param block the builder action
      */
-    fun methodChain(block: MethodChainBuilder.() -> Unit) {
-        methods += MethodChainBuilder(manifest).apply(block).toMethodAccessor()
+    fun methodChain(block: Action<MethodChainBuilder>) {
+        methods += MethodChainBuilder(manifest).apply(block::execute).toMethodAccessor()
     }
 
     /**

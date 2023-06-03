@@ -290,6 +290,21 @@ class VersionRangeBuilder(manifest: VersionManifest, older: String? = null, newe
 }
 
 /**
+ * Builds a version range.
+ *
+ * @param older the older version bound (inclusive), defaults to the oldest if null
+ * @param newer the newer version bound (inclusive), defaults to the newest if null
+ * @param block the range configurer, includes all releases by default
+ */
+inline fun VersionManifest.range(
+    older: String? = null,
+    newer: String? = null,
+    block: VersionRangeBuilder.() -> Unit = { includeTypes(Version.Type.RELEASE) }
+): List<Version> {
+    return VersionRangeBuilder(this, older, newer).apply(block).toVersionList()
+}
+
+/**
  * Spigot's version manifest.
  *
  * @property refs the Git ref hashes (BuildData, Bukkit, CraftBukkit, Spigot)
