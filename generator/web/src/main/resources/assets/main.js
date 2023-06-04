@@ -76,73 +76,80 @@ const search = (query) => {
     const resultsBox = document.getElementById("search-results-box");
 
     query = query.trim();
+    if (!query) {
+        resultsBox.replaceChildren();
+        return;
+    }
+
+    const predicates = [];
+    let newQuery = "";
+    for (const option of query.split(" ")) {
+        const optionParts = option.split(":", 2);
+        if (optionParts.length === 2) {
+            switch (optionParts[0]) {
+                case "namespace":
+                case "type":
+                case "ns":
+                    const namespaceTarget = optionParts[1].toLowerCase();
+                    predicates.push((klass, ns, klassName) => ns.toLowerCase() === namespaceTarget);
+                    break;
+
+                // add more search options here
+            }
+        } else {
+            newQuery = newQuery + option;
+        }
+    }
+
+    newQuery = newQuery.replaceAll(".", "/").toLowerCase().trim();
+    if (!newQuery) {
+        resultsBox.replaceChildren();
+        return;
+    }
 
     const results = [];
-    if (query) {
-        const predicates = [];
+    for (const klass of classIndex) {
+        for (const ns in klass) {
+            const klassName = klass[ns];
 
-        let newQuery = "";
-        for (const option of query.split(" ")) {
-            const optionParts = option.split(":", 2);
-            if (optionParts.length === 2) {
-                switch (optionParts[0]) {
-                    case "namespace":
-                    case "type":
-                    case "ns":
-                        const namespaceTarget = optionParts[1].toLowerCase();
-                        predicates.push((klass, ns, klassName) => ns.toLowerCase() === namespaceTarget);
-                        break;
+            // limit search to 50 results, should be plenty
+            if (results.length < 50 && klassName) {
+                if (!klassName.toLowerCase().includes(newQuery)) continue;
+                if (!predicates.every((p) => p(klass, ns, klassName))) continue;
 
-                    // add more search options here
+                const resultElem = document.createElement("div");
+                resultElem.classList.add("search-result");
+                resultElem.addEventListener("click", () => {
+                    window.location.pathname = `${baseUrl}/${Object.values(klass).find((e) => e != null)}.html`;
+                });
+
+                const lastSlashIndex = klassName.lastIndexOf("/");
+                const klassPackage = lastSlashIndex !== -1 ? klassName.substring(0, lastSlashIndex).replaceAll("/", ".") : null;
+                const simpleKlassName = lastSlashIndex !== -1 ? klassName.substring(lastSlashIndex + 1) : klassName;
+
+                const title = document.createElement("p");
+                title.classList.add("search-result-title");
+                title.innerText = simpleKlassName;
+                resultElem.appendChild(title);
+
+                if (klassPackage) {
+                    const packageSubtitle = document.createElement("p");
+                    packageSubtitle.classList.add("search-result-subtitle");
+                    packageSubtitle.innerText = `package: ${klassPackage}`;
+                    resultElem.appendChild(packageSubtitle);
                 }
-            } else {
-                newQuery = newQuery + option;
-            }
-        }
 
-        newQuery = newQuery.replaceAll(".", "/").toLowerCase();
+                const nsSubtitle = document.createElement("p");
+                nsSubtitle.classList.add("search-result-subtitle");
+                nsSubtitle.innerHTML = `namespace: <span style="color:${colors[ns]}">${ns}</span>`;
+                resultElem.appendChild(nsSubtitle);
 
-        for (const klass of classIndex) {
-            for (const ns in klass) {
-                const klassName = klass[ns];
-
-                // limit to 5 results
-                if (results.length <= 5 && klassName) {
-                    if (!klassName.toLowerCase().includes(newQuery)) continue;
-                    if (!predicates.every((p) => p(klass, ns, klassName))) continue;
-
-                    const resultElem = document.createElement("div");
-                    resultElem.classList.add("search-result");
-                    resultElem.addEventListener("click", () => {
-                        window.location.pathname = `${baseUrl}/${Object.values(klass).find((e) => e != null)}.html`;
-                    });
-
-                    const lastSlashIndex = klassName.lastIndexOf("/");
-                    const klassPackage = lastSlashIndex !== -1 ? klassName.substring(0, lastSlashIndex).replaceAll("/", ".") : null;
-                    const simpleKlassName = lastSlashIndex !== -1 ? klassName.substring(lastSlashIndex + 1) : klassName;
-
-                    const title = document.createElement("p");
-                    title.classList.add("search-result-title");
-                    title.innerText = simpleKlassName;
-                    resultElem.appendChild(title);
-
-                    if (klassPackage) {
-                        const packageSubtitle = document.createElement("p");
-                        packageSubtitle.classList.add("search-result-subtitle");
-                        packageSubtitle.innerText = `package: ${klassPackage}`;
-                        resultElem.appendChild(packageSubtitle);
-                    }
-
-                    const nsSubtitle = document.createElement("p");
-                    nsSubtitle.classList.add("search-result-subtitle");
-                    nsSubtitle.innerHTML = `namespace: <span style="color:${colors[ns]}">${ns}</span>`;
-                    resultElem.appendChild(nsSubtitle);
-
-                    results.push(resultElem);
-                }
+                // more similar = lower number
+                results.push({ similarity: klassName.length - newQuery.length, element: resultElem });
             }
         }
     }
 
-    resultsBox.replaceChildren(...results);
+    results.sort((a, b) => a.similarity - b.similarity);
+    resultsBox.replaceChildren(...(results.map((r) => r.element)));
 };
