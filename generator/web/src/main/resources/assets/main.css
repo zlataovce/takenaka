@@ -97,7 +97,7 @@ nav[data-collapsed="yes"] {
     }
 }
 
-code {
+pre {
     display: block;
     padding: 0.75rem;
     white-space: pre-wrap;
@@ -105,6 +105,13 @@ code {
     background-color: var(--code-block);
     font-family: var(--font-monospace);
     word-break: break-word;
+}
+
+code {
+    padding: 0.25rem;
+    color: var(--text-muted);
+    background-color: var(--code-block);
+    font-family: var(--font-monospace);
 }
 
 h1 {
@@ -481,4 +488,8 @@ input::placeholder {
     margin-top: 0.5rem;
     margin-bottom: 0.25rem;
     color: var(--text-muted);
+}
+
+.welcome-message {
+    color: var(--text);
 }

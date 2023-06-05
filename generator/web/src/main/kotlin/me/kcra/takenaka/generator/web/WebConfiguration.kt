@@ -24,6 +24,7 @@ import net.fabricmc.mappingio.MappingUtil
 /**
  * Configuration for [WebGenerator].
  *
+ * @property welcomeMessage a welcoming message that is displayed on the main page, null if it should not be added, supports arbitrary HTML markup
  * @property emitMetaTags whether HTML metadata tags (per [me.kcra.takenaka.generator.web.components.metadataComponent]) should be added to pages
  * @property transformers a list of transformers that transform the output
  * @property namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
@@ -34,6 +35,7 @@ import net.fabricmc.mappingio.MappingUtil
  * @author Matouš Kučera
  */
 data class WebConfiguration(
+    val welcomeMessage: String? = null,
     val emitMetaTags: Boolean = true,
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
@@ -49,6 +51,11 @@ data class WebConfiguration(
  * @author Matouš Kučera
  */
 class WebConfigurationBuilder {
+    /**
+     * A welcoming message that is displayed on the main page, null if it should not be added, supports arbitrary HTML markup.
+     */
+    var welcomeMessage: String? = null
+
     /**
      * Whether HTML metadata tags (per [me.kcra.takenaka.generator.web.components.metadataComponent]) should be added to pages.
      */
@@ -83,6 +90,15 @@ class WebConfigurationBuilder {
      * Namespaces that should be used for computing history, empty if namespaces from [namespaceFriendlinessIndex] should be considered (excluding the obfuscated one).
      */
     var historicalNamespaces = mutableListOf<String>()
+
+    /**
+     * Sets [welcomeMessage].
+     *
+     * @param value the value
+     */
+    fun welcomeMessage(value: String) {
+        welcomeMessage = value
+    }
 
     /**
      * Sets [emitMetaTags].
@@ -198,6 +214,7 @@ class WebConfigurationBuilder {
      * @return the configuration
      */
     fun toWebConfig() = WebConfiguration(
+        welcomeMessage,
         emitMetaTags,
         transformers,
         namespaceFriendlinessIndex,

@@ -63,7 +63,7 @@ fun GenerationContext.licensePage(workspace: VersionedWorkspace, licenses: Map<S
                         }
                     }
 
-                    code {
+                    pre {
                         +license.content.replace("\\n", "\n")
                     }
 

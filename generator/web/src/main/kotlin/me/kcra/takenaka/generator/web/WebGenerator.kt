@@ -190,7 +190,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                 }
             }
 
-            versionsPage(mappings.mapValues { it.value.dstNamespaces })
+            versionsPage(config.welcomeMessage, mappings.mapValues { it.value.dstNamespaces })
                 .serialize(workspace, "index.html")
         }
 

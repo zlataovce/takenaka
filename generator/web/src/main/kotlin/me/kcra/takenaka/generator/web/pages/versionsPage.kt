@@ -21,19 +21,17 @@ import kotlinx.html.*
 import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.generator.web.GenerationContext
-import me.kcra.takenaka.generator.web.components.badgeComponent
-import me.kcra.takenaka.generator.web.components.defaultResourcesComponent
-import me.kcra.takenaka.generator.web.components.footerPlaceholderComponent
-import me.kcra.takenaka.generator.web.components.navPlaceholderComponent
+import me.kcra.takenaka.generator.web.components.*
 import org.w3c.dom.Document
 
 /**
  * Generates a version list page.
  *
+ * @param welcomeMessage a welcome message that is displayed at the top of this page, null if it shouldn't be added
  * @param versions the versions with their supported mappings
  * @return the generated document
  */
-fun GenerationContext.versionsPage(versions: Map<Version, List<String>>): Document = createHTMLDocument().html {
+fun GenerationContext.versionsPage(welcomeMessage: String?, versions: Map<Version, List<String>>): Document = createHTMLDocument().html {
     head {
         defaultResourcesComponent()
         title(content = "mappings")
@@ -41,6 +39,15 @@ fun GenerationContext.versionsPage(versions: Map<Version, List<String>>): Docume
     body {
         navPlaceholderComponent()
         main {
+            if (welcomeMessage != null) {
+                div(classes = "welcome-message") {
+                    unsafe {
+                        +welcomeMessage
+                    }
+                    spacerBottomComponent()
+                }
+            }
+
             table(classes = "styled-table") {
                 thead {
                     tr {
