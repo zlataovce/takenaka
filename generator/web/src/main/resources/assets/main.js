@@ -91,7 +91,9 @@ const search = (query) => {
                 case "type":
                 case "ns":
                     const namespaceTarget = optionParts[1].toLowerCase();
-                    predicates.push((klass, ns, klassName) => ns.toLowerCase() === namespaceTarget);
+                    // you can use partial namespace names in this option
+                    // useful if you want to save keystrokes (e.g. `ns:obf` instead of `ns:obfuscated`)
+                    predicates.push((klass, ns, _) => ns.toLowerCase().startsWith(namespaceTarget));
                     break;
 
                 // add more search options here
