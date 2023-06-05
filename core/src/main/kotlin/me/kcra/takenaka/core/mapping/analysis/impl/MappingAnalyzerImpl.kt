@@ -54,20 +54,27 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
                 // works on the principle of presuming that the owner part
                 // of the inner/anonymous class name should be completed with the owner's mapping
 
-                val dollarIndex = klass.srcName.lastIndexOf('$')
+                var owner = klass.srcName
+                var dollarIndex = owner.lastIndexOf('$')
+
                 if (dollarIndex != -1 && klass.getDstName(nsId) == null) {
-                    val owner = klass.srcName.substring(0, dollarIndex)
+                    while (dollarIndex != -1) {
+                        owner = owner.substring(0, dollarIndex)
 
-                    val ownerKlass = klass.tree.getClass(owner)
-                    if (ownerKlass != null) { // owner is from the mapping tree
-                        val ownerName = ownerKlass.getDstName(nsId)
-                        if (ownerName != null) { // owner has a mapping
-                            val name = klass.srcName.substring(dollarIndex + 1)
+                        val ownerKlass = klass.tree.getClass(owner)
+                        if (ownerKlass != null) { // owner is from the mapping tree
+                            val ownerName = ownerKlass.getDstName(nsId)
+                            if (ownerName != null) { // owner has a mapping
+                                val name = klass.srcName.substring(dollarIndex + 1)
 
-                            problem(klass, ns, StandardProblemKinds.INNER_CLASS_OWNER_NOT_MAPPED) {
-                                klass.setDstName("$ownerName$$name", nsId)
+                                problem(klass, ns, StandardProblemKinds.INNER_CLASS_OWNER_NOT_MAPPED) {
+                                    klass.setDstName("$ownerName$$name", nsId)
+                                }
+                                break // we've found what we're looking for
                             }
                         }
+
+                        dollarIndex = owner.lastIndexOf('$')
                     }
                 }
             }

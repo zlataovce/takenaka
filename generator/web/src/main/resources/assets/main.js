@@ -108,12 +108,16 @@ const search = (query) => {
     }
 
     const results = [];
+
+    klassLoop:
     for (const klass of classIndex) {
+        // limit search to 50 results, should be plenty
+        if (results.length >= 50) break;
+
         for (const ns in klass) {
             const klassName = klass[ns];
 
-            // limit search to 50 results, should be plenty
-            if (results.length < 50 && klassName) {
+            if (klassName) {
                 if (!klassName.toLowerCase().includes(newQuery)) continue;
                 if (!predicates.every((p) => p(klass, ns, klassName))) continue;
 
@@ -146,6 +150,8 @@ const search = (query) => {
 
                 // more similar = lower number
                 results.push({ similarity: klassName.length - newQuery.length, element: resultElem });
+                // only show a class once, skip the other namespaces
+                continue klassLoop;
             }
         }
     }
