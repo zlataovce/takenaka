@@ -23,6 +23,7 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.resolve.*
+import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
@@ -196,8 +197,9 @@ abstract class AbstractSpigotMappingResolver(
         }
         
         val pomPath by pomOutput
-        
-        pomPath?.reader()?.use { xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v -> visitor.visitMetadata(META_CB_NMS_VERSION, v) } }
+
+        // prepend "v" before the NMS version to match the package name
+        pomPath?.reader()?.use { xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v -> visitor.visitMetadata(META_CB_NMS_VERSION, "v$v") } }
     }
 
     companion object {
@@ -259,6 +261,71 @@ class SpigotClassMappingResolver(
      */
     constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper) :
             this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper))
+
+    /**
+     * Visits the mappings to the supplied visitor.
+     *
+     * @param visitor the mapping visitor
+     */
+    override fun accept(visitor: MappingVisitor) {
+        super.accept(AnalyzingVisitor(visitor))
+    }
+
+    /**
+     * A helper class for conditionally applying implicit mappings.
+     *
+     * @param next the mapping visitor to forward to
+     */
+    private class AnalyzingVisitor(next: MappingVisitor) : ForwardingMappingVisitor(next) {
+        /**
+         * Whether the visited destination mappings had no package names,
+         * i.e. expected to be completed with [me.kcra.takenaka.core.mapping.adapter.LegacySpigotMappingPrepender] or similar.
+         */
+        var hasImplicitPackages = false
+
+        /**
+         * Whether the `net.minecraft.server.MinecraftServer` class was mapped.
+         */
+        var visitedMinecraftServer = false
+
+        override fun visitClass(srcName: String): Boolean {
+            if (srcName == "net/minecraft/server/MinecraftServer") {
+                visitedMinecraftServer = true
+            }
+
+            return super.visitClass(srcName)
+        }
+
+        override fun visitDstName(targetKind: MappedElementKind, namespace: Int, name: String?) {
+            if (targetKind == MappedElementKind.CLASS) {
+                val internalName = name?.toInternalName()
+                if (internalName != null && '/' !in internalName) { // no package name
+                    hasImplicitPackages = true
+                }
+            }
+
+            super.visitDstName(targetKind, namespace, name)
+        }
+
+        override fun visitEnd(): Boolean {
+            // add implicit (net/minecraft/server/)MinecraftServer mapping, if not declared
+            if (!visitedMinecraftServer) {
+                if (super.visitClass("net/minecraft/server/MinecraftServer")) {
+                    super.visitDstName(
+                        MappedElementKind.CLASS,
+                        0,
+                        if (hasImplicitPackages) {
+                            "MinecraftServer"
+                        } else {
+                            "net/minecraft/server/MinecraftServer"
+                        }
+                    )
+                }
+            }
+
+            return super.visitEnd()
+        }
+    }
 }
 
 /**
@@ -322,12 +389,12 @@ class SpigotMemberMappingResolver(
             // perf: reorder queries based on previously read values
             if (expectPrefixedClassNames) {
                 getPrefixedClass(name) // search for prefixed class names
-                    ?: visitor0.getClass(name) // search for unobfuscated class names, like Main and MinecraftServer
+                    ?: visitor0.getClass(name) // search for unobfuscated class names, like Main
                     ?: visitor0.getClass(name, namespaceId)
             } else {
                 visitor0.getClass(name, namespaceId)
                     ?: getPrefixedClass(name) // search for prefixed class names
-                    ?: visitor0.getClass(name) // search for unobfuscated class names, like Main and MinecraftServer
+                    ?: visitor0.getClass(name) // search for unobfuscated class names, like Main
             }
 
         val srcRemapper = object : Remapper() {

@@ -28,7 +28,7 @@ import net.fabricmc.mappingio.tree.MappingTree
 /**
  * A regular expression that matches CraftBukkit NMS version element name parts (`/VVV/`).
  */
-private val CB_VERSION_REGEX = "/\\d+_\\d+_R\\d+/".toRegex()
+private val CB_VERSION_REGEX = "/v\\d+_\\d+_R\\d+/".toRegex()
 
 /**
  * A [MappingVisitor] that replaces `VVV` in Spigot mappings for the appropriate CraftBukkit NMS version string.
