@@ -356,6 +356,26 @@ input::placeholder {
     font-size: 0.875rem;
     line-height: 1.25rem;
     padding-left: 0.5rem;
+    font-family: var(--font-monospace);
+    letter-spacing: -0.1px;
+}
+
+.mapping-value > * {
+    font-family: var(--font-monospace);
+    letter-spacing: -0.1px;
+}
+
+.constructor-value {
+    word-break: break-all;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-family: var(--font-monospace);
+    letter-spacing: -0.1px;
+}
+
+.constructor-value > * {
+    font-family: var(--font-monospace);
+    letter-spacing: -0.1px;
 }
 
 .styled-table {
@@ -398,13 +418,13 @@ input::placeholder {
     padding-right: 0;
 }
 
-.member-modifiers {
+.modifier-value {
     font-family: var(--font-monospace);
     vertical-align: top;
     word-break: break-word;
 }
 
-.member-modifiers > * {
+.modifier-value > * {
     font-family: var(--font-monospace);
 }
 

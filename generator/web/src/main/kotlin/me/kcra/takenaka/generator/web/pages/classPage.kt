@@ -150,7 +150,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                     tbody {
                         klass.fields.forEach { field ->
                             tr {
-                                td(classes = "member-modifiers") {
+                                td(classes = "modifier-value") {
                                     +field.modifiers.formatModifiers(Modifier.fieldModifiers())
 
                                     unsafe {
@@ -206,10 +206,10 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                         constructors.forEach { ctor ->
                             val ctorMod = ctor.modifiers
                             tr {
-                                td(classes = "member-modifiers") {
+                                td(classes = "modifier-value") {
                                     +ctorMod.formatModifiers(Modifier.constructorModifiers())
                                 }
-                                td {
+                                td(classes = "constructor-value") {
                                     unsafe {
                                         val ctorDeclaration = formatMethodDescriptor(ctor, ctorMod, workspace.version, friendlyNameRemapper, linkRemapper = null)
 
@@ -247,7 +247,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                         methods.forEach { method ->
                             val methodMod = method.modifiers
                             tr {
-                                td(classes = "member-modifiers") {
+                                td(classes = "modifier-value") {
                                     unsafe {
                                         var mask = Modifier.methodModifiers()
                                         // remove public and abstract modifiers on interface members, they are implicit
