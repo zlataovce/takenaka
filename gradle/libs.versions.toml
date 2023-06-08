@@ -11,7 +11,6 @@ kotlin-stdlib-jdk8 = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib-jdk
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
 asm = { group = "org.ow2.asm", name = "asm", version.ref = "asm" }
 asm-commons = { group = "org.ow2.asm", name = "asm-commons", version.ref = "asm" }
-asm-tree = { group = "org.ow2.asm", name = "asm-tree", version.ref = "asm" }
 jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin", version.ref = "jackson" }
 jackson-datatype-jsr310 = { group = "com.fasterxml.jackson.datatype", name = "jackson-datatype-jsr310", version.ref = "jackson" }
 jackson-dataformat-xml = { group = "com.fasterxml.jackson.dataformat", name = "jackson-dataformat-xml", version.ref = "jackson" }
@@ -31,7 +30,7 @@ build-gradle-versions = { group = "com.github.ben-manes", name = "gradle-version
 
 [bundles]
 kotlin = ["kotlin-stdlib-jdk8", "kotlin-reflect"]
-asm = ["asm", "asm-commons", "asm-tree"]
+asm = ["asm", "asm-commons"]
 jackson = ["jackson-module-kotlin", "jackson-datatype-jsr310", "jackson-dataformat-xml"]
 
 [plugins]

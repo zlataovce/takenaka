@@ -31,8 +31,7 @@ import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.tree.MappingTreeView
-import org.objectweb.asm.ClassReader
-import org.objectweb.asm.tree.ClassNode
+import org.objectweb.asm.*
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
@@ -58,11 +57,6 @@ class VanillaMappingContributor(
     override val targetNamespace: String = MappingUtil.NS_SOURCE_FALLBACK
     override val outputs: List<Output<out Path?>>
         get() = listOf(serverJarOutput)
-
-    /**
-     * The raw classes of the server JAR.
-     */
-    val classes: List<ClassNode> by lazy(::readServerJar)
 
     /**
      * Creates a new resolver with a default metadata provider.
@@ -117,89 +111,39 @@ class VanillaMappingContributor(
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        while (true) {
-            if (visitor.visitHeader()) {
-                visitor.visitNamespaces(targetNamespace, listOf(NS_MODIFIERS, NS_SIGNATURE, NS_SUPER, NS_INTERFACES))
-            }
+        val serverJar by serverJarOutput
 
-            if (visitor.visitContent()) {
-                classes.forEach { klass ->
-                    if (visitor.visitClass(klass.name)) {
-                        visitor.visitDstName(MappedElementKind.CLASS, 0, klass.access.toString(10))
-                        visitor.visitDstName(MappedElementKind.CLASS, 1, klass.signature)
+        fun read(zf: ZipFile) {
+            val classVisitor = MappingClassVisitor(visitor, targetNamespace)
 
-                        val superName = klass.superName ?: "java/lang/Object"
-                        if (superName != "java/lang/Object") {
-                            visitor.visitDstName(MappedElementKind.CLASS, 2, superName)
-                        }
-                        if (klass.interfaces.isNotEmpty()) {
-                            visitor.visitDstName(MappedElementKind.CLASS, 3, klass.interfaces.joinToString(","))
-                        }
-
-                        if (visitor.visitElementContent(MappedElementKind.CLASS)) {
-                            klass.fields.forEach { field ->
-                                if (visitor.visitField(field.name, field.desc)) {
-                                    visitor.visitDstName(MappedElementKind.FIELD, 0, field.access.toString(10))
-                                    visitor.visitDstName(MappedElementKind.FIELD, 1, field.signature)
-                                    visitor.visitElementContent(MappedElementKind.FIELD)
-                                }
-                            }
-
-                            klass.methods.forEach { method ->
-                                if (visitor.visitMethod(method.name, method.desc)) {
-                                    visitor.visitDstName(MappedElementKind.METHOD, 0, method.access.toString(10))
-                                    visitor.visitDstName(MappedElementKind.METHOD, 1, method.signature)
-                                    visitor.visitElementContent(MappedElementKind.METHOD)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (visitor.visitEnd()) {
-                break
-            }
-        }
-    }
-
-    /**
-     * Reads the server JAR (bundled JAR in case of a bundler).
-     *
-     * @return the classes
-     */
-    private fun readServerJar(): List<ClassNode> {
-        var file = serverJarOutput.value ?: return emptyList()
-
-        fun readJar(zf: ZipFile): List<ClassNode> {
-            return zf.stream()
+            zf.stream()
                 .filter { it.name.matches(CLASS_PATTERN) && !it.isDirectory }
                 .map { entry ->
-                    ClassNode().also { klass ->
-                        zf.getInputStream(entry).use { inputStream ->
-                            // ignore any method content and debugging data
-                            ClassReader(inputStream).accept(klass, ClassReader.SKIP_CODE or ClassReader.SKIP_DEBUG)
-                        }
+                    zf.getInputStream(entry).use { inputStream ->
+                        // ignore any method content and debugging data
+                        ClassReader(inputStream).accept(classVisitor, ClassReader.SKIP_CODE or ClassReader.SKIP_DEBUG)
                     }
                 }
                 .collect(Collectors.toList())
         }
 
-        ZipFile(file.toFile()).use { zf ->
-            if (zf.getEntry("net/minecraft/bundler/Main.class") != null) {
-                file = file.resolveSibling(file.nameWithoutExtension + "-bundled.jar")
+        serverJar?.let { file ->
+            ZipFile(file.toFile()).use { zf ->
+                if (zf.getEntry("net/minecraft/bundler/Main.class") != null) {
+                    val bundledFile = file.resolveSibling(file.nameWithoutExtension + "-bundled.jar")
 
-                if (DefaultWorkspaceOptions.RELAXED_CACHE !in workspace.options || !file.isRegularFile()) {
-                    zf.getInputStream(zf.getEntry("META-INF/versions/${workspace.version.id}/server-${workspace.version.id}.jar")).use {
-                        Files.copy(it, file, StandardCopyOption.REPLACE_EXISTING)
+                    if (DefaultWorkspaceOptions.RELAXED_CACHE !in workspace.options || !bundledFile.isRegularFile()) {
+                        zf.getInputStream(zf.getEntry("META-INF/versions/${workspace.version.id}/server-${workspace.version.id}.jar")).use {
+                            Files.copy(it, bundledFile, StandardCopyOption.REPLACE_EXISTING)
+                        }
+                        logger.info { "extracted ${workspace.version.id} bundled JAR" }
                     }
-                    logger.info { "extracted ${workspace.version.id} bundled JAR" }
+
+                    return ZipFile(bundledFile.toFile()).use(::read)
                 }
 
-                return ZipFile(file.toFile()).use(::readJar)
+                return read(zf)
             }
-
-            return readJar(zf)
         }
     }
 
@@ -235,6 +179,78 @@ class VanillaMappingContributor(
          * All namespaces that this contributor produces.
          */
         val NAMESPACES = listOf(NS_MODIFIERS, NS_SIGNATURE, NS_SUPER, NS_INTERFACES)
+    }
+
+    /**
+     * A [ClassVisitor] that visits classes, fields and methods to a [MappingVisitor].
+     *
+     * @property visitor the targeted mapping visitor
+     * @param sourceNs the source namespace (contains the names of the visited classes)
+     */
+    class MappingClassVisitor(val visitor: MappingVisitor, sourceNs: String) : ClassVisitor(Opcodes.ASM9) {
+        init {
+            if (visitor.visitHeader()) {
+                visitor.visitNamespaces(sourceNs, listOf(NS_MODIFIERS, NS_SIGNATURE, NS_SUPER, NS_INTERFACES))
+            }
+
+            visitor.visitContent()
+        }
+
+        override fun visit(
+            version: Int,
+            access: Int,
+            name: String,
+            signature: String?,
+            superName: String?,
+            interfaces: Array<String>?
+        ) {
+            if (visitor.visitClass(name)) {
+                visitor.visitDstName(MappedElementKind.CLASS, 0, access.toString(10))
+                visitor.visitDstName(MappedElementKind.CLASS, 1, signature)
+
+                if (superName != "java/lang/Object") {
+                    visitor.visitDstName(MappedElementKind.CLASS, 2, superName)
+                }
+                if (!interfaces.isNullOrEmpty()) {
+                    visitor.visitDstName(MappedElementKind.CLASS, 3, interfaces.joinToString(","))
+                }
+            }
+
+            visitor.visitElementContent(MappedElementKind.CLASS)
+        }
+
+        override fun visitField(
+            access: Int,
+            name: String,
+            descriptor: String,
+            signature: String?,
+            value: Any?
+        ): FieldVisitor? {
+            if (visitor.visitField(name, descriptor)) {
+                visitor.visitDstName(MappedElementKind.FIELD, 0, access.toString(10))
+                visitor.visitDstName(MappedElementKind.FIELD, 1, signature)
+                visitor.visitElementContent(MappedElementKind.FIELD)
+            }
+
+            return null
+        }
+
+        override fun visitMethod(
+            access: Int,
+            name: String,
+            descriptor: String,
+            signature: String?,
+            exceptions: Array<String>?
+        ): MethodVisitor? {
+            if (visitor.visitMethod(name, descriptor)) {
+                visitor.visitDstName(MappedElementKind.METHOD, 0, access.toString(10))
+                visitor.visitDstName(MappedElementKind.METHOD, 1, signature)
+                // TODO: exception mapping?
+                visitor.visitElementContent(MappedElementKind.METHOD)
+            }
+
+            return null
+        }
     }
 }
 
