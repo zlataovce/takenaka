@@ -23,6 +23,7 @@ import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.context.impl.JavaGenerationContext
+import me.kcra.takenaka.generator.accessor.context.impl.KotlinGenerationContext
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 
 /**
@@ -56,7 +57,7 @@ suspend inline fun <R> AccessorGenerator.generationContext(flavor: LanguageFlavo
         block(
             when (flavor) {
                 LanguageFlavor.JAVA -> JavaGenerationContext(this@generationContext, this)
-                else -> throw UnsupportedOperationException("Flavor $flavor not supported")
+                LanguageFlavor.KOTLIN -> KotlinGenerationContext(this@generationContext, this)
             }
         )
     }

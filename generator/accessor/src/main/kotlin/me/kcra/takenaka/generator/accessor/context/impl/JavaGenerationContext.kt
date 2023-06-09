@@ -35,7 +35,6 @@ import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import java.nio.file.Path
-import java.text.SimpleDateFormat
 import javax.lang.model.element.Modifier
 
 /**
@@ -401,13 +400,6 @@ open class JavaGenerationContext(override val generator: AccessorGenerator, cont
             .indent(" ".repeat(4)) // 4 spaces
             .build()
             .writeTo(workspace)
-
-    companion object {
-        /**
-         * The file comment's generation timestamp date format.
-         */
-        val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-    }
 }
 
 /**
