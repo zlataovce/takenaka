@@ -200,6 +200,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param types the required types
      * @return the nodes
      */
+    @Suppress("UNUSED_PARAMETER") // API
     protected fun resolveRequiredConstructors(tree: AncestryTree<MappingTreeView.MethodMappingView>, types: RequiredMemberTypes): List<MethodAncestryNode> {
         return emptyList()
     }
@@ -257,6 +258,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param types the required types
      * @return the nodes
      */
+    @Suppress("UNUSED_PARAMETER") // API
     protected fun resolveRequiredMethods(tree: AncestryTree<MappingTreeView.MethodMappingView>, types: RequiredMemberTypes): List<MethodAncestryNode> {
         return emptyList()
     }
