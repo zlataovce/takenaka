@@ -132,6 +132,13 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
             }
 
             if (klass.fields.isNotEmpty()) {
+                var fieldMask = Modifier.fieldModifiers()
+                // remove public, static and final modifiers on interface fields, implicit
+                // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.3
+                if ((klassDeclaration.modifiers and Opcodes.ACC_INTERFACE) != 0) {
+                    fieldMask = fieldMask and Modifier.PUBLIC.inv() and Modifier.STATIC.inv() and Modifier.FINAL.inv()
+                }
+
                 addContentSpacer()
                 h4 {
                     +"Field summary"
@@ -151,7 +158,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                         klass.fields.forEach { field ->
                             tr {
                                 td(classes = "modifier-value") {
-                                    +field.modifiers.formatModifiers(Modifier.fieldModifiers())
+                                    +field.modifiers.formatModifiers(fieldMask)
 
                                     unsafe {
                                         +formatFieldDescriptor(field, workspace.version, friendlyNameRemapper)
@@ -224,10 +231,16 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                 }
             }
 
-            // static initializers are filtered in AbstractGenerator, no need to check it here
             // skip constructors and implicit enum methods
             val methods = klass.methods.filter { !it.isConstructor && ((klassDeclaration.modifiers and Opcodes.ACC_ENUM) == 0 || !(it.isEnumValueOf || it.isEnumValues)) }
             if (methods.isNotEmpty()) {
+                var methodMask = Modifier.methodModifiers()
+                // remove public and abstract modifiers on interface methods, implicit
+                // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4
+                if ((klassDeclaration.modifiers and Opcodes.ACC_INTERFACE) != 0) {
+                    methodMask = methodMask and Modifier.PUBLIC.inv() and Modifier.ABSTRACT.inv()
+                }
+
                 addContentSpacer()
                 h4 {
                     +"Method summary"
@@ -249,13 +262,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                             tr {
                                 td(classes = "modifier-value") {
                                     unsafe {
-                                        var mask = Modifier.methodModifiers()
-                                        // remove public and abstract modifiers on interface members, they are implicit
-                                        if ((klassDeclaration.modifiers and Opcodes.ACC_INTERFACE) != 0) {
-                                            mask = mask and Modifier.PUBLIC.inv() and Modifier.ABSTRACT.inv()
-                                        }
-
-                                        +methodMod.formatModifiers(mask)
+                                        +methodMod.formatModifiers(methodMask)
 
                                         val methodDeclaration = formatMethodDescriptor(method, methodMod, workspace.version, friendlyNameRemapper)
                                         methodDeclaration.formals?.let { +"$it " }
