@@ -1,5 +1,7 @@
 # takenaka
 
+[![Maven snapshots](https://repo.screamingsandals.org/api/badge/latest/snapshots/me/kcra/takenaka/core?color=000000&name=sandals-snapshots)](https://repo.screamingsandals.org/#/snapshots/me/kcra/takenaka)
+
 A Kotlin library for reconciling multiple obfuscation mapping files from multiple versions of Minecraft: JE.
 
 The goal of this project is to improve the maintainability and performance of the [NMSMapper](https://github.com/ScreamingSandals/NMSMapper) library.
