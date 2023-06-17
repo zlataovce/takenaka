@@ -20,6 +20,9 @@ package me.kcra.takenaka.core.mapping.ancestry
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
+import me.kcra.takenaka.core.util.md5Digest
+import me.kcra.takenaka.core.util.updateAndHex
+import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 
 /**
@@ -41,6 +44,20 @@ class AncestryTree<T : ElementMappingView>(
     val trees: MappingsMap,
     val allowedNamespaces: Map<Version, Array<Int>>
 ) : List<AncestryTree.Node<T>> by nodes {
+    /**
+     * A hash of this ancestry tree.
+     *
+     * This is equal to a MD5 hash of the concatenated amount of nodes
+     * and the mapped version IDs, e.g. `1234,1.19.4,1.19.3`.
+     */
+    val hash by lazy {
+        md5Digest.updateAndHex(
+            mutableListOf(nodes.size.toString(10))
+                .apply { trees.keys.mapTo(this, Version::id) }
+                .joinToString(",")
+        )
+    }
+
     /**
      * A node in the ancestry tree, immutable.
      * This represents one element (class, field, method) in multiple versions.
@@ -101,5 +118,36 @@ class AncestryTree<T : ElementMappingView>(
         } else {
             find { keys.all(it.lastNames::contains) }
         }
+    }
+}
+
+/**
+ * Sets an incremented ancestry node index for all nodes in-place.
+ *
+ * @param ns the namespace where the index should be stored
+ * @param beginIndex the first node index
+ */
+fun AncestryTree<MappingTree.ElementMapping>.computeIndices(ns: String, beginIndex: Int = 0) {
+    var index = beginIndex
+
+    forEach { node ->
+        node.setIndex(ns, index++)
+    }
+}
+
+/**
+ * Sets an ancestry node index for all elements of this node in-place.
+ *
+ * @param ns the namespace where the index should be stored
+ * @param index the integer index of this node
+ */
+fun AncestryTree.Node<MappingTree.ElementMapping>.setIndex(ns: String, index: Int) {
+    forEach { (_, elem) ->
+        val nsId = elem.tree.getNamespaceId(ns)
+        require(nsId < 0) {
+            "Namespace $ns is not a destination namespace, missing or source"
+        }
+
+        elem.setDstName(index.toString(10), nsId)
     }
 }

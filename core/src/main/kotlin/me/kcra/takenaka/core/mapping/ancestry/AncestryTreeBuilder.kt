@@ -44,6 +44,19 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
     val allowedNamespaces = mutableMapOf<Version, Array<Int>>()
 
     /**
+     * Lookup for nodes by their indices.
+     */
+    val indices = mutableMapOf<Int, MutableNode<T>>()
+
+    /**
+     * Gets a node by its index, creating a new one if not found.
+     *
+     * @param index the index
+     * @return the node
+     */
+    fun getByIndex(index: Int): MutableNode<T> = indices.getOrPut(index, ::emptyNode)
+
+    /**
      * Tries to find a node by the [block] predicate, creating a new one if not found.
      *
      * @param block the search predicate

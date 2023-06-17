@@ -35,14 +35,15 @@ typealias ClassAncestryNode = AncestryTree.Node<MappingTreeView.ClassMappingView
  * Computes an ancestry tree of all classes in the supplied versions.
  *
  * @param mappings the joined version mapping files
+ * @param indexNs namespace that contains node indices, null if there are none
  * @param allowedNamespaces namespaces that are used in this tree for tracing history, not distinguished by version; empty if all namespaces should be considered
  * @return the ancestry tree
  */
-fun classAncestryTreeOf(mappings: MappingsMap, allowedNamespaces: List<String> = emptyList()): AncestryTree<MappingTreeView.ClassMappingView> = buildAncestryTree {
+fun classAncestryTreeOf(mappings: MappingsMap, indexNs: String? = null, allowedNamespaces: List<String> = emptyList()): AncestryTree<MappingTreeView.ClassMappingView> = buildAncestryTree {
     trees += mappings
 
     // convert to sorted map to ensure proper ordering
-    mappings.toSortedMap().forEach { (version, tree) ->
+    mappings.toSortedMap().forEach treeEach@ { (version, tree) ->
         val treeAllowedNamespaces = allowedNamespaces
             .map(tree::getNamespaceId)
             .filter { it != MappingTreeView.NULL_NAMESPACE_ID }
@@ -51,7 +52,19 @@ fun classAncestryTreeOf(mappings: MappingsMap, allowedNamespaces: List<String> =
 
         this@buildAncestryTree.allowedNamespaces[version] = treeAllowedNamespaces
 
+        val indexNsId = indexNs?.let(tree::getNamespaceId) ?: MappingTreeView.NULL_NAMESPACE_ID
         tree.classes.forEach { klass ->
+            // try to resolve a node by its index
+            if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
+                val nodeIndex = klass.getDstName(indexNsId)?.toIntOrNull()
+                if (nodeIndex != null) {
+                    val node = getByIndex(nodeIndex)
+
+                    node[version] = klass // it's not necessary to fill in lastNames
+                    return@forEach
+                }
+            }
+
             val classMappings = treeAllowedNamespaces.mapNotNullTo(mutableSetOf(), klass::getDstName)
             val classMappingsArray = classMappings.toTypedArray() // perf: use array due to marginally better iteration performance
 

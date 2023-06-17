@@ -17,8 +17,8 @@
 
 package me.kcra.takenaka.core.mapping.util
 
-import me.kcra.takenaka.core.util.hexValue
 import me.kcra.takenaka.core.util.md5Digest
+import me.kcra.takenaka.core.util.updateAndHex
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
 import java.lang.reflect.Modifier
@@ -49,17 +49,12 @@ operator fun MappingTreeView.contains(ns: String): Boolean = getNamespaceId(ns) 
  * The resulting hash is stable, meaning the order of namespaces won't affect it.
  */
 val MappingTreeView.ElementMappingView.hash: String
-    get() = md5Digest
-        .apply {
-            update(
-                tree.dstNamespaceIds
-                    .mapNotNull(::getDstName)
-                    .sorted()
-                    .joinToString(",")
-                    .encodeToByteArray()
-            )
-        }
-        .hexValue
+    get() = md5Digest.updateAndHex(
+        tree.dstNamespaceIds
+            .mapNotNull(::getDstName)
+            .sorted()
+            .joinToString(",")
+    )
 
 /**
  * Formats a modifier integer into a string.
