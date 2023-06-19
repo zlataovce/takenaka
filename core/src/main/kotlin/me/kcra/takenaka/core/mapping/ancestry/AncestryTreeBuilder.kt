@@ -39,6 +39,11 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
     val trees = mutableMapOf<Version, MappingTreeView>()
 
     /**
+     * Namespace IDs used for computing node indices, distinguished by version.
+     */
+    val indexNamespaces = mutableMapOf<Version, Int>()
+
+    /**
      * Namespace IDs used for computing history, distinguished by version.
      */
     val allowedNamespaces = mutableMapOf<Version, Array<Int>>()
@@ -81,11 +86,12 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
     }
 
     /**
-     * Makes the builder inherit allowed namespaces from another tree.
+     * Makes the builder inherit allowed and index namespaces from another tree.
      *
      * @param tree the tree to be inherited from
      */
     fun inheritNamespaces(tree: AncestryTree<*>) {
+        indexNamespaces += tree.indexNamespaces
         allowedNamespaces += tree.allowedNamespaces
     }
 
@@ -96,7 +102,7 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
      */
     fun toAncestryTree(): AncestryTree<T> {
         val immutableNodes = mutableListOf<AncestryTree.Node<T>>()
-        return AncestryTree(immutableNodes, trees, allowedNamespaces).apply {
+        return AncestryTree(immutableNodes, trees, indexNamespaces, allowedNamespaces).apply {
             immutableNodes += nodes.map { AncestryTree.Node(this, it, it.first, it.last) }
         }
     }

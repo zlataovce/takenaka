@@ -53,6 +53,10 @@ fun classAncestryTreeOf(mappings: MappingsMap, indexNs: String? = null, allowedN
         this@buildAncestryTree.allowedNamespaces[version] = treeAllowedNamespaces
 
         val indexNsId = indexNs?.let(tree::getNamespaceId) ?: MappingTreeView.NULL_NAMESPACE_ID
+        if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
+            this@buildAncestryTree.indexNamespaces[version] = indexNsId
+        }
+
         tree.classes.forEach { klass ->
             // try to resolve a node by its index
             if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
@@ -102,11 +106,23 @@ fun fieldAncestryTreeOf(klass: ClassAncestryNode): AncestryTree<MappingTreeView.
     inheritTrees(klass.tree)
     inheritNamespaces(klass.tree)
 
-    klass.forEach { (version, realKlass) ->
+    klass.forEach klassEach@ { (version, realKlass) ->
         val treeAllowedNamespaces = klass.tree.allowedNamespaces[version]
             ?: error("Version ${version.id} has not been mapped yet")
 
+        val indexNsId = klass.tree.indexNamespaces[version] ?: MappingTreeView.NULL_NAMESPACE_ID
         realKlass.fields.forEach { field ->
+            // try to resolve a node by its index
+            if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
+                val nodeIndex = field.getDstName(indexNsId)?.toIntOrNull()
+                if (nodeIndex != null) {
+                    val node = getByIndex(nodeIndex)
+
+                    node[version] = field // it's not necessary to fill in lastNames
+                    return@forEach
+                }
+            }
+
             val fieldMappings = treeAllowedNamespaces
                 .mapNotNullTo(mutableSetOf()) { ns ->
                     val name = field.getDstName(ns)
@@ -164,22 +180,34 @@ fun methodAncestryTreeOf(
     inheritTrees(klass.tree)
     inheritNamespaces(klass.tree)
 
-    klass.forEach { (version, realKlass) ->
+    klass.forEach klassEach@ { (version, realKlass) ->
         val treeAllowedNamespaces = klass.tree.allowedNamespaces[version]
             ?: error("Version ${version.id} has not been mapped yet")
 
-        realKlass.methods.forEach methodEach@ { method ->
+        val indexNsId = klass.tree.indexNamespaces[version] ?: MappingTreeView.NULL_NAMESPACE_ID
+        realKlass.methods.forEach { method ->
             val isConstructor = method.isConstructor
             when (constructorMode) {
                 ConstructorComputationMode.EXCLUDE -> {
-                    if (isConstructor) return@methodEach
+                    if (isConstructor) return@forEach
                 }
 
                 ConstructorComputationMode.ONLY -> {
-                    if (!isConstructor) return@methodEach
+                    if (!isConstructor) return@forEach
                 }
 
                 ConstructorComputationMode.INCLUDE -> {}
+            }
+
+            // try to resolve a node by its index
+            if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
+                val nodeIndex = method.getDstName(indexNsId)?.toIntOrNull()
+                if (nodeIndex != null) {
+                    val node = getByIndex(nodeIndex)
+
+                    node[version] = method // it's not necessary to fill in lastNames
+                    return@forEach
+                }
             }
 
             val methodMappings = treeAllowedNamespaces
