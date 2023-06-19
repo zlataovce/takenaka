@@ -110,6 +110,22 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     abstract val craftBukkitVersionReplaceCandidates: ListProperty<String>
 
     /**
+     * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch.
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.historyIndexNamespace
+     */
+    @get:Input
+    abstract val historyIndexNamespace: Property<String?>
+
+    /**
+     * The metadata key of the ancestry tree hash, verification is skipped if there is no hash or no [historyIndexNamespace] available.
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.historyHashKey
+     */
+    @get:Input
+    abstract val historyHashKey: Property<String?>
+
+    /**
      * The workspace options, defaults to [DefaultWorkspaceOptions.RELAXED_CACHE].
      *
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.strictCache
@@ -134,6 +150,8 @@ abstract class GenerateAccessorsTask : DefaultTask() {
         languageFlavor.convention(LanguageFlavor.JAVA)
         accessorFlavor.convention(AccessorFlavor.NONE)
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
+        historyIndexNamespace.convention(null)
+        historyHashKey.convention(null)
         options.convention(DefaultWorkspaceOptions.RELAXED_CACHE)
     }
 
@@ -151,7 +169,9 @@ abstract class GenerateAccessorsTask : DefaultTask() {
                 accessorFlavor = accessorFlavor.get(),
                 namespaceFriendlinessIndex = namespaceFriendlinessIndex.get(),
                 accessedNamespaces = accessedNamespaces.get(),
-                craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get()
+                craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get(),
+                historyIndexNamespace = historyIndexNamespace.get(),
+                historyHashKey = historyHashKey.get()
             )
         )
 

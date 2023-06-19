@@ -87,11 +87,23 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      */
     abstract val accessedNamespaces: ListProperty<String>
 
+    /**
+     * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch.
+     */
+    abstract val historyIndexNamespace: Property<String?>
+
+    /**
+     * The metadata key of the ancestry tree hash, verification is skipped if there is no hash or no [historyIndexNamespace] available.
+     */
+    abstract val historyHashKey: Property<String?>
+
     init {
         outputDirectory.convention(project.layout.buildDirectory.dir("takenaka/output"))
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
         languageFlavor.convention(LanguageFlavor.JAVA)
         accessorFlavor.convention(AccessorFlavor.NONE)
+        historyIndexNamespace.convention(null)
+        historyHashKey.convention(null)
         strictCache.convention(false)
     }
 

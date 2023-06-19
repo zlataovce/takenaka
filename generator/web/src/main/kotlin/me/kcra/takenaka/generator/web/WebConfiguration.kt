@@ -31,7 +31,9 @@ import net.fabricmc.mappingio.MappingUtil
  * @property namespaces a map of namespaces and their descriptions, unspecified namespaces will not be shown
  * @property index a resolver for foreign class references
  * @property craftBukkitVersionReplaceCandidates namespaces that should have [replaceCraftBukkitNMSVersion] applied (most likely Spigot mappings or a flavor of them)
- * @property historicalNamespaces namespaces that should be used for computing history, namespaces from [namespaceFriendlinessIndex] are considered by default (excluding the obfuscated one)
+ * @property historyNamespaces namespaces that should be used for computing history, namespaces from [namespaceFriendlinessIndex] are considered by default (excluding the obfuscated one)
+ * @property historyIndexNamespace namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch
+ * @property historyHashKey the metadata key of the ancestry tree hash, verification is skipped if there is no hash or no index available
  * @author Matouš Kučera
  */
 data class WebConfiguration(
@@ -42,7 +44,9 @@ data class WebConfiguration(
     val namespaces: Map<String, NamespaceDescription> = emptyMap(),
     val index: ClassSearchIndex = emptyClassSearchIndex(),
     val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
-    val historicalNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK,
+    val historyNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK,
+    val historyIndexNamespace: String? = null,
+    val historyHashKey: String? = null
 )
 
 /**
@@ -89,7 +93,17 @@ class WebConfigurationBuilder {
     /**
      * Namespaces that should be used for computing history, empty if namespaces from [namespaceFriendlinessIndex] should be considered (excluding the obfuscated one).
      */
-    var historicalNamespaces = mutableListOf<String>()
+    var historyNamespaces = mutableListOf<String>()
+
+    /**
+     * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch.
+     */
+    var historyIndexNamespace: String? = null
+
+    /**
+     * The metadata key of the ancestry tree hash, verification is skipped if there is no hash or no index available.
+     */
+    var historyHashKey: String? = null
 
     /**
      * Sets [welcomeMessage].
@@ -200,12 +214,30 @@ class WebConfigurationBuilder {
     }
 
     /**
-     * Appends namespaces to [historicalNamespaces].
+     * Appends namespaces to [historyNamespaces].
      *
      * @param namespaces the namespaces
      */
-    fun preferredHistoryNamespaces(vararg namespaces: String) {
-        historicalNamespaces += namespaces
+    fun historyNamespaces(vararg namespaces: String) {
+        historyNamespaces += namespaces
+    }
+
+    /**
+     * Sets [historyIndexNamespace].
+     *
+     * @param item the namespace
+     */
+    fun historyIndexNamespace(item: String) {
+        historyIndexNamespace = item
+    }
+
+    /**
+     * Sets [historyHashKey].
+     *
+     * @param item the value
+     */
+    fun historyHashKey(item: String) {
+        historyHashKey = item
     }
 
     /**
@@ -221,7 +253,9 @@ class WebConfigurationBuilder {
         namespaces,
         index,
         craftBukkitVersionReplaceCandidates,
-        historicalNamespaces.ifEmpty { namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK }
+        historyNamespaces.ifEmpty { namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK },
+        historyIndexNamespace,
+        historyHashKey
     )
 }
 

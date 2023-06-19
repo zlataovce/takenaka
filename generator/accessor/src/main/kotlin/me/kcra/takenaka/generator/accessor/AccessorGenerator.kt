@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
+import me.kcra.takenaka.core.mapping.ancestry.impl.hash
 import me.kcra.takenaka.generator.accessor.context.generationContext
 import me.kcra.takenaka.generator.common.Generator
 import mu.KotlinLogging
@@ -47,7 +48,21 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
      * @param mappings the mappings
      */
     override suspend fun generate(mappings: MappingsMap) {
-        val tree = classAncestryTreeOf(mappings, config.historicalNamespaces)
+        val tree = classAncestryTreeOf(mappings, config.historyIndexNamespace, config.historyNamespaces)
+
+        val treeHash = tree.hash
+        if (config.historyIndexNamespace != null && config.historyHashKey != null) {
+            mappings.forEach { (version, realTree) ->
+                val realTreeHash = realTree.getMetadata(config.historyHashKey)
+                checkNotNull(realTreeHash) {
+                    "Version ${version.id} does not have an ancestry tree hash"
+                }
+
+                check(treeHash == realTreeHash) {
+                    "Version ${version.id} has a mismatched ancestry tree hash (expected: $treeHash, got: $realTreeHash)"
+                }
+            }
+        }
 
         generationContext(config.languageFlavor) {
             config.accessors.forEach { classAccessor ->
