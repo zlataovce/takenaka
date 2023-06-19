@@ -302,6 +302,21 @@ input::placeholder {
     color: var(--text-muted);
 }
 
+.interfaces-header {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+    margin-top: 1rem;
+    color: var(--text-muted);
+}
+
+.interfaces-description {
+    margin-top: 0.1rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: var(--text-muted);
+}
+
 .spacer-top {
     margin-top: 1.25rem;
     margin-bottom: 0.5rem;

@@ -111,7 +111,7 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
         /**
          * Super types of the class.
          */
-        protected val superTypes: List<MappingTree.ClassMapping> = klass.superTypes
+        protected val superTypes: List<MappingTree.ClassMapping> = klass.resolveSuperTypes()
 
         /**
          * Additional namespace IDs of the class' mapping tree.
@@ -197,28 +197,38 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
 }
 
 /**
- * Recursively collects all **mapped** supertypes of the class.
+ * Recursively collects **mapped** supertypes of the class.
+ *
+ * @param mode the super type filter
  */
-val MappingTree.ClassMapping.superTypes: List<MappingTree.ClassMapping>
-    get() {
-        val superTypes = mutableSetOf<String>()
-        val mappedSuperTypes = mutableListOf<MappingTree.ClassMapping>()
+fun <T : MappingTreeView.ClassMappingView> T.resolveSuperTypes(
+    mode: InheritanceWalkMode = InheritanceWalkMode.ALL
+): List<T> {
+    val superTypes = mutableSetOf<String>()
+    val mappedSuperTypes = mutableListOf<T>()
 
-        fun processType(klassName: String) {
-            if (superTypes.add(klassName)) {
-                val klass = tree.getClass(klassName) ?: return
-                mappedSuperTypes += klass
+    fun processType(klassName: String, include: Boolean = true) {
+        if (superTypes.add(klassName)) {
+            val klass = tree.getClass(klassName) ?: return
+            if (include) {
+                @Suppress("UNCHECKED_CAST") // should always be the expected type
+                mappedSuperTypes += klass as T
+            }
 
-                processType(klass.superClass)
+            processType(klass.superClass, mode != InheritanceWalkMode.INTERFACES)
+            if (mode != InheritanceWalkMode.CLASSES) {
                 klass.interfaces.forEach(::processType)
             }
         }
-
-        processType(superClass)
-        interfaces.forEach(::processType)
-
-        return mappedSuperTypes
     }
+
+    processType(superClass, mode != InheritanceWalkMode.INTERFACES)
+    if (mode != InheritanceWalkMode.CLASSES) {
+        interfaces.forEach(::processType)
+    }
+
+    return mappedSuperTypes
+}
 
 /**
  * Returns a descriptor string with the return type removed, **if the return type is a class type**.
