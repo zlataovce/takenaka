@@ -34,7 +34,7 @@ import org.w3c.dom.Document
  */
 fun GenerationContext.overviewPage(workspace: VersionedWorkspace, packages: Set<String>): Document = createHTMLDocument().html {
     head {
-        defaultResourcesComponent(workspace.version.id)
+        defaultResourcesComponent()
         if (generator.config.emitMetaTags) {
             metadataComponent(
                 title = workspace.version.id,

@@ -42,6 +42,7 @@ import java.io.BufferedReader
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.*
+import kotlin.io.path.appendText
 import kotlin.io.path.writeText
 
 /**
@@ -208,8 +209,8 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                     const searchInput = document.getElementById("search-input");
                     
                     if (baseUrl) {
-                        overviewLink.href = baseUrl + "/index.html";
-                        licensesLink.href = baseUrl + "/licenses.html";
+                        overviewLink.href = `${'$'}{baseUrl}/index.html`;
+                        licensesLink.href = `${'$'}{baseUrl}/licenses.html`;
                         searchInput.addEventListener("input", (evt) => search(evt.target.value));
                     } else {
                         overviewLink.remove();
@@ -226,10 +227,10 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                 }
             }
         )
-        assetWorkspace["components.js"].writeText(transformJs(componentFileContent))
-        assetWorkspace["generated.css"].writeText(transformCss(styleConsumer.generateStyleSheet()))
+        assetWorkspace["main.js"].appendText(transformJs(componentFileContent))
 
         copyAsset("main.css") // main.css should be copied last to minify correctly
+        assetWorkspace["main.css"].appendText(transformCss(styleConsumer.generateStyleSheet()))
     }
 
     /**

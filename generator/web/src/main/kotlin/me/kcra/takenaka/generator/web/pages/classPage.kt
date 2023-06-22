@@ -59,7 +59,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
     val klassDeclaration = formatClassDescriptor(klass, workspace.version, friendlyNameRemapper)
 
     head {
-        defaultResourcesComponent(workspace.version.id)
+        defaultResourcesComponent()
         if (generator.config.emitMetaTags) {
             metadataComponent(
                 title = klassDeclaration.friendlyName,

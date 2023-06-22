@@ -36,7 +36,7 @@ private val PROTOCOL_REGEX = "^[a-z-]+://.+$".toRegex()
  */
 fun GenerationContext.licensePage(workspace: VersionedWorkspace, licenses: Map<String, License>): Document = createHTMLDocument().html {
     head {
-        defaultResourcesComponent(workspace.version.id)
+        defaultResourcesComponent()
         title(content = "licenses - ${workspace.version.id}")
     }
     body {

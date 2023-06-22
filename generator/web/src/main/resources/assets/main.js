@@ -24,7 +24,7 @@ const setTheme = (theme) => {
     localStorage.setItem(themeKey, theme);
 };
 
-window.addEventListener("load", () => document.documentElement.setAttribute("data-theme", getTheme()));
+window.addEventListener("DOMContentLoaded", () => document.documentElement.setAttribute("data-theme", getTheme()));
 
 const getVersionBaseUrl = () => {
     const path = window.location.pathname.substring(1);
@@ -71,6 +71,17 @@ const updateClassIndex = (indexString) => {
         }
     }
 };
+
+// dynamically load class index, but async
+window.addEventListener("DOMContentLoaded", () => {
+    if (baseUrl) {
+        const indexScript = document.createElement("script");
+        indexScript.async = true;
+        indexScript.src = `${baseUrl}/class-index.js`;
+
+        document.head.appendChild(indexScript);
+    }
+});
 
 const search = (query) => {
     const resultsBox = document.getElementById("search-results-box");
