@@ -90,9 +90,9 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
      * @param mappings the mappings
      */
     override suspend fun generate(mappings: MappingsMap) {
-        val styleConsumer = DefaultStyleConsumer()
+        val styleProvider: StyleProvider? = if (config.emitPseudoElements) StyleProviderImpl() else null
 
-        generationContext(styleConsumer = styleConsumer::apply) {
+        generationContext(styleProvider) {
             val tree = classAncestryTreeOf(mappings, config.historicalNamespaces)
 
             // used for looking up history hashes - for linking
@@ -230,7 +230,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
         assetWorkspace["main.js"].appendText(transformJs(componentFileContent))
 
         copyAsset("main.css") // main.css should be copied last to minify correctly
-        assetWorkspace["main.css"].appendText(transformCss(styleConsumer.generateStyleSheet()))
+        styleProvider?.let { assetWorkspace["main.css"].appendText(transformCss(it.asStyleSheet())) }
     }
 
     /**

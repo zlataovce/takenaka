@@ -134,7 +134,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                         val namespacedNmsVersion = if (ns in versionReplaceCandidates) nmsVersion else null
                         val name = klass.getName(id)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) ?: return@forEach
                         tr {
-                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
+                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
                             td(classes = "mapping-value") {
                                 +name.fromInternalName()
                             }
@@ -197,7 +197,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                                                     val name = field.getName(id)
                                                     if (name != null) {
                                                         tr {
-                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
+                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
                                                             td(classes = "mapping-value") {
                                                                 +name
                                                             }
@@ -303,7 +303,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                                                     val methodName = method.getName(id)
                                                     if (methodName != null) {
                                                         tr {
-                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
+                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
                                                             td(classes = "mapping-value") {
                                                                 unsafe {
                                                                     val remapper = ElementRemapper(method.tree) { it.getName(id)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) }
