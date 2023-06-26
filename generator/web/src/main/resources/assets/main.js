@@ -172,7 +172,7 @@ const search = (query) => {
 
             const nsSubtitle = document.createElement("p");
             nsSubtitle.classList.add("search-result-subtitle");
-            nsSubtitle.innerHTML = `namespace: <span style="color:${colors[r.ns]}">${r.ns}</span>`;
+            nsSubtitle.innerHTML = `namespace: <span class="search-badge-text" style="color:${colors[r.ns]}">${r.ns}</span>`;
             resultElem.appendChild(nsSubtitle);
 
             return resultElem;
@@ -194,11 +194,14 @@ const updateOptions = () => {
     }
     optionBox.replaceChildren(...(
         Object.entries(colors).map(([ns, color]) => {
-            const labelElem = document.createElement("label");
-            labelElem.style.color = color;
+            const labelTarget = ns.toLowerCase();
+
+            const checkboxWrap = document.createElement("div");
+            checkboxWrap.style.display = "flex";
 
             const inputElem = document.createElement("input");
             inputElem.type = "checkbox";
+            inputElem.name = labelTarget;
             inputElem.checked = searchNamespaces.includes(ns);
             inputElem.addEventListener("change", () => {
                 updateSearchNamespaces(inputElem.checked ? [...searchNamespaces, ns] : searchNamespaces.filter((e) => e !== ns));
@@ -207,10 +210,17 @@ const updateOptions = () => {
                 searchInput.dispatchEvent(new Event("input"));
             });
 
-            labelElem.appendChild(inputElem);
-            labelElem.appendChild(document.createTextNode(ns));
+            checkboxWrap.appendChild(inputElem);
 
-            return labelElem;
+            const labelElem = document.createElement("label");
+            labelElem.htmlFor = labelTarget;
+            labelElem.style.color = color;
+            labelElem.classList.add("search-badge-text");
+
+            labelElem.appendChild(document.createTextNode(ns));
+            checkboxWrap.appendChild(labelElem);
+
+            return checkboxWrap;
         })
     ));
 };

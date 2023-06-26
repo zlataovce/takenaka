@@ -297,6 +297,15 @@ input[type="checkbox"] {
     outline-offset: 2px;
 }
 
+/* badge-text but duplicated, because it is minified - we need this one to remain the same */
+.search-badge-text {
+    filter: brightness(1.75); /* improve text readability on dark mode */
+}
+
+[data-theme="light"] .search-badge-text {
+    filter: none;
+}
+
 .icon-button {
     cursor: pointer;
     padding: 1rem;
