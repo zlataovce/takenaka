@@ -186,7 +186,18 @@ footer {
 }
 
 input::placeholder {
-    color: var(--input-placeholder, unset);
+    color: var(--input-placeholder);
+}
+
+label {
+    display: block;
+    color: var(--text);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+}
+
+input[type="checkbox"] {
+    margin-right: 5px;
 }
 
 .nav-items {
@@ -230,7 +241,7 @@ input::placeholder {
     color: var(--nav-item);
 }
 
-.search-box {
+.utils-box {
     position: relative;
     font-size: 0.875rem;
     line-height: 1.25rem;
@@ -242,7 +253,7 @@ input::placeholder {
     display: flex;
 }
 
-.search-results-box {
+.search-box {
     position: absolute;
     max-height: 75vh;
     width: 100%;
@@ -554,4 +565,34 @@ input::placeholder {
 
 .welcome-message {
     color: var(--text);
+}
+
+.option-box-toggle {
+    display: flex;
+    position: relative;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    color: var(--text);
+}
+
+.option-box-toggle:after {
+    content: "";
+    background: var(--spacer);
+    position: absolute;
+    height: 1px;
+    top: 100%;
+    left: 0.75rem;
+    right: 0.75rem;
+}
+
+.option-box-toggle > * {
+    margin: auto 0;
+}
+
+.option-box {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    cursor: pointer;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--spacer);
 }

@@ -207,15 +207,23 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                     const overviewLink = document.getElementById("overview-link");
                     const licensesLink = document.getElementById("licenses-link");
                     const searchInput = document.getElementById("search-input");
+                    const searchBox = document.getElementById("search-box");
                     
                     if (baseUrl) {
                         overviewLink.href = `${'$'}{baseUrl}/index.html`;
                         licensesLink.href = `${'$'}{baseUrl}/licenses.html`;
+                        
                         searchInput.addEventListener("input", (evt) => search(evt.target.value));
+                        document.addEventListener("mouseup", (evt) => {
+                            searchBox.style.display = !searchInput.contains(evt.target) && !searchBox.contains(evt.target) ? "none" : "block";
+                        });
+                        
+                        initialIndexLoadPromise.then(updateOptions);
                     } else {
                         overviewLink.remove();
                         licensesLink.remove();
                         searchInput.remove();
+                        searchBox.remove();
                         e.dataset.collapsed = "yes";
                     }
                 """.trimIndent()
