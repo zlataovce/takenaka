@@ -34,7 +34,7 @@ import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
-import me.kcra.takenaka.generator.web.transformers.Minifier
+import me.kcra.takenaka.generator.web.transformers.MinifyingTransformer
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.w3c.dom.Document
@@ -58,7 +58,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
     private val namespaceFriendlyNames = config.namespaces.mapValues { it.value.friendlyName }
     private val currentComposite by workspace
 
-    internal val hasMinifier = config.transformers.any { it is Minifier }
+    internal val hasMinifier = config.transformers.any { it is MinifyingTransformer }
 
     /**
      * A [Comparator] for comparing the friendliness of namespaces, useful for sorting.

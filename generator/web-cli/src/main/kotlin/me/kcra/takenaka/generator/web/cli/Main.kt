@@ -35,7 +35,8 @@ import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.common.ResolvingMappingProvider
 import me.kcra.takenaka.generator.common.buildMappingConfig
 import me.kcra.takenaka.generator.web.*
-import me.kcra.takenaka.generator.web.transformers.Minifier
+import me.kcra.takenaka.generator.web.transformers.CSSInliningTransformer
+import me.kcra.takenaka.generator.web.transformers.MinifyingTransformer
 import mu.KotlinLogging
 import kotlin.system.measureTimeMillis
 
@@ -193,9 +194,10 @@ fun main(args: Array<String>) {
 
         emitMetaTags(!noMeta)
 
+        transformer(CSSInliningTransformer("fonts.googleapis.com"))
         logger.info { "using minification mode $minifier" }
         if (minifier != MinifierImpls.NONE) {
-            transformer(Minifier(isDeterministic = minifier == MinifierImpls.DETERMINISTIC))
+            transformer(MinifyingTransformer(isDeterministic = minifier == MinifierImpls.DETERMINISTIC))
         }
 
         val indexers = mutableListOf<ClassSearchIndex>(objectMapper.modularClassSearchIndexOf(JDK_17_BASE_URL))
