@@ -87,7 +87,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                                     val namespacedNmsVersion = if (ns in versionReplaceCandidates) field.tree.craftBukkitNmsVersion else null
 
                                     field.getName(id)?.let { name ->
-                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name.replaceCraftBukkitNMSVersion(namespacedNmsVersion)
+                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleProvider) + name.replaceCraftBukkitNMSVersion(namespacedNmsVersion)
                                     }
                                 }
                                 .joinToString()
@@ -139,7 +139,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                                     val namespacedNmsVersion = if (ns in versionReplaceCandidates) method.tree.craftBukkitNmsVersion else null
 
                                     method.getName(id)?.let { name ->
-                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name.replaceCraftBukkitNMSVersion(namespacedNmsVersion)
+                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleProvider) + name.replaceCraftBukkitNMSVersion(namespacedNmsVersion)
                                     }
                                 }
                                 .joinToString()
@@ -227,7 +227,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                 if (rows.isNotEmpty()) {
                     rows.forEach { row ->
                         p(classes = "diff-${row.type}") {
-                            textBadgeComponent(row.key, getFriendlyNamespaceBadgeColor(row.key), styleConsumer)
+                            textBadgeComponent(row.key, getFriendlyNamespaceBadgeColor(row.key), styleProvider)
                             +row.value
                         }
                     }

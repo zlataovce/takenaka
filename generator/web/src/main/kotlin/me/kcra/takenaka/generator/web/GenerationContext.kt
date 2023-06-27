@@ -34,7 +34,7 @@ import kotlin.io.path.writer
  *
  * @author Matouš Kučera
  */
-class GenerationContext(val generator: WebGenerator, val styleConsumer: StyleConsumer, contextScope: CoroutineScope) : CoroutineScope by contextScope {
+class GenerationContext(val generator: WebGenerator, val styleProvider: StyleProvider?, contextScope: CoroutineScope) : CoroutineScope by contextScope {
     /**
      * A [Set] variant of the [generator]'s [WebConfiguration.craftBukkitVersionReplaceCandidates].
      */
@@ -109,8 +109,8 @@ class GenerationContext(val generator: WebGenerator, val styleConsumer: StyleCon
 /**
  * Opens a generation context.
  *
- * @param styleConsumer the style provider that will be used in the context
+ * @param styleProvider the style provider that will be used in the context
  * @param block the context user
  */
-suspend inline fun <R> WebGenerator.generationContext(noinline styleConsumer: StyleConsumer, crossinline block: suspend GenerationContext.() -> R): R =
-    coroutineScope { block(GenerationContext(this@generationContext, styleConsumer, this)) }
+suspend inline fun <R> WebGenerator.generationContext(styleProvider: StyleProvider? = null, crossinline block: suspend GenerationContext.() -> R): R =
+    coroutineScope { block(GenerationContext(this@generationContext, styleProvider, this)) }
