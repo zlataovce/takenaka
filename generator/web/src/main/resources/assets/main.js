@@ -50,10 +50,8 @@ let colors = {};
 // a list of { "<namespace>": <mapping string or null> }
 let classIndex = [];
 
-// TODO: this is a hack, figure this out?
-const initialIndexLoadPromise = new Promise((resolve, _) => {
-    document.addEventListener("indexUpdate", resolve, { once: true });
-});
+let resolveClassIndexPromise;
+const initialIndexLoadPromise = new Promise((resolve, _) => (resolveClassIndexPromise = resolve));
 
 const updateClassIndex = (indexString) => {
     indexString = indexString.replaceAll("%nm", "net/minecraft").replaceAll("%cm", "com/mojang");
@@ -78,7 +76,7 @@ const updateClassIndex = (indexString) => {
         }
     }
 
-    document.dispatchEvent(new Event("indexUpdate"));
+    resolveClassIndexPromise();
 };
 
 // dynamically load class index, but async
@@ -152,11 +150,12 @@ const search = (query) => {
     resultsBox.replaceChildren(...(
         // limit results to 50, should be plenty
         results.slice(0, Math.min(results.length, 50)).map((r) => {
+            const resultWrap = document.createElement("a");
+            resultWrap.href = `${baseUrl}/${Object.values(r.klass).find((e) => e != null)}.html`;
+            resultWrap.style.textDecoration = "none";
+
             const resultElem = document.createElement("div");
             resultElem.classList.add("search-result");
-            resultElem.addEventListener("click", () => {
-                window.location.pathname = `${baseUrl}/${Object.values(r.klass).find((e) => e != null)}.html`;
-            });
 
             const title = document.createElement("p");
             title.classList.add("search-result-title");
@@ -175,7 +174,9 @@ const search = (query) => {
             nsSubtitle.innerHTML = `namespace: <span class="search-badge-text" style="color:${colors[r.ns]}">${r.ns}</span>`;
             resultElem.appendChild(nsSubtitle);
 
-            return resultElem;
+            resultWrap.appendChild(resultElem);
+
+            return resultWrap;
         })
     ));
 };
@@ -189,6 +190,7 @@ const updateOptions = () => {
     const searchInput = document.getElementById("search-input");
     const optionBox = document.getElementById("option-box");
 
+    // searchNamespaces is null if it wasn't loaded from localStorage, so just set it to all namespaces
     if (!searchNamespaces) {
         searchNamespaces = Object.keys(colors);
     }
@@ -216,8 +218,8 @@ const updateOptions = () => {
             labelElem.htmlFor = labelTarget;
             labelElem.style.color = color;
             labelElem.classList.add("search-badge-text");
-
             labelElem.appendChild(document.createTextNode(ns));
+
             checkboxWrap.appendChild(labelElem);
 
             return checkboxWrap;
