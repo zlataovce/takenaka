@@ -196,14 +196,14 @@ const updateOptions = () => {
     }
     optionBox.replaceChildren(...(
         Object.entries(colors).map(([ns, color]) => {
-            const labelTarget = ns.toLowerCase();
+            const labelTarget = `checkbox-${ns.toLowerCase()}`;
 
             const checkboxWrap = document.createElement("div");
             checkboxWrap.style.display = "flex";
 
             const inputElem = document.createElement("input");
             inputElem.type = "checkbox";
-            inputElem.name = labelTarget;
+            inputElem.id = labelTarget;
             inputElem.checked = searchNamespaces.includes(ns);
             inputElem.addEventListener("change", () => {
                 updateSearchNamespaces(inputElem.checked ? [...searchNamespaces, ns] : searchNamespaces.filter((e) => e !== ns));
