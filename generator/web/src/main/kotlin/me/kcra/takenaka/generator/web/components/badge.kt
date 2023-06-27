@@ -79,8 +79,9 @@ fun FlowContent.textBadgeComponent(content: String, color: String, styleProvider
     } else {
         span(classes = "badge-text") {
             style = "color:$color"
-            +"$content: "
+            +content
         }
+        +": "
     }
 }
 
@@ -100,6 +101,6 @@ fun textBadgeComponentUnsafe(content: String, color: String, styleProvider: Styl
 
         """<span class="badge-text ${styleProvider.apply("badge-text-$lowercase", "")}"></span>"""
     } else {
-        """<span class="badge-text" style="color:$color">$content: </span>"""
+        """<span class="badge-text" style="color:$color">$content</span>: """
     }
 }
