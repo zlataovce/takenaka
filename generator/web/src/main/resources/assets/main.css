@@ -392,6 +392,7 @@ input[type="checkbox"] {
 
 .badge-text {
     filter: brightness(1.75); /* improve text readability on dark mode */
+    font-family: var(--font-monospace);
 }
 
 [data-theme="light"] .badge-text {

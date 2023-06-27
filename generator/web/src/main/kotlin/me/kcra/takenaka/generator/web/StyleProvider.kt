@@ -17,26 +17,47 @@
 
 package me.kcra.takenaka.generator.web
 
-import java.util.concurrent.locks.Lock
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
+import java.util.concurrent.ConcurrentHashMap
 
 /**
- * A function that provides a CSS class name from a key and the style content.
+ * A provider for generated CSS class names.
+ *
+ * @author Matouš Kučera
  */
-typealias StyleConsumer = (String, String) -> String
-
-/**
- * A synchronized [StyleConsumer] implementation.
- */
-class DefaultStyleConsumer(val styles: MutableMap<String, String> = mutableMapOf()) {
-    private val lock: Lock = ReentrantLock()
+interface StyleProvider {
+    /**
+     * Provides a CSS class name from a key and the style content.
+     *
+     * @param key the style key
+     * @param style the CSS style
+     * @return the generated CSS class name
+     */
+    fun apply(key: String, style: String): String
 
     /**
-     * The [StyleConsumer].
+     * Creates a CSS stylesheet to be included in generated output.
+     *
+     * @return the stylesheet
      */
-    fun apply(k: String, s: String): String = lock.withLock {
-        styles.putIfAbsent(k, s); k
+    fun asStyleSheet(): String
+}
+
+/**
+ * Base [StyleProvider] implementation.
+ *
+ * @property styles currently provided styles, keyed (**this map should be thread-safe**)
+ */
+class StyleProviderImpl(val styles: MutableMap<String, String> = ConcurrentHashMap()) : StyleProvider {
+    /**
+     * Provides a CSS class name from a key and the style content.
+     *
+     * @param key the style key
+     * @param style the CSS style
+     * @return the generated CSS class name
+     */
+    override fun apply(key: String, style: String): String {
+        styles.putIfAbsent(key, style)
+        return key
     }
 
     /**
@@ -44,15 +65,13 @@ class DefaultStyleConsumer(val styles: MutableMap<String, String> = mutableMapOf
      *
      * @return the stylesheet content
      */
-    fun generateStyleSheet(): String = buildString {
-        styles.forEach { (k, s) ->
-            append(
-                """
-                    .$k {
-                        $s
-                    }
-                """.trimIndent()
-            )
+    override fun asStyleSheet(): String {
+        return styles.entries.joinToString("") { (k, s) ->
+            """
+                .$k {
+                    $s
+                }
+            """.trimIndent()
         }
     }
 }
