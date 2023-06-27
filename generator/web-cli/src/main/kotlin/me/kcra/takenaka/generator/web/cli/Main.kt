@@ -175,12 +175,7 @@ fun main(args: Array<String>) {
                 <br/>
                 <p>
                     You can move through this site by following links to specific versions/packages/classes/...
-                    or use the nifty search field in the top right corner (appears when in a versioned page!).<br/>
-                    <i style="color: var(--text-muted);">
-                        If you want to search only in a specific namespace (i.e. kind of mappings - Mojang, Spigot, ...),
-                        prefix your search query with <code>ns:namespaceName</code>.<br/>
-                        (e.g. <code>ns:Mojang</code>; case-insensitive and you don't even need to finish the namespace name!)
-                    </i>
+                    or use the nifty search field in the top right corner (appears when in a versioned page!).
                 </p>
                 <br/>
                 <p>
