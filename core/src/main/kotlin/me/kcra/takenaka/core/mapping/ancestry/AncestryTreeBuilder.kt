@@ -59,7 +59,7 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
      * @param index the index
      * @return the node
      */
-    fun getByIndex(index: Int): MutableNode<T> = indices.getOrPut(index, ::emptyNode)
+    fun findByIndex(index: Int): MutableNode<T> = indices.getOrPut(index, ::emptyNode)
 
     /**
      * Tries to find a node by the [block] predicate, creating a new one if not found.

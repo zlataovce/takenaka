@@ -17,24 +17,8 @@
 
 package me.kcra.takenaka.core.mapping.ancestry.impl
 
-import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
-import me.kcra.takenaka.core.util.md5Digest
-import me.kcra.takenaka.core.util.updateAndHex
 import net.fabricmc.mappingio.tree.MappingTree
-
-/**
- * A hash of the ancestry tree, useful as a checksum.
- *
- * This is equal to a MD5 hash of the concatenated amount of nodes
- * and the mapped version IDs, e.g. `1234,1.19.4,1.19.3`.
- */
-inline val AncestryTree<*>.hash: String
-    get() = md5Digest.updateAndHex(
-        mutableListOf(size.toString(10))
-            .apply { trees.keys.mapTo(this, Version::id) }
-            .joinToString(",")
-    )
 
 /**
  * Sets an incremented ancestry node index for all nodes in-place.

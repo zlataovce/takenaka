@@ -32,7 +32,6 @@ import net.fabricmc.mappingio.MappingUtil
  * @property craftBukkitVersionReplaceCandidates namespaces that should have [me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion] applied (most likely Spigot mappings or a flavor of them)
  * @property historyNamespaces namespaces that should be used for computing history, empty if namespaces from [namespaceFriendlinessIndex] should be considered (excluding the obfuscated one)
  * @property historyIndexNamespace namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch
- * @property historyHashKey the metadata key of the ancestry tree hash, verification is skipped if there is no hash or no index available
  * @author Matouš Kučera
  */
 data class AccessorConfiguration(
@@ -44,6 +43,5 @@ data class AccessorConfiguration(
     val accessedNamespaces: List<String> = namespaceFriendlinessIndex,
     val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
     val historyNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK,
-    val historyIndexNamespace: String? = null,
-    val historyHashKey: String? = null
+    val historyIndexNamespace: String? = null
 )

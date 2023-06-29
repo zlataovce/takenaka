@@ -35,7 +35,7 @@ typealias ClassAncestryNode = AncestryTree.Node<MappingTreeView.ClassMappingView
  * Computes an ancestry tree of all classes in the supplied versions.
  *
  * @param mappings the joined version mapping files
- * @param indexNs namespace that contains node indices, null if there are none
+ * @param indexNs namespace that contains node indices, null if there are none, *does not need to exist - ignored*
  * @param allowedNamespaces namespaces that are used in this tree for tracing history, not distinguished by version; empty if all namespaces should be considered
  * @return the ancestry tree
  */
@@ -62,7 +62,7 @@ fun classAncestryTreeOf(mappings: MappingsMap, indexNs: String? = null, allowedN
             if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
                 val nodeIndex = klass.getDstName(indexNsId)?.toIntOrNull()
                 if (nodeIndex != null) {
-                    val node = getByIndex(nodeIndex)
+                    val node = findByIndex(nodeIndex)
 
                     node[version] = klass // it's not necessary to fill in lastNames
                     return@forEach
@@ -116,7 +116,7 @@ fun fieldAncestryTreeOf(klass: ClassAncestryNode): AncestryTree<MappingTreeView.
             if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
                 val nodeIndex = field.getDstName(indexNsId)?.toIntOrNull()
                 if (nodeIndex != null) {
-                    val node = getByIndex(nodeIndex)
+                    val node = findByIndex(nodeIndex)
 
                     node[version] = field // it's not necessary to fill in lastNames
                     return@forEach
@@ -203,7 +203,7 @@ fun methodAncestryTreeOf(
             if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
                 val nodeIndex = method.getDstName(indexNsId)?.toIntOrNull()
                 if (nodeIndex != null) {
-                    val node = getByIndex(nodeIndex)
+                    val node = findByIndex(nodeIndex)
 
                     node[version] = method // it's not necessary to fill in lastNames
                     return@forEach

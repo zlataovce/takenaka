@@ -34,7 +34,6 @@ import net.fabricmc.mappingio.MappingUtil
  * @property craftBukkitVersionReplaceCandidates namespaces that should have [replaceCraftBukkitNMSVersion] applied (most likely Spigot mappings or a flavor of them)
  * @property historyNamespaces namespaces that should be used for computing history, namespaces from [namespaceFriendlinessIndex] are considered by default (excluding the obfuscated one)
  * @property historyIndexNamespace namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch
- * @property historyHashKey the metadata key of the ancestry tree hash, verification is skipped if there is no hash or no index available
  * @author Matouš Kučera
  */
 data class WebConfiguration(
@@ -47,8 +46,7 @@ data class WebConfiguration(
     val index: ClassSearchIndex = emptyClassSearchIndex(),
     val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
     val historyNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK,
-    val historyIndexNamespace: String? = null,
-    val historyHashKey: String? = null
+    val historyIndexNamespace: String? = null
 )
 
 /**
@@ -106,11 +104,6 @@ class WebConfigurationBuilder {
      * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch.
      */
     var historyIndexNamespace: String? = null
-
-    /**
-     * The metadata key of the ancestry tree hash, verification is skipped if there is no hash or no index available.
-     */
-    var historyHashKey: String? = null
 
     /**
      * Sets [welcomeMessage].
@@ -248,15 +241,6 @@ class WebConfigurationBuilder {
     }
 
     /**
-     * Sets [historyHashKey].
-     *
-     * @param item the value
-     */
-    fun historyHashKey(item: String) {
-        historyHashKey = item
-    }
-
-    /**
      * Builds a mapping configuration out of this builder.
      *
      * @return the configuration
@@ -271,8 +255,7 @@ class WebConfigurationBuilder {
         index,
         craftBukkitVersionReplaceCandidates,
         historyNamespaces.ifEmpty { namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK },
-        historyIndexNamespace,
-        historyHashKey
+        historyIndexNamespace
     )
 }
 

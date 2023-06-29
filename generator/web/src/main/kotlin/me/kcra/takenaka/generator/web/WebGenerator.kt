@@ -26,7 +26,6 @@ import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
-import me.kcra.takenaka.core.mapping.ancestry.impl.hash
 import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.util.allNamespaceIds
@@ -95,20 +94,6 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
 
         generationContext(styleProvider) {
             val tree = classAncestryTreeOf(mappings, config.historyIndexNamespace, config.historyNamespaces)
-
-            val treeHash = tree.hash
-            if (config.historyIndexNamespace != null && config.historyHashKey != null) {
-                mappings.forEach { (version, realTree) ->
-                    val realTreeHash = realTree.getMetadata(config.historyHashKey)
-                    checkNotNull(realTreeHash) {
-                        "Version ${version.id} does not have an ancestry tree hash"
-                    }
-
-                    check(treeHash == realTreeHash) {
-                        "Version ${version.id} has a mismatched ancestry tree hash (expected: $treeHash, got: $realTreeHash)"
-                    }
-                }
-            }
 
             // used for looking up history hashes - for linking
             val hashMap = IdentityHashMap<MappingTreeView.ClassMappingView, String>()
