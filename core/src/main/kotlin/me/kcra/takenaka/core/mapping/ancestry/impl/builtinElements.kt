@@ -19,17 +19,24 @@ package me.kcra.takenaka.core.mapping.ancestry.impl
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.MappingsMap
+import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
 import me.kcra.takenaka.core.mapping.ancestry.NameDescriptorPair
 import me.kcra.takenaka.core.mapping.ancestry.buildAncestryTree
 import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
+import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 
 /**
  * An alias to shorten generics.
  */
 typealias ClassAncestryNode = AncestryTree.Node<MappingTreeView.ClassMappingView>
+
+/**
+ * An alias to shorten generics.
+ */
+typealias MutableClassAncestryNode = AncestryTree.Node<MappingTree.ClassMapping>
 
 /**
  * Computes an ancestry tree of all classes in the supplied versions.
@@ -92,9 +99,26 @@ fun classAncestryTreeOf(mappings: MappingsMap, indexNs: String? = null, allowedN
 }
 
 /**
+ * Computes an ancestry tree of all classes in the supplied versions.
+ *
+ * @param mappings the joined version mapping files
+ * @param indexNs namespace that contains node indices, null if there are none, *does not need to exist - ignored*
+ * @param allowedNamespaces namespaces that are used in this tree for tracing history, not distinguished by version; empty if all namespaces should be considered
+ * @return the ancestry tree
+ */
+@Suppress("UNCHECKED_CAST")
+fun mutableClassAncestryTreeOf(mappings: MutableMappingsMap, indexNs: String? = null, allowedNamespaces: List<String> = emptyList()): AncestryTree<MappingTree.ClassMapping> =
+    classAncestryTreeOf(mappings, indexNs, allowedNamespaces) as AncestryTree<MappingTree.ClassMapping>
+
+/**
  * An alias to shorten generics.
  */
 typealias FieldAncestryNode = AncestryTree.Node<MappingTreeView.FieldMappingView>
+
+/**
+ * An alias to shorten generics.
+ */
+typealias MutableFieldAncestryNode = AncestryTree.Node<MappingTree.FieldMapping>
 
 /**
  * Computes an ancestry tree of all fields in the supplied class ancestry node.
@@ -161,10 +185,26 @@ fun fieldAncestryTreeOf(klass: ClassAncestryNode): AncestryTree<MappingTreeView.
         }
     }
 }
+
+/**
+ * Computes an ancestry tree of all fields in the supplied class ancestry node.
+ *
+ * @param klass the class node
+ * @return the ancestry tree
+ */
+@Suppress("UNCHECKED_CAST")
+fun mutableFieldAncestryTreeOf(klass: MutableClassAncestryNode): AncestryTree<MappingTree.FieldMapping> =
+    fieldAncestryTreeOf(klass as ClassAncestryNode) as AncestryTree<MappingTree.FieldMapping>
+
 /**
  * An alias to shorten generics.
  */
 typealias MethodAncestryNode = AncestryTree.Node<MappingTreeView.MethodMappingView>
+
+/**
+ * An alias to shorten generics.
+ */
+typealias MutableMethodAncestryNode = AncestryTree.Node<MappingTree.MethodMapping>
 
 /**
  * Computes an ancestry tree of all methods in the supplied class ancestry node.
@@ -251,6 +291,19 @@ fun methodAncestryTreeOf(
         }
     }
 }
+
+/**
+ * Computes an ancestry tree of all methods in the supplied class ancestry node.
+ *
+ * @param klass the class node
+ * @param constructorMode constructor handling behavior setting
+ * @return the ancestry tree
+ */
+@Suppress("UNCHECKED_CAST")
+fun mutableMethodAncestryTreeOf(
+    klass: MutableClassAncestryNode,
+    constructorMode: ConstructorComputationMode = ConstructorComputationMode.EXCLUDE
+): AncestryTree<MappingTree.MethodMapping> = methodAncestryTreeOf(klass as ClassAncestryNode, constructorMode) as AncestryTree<MappingTree.MethodMapping>
 
 /**
  * Searches for a member node in a tree, an alternative to [AncestryTree.get] if you don't know the descriptor or only the arguments.

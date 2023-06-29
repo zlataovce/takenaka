@@ -26,7 +26,7 @@ import net.fabricmc.mappingio.tree.MappingTree
  * @param ns the namespace where the index should be stored, created if not present
  * @param beginIndex the first node index, starts at 0
  */
-fun AncestryTree<MappingTree.ElementMapping>.computeIndices(ns: String, beginIndex: Int = 0) {
+fun <T : MappingTree.ElementMapping> AncestryTree<T>.computeIndices(ns: String, beginIndex: Int = 0) {
     var index = beginIndex
     val namespaceIds = trees.entries.associate { (version, tree) ->
         tree as MappingTree // generic contract violated if this throws
