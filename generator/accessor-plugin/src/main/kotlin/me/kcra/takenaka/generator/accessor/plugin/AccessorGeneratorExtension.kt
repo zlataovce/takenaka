@@ -25,6 +25,7 @@ import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.model.*
+import me.kcra.takenaka.generator.accessor.plugin.tasks.DEFAULT_INDEX_NS
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
@@ -87,11 +88,17 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      */
     abstract val accessedNamespaces: ListProperty<String>
 
+    /**
+     * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch, defaults to [DEFAULT_INDEX_NS].
+     */
+    abstract val historyIndexNamespace: Property<String?>
+
     init {
         outputDirectory.convention(project.layout.buildDirectory.dir("takenaka/output"))
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
         languageFlavor.convention(LanguageFlavor.JAVA)
         accessorFlavor.convention(AccessorFlavor.NONE)
+        historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         strictCache.convention(false)
     }
 
@@ -207,6 +214,15 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      */
     fun accessedNamespaces(vararg accessedNamespaces: String) {
         this.accessedNamespaces.addAll(*accessedNamespaces)
+    }
+
+    /**
+     * Sets the [historyIndexNamespace] property.
+     *
+     * @param historyIndexNamespace the index namespace, can be null
+     */
+    fun historyIndexNamespace(historyIndexNamespace: String?) {
+        this.historyIndexNamespace.set(historyIndexNamespace)
     }
 
     /**

@@ -93,7 +93,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
         val styleProvider: StyleProvider? = if (config.emitPseudoElements) StyleProviderImpl() else null
 
         generationContext(styleProvider) {
-            val tree = classAncestryTreeOf(mappings, config.historicalNamespaces)
+            val tree = classAncestryTreeOf(mappings, config.historyIndexNamespace, config.historyNamespaces)
 
             // used for looking up history hashes - for linking
             val hashMap = IdentityHashMap<MappingTreeView.ClassMappingView, String>()

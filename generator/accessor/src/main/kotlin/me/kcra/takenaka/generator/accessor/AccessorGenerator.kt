@@ -47,7 +47,7 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
      * @param mappings the mappings
      */
     override suspend fun generate(mappings: MappingsMap) {
-        val tree = classAncestryTreeOf(mappings, config.historicalNamespaces)
+        val tree = classAncestryTreeOf(mappings, config.historyIndexNamespace, config.historyNamespaces)
 
         generationContext(config.languageFlavor) {
             config.accessors.forEach { classAccessor ->

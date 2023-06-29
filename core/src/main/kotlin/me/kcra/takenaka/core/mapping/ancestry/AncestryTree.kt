@@ -30,8 +30,16 @@ typealias NameDescriptorPair = Pair<String, String>
 /**
  * A mapping ancestry tree.
  *
+ * ### Node indices
+ * Ancestry node indices are a (mapping) comparison-free way of computing an ancestry tree.
+ * Instead of comparing mapped names to create an ancestry tree, node indices, inserted by the mapping originator, can be compared instead.
+ *
+ * **These indices are not checked for consistency, make sure all joined mapping trees with indices were built with the same generator instance.**
+ * (else your ancestry tree will be computed incorrectly)
+ *
  * @param nodes the ancestry nodes
  * @property trees mapping trees used for the computation of this ancestry tree
+ * @property indexNamespaces namespace IDs used for computing node indices (IDs can be absent or [NULL_NAMESPACE_ID]), distinguished by version
  * @property allowedNamespaces namespace IDs used for computing history, distinguished by version
  * @param T the kind of the traced element; can be a class, method, field, ...
  * @author Matouš Kučera
@@ -39,6 +47,7 @@ typealias NameDescriptorPair = Pair<String, String>
 class AncestryTree<T : ElementMappingView>(
     nodes: List<Node<T>>,
     val trees: MappingsMap,
+    val indexNamespaces: Map<Version, Int>,
     val allowedNamespaces: Map<Version, Array<Int>>
 ) : List<AncestryTree.Node<T>> by nodes {
     /**

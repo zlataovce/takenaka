@@ -36,6 +36,11 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 
 /**
+ * The default history index namespace.
+ */
+const val DEFAULT_INDEX_NS = "takenaka_node"
+
+/**
  * A Gradle task that generates accessors from mappings.
  *
  * @author Matouš Kučera
@@ -110,6 +115,14 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     abstract val craftBukkitVersionReplaceCandidates: ListProperty<String>
 
     /**
+     * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch, defaults to [DEFAULT_INDEX_NS].
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.historyIndexNamespace
+     */
+    @get:Input
+    abstract val historyIndexNamespace: Property<String?>
+
+    /**
      * The workspace options, defaults to [DefaultWorkspaceOptions.RELAXED_CACHE].
      *
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.strictCache
@@ -134,6 +147,7 @@ abstract class GenerateAccessorsTask : DefaultTask() {
         languageFlavor.convention(LanguageFlavor.JAVA)
         accessorFlavor.convention(AccessorFlavor.NONE)
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
+        historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         options.convention(DefaultWorkspaceOptions.RELAXED_CACHE)
     }
 
@@ -151,7 +165,8 @@ abstract class GenerateAccessorsTask : DefaultTask() {
                 accessorFlavor = accessorFlavor.get(),
                 namespaceFriendlinessIndex = namespaceFriendlinessIndex.get(),
                 accessedNamespaces = accessedNamespaces.get(),
-                craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get()
+                craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get(),
+                historyIndexNamespace = historyIndexNamespace.get()
             )
         )
 
