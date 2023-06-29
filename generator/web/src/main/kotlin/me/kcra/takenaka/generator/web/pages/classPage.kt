@@ -23,6 +23,8 @@ import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
+import me.kcra.takenaka.core.mapping.analysis.impl.InheritanceWalkMode
+import me.kcra.takenaka.core.mapping.analysis.impl.resolveSuperTypes
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import me.kcra.takenaka.core.mapping.matchers.isEnumValueOf
@@ -57,7 +59,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
     val klassDeclaration = formatClassDescriptor(klass, workspace.version, friendlyNameRemapper)
 
     head {
-        defaultResourcesComponent(workspace.version.id)
+        defaultResourcesComponent()
         if (generator.config.emitMetaTags) {
             metadataComponent(
                 title = klassDeclaration.friendlyName,
@@ -102,6 +104,26 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                     }
                 }
             }
+
+            if (klassDeclaration.hasVisibleSuperClass) { // don't show superinterfaces when there's no actual superclass
+                val superInterfaces = klass.resolveSuperTypes(InheritanceWalkMode.INTERFACES)
+                if (superInterfaces.isNotEmpty()) {
+                    p(classes = "interfaces-header") {
+                        +"All mapped superinterfaces:"
+                    }
+                    p(classes = "interfaces-description") {
+                        superInterfaces.forEachIndexed { i, s ->
+                            val friendlyName = getFriendlyDstName(s)
+
+                            a(href = "/${workspace.version.id}/$friendlyName.html") {
+                                +friendlyName.substringAfterLast('/')
+                            }
+                            if (i != superInterfaces.lastIndex) +", "
+                        }
+                    }
+                }
+            }
+
             spacerTopComponent()
             table {
                 tbody {
@@ -112,7 +134,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                         val namespacedNmsVersion = if (ns in versionReplaceCandidates) nmsVersion else null
                         val name = klass.getName(id)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) ?: return@forEach
                         tr {
-                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
+                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
                             td(classes = "mapping-value") {
                                 +name.fromInternalName()
                             }
@@ -175,7 +197,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                                                     val name = field.getName(id)
                                                     if (name != null) {
                                                         tr {
-                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
+                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
                                                             td(classes = "mapping-value") {
                                                                 +name
                                                             }
@@ -281,7 +303,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                                                     val methodName = method.getName(id)
                                                     if (methodName != null) {
                                                         tr {
-                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
+                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
                                                             td(classes = "mapping-value") {
                                                                 unsafe {
                                                                     val remapper = ElementRemapper(method.tree) { it.getName(id)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) }
@@ -317,13 +339,15 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
  * @property modifiersAndName the stringified modifiers with the package-less class name
  * @property formals the formal generic type arguments of the class itself
  * @property superTypes the superclass and superinterfaces, including `extends` and `implements`, implicit ones are omitted (null if there are no non-implicit supertypes)
+ * @property hasVisibleSuperClass whether a superclass is visible in [superTypes]
  */
 data class ClassDeclaration(
     val friendlyName: String,
     val modifiers: Int,
     val modifiersAndName: String,
     val formals: String?,
-    val superTypes: String?
+    val superTypes: String?,
+    val hasVisibleSuperClass: Boolean
 )
 
 /**
@@ -354,6 +378,9 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
     var formals: String? = null
     lateinit var superTypes: String
 
+    val superClass = klass.superClass
+    val hasVisibleSuperClass = superClass != "java/lang/Object" && superClass != "java/lang/Record" && superClass != "java/lang/Enum"
+
     val signature = klass.signature
     if (signature != null) {
         val options = buildFormattingOptions {
@@ -376,11 +403,10 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
             superTypes = if (implementsClauseIndex != -1) superTypes.substring(implementsClauseIndex) else ""
         }
     } else {
-        val superClass = klass.superClass
         val interfaces = klass.interfaces.filter { it != "java/lang/annotation/Annotation" }
 
         superTypes = buildString {
-            if (superClass != "java/lang/Object" && superClass != "java/lang/Record" && superClass != "java/lang/Enum") {
+            if (hasVisibleSuperClass) {
                 append("extends ${nameRemapper.mapAndLink(superClass, version, generator.config.index)}")
                 if (interfaces.isNotEmpty()) {
                     append(" ")
@@ -403,7 +429,8 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
         mod,
         modifiersAndName,
         formals,
-        superTypes.ifBlank { null }
+        superTypes.ifBlank { null },
+        hasVisibleSuperClass
     )
 }
 
@@ -487,26 +514,29 @@ fun GenerationContext.formatMethodDescriptor(
         append('(')
 
         val args = type.argumentTypes
-        var argumentIndex = 0
+        var argIndex = 0
+        var lvIndex = 0 // local variable index
+
+        // the first variable is the class instance if it's not static, so offset it
+        if ((mod and Opcodes.ACC_STATIC) == 0) lvIndex++
         append(
             args.joinToString { arg ->
-                val i = argumentIndex++
+                val currArgIndex = argIndex++
+
                 return@joinToString buildString {
-                    append(formatType(arg, version, nameRemapper, linkRemapper, isVarargs = i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0))
+                    append(formatType(arg, version, nameRemapper, linkRemapper, isVarargs = currArgIndex == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0))
 
                     if (generateNamedParameters) {
                         append(' ')
 
-                        var lvIndex = i  // local variable index
-                        // the first variable is the class instance if it's not static, so offset it
-                        if ((mod and Opcodes.ACC_STATIC) == 0) lvIndex++
-
                         append(
                             method.getArg(-1, lvIndex, null)
                                 ?.let(nameRemapper.elementMapper)
-                                ?: "arg$i"
+                                ?: "arg$currArgIndex"
                         )
                     }
+
+                    lvIndex += arg.size // increment by the appropriate LVT size
                 }
             }
         )

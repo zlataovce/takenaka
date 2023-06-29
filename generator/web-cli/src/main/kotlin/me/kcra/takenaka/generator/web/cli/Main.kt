@@ -35,7 +35,8 @@ import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.common.ResolvingMappingProvider
 import me.kcra.takenaka.generator.common.buildMappingConfig
 import me.kcra.takenaka.generator.web.*
-import me.kcra.takenaka.generator.web.transformers.Minifier
+import me.kcra.takenaka.generator.web.transformers.CSSInliningTransformer
+import me.kcra.takenaka.generator.web.transformers.MinifyingTransformer
 import mu.KotlinLogging
 import kotlin.system.measureTimeMillis
 
@@ -79,6 +80,7 @@ fun main(args: Array<String>) {
     val javadoc by parser.option(ArgType.String, shortName = "j", description = "Javadoc site that should be referenced in the documentation, can be specified multiple times").multiple()
     val synthetic by parser.option(ArgType.Boolean, shortName = "s", description = "Include synthetic classes and class members in the documentation").default(false)
     val noMeta by parser.option(ArgType.Boolean, description = "Don't emit HTML metadata tags in OpenGraph format").default(false)
+    val noPseudoElems by parser.option(ArgType.Boolean, description = "Don't emit pseudo-elements (increases file size)").default(false)
 
     parser.parse(args)
 
@@ -173,12 +175,7 @@ fun main(args: Array<String>) {
                 <br/>
                 <p>
                     You can move through this site by following links to specific versions/packages/classes/...
-                    or use the nifty search field in the top right corner (appears when in a versioned page!).<br/>
-                    <i style="color: var(--text-muted);">
-                        If you want to search only in a specific namespace (i.e. kind of mappings - Mojang, Spigot, ...),
-                        prefix your search query with <code>ns:namespaceName</code>.<br/>
-                        (e.g. <code>ns:Mojang</code>; case-insensitive and you don't even need to finish the namespace name!)
-                    </i>
+                    or use the nifty search field in the top right corner (appears when in a versioned page!).
                 </p>
                 <br/>
                 <p>
@@ -192,10 +189,12 @@ fun main(args: Array<String>) {
         }
 
         emitMetaTags(!noMeta)
+        emitPseudoElements(!noPseudoElems)
 
+        transformer(CSSInliningTransformer("fonts.googleapis.com"))
         logger.info { "using minification mode $minifier" }
         if (minifier != MinifierImpls.NONE) {
-            transformer(Minifier(isDeterministic = minifier == MinifierImpls.DETERMINISTIC))
+            transformer(MinifyingTransformer(isDeterministic = minifier == MinifierImpls.DETERMINISTIC))
         }
 
         val indexers = mutableListOf<ClassSearchIndex>(objectMapper.modularClassSearchIndexOf(JDK_17_BASE_URL))

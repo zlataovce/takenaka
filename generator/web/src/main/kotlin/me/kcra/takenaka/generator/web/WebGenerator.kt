@@ -35,7 +35,7 @@ import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
-import me.kcra.takenaka.generator.web.transformers.Minifier
+import me.kcra.takenaka.generator.web.transformers.MinifyingTransformer
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.w3c.dom.Document
@@ -43,6 +43,7 @@ import java.io.BufferedReader
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.*
+import kotlin.io.path.appendText
 import kotlin.io.path.writeText
 
 /**
@@ -58,7 +59,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
     private val namespaceFriendlyNames = config.namespaces.mapValues { it.value.friendlyName }
     private val currentComposite by workspace
 
-    internal val hasMinifier = config.transformers.any { it is Minifier }
+    internal val hasMinifier = config.transformers.any { it is MinifyingTransformer }
 
     /**
      * A [Comparator] for comparing the friendliness of namespaces, useful for sorting.
@@ -90,9 +91,9 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
      * @param mappings the mappings
      */
     override suspend fun generate(mappings: MappingsMap) {
-        val styleConsumer = DefaultStyleConsumer()
+        val styleProvider: StyleProvider? = if (config.emitPseudoElements) StyleProviderImpl() else null
 
-        generationContext(styleConsumer = styleConsumer::apply) {
+        generationContext(styleProvider) {
             val tree = classAncestryTreeOf(mappings, config.historyIndexNamespace, config.historyNamespaces)
 
             val treeHash = tree.hash
@@ -221,15 +222,23 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                     const overviewLink = document.getElementById("overview-link");
                     const licensesLink = document.getElementById("licenses-link");
                     const searchInput = document.getElementById("search-input");
+                    const searchBox = document.getElementById("search-box");
                     
                     if (baseUrl) {
-                        overviewLink.href = baseUrl + "/index.html";
-                        licensesLink.href = baseUrl + "/licenses.html";
+                        overviewLink.href = `${'$'}{baseUrl}/index.html`;
+                        licensesLink.href = `${'$'}{baseUrl}/licenses.html`;
+                        
                         searchInput.addEventListener("input", (evt) => search(evt.target.value));
+                        document.addEventListener("mouseup", (evt) => {
+                            searchBox.style.display = !searchInput.contains(evt.target) && !searchBox.contains(evt.target) ? "none" : "block";
+                        });
+                        
+                        initialIndexLoadPromise.then(updateOptions);
                     } else {
                         overviewLink.remove();
                         licensesLink.remove();
                         searchInput.remove();
+                        searchBox.remove();
                         e.dataset.collapsed = "yes";
                     }
                 """.trimIndent()
@@ -241,10 +250,10 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                 }
             }
         )
-        assetWorkspace["components.js"].writeText(transformJs(componentFileContent))
-        assetWorkspace["generated.css"].writeText(transformCss(styleConsumer.generateStyleSheet()))
+        assetWorkspace["main.js"].appendText(transformJs(componentFileContent))
 
         copyAsset("main.css") // main.css should be copied last to minify correctly
+        styleProvider?.let { assetWorkspace["main.css"].appendText(transformCss(it.asStyleSheet())) }
     }
 
     /**

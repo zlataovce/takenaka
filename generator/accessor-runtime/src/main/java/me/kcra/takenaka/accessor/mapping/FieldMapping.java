@@ -60,11 +60,12 @@ public final class FieldMapping {
     private final Map<String, Map<String, String>> mappings;
 
     /**
-     * Cached value from {@link }
+     * Cached value from {@link #getConstantValue()}.
      */
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
-    private Object constantValue = UNINITIALIZED_VALUE;
+    @EqualsAndHashCode.Exclude
+    private volatile Object constantValue = UNINITIALIZED_VALUE;
 
     /**
      * Constructs a new {@link FieldMapping} without any initial mappings.

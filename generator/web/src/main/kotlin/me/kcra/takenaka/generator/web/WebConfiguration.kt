@@ -26,6 +26,7 @@ import net.fabricmc.mappingio.MappingUtil
  *
  * @property welcomeMessage a welcoming message that is displayed on the main page, null if it should not be added, supports arbitrary HTML markup
  * @property emitMetaTags whether HTML metadata tags (per [me.kcra.takenaka.generator.web.components.metadataComponent]) should be added to pages
+ * @property emitPseudoElements whether pseudo-elements should be used on the site (badges - for decreasing the output size)
  * @property transformers a list of transformers that transform the output
  * @property namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @property namespaces a map of namespaces and their descriptions, unspecified namespaces will not be shown
@@ -39,6 +40,7 @@ import net.fabricmc.mappingio.MappingUtil
 data class WebConfiguration(
     val welcomeMessage: String? = null,
     val emitMetaTags: Boolean = true,
+    val emitPseudoElements: Boolean = true,
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaces: Map<String, NamespaceDescription> = emptyMap(),
@@ -64,6 +66,11 @@ class WebConfigurationBuilder {
      * Whether HTML metadata tags (per [me.kcra.takenaka.generator.web.components.metadataComponent]) should be added to pages.
      */
     var emitMetaTags = true
+
+    /**
+     * Whether pseudo-elements should be used on the site (badges - for decreasing the output size).
+     */
+    var emitPseudoElements = true
 
     /**
      * Transformers that transform the output.
@@ -121,6 +128,15 @@ class WebConfigurationBuilder {
      */
     fun emitMetaTags(value: Boolean) {
         emitMetaTags = value
+    }
+
+    /**
+     * Sets [emitPseudoElements].
+     *
+     * @param value the value
+     */
+    fun emitPseudoElements(value: Boolean) {
+        emitPseudoElements = value
     }
 
     /**
@@ -248,6 +264,7 @@ class WebConfigurationBuilder {
     fun toWebConfig() = WebConfiguration(
         welcomeMessage,
         emitMetaTags,
+        emitPseudoElements,
         transformers,
         namespaceFriendlinessIndex,
         namespaces,

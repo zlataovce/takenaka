@@ -40,7 +40,6 @@ import org.objectweb.asm.Opcodes
 import org.objectweb.asm.commons.Remapper
 import org.objectweb.asm.signature.SignatureReader
 import org.objectweb.asm.signature.SignatureVisitor
-import java.lang.reflect.Modifier
 
 /**
  * Formatting options.
@@ -261,12 +260,17 @@ class SignatureFormatter : SignatureVisitor {
     /**
      * The index where the main formals end.
      */
-    var formalEndIndex: Int = -1
+    var formalEndIndex = -1
 
     /**
      * The index of the next argument.
      */
-    var argumentIndex: Int = 0
+    var argIndex = 0
+
+    /**
+     * The local variable table index of the next argument.
+     */
+    var lvIndex = 0
 
     /**
      * The formal type parameters of the visited class signature.
@@ -336,6 +340,9 @@ class SignatureFormatter : SignatureVisitor {
         this.linkRemapper = linkRemapper
         this.packageIndex = packageIndex
         this.version = version
+
+        // the first variable is the class instance if it's not static, so offset the LVT index
+        if (DefaultFormattingOptions.STATIC_METHOD !in options) lvIndex++
     }
 
     private constructor(
@@ -356,6 +363,9 @@ class SignatureFormatter : SignatureVisitor {
         this.linkRemapper = linkRemapper
         this.packageIndex = packageIndex
         this.version = version
+
+        // the first variable is the class instance if it's not static, so offset it
+        if (DefaultFormattingOptions.STATIC_METHOD !in options) lvIndex++
     }
 
     override fun visitFormalTypeParameter(name: String) {
@@ -555,15 +565,18 @@ class SignatureFormatter : SignatureVisitor {
                 declaration_.append("...")
             }
 
-            val i = argumentIndex++
+            // FIXME: hack, capture this properly
+            val argSize = when {
+                declaration_.endsWith("double") -> 2
+                declaration_.endsWith("long") -> 2
+                declaration_.endsWith("void") -> 0
+                else -> 1
+            }
 
-            var lvIndex = i  // local variable index
-            // the first variable is the class instance if it's not static, so offset it
-            if (DefaultFormattingOptions.STATIC_METHOD !in options) lvIndex++
+            val currArgIndex = argIndex++
+            declaration_.append(' ').append(remapper?.elementMapper?.let { method?.getArg(-1, lvIndex, null)?.let(it) } ?: "arg$currArgIndex")
 
-            declaration_.append(' ').append(
-                remapper?.elementMapper?.let { method?.getArg(-1, lvIndex, null)?.let(it) } ?: "arg$i"
-            )
+            lvIndex += argSize // increment the lvIndex by the appropriate arg size
         }
     }
 
