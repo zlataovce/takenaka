@@ -513,18 +513,19 @@ fun GenerationContext.formatMethodDescriptor(
     val args = buildString {
         append('(')
 
-        val args = type.argumentTypes
         var argIndex = 0
         var lvIndex = 0 // local variable index
 
         // the first variable is the class instance if it's not static, so offset it
         if ((mod and Opcodes.ACC_STATIC) == 0) lvIndex++
+
+        val argTypes = type.argumentTypes
         append(
-            args.joinToString { arg ->
+            argTypes.joinToString { arg ->
                 val currArgIndex = argIndex++
 
                 return@joinToString buildString {
-                    append(formatType(arg, version, nameRemapper, linkRemapper, isVarargs = currArgIndex == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0))
+                    append(formatType(arg, version, nameRemapper, linkRemapper, isVarargs = currArgIndex == (argTypes.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0))
 
                     if (generateNamedParameters) {
                         append(' ')

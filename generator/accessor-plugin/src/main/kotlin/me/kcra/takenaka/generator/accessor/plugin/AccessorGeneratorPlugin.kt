@@ -76,6 +76,8 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.languageFlavor.set(config.languageFlavor)
             this.accessorFlavor.set(config.accessorFlavor)
             this.accessedNamespaces.set(config.accessedNamespaces)
+            this.historyNamespaces.set(config.historyNamespaces)
+            this.historyIndexNamespace.set(config.historyIndexNamespace)
             this.options.set(options)
         }
 

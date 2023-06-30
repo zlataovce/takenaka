@@ -89,6 +89,11 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     abstract val accessedNamespaces: ListProperty<String>
 
     /**
+     * Namespaces that should be used for computing history, defaults to "mojang", "spigot", "searge" and "intermediary".
+     */
+    abstract val historyNamespaces: ListProperty<String>
+
+    /**
      * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch, defaults to [DEFAULT_INDEX_NS].
      */
     abstract val historyIndexNamespace: Property<String?>
@@ -98,6 +103,7 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
         languageFlavor.convention(LanguageFlavor.JAVA)
         accessorFlavor.convention(AccessorFlavor.NONE)
+        historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         strictCache.convention(false)
     }
@@ -214,6 +220,15 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      */
     fun accessedNamespaces(vararg accessedNamespaces: String) {
         this.accessedNamespaces.addAll(*accessedNamespaces)
+    }
+
+    /**
+     * Sets the [historyNamespaces] property.
+     *
+     * @param historyNamespaces the history namespaces
+     */
+    fun historyNamespaces(vararg historyNamespaces: String) {
+        this.historyNamespaces.addAll(*historyNamespaces)
     }
 
     /**

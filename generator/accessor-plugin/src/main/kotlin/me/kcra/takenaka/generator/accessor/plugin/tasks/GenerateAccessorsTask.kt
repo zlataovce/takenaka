@@ -115,6 +115,12 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     abstract val craftBukkitVersionReplaceCandidates: ListProperty<String>
 
     /**
+     * Namespaces that should be used for computing history, defaults to "mojang", "spigot", "searge" and "intermediary".
+     */
+    @get:Input
+    abstract val historyNamespaces: ListProperty<String>
+
+    /**
      * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch, defaults to [DEFAULT_INDEX_NS].
      *
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.historyIndexNamespace
@@ -147,6 +153,7 @@ abstract class GenerateAccessorsTask : DefaultTask() {
         languageFlavor.convention(LanguageFlavor.JAVA)
         accessorFlavor.convention(AccessorFlavor.NONE)
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
+        historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         options.convention(DefaultWorkspaceOptions.RELAXED_CACHE)
     }
@@ -166,6 +173,7 @@ abstract class GenerateAccessorsTask : DefaultTask() {
                 namespaceFriendlinessIndex = namespaceFriendlinessIndex.get(),
                 accessedNamespaces = accessedNamespaces.get(),
                 craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get(),
+                historyNamespaces = historyNamespaces.get(),
                 historyIndexNamespace = historyIndexNamespace.get()
             )
         )

@@ -18,6 +18,7 @@
 package me.kcra.takenaka.core.mapping.ancestry.impl
 
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
+import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.tree.MappingTree
 
 /**
@@ -35,8 +36,14 @@ fun <T : MappingTree.ElementMapping> AncestryTree<T>.computeIndices(ns: String, 
         if (nsId == MappingTree.NULL_NAMESPACE_ID) {
             nsId = tree.maxNamespaceId
 
+            check(tree is MappingVisitor) {
+                "Namespace $ns is not present in tree of version ${version.id} and tree does not implement MappingVisitor"
+            }
             // add index namespace at the end
-            tree.dstNamespaces = tree.dstNamespaces + ns
+            check(tree.visitHeader()) {
+                "Namespace $ns is not present in tree of version ${version.id} and tree declined header visit"
+            }
+            tree.visitNamespaces(tree.srcNamespace, tree.dstNamespaces + ns)
         }
 
         require(nsId != MappingTree.SRC_NAMESPACE_ID) {
