@@ -15,14 +15,11 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.generator.common
+package me.kcra.takenaka.generator.common.provider.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.adapter.MissingDescriptorFilter
@@ -32,10 +29,13 @@ import me.kcra.takenaka.core.mapping.resolve.OutputContainer
 import me.kcra.takenaka.core.mapping.unwrap
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
+import me.kcra.takenaka.generator.common.provider.MappingProvider
 import mu.KotlinLogging
 import net.fabricmc.mappingio.format.Tiny2Reader
 import net.fabricmc.mappingio.format.Tiny2Writer
 import net.fabricmc.mappingio.tree.MemoryMappingTree
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.io.path.*
 import kotlin.system.measureTimeMillis
 
@@ -136,4 +136,18 @@ class ResolvingMappingProvider(
             }
             .toMap()
     }
+}
+
+/**
+ * Maps an [Iterable] in parallel.
+ *
+ * @param context the coroutine context
+ * @param block the mapping function
+ * @return the remapped list
+ */
+suspend fun <A, B> Iterable<A>.parallelMap(
+    context: CoroutineContext = EmptyCoroutineContext,
+    block: suspend (A) -> B
+): List<B> = coroutineScope {
+    map { async(context) { block(it) } }.awaitAll()
 }

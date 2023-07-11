@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.generator.common
+package me.kcra.takenaka.generator.common.provider.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.VersionManifest
@@ -23,6 +23,7 @@ import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
+import me.kcra.takenaka.generator.common.provider.MappingProvider
 import mu.KotlinLogging
 import net.fabricmc.mappingio.format.Tiny2Reader
 import net.fabricmc.mappingio.tree.MemoryMappingTree

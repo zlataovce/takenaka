@@ -32,6 +32,7 @@ import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
+import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import java.nio.file.Path
@@ -45,7 +46,11 @@ import javax.lang.model.element.Modifier
  * @param contextScope the coroutine scope of this context
  * @author Matouš Kučera
  */
-open class JavaGenerationContext(override val generator: AccessorGenerator, contextScope: CoroutineScope) : AbstractGenerationContext(contextScope) {
+open class JavaGenerationContext(
+    generator: AccessorGenerator,
+    ancestryProvider: AncestryProvider,
+    contextScope: CoroutineScope
+) : AbstractGenerationContext(generator, ancestryProvider, contextScope) {
     /**
      * Generates an accessor class from a model in Java.
      *

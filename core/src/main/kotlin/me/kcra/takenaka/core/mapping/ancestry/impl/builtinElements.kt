@@ -18,25 +18,33 @@
 package me.kcra.takenaka.core.mapping.ancestry.impl
 
 import me.kcra.takenaka.core.Version
-import me.kcra.takenaka.core.mapping.MappingsMap
-import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
 import me.kcra.takenaka.core.mapping.ancestry.NameDescriptorPair
 import me.kcra.takenaka.core.mapping.ancestry.buildAncestryTree
-import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
+import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 
 /**
  * An alias to shorten generics.
  */
-typealias ClassAncestryNode = AncestryTree.Node<MappingTreeView.ClassMappingView>
+typealias ClassAncestryTree = AncestryTree<MappingTreeView, MappingTreeView.ClassMappingView>
 
 /**
  * An alias to shorten generics.
  */
-typealias MutableClassAncestryNode = AncestryTree.Node<MappingTree.ClassMapping>
+typealias MutableClassAncestryTree = AncestryTree<MappingTree, MappingTree.ClassMapping>
+
+/**
+ * An alias to shorten generics.
+ */
+typealias ClassAncestryNode = AncestryTree.Node<MappingTreeView, MappingTreeView.ClassMappingView>
+
+/**
+ * An alias to shorten generics.
+ */
+typealias MutableClassAncestryNode = AncestryTree.Node<MappingTree, MappingTree.ClassMapping>
 
 /**
  * Computes an ancestry tree of all classes in the supplied versions.
@@ -46,7 +54,11 @@ typealias MutableClassAncestryNode = AncestryTree.Node<MappingTree.ClassMapping>
  * @param allowedNamespaces namespaces that are used in this tree for tracing history, not distinguished by version; empty if all namespaces should be considered
  * @return the ancestry tree
  */
-fun classAncestryTreeOf(mappings: MappingsMap, indexNs: String? = null, allowedNamespaces: List<String> = emptyList()): AncestryTree<MappingTreeView.ClassMappingView> = buildAncestryTree {
+fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView> classAncestryTreeOf(
+    mappings: Map<Version, T>,
+    indexNs: String? = null,
+    allowedNamespaces: List<String> = emptyList()
+): AncestryTree<T, C> = buildAncestryTree {
     trees += mappings
 
     // convert to sorted map to ensure proper ordering
@@ -64,7 +76,8 @@ fun classAncestryTreeOf(mappings: MappingsMap, indexNs: String? = null, allowedN
             this@buildAncestryTree.indexNamespaces[version] = indexNsId
         }
 
-        tree.classes.forEach { klass ->
+        @Suppress("UNCHECKED_CAST")
+        (tree.classes as Collection<C>).forEach { klass ->
             // try to resolve a node by its index
             if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
                 val nodeIndex = klass.getDstName(indexNsId)?.toIntOrNull()
@@ -99,26 +112,24 @@ fun classAncestryTreeOf(mappings: MappingsMap, indexNs: String? = null, allowedN
 }
 
 /**
- * Computes an ancestry tree of all classes in the supplied versions.
- *
- * @param mappings the joined version mapping files
- * @param indexNs namespace that contains node indices, null if there are none, *does not need to exist - ignored*
- * @param allowedNamespaces namespaces that are used in this tree for tracing history, not distinguished by version; empty if all namespaces should be considered
- * @return the ancestry tree
+ * An alias to shorten generics.
  */
-@Suppress("UNCHECKED_CAST")
-fun mutableClassAncestryTreeOf(mappings: MutableMappingsMap, indexNs: String? = null, allowedNamespaces: List<String> = emptyList()): AncestryTree<MappingTree.ClassMapping> =
-    classAncestryTreeOf(mappings, indexNs, allowedNamespaces) as AncestryTree<MappingTree.ClassMapping>
+typealias FieldAncestryTree = AncestryTree<MappingTreeView, MappingTreeView.FieldMappingView>
 
 /**
  * An alias to shorten generics.
  */
-typealias FieldAncestryNode = AncestryTree.Node<MappingTreeView.FieldMappingView>
+typealias MutableFieldAncestryTree = AncestryTree<MappingTree, MappingTree.FieldMapping>
 
 /**
  * An alias to shorten generics.
  */
-typealias MutableFieldAncestryNode = AncestryTree.Node<MappingTree.FieldMapping>
+typealias FieldAncestryNode = AncestryTree.Node<MappingTreeView, MappingTreeView.FieldMappingView>
+
+/**
+ * An alias to shorten generics.
+ */
+typealias MutableFieldAncestryNode = AncestryTree.Node<MappingTree, MappingTree.FieldMapping>
 
 /**
  * Computes an ancestry tree of all fields in the supplied class ancestry node.
@@ -126,7 +137,7 @@ typealias MutableFieldAncestryNode = AncestryTree.Node<MappingTree.FieldMapping>
  * @param klass the class node
  * @return the ancestry tree
  */
-fun fieldAncestryTreeOf(klass: ClassAncestryNode): AncestryTree<MappingTreeView.FieldMappingView> = buildAncestryTree {
+fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, F : MappingTreeView.FieldMappingView> fieldAncestryTreeOf(klass: AncestryTree.Node<T, C>): AncestryTree<T, F> = buildAncestryTree {
     inheritTrees(klass.tree)
     inheritNamespaces(klass.tree)
 
@@ -135,7 +146,9 @@ fun fieldAncestryTreeOf(klass: ClassAncestryNode): AncestryTree<MappingTreeView.
             ?: error("Version ${version.id} has not been mapped yet")
 
         val indexNsId = klass.tree.indexNamespaces[version] ?: MappingTreeView.NULL_NAMESPACE_ID
-        realKlass.fields.forEach { field ->
+
+        @Suppress("UNCHECKED_CAST")
+        (realKlass.fields as Collection<F>).forEach { field ->
             // try to resolve a node by its index
             if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
                 val nodeIndex = field.getDstName(indexNsId)?.toIntOrNull()
@@ -187,24 +200,24 @@ fun fieldAncestryTreeOf(klass: ClassAncestryNode): AncestryTree<MappingTreeView.
 }
 
 /**
- * Computes an ancestry tree of all fields in the supplied class ancestry node.
- *
- * @param klass the class node
- * @return the ancestry tree
+ * An alias to shorten generics.
  */
-@Suppress("UNCHECKED_CAST")
-fun mutableFieldAncestryTreeOf(klass: MutableClassAncestryNode): AncestryTree<MappingTree.FieldMapping> =
-    fieldAncestryTreeOf(klass as ClassAncestryNode) as AncestryTree<MappingTree.FieldMapping>
+typealias MethodAncestryTree = AncestryTree<MappingTreeView, MappingTreeView.MethodMappingView>
 
 /**
  * An alias to shorten generics.
  */
-typealias MethodAncestryNode = AncestryTree.Node<MappingTreeView.MethodMappingView>
+typealias MutableMethodAncestryTree = AncestryTree<MappingTree, MappingTree.MethodMapping>
 
 /**
  * An alias to shorten generics.
  */
-typealias MutableMethodAncestryNode = AncestryTree.Node<MappingTree.MethodMapping>
+typealias MethodAncestryNode = AncestryTree.Node<MappingTreeView, MappingTreeView.MethodMappingView>
+
+/**
+ * An alias to shorten generics.
+ */
+typealias MutableMethodAncestryNode = AncestryTree.Node<MappingTree, MappingTree.MethodMapping>
 
 /**
  * Computes an ancestry tree of all methods in the supplied class ancestry node.
@@ -213,10 +226,10 @@ typealias MutableMethodAncestryNode = AncestryTree.Node<MappingTree.MethodMappin
  * @param constructorMode constructor handling behavior setting
  * @return the ancestry tree
  */
-fun methodAncestryTreeOf(
-    klass: ClassAncestryNode,
+fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeView.MethodMappingView>  methodAncestryTreeOf(
+    klass: AncestryTree.Node<T, C>,
     constructorMode: ConstructorComputationMode = ConstructorComputationMode.EXCLUDE
-): AncestryTree<MappingTreeView.MethodMappingView> = buildAncestryTree {
+): AncestryTree<T, M> = buildAncestryTree {
     inheritTrees(klass.tree)
     inheritNamespaces(klass.tree)
 
@@ -225,7 +238,8 @@ fun methodAncestryTreeOf(
             ?: error("Version ${version.id} has not been mapped yet")
 
         val indexNsId = klass.tree.indexNamespaces[version] ?: MappingTreeView.NULL_NAMESPACE_ID
-        realKlass.methods.forEach { method ->
+        @Suppress("UNCHECKED_CAST")
+        (realKlass.methods as Collection<M>).forEach { method ->
             val isConstructor = method.isConstructor
             when (constructorMode) {
                 ConstructorComputationMode.EXCLUDE -> {
@@ -293,35 +307,25 @@ fun methodAncestryTreeOf(
 }
 
 /**
- * Computes an ancestry tree of all methods in the supplied class ancestry node.
- *
- * @param klass the class node
- * @param constructorMode constructor handling behavior setting
- * @return the ancestry tree
- */
-@Suppress("UNCHECKED_CAST")
-fun mutableMethodAncestryTreeOf(
-    klass: MutableClassAncestryNode,
-    constructorMode: ConstructorComputationMode = ConstructorComputationMode.EXCLUDE
-): AncestryTree<MappingTree.MethodMapping> = methodAncestryTreeOf(klass as ClassAncestryNode, constructorMode) as AncestryTree<MappingTree.MethodMapping>
-
-/**
  * Searches for a member node in a tree, an alternative to [AncestryTree.get] if you don't know the descriptor or only the arguments.
  *
  * @param name the mapped field name
  * @param descriptor the mapped descriptor, may be partial, descriptors are not checked if null
  * @param version the version in which [name] is located, presumes last (newest) if null
  */
-fun <T : MappingTreeView.MemberMappingView> AncestryTree<T>.find(name: String, descriptor: String? = null, version: Version? = null): AncestryTree.Node<T>? =
-    find stdFind@ { node ->
-        if (version == null) {
-            @Suppress("UNCHECKED_CAST") // should always be NameDescriptorPair, since it's a field or a method
-            (node.lastNames as Set<NameDescriptorPair>).any { (pairName, pairDesc) ->
-                pairName == name && (descriptor == null || pairDesc.startsWith(descriptor))
-            }
-        } else {
-            val member = node[version] ?: return@stdFind false
-
-            node.tree.allowedNamespaces[version]?.any { ns -> member.getDstName(ns) == name && (descriptor == null || member.getDstDesc(ns).startsWith(descriptor)) } == true
+fun <T : MappingTreeView, M : MappingTreeView.MemberMappingView> AncestryTree<T, M>.find(
+    name: String,
+    descriptor: String? = null,
+    version: Version? = null
+): AncestryTree.Node<T, M>? = find stdFind@ { node ->
+    if (version == null) {
+        @Suppress("UNCHECKED_CAST") // should always be NameDescriptorPair, since it's a field or a method
+        (node.lastNames as Set<NameDescriptorPair>).any { (pairName, pairDesc) ->
+            pairName == name && (descriptor == null || pairDesc.startsWith(descriptor))
         }
+    } else {
+        val member = node[version] ?: return@stdFind false
+
+        node.tree.allowedNamespaces[version]?.any { ns -> member.getDstName(ns) == name && (descriptor == null || member.getDstDesc(ns).startsWith(descriptor)) } == true
     }
+}

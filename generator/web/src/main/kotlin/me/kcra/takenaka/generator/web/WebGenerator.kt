@@ -23,14 +23,14 @@ import kotlinx.coroutines.launch
 import kotlinx.html.dom.serialize
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
-import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
-import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
 import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.core.mapping.util.hash
 import me.kcra.takenaka.generator.common.Generator
+import me.kcra.takenaka.generator.common.provider.AncestryProvider
+import me.kcra.takenaka.generator.common.provider.MappingProvider
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
@@ -85,16 +85,17 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
     val namespacesByFriendlyNames = config.namespaces.mapKeys { it.value.friendlyName }
 
     /**
-     * Launches the generator with a pre-determined set of mappings.
+     * Launches the generator with mappings provided by the provider.
      *
-     * @param mappings the mappings
+     * @param mappingProvider the mapping provider
+     * @param ancestryProvider the ancestry provider
      */
-    override suspend fun generate(mappings: MappingsMap) {
+    override suspend fun generate(mappingProvider: MappingProvider, ancestryProvider: AncestryProvider) {
+        val mappings = mappingProvider.get()
+        val tree = ancestryProvider.klass<MappingTreeView, MappingTreeView.ClassMappingView>(mappings)
+
         val styleProvider: StyleProvider? = if (config.emitPseudoElements) StyleProviderImpl() else null
-
-        generationContext(styleProvider) {
-            val tree = classAncestryTreeOf(mappings, config.historyIndexNamespace, config.historyNamespaces)
-
+        generationContext(ancestryProvider, styleProvider) {
             // used for looking up history hashes - for linking
             val hashMap = IdentityHashMap<MappingTreeView.ClassMappingView, String>()
 

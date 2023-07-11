@@ -26,9 +26,9 @@ import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.resolve.impl.*
 import me.kcra.takenaka.core.util.objectMapper
-import me.kcra.takenaka.generator.common.BundledMappingProvider
-import me.kcra.takenaka.generator.common.ResolvingMappingProvider
-import me.kcra.takenaka.generator.common.buildMappingConfig
+import me.kcra.takenaka.generator.common.provider.impl.BundledMappingProvider
+import me.kcra.takenaka.generator.common.provider.impl.ResolvingMappingProvider
+import me.kcra.takenaka.generator.common.provider.impl.buildMappingConfig
 import net.fabricmc.mappingio.tree.MappingTree
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty

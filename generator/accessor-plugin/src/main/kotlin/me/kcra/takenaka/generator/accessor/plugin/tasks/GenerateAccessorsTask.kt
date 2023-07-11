@@ -26,6 +26,8 @@ import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.common.provider.impl.SimpleAncestryProvider
+import me.kcra.takenaka.generator.common.provider.impl.SimpleMappingProvider
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
@@ -172,15 +174,16 @@ abstract class GenerateAccessorsTask : DefaultTask() {
                 accessorFlavor = accessorFlavor.get(),
                 namespaceFriendlinessIndex = namespaceFriendlinessIndex.get(),
                 accessedNamespaces = accessedNamespaces.get(),
-                craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get(),
-                historyNamespaces = historyNamespaces.get(),
-                historyIndexNamespace = historyIndexNamespace.get()
+                craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get()
             )
         )
 
         outputWorkspace.clean()
         runBlocking {
-            generator.generate(mappings.get())
+            generator.generate(
+                SimpleMappingProvider(mappings.get()),
+                SimpleAncestryProvider(historyIndexNamespace.get(), historyNamespaces.get())
+            )
         }
     }
 }

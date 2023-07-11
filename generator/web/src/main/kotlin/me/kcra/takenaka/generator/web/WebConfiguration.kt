@@ -19,7 +19,6 @@ package me.kcra.takenaka.generator.web
 
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.generator.web.transformers.Transformer
-import net.fabricmc.mappingio.MappingUtil
 
 /**
  * Configuration for [WebGenerator].
@@ -32,8 +31,6 @@ import net.fabricmc.mappingio.MappingUtil
  * @property namespaces a map of namespaces and their descriptions, unspecified namespaces will not be shown
  * @property index a resolver for foreign class references
  * @property craftBukkitVersionReplaceCandidates namespaces that should have [replaceCraftBukkitNMSVersion] applied (most likely Spigot mappings or a flavor of them)
- * @property historyNamespaces namespaces that should be used for computing history, namespaces from [namespaceFriendlinessIndex] are considered by default (excluding the obfuscated one)
- * @property historyIndexNamespace namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch
  * @author Matouš Kučera
  */
 data class WebConfiguration(
@@ -44,9 +41,7 @@ data class WebConfiguration(
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaces: Map<String, NamespaceDescription> = emptyMap(),
     val index: ClassSearchIndex = emptyClassSearchIndex(),
-    val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
-    val historyNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK,
-    val historyIndexNamespace: String? = null
+    val craftBukkitVersionReplaceCandidates: List<String> = emptyList()
 )
 
 /**
@@ -223,24 +218,6 @@ class WebConfigurationBuilder {
     }
 
     /**
-     * Appends namespaces to [historyNamespaces].
-     *
-     * @param namespaces the namespaces
-     */
-    fun historyNamespaces(vararg namespaces: String) {
-        historyNamespaces += namespaces
-    }
-
-    /**
-     * Sets [historyIndexNamespace].
-     *
-     * @param item the namespace
-     */
-    fun historyIndexNamespace(item: String) {
-        historyIndexNamespace = item
-    }
-
-    /**
      * Builds a mapping configuration out of this builder.
      *
      * @return the configuration
@@ -253,9 +230,7 @@ class WebConfigurationBuilder {
         namespaceFriendlinessIndex,
         namespaces,
         index,
-        craftBukkitVersionReplaceCandidates,
-        historyNamespaces.ifEmpty { namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK },
-        historyIndexNamespace
+        craftBukkitVersionReplaceCandidates
     )
 }
 

@@ -15,41 +15,29 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.generator.common
+package me.kcra.takenaka.generator.common.provider.impl
 
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.EmptyCoroutineContext
+import me.kcra.takenaka.generator.common.provider.MappingProvider
 
 /**
- * A class that provides a set of mappings required for generation.
+ * A [MappingProvider] implementation that provides a pre-defined set of mappings.
  *
- * @author Matouš Kučera
+ * @property mappings the mappings
  */
-interface MappingProvider {
+class SimpleMappingProvider(val mappings: MutableMappingsMap) : MappingProvider {
     /**
-     * Provides the mappings.
+     * Provides mappings and visits them to an analyzer.
      *
      * @param analyzer an analyzer which the mappings should be visited to as they are resolved
      * @return the mappings
      */
-    suspend fun get(analyzer: MappingAnalyzer? = null): MutableMappingsMap
-}
+    override suspend fun get(analyzer: MappingAnalyzer?): MutableMappingsMap {
+        if (analyzer != null) {
+            mappings.values.forEach(analyzer::accept)
+        }
 
-/**
- * Maps an [Iterable] in parallel.
- *
- * @param context the coroutine context
- * @param block the mapping function
- * @return the remapped list
- */
-suspend fun <A, B> Iterable<A>.parallelMap(
-    context: CoroutineContext = EmptyCoroutineContext,
-    block: suspend (A) -> B
-): List<B> = coroutineScope {
-    map { async(context) { block(it) } }.awaitAll()
+        return mappings
+    }
 }

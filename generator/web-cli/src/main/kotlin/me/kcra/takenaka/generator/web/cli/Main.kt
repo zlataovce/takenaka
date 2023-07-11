@@ -32,8 +32,10 @@ import me.kcra.takenaka.core.mapping.analysis.impl.StandardProblemKinds
 import me.kcra.takenaka.core.mapping.resolve.impl.*
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.workspace
-import me.kcra.takenaka.generator.common.ResolvingMappingProvider
-import me.kcra.takenaka.generator.common.buildMappingConfig
+import me.kcra.takenaka.generator.common.provider.impl.ResolvingMappingProvider
+import me.kcra.takenaka.generator.common.provider.impl.SimpleAncestryProvider
+import me.kcra.takenaka.generator.common.provider.impl.SimpleMappingProvider
+import me.kcra.takenaka.generator.common.provider.impl.buildMappingConfig
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.transformers.CSSInliningTransformer
 import me.kcra.takenaka.generator.web.transformers.MinifyingTransformer
@@ -213,7 +215,6 @@ fun main(args: Array<String>) {
 
         replaceCraftBukkitVersions("spigot")
         friendlyNamespaces("mojang", "spigot", "yarn", "searge", "intermediary", "source")
-        historyNamespaces("mojang", "spigot", "searge", "intermediary")
         namespace("mojang", "Mojang", "#4D7C0F", MojangServerMappingResolver.META_LICENSE)
         namespace("spigot", "Spigot", "#CA8A04", AbstractSpigotMappingResolver.META_LICENSE)
         namespace("yarn", "Yarn", "#626262", YarnMappingResolver.META_LICENSE)
@@ -234,7 +235,10 @@ fun main(args: Array<String>) {
                 analyzer.acceptResolutions(kind)
             }
 
-            generator.generate(mappings)
+            generator.generate(
+                SimpleMappingProvider(mappings),
+                SimpleAncestryProvider(null, listOf("mojang", "spigot", "searge", "intermediary"))
+            )
         }
     }
     logger.info { "generator finished in ${time / 1000} second(s)" }
