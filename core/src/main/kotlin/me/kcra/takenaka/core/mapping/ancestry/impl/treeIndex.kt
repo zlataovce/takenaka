@@ -17,9 +17,42 @@
 
 package me.kcra.takenaka.core.mapping.ancestry.impl
 
+import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.tree.MappingTree
+
+/**
+ * Collects namespace IDs for all mapping trees that the ancestry tree is composed of.
+ *
+ * @param ns the namespace name
+ * @param visitMissing whether the namespace should be appended to the trees, if it is missing
+ * @return the namespace IDs, keyed by version
+ */
+fun <T : MappingTree, E : MappingTree.ElementMapping> AncestryTree<T, E>.collectNamespaceIds(ns: String, visitMissing: Boolean = true): Map<Version, Int> {
+    return trees.entries
+        .mapNotNull { (version, tree) ->
+            var nsId = tree.getNamespaceId(ns)
+            if (nsId == MappingTree.NULL_NAMESPACE_ID) {
+                if (!visitMissing) return@mapNotNull null
+
+                nsId = tree.maxNamespaceId
+
+                check(tree is MappingVisitor) {
+                    "Namespace $ns is not present in tree of version ${version.id} and tree does not implement MappingVisitor"
+                }
+
+                // add namespace at the end
+                check(tree.visitHeader()) {
+                    "Namespace $ns is not present in tree of version ${version.id} and tree declined header visit"
+                }
+                tree.visitNamespaces(tree.srcNamespace, tree.dstNamespaces + ns)
+            }
+
+            return@mapNotNull version to nsId
+        }
+        .toMap()
+}
 
 /**
  * Sets an incremented ancestry node index for all nodes in-place.
@@ -30,35 +63,25 @@ import net.fabricmc.mappingio.tree.MappingTree
  * @param E the mapping tree element type
  */
 fun <T : MappingTree, E : MappingTree.ElementMapping> AncestryTree<T, E>.computeIndices(ns: String, beginIndex: Int = 0) {
+    computeIndices(collectNamespaceIds(ns), beginIndex)
+}
+
+/**
+ * Sets an incremented ancestry node index for all nodes in-place.
+ *
+ * @param namespaceIds the namespace IDs, keyed by version
+ * @param beginIndex the first node index, starts at 0
+ * @param T the mapping tree type
+ * @param E the mapping tree element type
+ */
+fun <T : MappingTree, E : MappingTree.ElementMapping> AncestryTree<T, E>.computeIndices(namespaceIds: Map<Version, Int>, beginIndex: Int = 0) {
     var index = beginIndex
-    val namespaceIds = trees.entries.associate { (version, tree) ->
-        var nsId = tree.getNamespaceId(ns)
-        if (nsId == MappingTree.NULL_NAMESPACE_ID) {
-            nsId = tree.maxNamespaceId
-
-            check(tree is MappingVisitor) {
-                "Namespace $ns is not present in tree of version ${version.id} and tree does not implement MappingVisitor"
-            }
-            // add index namespace at the end
-            check(tree.visitHeader()) {
-                "Namespace $ns is not present in tree of version ${version.id} and tree declined header visit"
-            }
-            tree.visitNamespaces(tree.srcNamespace, tree.dstNamespaces + ns)
-        }
-
-        require(nsId != MappingTree.SRC_NAMESPACE_ID) {
-            "Namespace $ns in version ${version.id} is a source namespace"
-        }
-
-        version to nsId
-    }
 
     forEach { node ->
         val nodeIndex = (index++).toString(10)
 
-        node.forEach { (version, elem) ->
-            val nsId = namespaceIds[version]
-                ?: error("Version ${version.id} is present in a node, but wasn't in tree summary") // generic contract violated if this throws
+        node.forEach nodeEach@ { (version, elem) ->
+            val nsId = namespaceIds[version] ?: return@nodeEach
 
             elem.setDstName(nodeIndex, nsId)
         }
