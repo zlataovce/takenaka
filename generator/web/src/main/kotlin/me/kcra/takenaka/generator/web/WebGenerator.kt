@@ -113,7 +113,6 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                 }
             }
 
-            // second pass: generate the documentation
             mappings.forEach { (version, tree) ->
                 val nmsVersion = tree.craftBukkitNmsVersion
 
@@ -198,7 +197,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
 
         copyAsset("main.js")
 
-        val componentFileContent = generateComponentFile(
+        val componentFileContent = generateComponentScript(
             component {
                 tag = "nav"
                 content {
@@ -270,13 +269,16 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
     }
 
     /**
-     * Generates a components.js file.
+     * Generates script for loading components.
      *
      * @param components a list of tag-document-callback
      * @return the content of the component file
      */
-    fun generateComponentFile(vararg components: ComponentDefinition): String = buildString {
-        fun Document.serializeAsComponent(): String = transformHtml(serialize(prettyPrint = false)).substringAfter("\n")
+    fun generateComponentScript(vararg components: ComponentDefinition): String = buildString {
+        fun Document.serializeAsComponent(): String = transformHtml(
+            serialize(prettyPrint = false)
+                .substringAfter("\n") // remove <!DOCTYPE html>
+        )
 
         append(
             """
