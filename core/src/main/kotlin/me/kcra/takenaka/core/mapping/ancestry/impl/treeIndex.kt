@@ -20,19 +20,18 @@ package me.kcra.takenaka.core.mapping.ancestry.impl
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.tree.MappingTree
-import net.fabricmc.mappingio.tree.MappingTreeView
 
 /**
  * Sets an incremented ancestry node index for all nodes in-place.
  *
  * @param ns the namespace where the index should be stored, created if not present
  * @param beginIndex the first node index, starts at 0
+ * @param T the mapping tree type
+ * @param E the mapping tree element type
  */
-fun <T : MappingTreeView, E : MappingTree.ElementMapping> AncestryTree<T, E>.computeIndices(ns: String, beginIndex: Int = 0) {
+fun <T : MappingTree, E : MappingTree.ElementMapping> AncestryTree<T, E>.computeIndices(ns: String, beginIndex: Int = 0) {
     var index = beginIndex
     val namespaceIds = trees.entries.associate { (version, tree) ->
-        tree as MappingTree // generic contract violated if this throws
-
         var nsId = tree.getNamespaceId(ns)
         if (nsId == MappingTree.NULL_NAMESPACE_ID) {
             nsId = tree.maxNamespaceId

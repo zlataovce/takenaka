@@ -32,6 +32,8 @@ interface AncestryProvider {
      * Provides a class ancestry tree.
      *
      * @param mappings the mapping set
+     * @param T the mapping tree type
+     * @param C the mapping tree class member type
      * @return the class ancestry tree
      */
     fun <T : MappingTreeView, C : ClassMappingView> klass(mappings: Map<Version, T>): AncestryTree<T, C>
@@ -40,23 +42,32 @@ interface AncestryProvider {
      * Provides a field ancestry tree.
      *
      * @param node the class ancestry node
+     * @param T the mapping tree type
+     * @param C the mapping tree class member type
+     * @param F the mapping tree field member type
      * @return the field ancestry tree
      */
     fun <T : MappingTreeView, C : ClassMappingView, F : FieldMappingView> field(node: AncestryTree.Node<T, C>): AncestryTree<T, F>
 
     /**
-     * Provides a method ancestry tree.
-     *
-     * @param node the class ancestry node
-     * @return the method ancestry tree
-     */
-    fun <T : MappingTreeView, C : ClassMappingView, M : MethodMappingView> method(node: AncestryTree.Node<T, C>): AncestryTree<T, M>
-
-    /**
      * Provides a constructor ancestry tree.
      *
      * @param node the class ancestry node
+     * @param T the mapping tree type
+     * @param C the mapping tree class member type
+     * @param M the mapping tree method member type
      * @return the constructor ancestry tree
      */
     fun <T : MappingTreeView, C : ClassMappingView, M : MethodMappingView> constructor(node: AncestryTree.Node<T, C>): AncestryTree<T, M>
+
+    /**
+     * Provides a method ancestry tree.
+     *
+     * @param node the class ancestry node
+     * @param T the mapping tree type
+     * @param C the mapping tree class member type
+     * @param M the mapping tree method member type
+     * @return the method ancestry tree
+     */
+    fun <T : MappingTreeView, C : ClassMappingView, M : MethodMappingView> method(node: AncestryTree.Node<T, C>): AncestryTree<T, M>
 }

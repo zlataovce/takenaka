@@ -430,8 +430,8 @@ typealias StringDiffRow = DiffRow<String, String>
 inline fun buildDiff(reverseOrder: Boolean = true, block: StringDiffBuilder.() -> Unit): Map<Version, List<StringDiffRow>> =
     StringDiffBuilder(reverseOrder).apply(block).apply(StringDiffBuilder::addRowEntries).rows
 
-typealias DescriptableDiffBuilder<T, E> = DiffBuilder<AncestryTree.Node<T, E>, HistoricalDescriptableDetail>
-typealias DescriptableDiffRow<T, E> = DiffRow<AncestryTree.Node<T, E>, HistoricalDescriptableDetail>
+typealias DescriptableDiffBuilder<T, E> = DiffBuilder<AncestryTree.Node<out T, out E>, HistoricalDescriptableDetail>
+typealias DescriptableDiffRow<T, E> = DiffRow<AncestryTree.Node<out T, out E>, HistoricalDescriptableDetail>
 
 /**
  * Builds a simple field diff.

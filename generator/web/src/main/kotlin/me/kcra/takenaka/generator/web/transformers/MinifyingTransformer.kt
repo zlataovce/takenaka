@@ -57,8 +57,8 @@ class MinifyingTransformer(val isDeterministic: Boolean = false) : Transformer {
      * @return the minified class name
      */
     fun minifyClass(k: String): String = synchronized(this) {
-        classes.computeIfAbsent(k) {
-            minifiedClass(if (isDeterministic) abs(it.hashCode().toShort().toInt()) else classIndex++)
+        classes.getOrPut(k) {
+            minifiedClass(if (isDeterministic) abs(k.hashCode().toShort().toInt()) else classIndex++)
         }
     }
 

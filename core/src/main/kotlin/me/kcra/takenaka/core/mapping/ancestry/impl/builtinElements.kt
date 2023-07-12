@@ -29,7 +29,7 @@ import net.fabricmc.mappingio.tree.MappingTreeView
 /**
  * An alias to shorten generics.
  */
-typealias ClassAncestryTree = AncestryTree<MappingTreeView, MappingTreeView.ClassMappingView>
+typealias ClassAncestryTree = AncestryTree<out MappingTreeView, out MappingTreeView.ClassMappingView>
 
 /**
  * An alias to shorten generics.
@@ -39,7 +39,7 @@ typealias MutableClassAncestryTree = AncestryTree<MappingTree, MappingTree.Class
 /**
  * An alias to shorten generics.
  */
-typealias ClassAncestryNode = AncestryTree.Node<MappingTreeView, MappingTreeView.ClassMappingView>
+typealias ClassAncestryNode = AncestryTree.Node<out MappingTreeView, out MappingTreeView.ClassMappingView>
 
 /**
  * An alias to shorten generics.
@@ -52,6 +52,8 @@ typealias MutableClassAncestryNode = AncestryTree.Node<MappingTree, MappingTree.
  * @param mappings the joined version mapping files
  * @param indexNs namespace that contains node indices, null if there are none, *does not need to exist - ignored*
  * @param allowedNamespaces namespaces that are used in this tree for tracing history, not distinguished by version; empty if all namespaces should be considered
+ * @param T the mapping tree type
+ * @param C the mapping tree class member type
  * @return the ancestry tree
  */
 fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView> classAncestryTreeOf(
@@ -114,7 +116,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView> classAncestryTre
 /**
  * An alias to shorten generics.
  */
-typealias FieldAncestryTree = AncestryTree<MappingTreeView, MappingTreeView.FieldMappingView>
+typealias FieldAncestryTree = AncestryTree<out MappingTreeView, out MappingTreeView.FieldMappingView>
 
 /**
  * An alias to shorten generics.
@@ -124,7 +126,7 @@ typealias MutableFieldAncestryTree = AncestryTree<MappingTree, MappingTree.Field
 /**
  * An alias to shorten generics.
  */
-typealias FieldAncestryNode = AncestryTree.Node<MappingTreeView, MappingTreeView.FieldMappingView>
+typealias FieldAncestryNode = AncestryTree.Node<out MappingTreeView, out MappingTreeView.FieldMappingView>
 
 /**
  * An alias to shorten generics.
@@ -135,6 +137,9 @@ typealias MutableFieldAncestryNode = AncestryTree.Node<MappingTree, MappingTree.
  * Computes an ancestry tree of all fields in the supplied class ancestry node.
  *
  * @param klass the class node
+ * @param T the mapping tree type
+ * @param C the mapping tree class member type
+ * @param F the mapping tree field member type
  * @return the ancestry tree
  */
 fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, F : MappingTreeView.FieldMappingView> fieldAncestryTreeOf(klass: AncestryTree.Node<T, C>): AncestryTree<T, F> = buildAncestryTree {
@@ -202,7 +207,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, F : MappingTreeV
 /**
  * An alias to shorten generics.
  */
-typealias MethodAncestryTree = AncestryTree<MappingTreeView, MappingTreeView.MethodMappingView>
+typealias MethodAncestryTree = AncestryTree<out MappingTreeView, out MappingTreeView.MethodMappingView>
 
 /**
  * An alias to shorten generics.
@@ -212,7 +217,7 @@ typealias MutableMethodAncestryTree = AncestryTree<MappingTree, MappingTree.Meth
 /**
  * An alias to shorten generics.
  */
-typealias MethodAncestryNode = AncestryTree.Node<MappingTreeView, MappingTreeView.MethodMappingView>
+typealias MethodAncestryNode = AncestryTree.Node<out MappingTreeView, out MappingTreeView.MethodMappingView>
 
 /**
  * An alias to shorten generics.
@@ -224,6 +229,9 @@ typealias MutableMethodAncestryNode = AncestryTree.Node<MappingTree, MappingTree
  *
  * @param klass the class node
  * @param constructorMode constructor handling behavior setting
+ * @param T the mapping tree type
+ * @param C the mapping tree class member type
+ * @param M the mapping tree method member type
  * @return the ancestry tree
  */
 fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeView.MethodMappingView>  methodAncestryTreeOf(
@@ -312,6 +320,8 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeV
  * @param name the mapped field name
  * @param descriptor the mapped descriptor, may be partial, descriptors are not checked if null
  * @param version the version in which [name] is located, presumes last (newest) if null
+ * @param T the mapping tree type
+ * @param M the mapping tree member type
  */
 fun <T : MappingTreeView, M : MappingTreeView.MemberMappingView> AncestryTree<T, M>.find(
     name: String,

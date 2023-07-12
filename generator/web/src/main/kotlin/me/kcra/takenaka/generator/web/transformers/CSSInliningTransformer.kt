@@ -49,7 +49,7 @@ class CSSInliningTransformer(val exclude: List<String>) : Transformer {
             if (urlString.startsWith("http://") || urlString.startsWith("https://")) {
                 val url = URL(urlString)
                 if (url.host !in exclude) {
-                    return@replace cache.computeIfAbsent(urlString) { url.readText() }
+                    return@replace cache.getOrPut(urlString) { url.readText() }
                 }
             }
 

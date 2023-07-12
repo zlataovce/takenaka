@@ -18,24 +18,40 @@
 package me.kcra.takenaka.generator.common.provider.impl
 
 import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
-import me.kcra.takenaka.core.mapping.ancestry.impl.ConstructorComputationMode
-import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
-import me.kcra.takenaka.core.mapping.ancestry.impl.fieldAncestryTreeOf
-import me.kcra.takenaka.core.mapping.ancestry.impl.methodAncestryTreeOf
+import me.kcra.takenaka.core.mapping.ancestry.impl.*
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
-import me.kcra.takenaka.generator.common.provider.MappingProvider
 import net.fabricmc.mappingio.tree.MappingTreeView
-import net.fabricmc.mappingio.tree.MappingTreeView.*
+import java.util.*
 
 /**
- * A [MappingProvider] implementation that provides ancestry trees with the [me.kcra.takenaka.core.mapping.ancestry.impl] package.
+ * An [AncestryProvider] implementation that caches results from a downstream provider.
  *
- * @property indexNs namespace that contains node indices, null if there are none, *does not need to exist - ignored*
- * @property allowedNamespaces namespaces that are used in this tree for tracing history, not distinguished by version; empty if all namespaces should be considered
+ * @property next the provider that requests are forwarded to
  * @author Matouš Kučera
  */
-class SimpleAncestryProvider(val indexNs: String?, val allowedNamespaces: List<String>) : AncestryProvider {
+class CachedAncestryProvider(val next: AncestryProvider) : AncestryProvider {
+    /**
+     * A class ancestry tree cache.
+     */
+    private val klassTrees = WeakHashMap<MappingsMap, ClassAncestryTree>()
+
+    /**
+     * A field ancestry tree cache.
+     */
+    private val fieldTrees = WeakHashMap<ClassAncestryNode, FieldAncestryTree>()
+
+    /**
+     * A constructor ancestry tree cache.
+     */
+    private val ctorTrees = WeakHashMap<ClassAncestryNode, MethodAncestryTree>()
+
+    /**
+     * A method ancestry tree cache.
+     */
+    private val methodTrees = WeakHashMap<ClassAncestryNode, MethodAncestryTree>()
+
     /**
      * Provides a class ancestry tree.
      *
@@ -44,8 +60,9 @@ class SimpleAncestryProvider(val indexNs: String?, val allowedNamespaces: List<S
      * @param C the mapping tree class member type
      * @return the class ancestry tree
      */
-    override fun <T : MappingTreeView, C : ClassMappingView> klass(mappings: Map<Version, T>): AncestryTree<T, C> {
-        return classAncestryTreeOf(mappings, indexNs, allowedNamespaces)
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView> klass(mappings: Map<Version, T>): AncestryTree<T, C> {
+        return klassTrees.getOrPut(mappings) { next.klass(mappings) } as AncestryTree<T, C>
     }
 
     /**
@@ -57,8 +74,11 @@ class SimpleAncestryProvider(val indexNs: String?, val allowedNamespaces: List<S
      * @param F the mapping tree field member type
      * @return the field ancestry tree
      */
-    override fun <T : MappingTreeView, C : ClassMappingView, F : FieldMappingView> field(node: AncestryTree.Node<T, C>): AncestryTree<T, F> {
-        return fieldAncestryTreeOf(node)
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, F : MappingTreeView.FieldMappingView> field(
+        node: AncestryTree.Node<T, C>
+    ): AncestryTree<T, F> {
+        return fieldTrees.getOrPut(node) { next.field(node) } as AncestryTree<T, F>
     }
 
     /**
@@ -70,8 +90,11 @@ class SimpleAncestryProvider(val indexNs: String?, val allowedNamespaces: List<S
      * @param M the mapping tree method member type
      * @return the constructor ancestry tree
      */
-    override fun <T : MappingTreeView, C : ClassMappingView, M : MethodMappingView> constructor(node: AncestryTree.Node<T, C>): AncestryTree<T, M> {
-        return methodAncestryTreeOf(node, constructorMode = ConstructorComputationMode.ONLY)
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeView.MethodMappingView> constructor(
+        node: AncestryTree.Node<T, C>
+    ): AncestryTree<T, M> {
+        return ctorTrees.getOrPut(node) { next.field(node) } as AncestryTree<T, M>
     }
 
     /**
@@ -83,7 +106,10 @@ class SimpleAncestryProvider(val indexNs: String?, val allowedNamespaces: List<S
      * @param M the mapping tree method member type
      * @return the method ancestry tree
      */
-    override fun <T : MappingTreeView, C : ClassMappingView, M : MethodMappingView> method(node: AncestryTree.Node<T, C>): AncestryTree<T, M> {
-        return methodAncestryTreeOf(node)
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeView.MethodMappingView> method(
+        node: AncestryTree.Node<T, C>
+    ): AncestryTree<T, M> {
+        return methodTrees.getOrPut(node) { next.field(node) } as AncestryTree<T, M>
     }
 }
