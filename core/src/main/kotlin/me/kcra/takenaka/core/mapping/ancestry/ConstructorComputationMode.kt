@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.mapping.ancestry.impl
+package me.kcra.takenaka.core.mapping.ancestry
 
 /**
  * The method ancestry tree computation constructor handling.

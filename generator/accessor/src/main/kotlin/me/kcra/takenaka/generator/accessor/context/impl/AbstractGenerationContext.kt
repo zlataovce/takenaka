@@ -20,6 +20,7 @@ package me.kcra.takenaka.generator.accessor.context.impl
 import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
+import me.kcra.takenaka.core.mapping.ancestry.ConstructorComputationMode
 import me.kcra.takenaka.core.mapping.ancestry.NameDescriptorPair
 import me.kcra.takenaka.core.mapping.ancestry.impl.*
 import me.kcra.takenaka.core.mapping.fromInternalName
@@ -87,7 +88,7 @@ abstract class AbstractGenerationContext(
             fieldAccessor to fieldOverloadCount.compute(fieldAccessor.upperName) { _, i -> i?.inc() ?: 0 }!!
         }
 
-        val ctorTree = ancestryProvider.constructor<_, _, MethodMappingView>(node)
+        val ctorTree = ancestryProvider.method<_, _, MethodMappingView>(node, constructorMode = ConstructorComputationMode.ONLY)
         val ctorAccessors = model.constructors.map { ResolvedConstructorPair(it, resolveConstructor(ctorTree, it)) } +
                 resolveRequiredConstructors(ctorTree, model.requiredTypes).map { ctorNode ->
                     ConstructorAccessor(getFriendlyDesc(ctorNode.last.value)) to ctorNode

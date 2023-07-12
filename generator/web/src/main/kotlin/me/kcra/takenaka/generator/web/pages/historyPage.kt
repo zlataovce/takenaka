@@ -148,7 +148,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
         }
     }
 
-    val constructorTree = ancestryProvider.constructor<_, _, MethodMappingView>(node)
+    val constructorTree = ancestryProvider.method<_, _, MethodMappingView>(node, constructorMode = ConstructorComputationMode.ONLY)
     val constructorRows = buildMethodDiff {
         node.keys.forEach { version ->
             val tree = checkNotNull(methodTree.trees[version]) {

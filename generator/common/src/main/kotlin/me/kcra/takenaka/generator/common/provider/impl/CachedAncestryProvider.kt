@@ -20,13 +20,13 @@ package me.kcra.takenaka.generator.common.provider.impl
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
+import me.kcra.takenaka.core.mapping.ancestry.ConstructorComputationMode
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryTree
 import me.kcra.takenaka.core.mapping.ancestry.impl.FieldAncestryTree
 import me.kcra.takenaka.core.mapping.ancestry.impl.MethodAncestryTree
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import net.fabricmc.mappingio.tree.MappingTreeView
-import java.util.*
 
 /**
  * An [AncestryProvider] implementation that caches results from a downstream provider.
@@ -40,22 +40,17 @@ class CachedAncestryProvider(val next: AncestryProvider) : AncestryProvider {
     /**
      * A class ancestry tree cache.
      */
-    private val klassTrees = IdentityHashMap<MappingsMap, ClassAncestryTree>()
+    private val klassTrees = mutableMapOf<MappingsMap, ClassAncestryTree>()
 
     /**
      * A field ancestry tree cache.
      */
-    private val fieldTrees = IdentityHashMap<ClassAncestryNode, FieldAncestryTree>()
-
-    /**
-     * A constructor ancestry tree cache.
-     */
-    private val ctorTrees = IdentityHashMap<ClassAncestryNode, MethodAncestryTree>()
+    private val fieldTrees = mutableMapOf<ClassAncestryNode, FieldAncestryTree>()
 
     /**
      * A method ancestry tree cache.
      */
-    private val methodTrees = IdentityHashMap<ClassAncestryNode, MethodAncestryTree>()
+    private val methodTrees = mutableMapOf<Pair<ClassAncestryNode, ConstructorComputationMode>, MethodAncestryTree>()
 
     /**
      * Provides a class ancestry tree.
@@ -87,25 +82,10 @@ class CachedAncestryProvider(val next: AncestryProvider) : AncestryProvider {
     }
 
     /**
-     * Provides a constructor ancestry tree.
-     *
-     * @param node the class ancestry node
-     * @param T the mapping tree type
-     * @param C the mapping tree class member type
-     * @param M the mapping tree method member type
-     * @return the constructor ancestry tree
-     */
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeView.MethodMappingView> constructor(
-        node: AncestryTree.Node<T, C>
-    ): AncestryTree<T, M> {
-        return ctorTrees.getOrPut(node) { next.constructor(node) } as AncestryTree<T, M>
-    }
-
-    /**
      * Provides a method ancestry tree.
      *
      * @param node the class ancestry node
+     * @param constructorMode the constructor handling mode
      * @param T the mapping tree type
      * @param C the mapping tree class member type
      * @param M the mapping tree method member type
@@ -113,9 +93,10 @@ class CachedAncestryProvider(val next: AncestryProvider) : AncestryProvider {
      */
     @Suppress("UNCHECKED_CAST")
     override fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeView.MethodMappingView> method(
-        node: AncestryTree.Node<T, C>
+        node: AncestryTree.Node<T, C>,
+        constructorMode: ConstructorComputationMode
     ): AncestryTree<T, M> {
-        return methodTrees.getOrPut(node) { next.method(node) } as AncestryTree<T, M>
+        return methodTrees.getOrPut(Pair(node, constructorMode)) { next.method(node, constructorMode) } as AncestryTree<T, M>
     }
 
     /**
@@ -124,7 +105,6 @@ class CachedAncestryProvider(val next: AncestryProvider) : AncestryProvider {
     fun evictCache() {
         klassTrees.clear()
         fieldTrees.clear()
-        ctorTrees.clear()
         methodTrees.clear()
     }
 }

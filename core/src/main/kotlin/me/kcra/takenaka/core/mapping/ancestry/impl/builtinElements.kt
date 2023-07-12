@@ -19,6 +19,7 @@ package me.kcra.takenaka.core.mapping.ancestry.impl
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
+import me.kcra.takenaka.core.mapping.ancestry.ConstructorComputationMode
 import me.kcra.takenaka.core.mapping.ancestry.NameDescriptorPair
 import me.kcra.takenaka.core.mapping.ancestry.buildAncestryTree
 import me.kcra.takenaka.core.mapping.matchers.isConstructor

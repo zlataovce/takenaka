@@ -19,6 +19,7 @@ package me.kcra.takenaka.generator.common.provider
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
+import me.kcra.takenaka.core.mapping.ancestry.ConstructorComputationMode
 import net.fabricmc.mappingio.tree.MappingTreeView
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 
@@ -50,24 +51,17 @@ interface AncestryProvider {
     fun <T : MappingTreeView, C : ClassMappingView, F : FieldMappingView> field(node: AncestryTree.Node<T, C>): AncestryTree<T, F>
 
     /**
-     * Provides a constructor ancestry tree.
-     *
-     * @param node the class ancestry node
-     * @param T the mapping tree type
-     * @param C the mapping tree class member type
-     * @param M the mapping tree method member type
-     * @return the constructor ancestry tree
-     */
-    fun <T : MappingTreeView, C : ClassMappingView, M : MethodMappingView> constructor(node: AncestryTree.Node<T, C>): AncestryTree<T, M>
-
-    /**
      * Provides a method ancestry tree.
      *
      * @param node the class ancestry node
+     * @param constructorMode the constructor handling mode
      * @param T the mapping tree type
      * @param C the mapping tree class member type
      * @param M the mapping tree method member type
      * @return the method ancestry tree
      */
-    fun <T : MappingTreeView, C : ClassMappingView, M : MethodMappingView> method(node: AncestryTree.Node<T, C>): AncestryTree<T, M>
+    fun <T : MappingTreeView, C : ClassMappingView, M : MethodMappingView> method(
+        node: AncestryTree.Node<T, C>,
+        constructorMode: ConstructorComputationMode = ConstructorComputationMode.EXCLUDE
+    ): AncestryTree<T, M>
 }

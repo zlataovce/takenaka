@@ -19,7 +19,7 @@ package me.kcra.takenaka.generator.common.provider.impl
 
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
-import me.kcra.takenaka.core.mapping.ancestry.impl.ConstructorComputationMode
+import me.kcra.takenaka.core.mapping.ancestry.ConstructorComputationMode
 import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
 import me.kcra.takenaka.core.mapping.ancestry.impl.fieldAncestryTreeOf
 import me.kcra.takenaka.core.mapping.ancestry.impl.methodAncestryTreeOf
@@ -62,28 +62,19 @@ class SimpleAncestryProvider(val indexNs: String?, val allowedNamespaces: List<S
     }
 
     /**
-     * Provides a constructor ancestry tree.
-     *
-     * @param node the class ancestry node
-     * @param T the mapping tree type
-     * @param C the mapping tree class member type
-     * @param M the mapping tree method member type
-     * @return the constructor ancestry tree
-     */
-    override fun <T : MappingTreeView, C : ClassMappingView, M : MethodMappingView> constructor(node: AncestryTree.Node<T, C>): AncestryTree<T, M> {
-        return methodAncestryTreeOf(node, constructorMode = ConstructorComputationMode.ONLY)
-    }
-
-    /**
      * Provides a method ancestry tree.
      *
      * @param node the class ancestry node
+     * @param constructorMode the constructor handling mode
      * @param T the mapping tree type
      * @param C the mapping tree class member type
      * @param M the mapping tree method member type
      * @return the method ancestry tree
      */
-    override fun <T : MappingTreeView, C : ClassMappingView, M : MethodMappingView> method(node: AncestryTree.Node<T, C>): AncestryTree<T, M> {
-        return methodAncestryTreeOf(node)
+    override fun <T : MappingTreeView, C : ClassMappingView, M : MethodMappingView> method(
+        node: AncestryTree.Node<T, C>,
+        constructorMode: ConstructorComputationMode
+    ): AncestryTree<T, M> {
+        return methodAncestryTreeOf(node, constructorMode)
     }
 }
