@@ -20,10 +20,13 @@ package me.kcra.takenaka.generator.common.provider.impl
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
-import me.kcra.takenaka.core.mapping.ancestry.impl.*
+import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
+import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryTree
+import me.kcra.takenaka.core.mapping.ancestry.impl.FieldAncestryTree
+import me.kcra.takenaka.core.mapping.ancestry.impl.MethodAncestryTree
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import net.fabricmc.mappingio.tree.MappingTreeView
-import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * An [AncestryProvider] implementation that caches results from a downstream provider.
@@ -35,22 +38,22 @@ class CachedAncestryProvider(val next: AncestryProvider) : AncestryProvider {
     /**
      * A class ancestry tree cache.
      */
-    private val klassTrees = WeakHashMap<MappingsMap, ClassAncestryTree>()
+    private val klassTrees = ConcurrentHashMap<MappingsMap, ClassAncestryTree>()
 
     /**
      * A field ancestry tree cache.
      */
-    private val fieldTrees = WeakHashMap<ClassAncestryNode, FieldAncestryTree>()
+    private val fieldTrees = ConcurrentHashMap<ClassAncestryNode, FieldAncestryTree>()
 
     /**
      * A constructor ancestry tree cache.
      */
-    private val ctorTrees = WeakHashMap<ClassAncestryNode, MethodAncestryTree>()
+    private val ctorTrees = ConcurrentHashMap<ClassAncestryNode, MethodAncestryTree>()
 
     /**
      * A method ancestry tree cache.
      */
-    private val methodTrees = WeakHashMap<ClassAncestryNode, MethodAncestryTree>()
+    private val methodTrees = ConcurrentHashMap<ClassAncestryNode, MethodAncestryTree>()
 
     /**
      * Provides a class ancestry tree.
@@ -111,5 +114,15 @@ class CachedAncestryProvider(val next: AncestryProvider) : AncestryProvider {
         node: AncestryTree.Node<T, C>
     ): AncestryTree<T, M> {
         return methodTrees.getOrPut(node) { next.field(node) } as AncestryTree<T, M>
+    }
+
+    /**
+     * Evicts the cache.
+     */
+    fun evictCache() {
+        klassTrees.clear()
+        fieldTrees.clear()
+        ctorTrees.clear()
+        methodTrees.clear()
     }
 }
