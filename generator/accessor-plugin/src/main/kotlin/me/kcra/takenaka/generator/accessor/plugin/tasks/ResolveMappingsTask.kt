@@ -37,6 +37,7 @@ import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.*
+import java.util.zip.ZipFile
 
 /**
  * A [me.kcra.takenaka.core.mapping.MutableMappingsMap], but as a Gradle [MapProperty].
@@ -134,7 +135,19 @@ abstract class ResolveMappingsTask : DefaultTask() {
         // manual up-to-date checking, it's an Internal property
         outputs.upToDateWhen {
             val mappings = mappings.orNull?.keys?.map(Version::id) ?: emptyList()
-            val versions = versions.orNull ?: emptySet<String>()
+            val versions = if (mappingBundle.isPresent) {
+                ZipFile(mappingBundle.get().asFile).use { zf ->
+                    zf.entries().asSequence().mapNotNullTo(mutableSetOf()) { entry ->
+                        if (entry.isDirectory || !entry.name.endsWith(".tiny")) {
+                            return@mapNotNullTo null
+                        }
+
+                        entry.name.substringAfterLast('/').removeSuffix(".tiny")
+                    }
+                }
+            } else {
+                versions.orNull ?: emptySet<String>()
+            }
 
             mappings.size == versions.size && versions.containsAll(mappings)
         }
