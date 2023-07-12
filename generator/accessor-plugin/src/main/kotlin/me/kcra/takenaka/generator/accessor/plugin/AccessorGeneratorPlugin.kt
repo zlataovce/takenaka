@@ -42,7 +42,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
      * @param target The target object
      */
     override fun apply(target: Project) {
-        val manifest = objectMapper().versionManifest() // TODO: cache this in a file, so you can develop even without an internet connection
+        val manifest = objectMapper().versionManifest()
         val config = target.extensions.create<AccessorGeneratorExtension>("accessors", target, manifest)
 
         // automatically adds tasks for basic Mojang-based server accessor generation
