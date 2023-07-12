@@ -21,11 +21,12 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.MappingsMap
-import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
 import me.kcra.takenaka.generator.accessor.context.generationContext
 import me.kcra.takenaka.generator.common.Generator
+import me.kcra.takenaka.generator.common.provider.AncestryProvider
+import me.kcra.takenaka.generator.common.provider.MappingProvider
 import mu.KotlinLogging
+import net.fabricmc.mappingio.tree.MappingTreeView
 
 private val logger = KotlinLogging.logger {}
 
@@ -42,14 +43,16 @@ private val logger = KotlinLogging.logger {}
  */
 class AccessorGenerator(override val workspace: Workspace, val config: AccessorConfiguration) : Generator {
     /**
-     * Launches the generator with a pre-determined set of mappings.
+     * Launches the generator with mappings provided by the provider.
      *
-     * @param mappings the mappings
+     * @param mappingProvider the mapping provider
+     * @param ancestryProvider the ancestry provider
      */
-    override suspend fun generate(mappings: MappingsMap) {
-        val tree = classAncestryTreeOf(mappings, config.historyIndexNamespace, config.historyNamespaces)
+    override suspend fun generate(mappingProvider: MappingProvider, ancestryProvider: AncestryProvider) {
+        val mappings = mappingProvider.get()
+        val tree = ancestryProvider.klass<MappingTreeView, MappingTreeView.ClassMappingView>(mappings)
 
-        generationContext(config.languageFlavor) {
+        generationContext(ancestryProvider, config.languageFlavor) {
             config.accessors.forEach { classAccessor ->
                 launch(Dispatchers.Default + CoroutineName("generate-coro")) {
                     logger.info { "generating accessors for class '${classAccessor.internalName}'" }

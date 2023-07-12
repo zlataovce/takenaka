@@ -18,7 +18,6 @@
 package me.kcra.takenaka.generator.accessor
 
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
-import net.fabricmc.mappingio.MappingUtil
 
 /**
  * Configuration for [AccessorGenerator].
@@ -30,8 +29,6 @@ import net.fabricmc.mappingio.MappingUtil
  * @property namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @property accessedNamespaces the namespaces that should be used in accessors
  * @property craftBukkitVersionReplaceCandidates namespaces that should have [me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion] applied (most likely Spigot mappings or a flavor of them)
- * @property historyNamespaces namespaces that should be used for computing history, empty if namespaces from [namespaceFriendlinessIndex] should be considered (excluding the obfuscated one)
- * @property historyIndexNamespace namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch
  * @author Matouš Kučera
  */
 data class AccessorConfiguration(
@@ -41,7 +38,5 @@ data class AccessorConfiguration(
     val accessorFlavor: AccessorFlavor = AccessorFlavor.NONE,
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val accessedNamespaces: List<String> = namespaceFriendlinessIndex,
-    val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
-    val historyNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK,
-    val historyIndexNamespace: String? = null
+    val craftBukkitVersionReplaceCandidates: List<String> = emptyList()
 )

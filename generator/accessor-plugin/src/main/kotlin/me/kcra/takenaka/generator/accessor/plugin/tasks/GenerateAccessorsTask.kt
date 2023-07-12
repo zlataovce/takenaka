@@ -18,14 +18,14 @@
 package me.kcra.takenaka.generator.accessor.plugin.tasks
 
 import kotlinx.coroutines.runBlocking
-import me.kcra.takenaka.core.DefaultWorkspaceOptions
-import me.kcra.takenaka.core.WorkspaceOptions
 import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.common.provider.impl.SimpleAncestryProvider
+import me.kcra.takenaka.generator.common.provider.impl.SimpleMappingProvider
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
@@ -129,21 +129,12 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     abstract val historyIndexNamespace: Property<String?>
 
     /**
-     * The workspace options, defaults to [DefaultWorkspaceOptions.RELAXED_CACHE].
-     *
-     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.strictCache
-     */
-    @get:Input
-    abstract val options: Property<WorkspaceOptions>
-
-    /**
      * The output workspace ([outputDir]).
      */
     @get:Internal
     val outputWorkspace by lazy {
         workspace {
             rootDirectory(outputDir.asFile.get())
-            options(this@GenerateAccessorsTask.options.get())
         }
     }
 
@@ -155,7 +146,6 @@ abstract class GenerateAccessorsTask : DefaultTask() {
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
-        options.convention(DefaultWorkspaceOptions.RELAXED_CACHE)
     }
 
     /**
@@ -172,15 +162,16 @@ abstract class GenerateAccessorsTask : DefaultTask() {
                 accessorFlavor = accessorFlavor.get(),
                 namespaceFriendlinessIndex = namespaceFriendlinessIndex.get(),
                 accessedNamespaces = accessedNamespaces.get(),
-                craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get(),
-                historyNamespaces = historyNamespaces.get(),
-                historyIndexNamespace = historyIndexNamespace.get()
+                craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get()
             )
         )
 
         outputWorkspace.clean()
         runBlocking {
-            generator.generate(mappings.get())
+            generator.generate(
+                SimpleMappingProvider(mappings.get()),
+                SimpleAncestryProvider(historyIndexNamespace.get(), historyNamespaces.get())
+            )
         }
     }
 }

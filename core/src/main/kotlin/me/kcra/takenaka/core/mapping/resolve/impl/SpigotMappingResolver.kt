@@ -18,9 +18,7 @@
 package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.VersionedWorkspace
-import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.mapping.toInternalName
@@ -52,12 +50,14 @@ private val logger = KotlinLogging.logger {}
  * @property workspace the workspace
  * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
  * @property spigotProvider the Spigot manifest provider
+ * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
 abstract class AbstractSpigotMappingResolver(
     override val workspace: VersionedWorkspace,
     val xmlMapper: ObjectMapper,
-    val spigotProvider: SpigotManifestProvider
+    val spigotProvider: SpigotManifestProvider,
+    val relaxedCache: Boolean = true
 ) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val licenseSource: String?
         get() = spigotProvider.manifest?.let { "https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${it.refs["BuildData"]}" }
@@ -96,7 +96,7 @@ abstract class AbstractSpigotMappingResolver(
             val file = workspace[mappingAttribute0]
 
             // Spigot's stash doesn't seem to support sending Content-Length headers
-            if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && file.isRegularFile()) {
+            if (relaxedCache && file.isRegularFile()) {
                 logger.info { "found cached ${version.id} Spigot mappings ($mappingAttribute0)" }
                 return@resolver file
             }
@@ -149,7 +149,7 @@ abstract class AbstractSpigotMappingResolver(
 
             val file = workspace[CRAFTBUKKIT_POM]
 
-            if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && file.isRegularFile()) {
+            if (relaxedCache && file.isRegularFile()) {
                 logger.info { "found cached ${version.id} CraftBukkit pom.xml ($mappingAttribute)" }
                 return@resolver file
             }
@@ -239,16 +239,18 @@ inline val MappingTreeView.craftBukkitNmsVersion: String?
 /**
  * A resolver for Spigot class mapping files.
  *
- * @property workspace the workspace
- * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
- * @property spigotProvider the Spigot manifest provider
+ * @param workspace the workspace
+ * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
+ * @param spigotProvider the Spigot manifest provider
+ * @param relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
 class SpigotClassMappingResolver(
     workspace: VersionedWorkspace,
     xmlMapper: ObjectMapper,
-    spigotProvider: SpigotManifestProvider
-) : AbstractSpigotMappingResolver(workspace, xmlMapper, spigotProvider) {
+    spigotProvider: SpigotManifestProvider,
+    relaxedCache: Boolean = true
+) : AbstractSpigotMappingResolver(workspace, xmlMapper, spigotProvider, relaxedCache) {
     override val mappingAttributeName: String = "classMappings"
     override val mappingAttribute: String? = spigotProvider.attributes?.classMappings
 
@@ -258,9 +260,10 @@ class SpigotClassMappingResolver(
      * @param workspace the workspace
      * @param objectMapper an [ObjectMapper] that can deserialize JSON data
      * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
+     * @param relaxedCache whether output cache verification constraints should be relaxed
      */
-    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper) :
-            this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper))
+    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper, relaxedCache: Boolean = true) :
+            this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper), relaxedCache)
 
     /**
      * Visits the mappings to the supplied visitor.
@@ -331,16 +334,18 @@ class SpigotClassMappingResolver(
 /**
  * A resolver for Spigot member mapping files.
  *
- * @property workspace the workspace
- * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
- * @property spigotProvider the Spigot manifest provider
+ * @param workspace the workspace
+ * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
+ * @param spigotProvider the Spigot manifest provider
+ * @param relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
 class SpigotMemberMappingResolver(
     workspace: VersionedWorkspace,
     xmlMapper: ObjectMapper,
-    spigotProvider: SpigotManifestProvider
-) : AbstractSpigotMappingResolver(workspace, xmlMapper, spigotProvider) {
+    spigotProvider: SpigotManifestProvider,
+    relaxedCache: Boolean = true
+) : AbstractSpigotMappingResolver(workspace, xmlMapper, spigotProvider, relaxedCache) {
     private var expectPrefixedClassNames = false
     override val mappingAttributeName: String = "memberMappings"
     override val mappingAttribute: String? = spigotProvider.attributes?.memberMappings
@@ -352,8 +357,8 @@ class SpigotMemberMappingResolver(
      * @param objectMapper an [ObjectMapper] that can deserialize JSON data
      * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
      */
-    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper) :
-            this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper))
+    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper, relaxedCache: Boolean = true) :
+            this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper), relaxedCache)
 
     /**
      * Visits the mappings to the supplied visitor.

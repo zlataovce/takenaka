@@ -17,10 +17,8 @@
 
 package me.kcra.takenaka.core.mapping.resolve.impl
 
-import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.*
@@ -45,11 +43,13 @@ private val logger = KotlinLogging.logger {}
  *
  * @property workspace the workspace
  * @property licenseWorkspace the workspace where the license will be stored
+ * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
 class SeargeMappingResolver(
     override val workspace: VersionedWorkspace,
-    val licenseWorkspace: Workspace = workspace
+    val licenseWorkspace: Workspace = workspace,
+    val relaxedCache: Boolean = true
 ) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val licenseSource: String = "https://raw.githubusercontent.com/MinecraftForge/MCPConfig/master/LICENSE"
     override val targetNamespace: String = "searge"
@@ -157,7 +157,7 @@ class SeargeMappingResolver(
     private fun findMappingFile(file: Path): Path {
         val mappingFile = workspace[MAPPINGS]
 
-        if (DefaultWorkspaceOptions.RELAXED_CACHE !in workspace.options || !mappingFile.isRegularFile()) {
+        if (!relaxedCache || !mappingFile.isRegularFile()) {
             ZipFile(file.toFile()).use {
                 val entry = it.stream()
                     .filter { e -> e.name == "config/joined.tsrg" || e.name == "joined.srg" }

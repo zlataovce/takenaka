@@ -24,19 +24,20 @@ import net.fabricmc.mappingio.tree.MappingTreeView
 /**
  * A mapping ancestry tree builder.
  *
- * @param T the kind of the traced element; can be a class, method, field, ...
+ * @param T the type of the mapping tree
+ * @param E the kind of the traced element; can be a class, method, field, ...
  * @author Matouš Kučera
  */
-class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
+class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappingView> {
     /**
      * The ancestry nodes, mutable.
      */
-    val nodes = mutableListOf<MutableNode<T>>()
+    val nodes = mutableListOf<MutableNode<E>>()
 
     /**
      * Mapping trees used for composition of this ancestry tree, distinguished by version.
      */
-    val trees = mutableMapOf<Version, MappingTreeView>()
+    val trees = mutableMapOf<Version, T>()
 
     /**
      * Namespace IDs used for computing node indices, distinguished by version.
@@ -51,7 +52,7 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
     /**
      * Lookup for nodes by their indices.
      */
-    val indices = mutableMapOf<Int, MutableNode<T>>()
+    val indices = mutableMapOf<Int, MutableNode<E>>()
 
     /**
      * Gets a node by its index, creating a new one if not found.
@@ -59,7 +60,7 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
      * @param index the index
      * @return the node
      */
-    fun findByIndex(index: Int): MutableNode<T> = indices.getOrPut(index, ::emptyNode)
+    fun findByIndex(index: Int): MutableNode<E> = indices.getOrPut(index, ::emptyNode)
 
     /**
      * Tries to find a node by the [block] predicate, creating a new one if not found.
@@ -67,21 +68,21 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
      * @param block the search predicate
      * @return the node
      */
-    fun findOrEmpty(block: (MutableNode<T>) -> Boolean): MutableNode<T> = nodes.find(block) ?: emptyNode()
+    fun findOrEmpty(block: (MutableNode<E>) -> Boolean): MutableNode<E> = nodes.find(block) ?: emptyNode()
 
     /**
      * Creates a new empty node and appends it to the builder.
      *
      * @return the node
      */
-    fun emptyNode(): MutableNode<T> = MutableNode<T>().also(nodes::add)
+    fun emptyNode(): MutableNode<E> = MutableNode<E>().also(nodes::add)
 
     /**
      * Makes the builder inherit mapping trees from another tree.
      *
      * @param tree the tree to be inherited from
      */
-    fun inheritTrees(tree: AncestryTree<*>) {
+    fun inheritTrees(tree: AncestryTree<T, *>) {
         trees += tree.trees
     }
 
@@ -90,7 +91,7 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
      *
      * @param tree the tree to be inherited from
      */
-    fun inheritNamespaces(tree: AncestryTree<*>) {
+    fun inheritNamespaces(tree: AncestryTree<*, *>) {
         indexNamespaces += tree.indexNamespaces
         allowedNamespaces += tree.allowedNamespaces
     }
@@ -100,8 +101,8 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
      *
      * @return the ancestry tree
      */
-    fun toAncestryTree(): AncestryTree<T> {
-        val immutableNodes = mutableListOf<AncestryTree.Node<T>>()
+    fun toAncestryTree(): AncestryTree<T, E> {
+        val immutableNodes = mutableListOf<AncestryTree.Node<T, E>>()
         return AncestryTree(immutableNodes, trees, indexNamespaces, allowedNamespaces).apply {
             immutableNodes += nodes.map { AncestryTree.Node(this, it, it.first, it.last) }
         }
@@ -111,19 +112,19 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
      * A node in the ancestry tree, mutable.
      *
      * @property delegate the map that operations are delegated to
-     * @param T the kind of the traced element; can be a class, method, field, ...
+     * @param E the kind of the traced element; can be a class, method, field, ...
      * @see AncestryTree.Node
      */
-    class MutableNode<T : MappingTreeView.ElementMappingView>(internal val delegate: MutableMap<Version, T> = mutableMapOf()) : MutableMap<Version, T> by delegate {
+    class MutableNode<E : MappingTreeView.ElementMappingView>(internal val delegate: MutableMap<Version, E> = mutableMapOf()) : MutableMap<Version, E> by delegate {
         /**
          * The first version mapping (oldest).
          */
-        lateinit var first: Map.Entry<Version, T>
+        lateinit var first: Map.Entry<Version, E>
 
         /**
          * The last version mapping (newest).
          */
-        lateinit var last: Map.Entry<Version, T>
+        lateinit var last: Map.Entry<Version, E>
 
         /**
          * Internal cache of names (as per the tree's allowed namespaces) of the last entry.
@@ -139,7 +140,7 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
             }
         }
 
-        override fun put(key: Version, value: T): T? {
+        override fun put(key: Version, value: E): E? {
             val oldValue = delegate.put(key, value)
 
             if (!::first.isInitialized) {
@@ -158,8 +159,9 @@ class AncestryTreeBuilder<T : MappingTreeView.ElementMappingView> {
  * Builds an ancestry tree from a builder.
  *
  * @param block the builder action
- * @param T the kind of the traced element; can be a class, method, field, ...
+ * @param T the type of the mapping tree
+ * @param E the kind of the traced element; can be a class, method, field, ...
  * @return the ancestry tree
  */
-inline fun <T : MappingTreeView.ElementMappingView> buildAncestryTree(block: AncestryTreeBuilder<T>.() -> Unit): AncestryTree<T> =
-    AncestryTreeBuilder<T>().apply(block).toAncestryTree()
+inline fun <T : MappingTreeView, E : MappingTreeView.ElementMappingView> buildAncestryTree(block: AncestryTreeBuilder<T, E>.() -> Unit): AncestryTree<T, E> =
+    AncestryTreeBuilder<T, E>().apply(block).toAncestryTree()

@@ -26,9 +26,9 @@ import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.resolve.impl.*
 import me.kcra.takenaka.core.util.objectMapper
-import me.kcra.takenaka.generator.common.BundledMappingProvider
-import me.kcra.takenaka.generator.common.ResolvingMappingProvider
-import me.kcra.takenaka.generator.common.buildMappingConfig
+import me.kcra.takenaka.generator.common.provider.impl.BundledMappingProvider
+import me.kcra.takenaka.generator.common.provider.impl.ResolvingMappingProvider
+import me.kcra.takenaka.generator.common.provider.impl.buildMappingConfig
 import net.fabricmc.mappingio.tree.MappingTree
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -78,12 +78,12 @@ abstract class ResolveMappingsTask : DefaultTask() {
     abstract val versions: SetProperty<String>
 
     /**
-     * The workspace options, defaults to [DefaultWorkspaceOptions.RELAXED_CACHE].
+     * Whether output cache verification constraints should be relaxed, defaults to true.
      *
-     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.strictCache
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.relaxedCache
      */
     @get:Input
-    abstract val options: Property<WorkspaceOptions>
+    abstract val relaxedCache: Property<Boolean>
 
     /**
      * The version manifest.
@@ -104,7 +104,6 @@ abstract class ResolveMappingsTask : DefaultTask() {
     val cacheWorkspace by lazy {
         compositeWorkspace {
             rootDirectory(cacheDir.asFile.get())
-            options(this@ResolveMappingsTask.options.get())
         }
     }
 
@@ -130,7 +129,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
 
     init {
         cacheDir.convention(project.layout.buildDirectory.dir("takenaka/cache"))
-        options.convention(DefaultWorkspaceOptions.RELAXED_CACHE)
+        relaxedCache.convention(true)
 
         // manual up-to-date checking, it's an Internal property
         outputs.upToDateWhen {
@@ -154,7 +153,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
             } else {
                 val xmlMapper = XmlMapper()
 
-                val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, xmlMapper)
+                val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, xmlMapper, relaxedCache.get())
                 val mappingConfig = buildMappingConfig {
                     version(this@ResolveMappingsTask.versions.get().toList())
                     workspace(mappingCacheWorkspace)
@@ -171,23 +170,23 @@ abstract class ResolveMappingsTask : DefaultTask() {
                     intercept(::MethodArgSourceFilter)
 
                     contributors { versionWorkspace ->
-                        val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper)
-                        val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper)
+                        val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper, relaxedCache.get())
+                        val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper, relaxedCache.get())
 
                         val prependedClasses = mutableListOf<String>()
 
                         listOf(
-                            VanillaMappingContributor(versionWorkspace, mojangProvider),
+                            VanillaMappingContributor(versionWorkspace, mojangProvider, relaxedCache.get()),
                             MojangServerMappingResolver(versionWorkspace, mojangProvider),
                             IntermediaryMappingResolver(versionWorkspace, sharedCacheWorkspace),
-                            YarnMappingResolver(versionWorkspace, yarnProvider),
-                            SeargeMappingResolver(versionWorkspace, sharedCacheWorkspace),
-                            WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
+                            YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache.get()),
+                            SeargeMappingResolver(versionWorkspace, sharedCacheWorkspace, relaxedCache.get()),
+                            WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get())) {
                                 // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
                                 // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
                                 LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses, prependEverything = versionWorkspace.version.id == "1.16.5")
                             },
-                            WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
+                            WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get())) {
                                 LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses)
                             }
                         )

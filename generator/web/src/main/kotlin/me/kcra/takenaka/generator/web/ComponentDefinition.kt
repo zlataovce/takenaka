@@ -27,7 +27,9 @@ import org.w3c.dom.Document
 import kotlin.properties.Delegates
 
 /**
- * A HTML component.
+ * An HTML component.
+ *
+ * Components within the web generator are pieces of HTML that replace empty elements of the specified tag ([tag]) when the page is loaded.
  *
  * @property tag the main tag of the component, any tag that is empty and has the same name, will be replaced with the component
  * @property content the component content/body
