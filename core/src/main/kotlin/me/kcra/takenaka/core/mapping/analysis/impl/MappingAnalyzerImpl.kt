@@ -18,6 +18,10 @@
 package me.kcra.takenaka.core.mapping.analysis.impl
 
 import me.kcra.takenaka.core.mapping.analysis.ProblemResolution
+import me.kcra.takenaka.core.mapping.matchers.isConstructor
+import me.kcra.takenaka.core.mapping.matchers.isEnumValueOf
+import me.kcra.takenaka.core.mapping.matchers.isEnumValues
+import me.kcra.takenaka.core.mapping.matchers.isStaticInitializer
 import me.kcra.takenaka.core.mapping.resolve.impl.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.resolve.impl.interfaces
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
@@ -148,9 +152,16 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
                 element.owner.methods.remove(element)
             }
 
-            // don't check inheritance for private methods, they can't technically be overridden
-            // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-8.4.8.3
-            if (!skipInheritanceChecks && (method.modifiers and Opcodes.ACC_PRIVATE) == 0) {
+            if (method.isConstructor || method.isStaticInitializer || method.isEnumValueOf || method.isEnumValues) {
+                (method.tree.dstNamespaces - analyzer.analysisOptions.specialMethodExemptions).forEach { ns ->
+                    val nsId = method.tree.getNamespaceId(ns)
+                    if (nsId == MappingTree.NULL_NAMESPACE_ID) return@forEach
+
+                    analyzer.problem(method, ns, StandardProblemKinds.SPECIAL_METHOD_NOT_MAPPED) {
+                        method.setDstName(method.srcName, nsId)
+                    }
+                }
+            } else if (!skipInheritanceChecks && (method.modifiers and Opcodes.ACC_PRIVATE) == 0) { // don't check inheritance for private methods, they can't technically be overridden, see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-8.4.8.3
                 // correct inheritance errors
 
                 // Intermediary & possibly more: overridden methods are not mapped, those are completed

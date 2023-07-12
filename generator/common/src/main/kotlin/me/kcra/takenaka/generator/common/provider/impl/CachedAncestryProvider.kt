@@ -99,7 +99,7 @@ class CachedAncestryProvider(val next: AncestryProvider) : AncestryProvider {
     override fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeView.MethodMappingView> constructor(
         node: AncestryTree.Node<T, C>
     ): AncestryTree<T, M> {
-        return ctorTrees.getOrPut(node) { next.field(node) } as AncestryTree<T, M>
+        return ctorTrees.getOrPut(node) { next.constructor(node) } as AncestryTree<T, M>
     }
 
     /**
@@ -115,7 +115,7 @@ class CachedAncestryProvider(val next: AncestryProvider) : AncestryProvider {
     override fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeView.MethodMappingView> method(
         node: AncestryTree.Node<T, C>
     ): AncestryTree<T, M> {
-        return methodTrees.getOrPut(node) { next.field(node) } as AncestryTree<T, M>
+        return methodTrees.getOrPut(node) { next.method(node) } as AncestryTree<T, M>
     }
 
     /**

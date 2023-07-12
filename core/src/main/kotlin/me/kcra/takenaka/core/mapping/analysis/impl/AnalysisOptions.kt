@@ -23,11 +23,13 @@ import me.kcra.takenaka.core.mapping.resolve.impl.VanillaMappingContributor
  * Basic analysis configuration.
  *
  * @property innerClassNameCompletionCandidates namespaces that should have inner class names completed (see [MappingAnalyzerImpl.acceptClass])
- * @property inheritanceErrorExemptions namespaces that should have inheritance errors/missing override mappings corrected/completed (see [MappingAnalyzerImpl.ClassContext.acceptMethod])
+ * @property inheritanceErrorExemptions namespaces that shouldn't have inheritance errors/missing override mappings corrected/completed (see [MappingAnalyzerImpl.ClassContext.acceptMethod])
  * @property inheritanceAdditionalNamespaces destination namespaces that will be used for matching overridden methods in addition to the source (obfuscated) mapping
+ * @property specialMethodExemptions namespaces that shouldn't have names of special methods completed/corrected
  */
 data class AnalysisOptions(
     val innerClassNameCompletionCandidates: Set<String> = emptySet(),
     val inheritanceErrorExemptions: Set<String> = VanillaMappingContributor.NAMESPACES.toSet(),
-    val inheritanceAdditionalNamespaces: Set<String> = emptySet()
+    val inheritanceAdditionalNamespaces: Set<String> = emptySet(),
+    val specialMethodExemptions: Set<String> = VanillaMappingContributor.NAMESPACES.toSet()
 )
