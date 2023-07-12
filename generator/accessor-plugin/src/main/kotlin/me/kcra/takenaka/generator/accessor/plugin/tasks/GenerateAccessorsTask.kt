@@ -24,8 +24,8 @@ import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.common.provider.MappingProvider
 import me.kcra.takenaka.generator.common.provider.impl.SimpleAncestryProvider
-import me.kcra.takenaka.generator.common.provider.impl.SimpleMappingProvider
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
@@ -55,10 +55,10 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     abstract val outputDir: DirectoryProperty
 
     /**
-     * The input mappings, probably linked from a [ResolveMappingsTask].
+     * The input mapping provider, probably linked from a [ResolveMappingsTask].
      */
     @get:Internal
-    abstract val mappings: MutableMappingsMapProperty
+    abstract val mappingProvider: Property<MappingProvider>
 
     /**
      * Class accessor models.
@@ -169,7 +169,7 @@ abstract class GenerateAccessorsTask : DefaultTask() {
         outputWorkspace.clean()
         runBlocking {
             generator.generate(
-                SimpleMappingProvider(mappings.get()),
+                mappingProvider.get(),
                 SimpleAncestryProvider(historyIndexNamespace.get(), historyNamespaces.get())
             )
         }

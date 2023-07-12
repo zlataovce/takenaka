@@ -22,6 +22,7 @@ import me.kcra.takenaka.core.versionManifest
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.plugin.tasks.GenerateAccessorsTask
 import me.kcra.takenaka.generator.accessor.plugin.tasks.ResolveMappingsTask
+import me.kcra.takenaka.generator.common.provider.impl.SimpleMappingProvider
 import me.kcra.takenaka.gradle.BuildConfig
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -62,7 +63,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             dependsOn(resolveMappings)
 
             this.outputDir.set(config.outputDirectory)
-            this.mappings.set(resolveMappings.mappings)
+            this.mappingProvider.set(resolveMappings.mappings.map(::SimpleMappingProvider))
             this.accessors.set(config.accessors)
             this.basePackage.set(config.basePackage)
             this.languageFlavor.set(config.languageFlavor)
