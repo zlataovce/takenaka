@@ -26,10 +26,12 @@ import me.kcra.takenaka.core.mapping.ancestry.impl.FieldAncestryTree
 import me.kcra.takenaka.core.mapping.ancestry.impl.MethodAncestryTree
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import net.fabricmc.mappingio.tree.MappingTreeView
-import java.util.concurrent.ConcurrentHashMap
+import java.util.*
 
 /**
  * An [AncestryProvider] implementation that caches results from a downstream provider.
+ *
+ * *This implementation uses identity hash codes for comparing cache keys, instead of object hash codes.*
  *
  * @property next the provider that requests are forwarded to
  * @author Matouš Kučera
@@ -38,22 +40,22 @@ class CachedAncestryProvider(val next: AncestryProvider) : AncestryProvider {
     /**
      * A class ancestry tree cache.
      */
-    private val klassTrees = ConcurrentHashMap<MappingsMap, ClassAncestryTree>()
+    private val klassTrees = IdentityHashMap<MappingsMap, ClassAncestryTree>()
 
     /**
      * A field ancestry tree cache.
      */
-    private val fieldTrees = ConcurrentHashMap<ClassAncestryNode, FieldAncestryTree>()
+    private val fieldTrees = IdentityHashMap<ClassAncestryNode, FieldAncestryTree>()
 
     /**
      * A constructor ancestry tree cache.
      */
-    private val ctorTrees = ConcurrentHashMap<ClassAncestryNode, MethodAncestryTree>()
+    private val ctorTrees = IdentityHashMap<ClassAncestryNode, MethodAncestryTree>()
 
     /**
      * A method ancestry tree cache.
      */
-    private val methodTrees = ConcurrentHashMap<ClassAncestryNode, MethodAncestryTree>()
+    private val methodTrees = IdentityHashMap<ClassAncestryNode, MethodAncestryTree>()
 
     /**
      * Provides a class ancestry tree.
