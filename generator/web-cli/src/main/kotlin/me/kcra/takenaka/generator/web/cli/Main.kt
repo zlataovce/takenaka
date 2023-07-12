@@ -22,7 +22,6 @@ package me.kcra.takenaka.generator.web.cli
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.cli.*
 import kotlinx.coroutines.runBlocking
-import me.kcra.takenaka.core.buildWorkspaceOptions
 import me.kcra.takenaka.core.compositeWorkspace
 import me.kcra.takenaka.core.mapping.WrappingContributor
 import me.kcra.takenaka.core.mapping.adapter.*
@@ -86,18 +85,10 @@ fun main(args: Array<String>) {
 
     parser.parse(args)
 
-    val options = buildWorkspaceOptions {
-        if (!strictCache) {
-            relaxedCache()
-        }
-    }
-
     val workspace = workspace {
-        options(options)
         rootDirectory(output)
     }
     val cacheWorkspace = compositeWorkspace {
-        options(options)
         rootDirectory(cache)
     }
 
@@ -118,7 +109,7 @@ fun main(args: Array<String>) {
         name = "shared"
     }
 
-    val yarnProvider = YarnMetadataProvider(sharedCache, xmlMapper)
+    val yarnProvider = YarnMetadataProvider(sharedCache, xmlMapper, relaxedCache = !strictCache)
     val mappingConfig = buildMappingConfig {
         version(version)
         workspace(mappingsCache)
@@ -135,23 +126,23 @@ fun main(args: Array<String>) {
         intercept(::MethodArgSourceFilter)
 
         contributors { versionWorkspace ->
-            val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper)
-            val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper)
+            val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper, relaxedCache = !strictCache)
+            val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper, relaxedCache = !strictCache)
 
             val prependedClasses = mutableListOf<String>()
 
             listOf(
-                VanillaMappingContributor(versionWorkspace, mojangProvider),
+                VanillaMappingContributor(versionWorkspace, mojangProvider, relaxedCache = !strictCache),
                 MojangServerMappingResolver(versionWorkspace, mojangProvider),
                 IntermediaryMappingResolver(versionWorkspace, sharedCache),
-                YarnMappingResolver(versionWorkspace, yarnProvider),
-                SeargeMappingResolver(versionWorkspace, sharedCache),
-                WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
+                YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache = !strictCache),
+                SeargeMappingResolver(versionWorkspace, sharedCache, relaxedCache = !strictCache),
+                WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache = !strictCache)) {
                     // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
                     // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
                     LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses, prependEverything = versionWorkspace.version.id == "1.16.5")
                 },
-                WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
+                WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache = !strictCache)) {
                     LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses)
                 }
             )

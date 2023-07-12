@@ -59,9 +59,9 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     abstract val cacheDirectory: DirectoryProperty
 
     /**
-     * Whether cache should be validated strictly, defaults to false.
+     * Whether output cache verification constraints should be relaxed, defaults to true.
      */
-    abstract val strictCache: Property<Boolean>
+    abstract val relaxedCache: Property<Boolean>
 
     /**
      * Class accessor models.
@@ -105,7 +105,7 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
         accessorFlavor.convention(AccessorFlavor.NONE)
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
-        strictCache.convention(false)
+        relaxedCache.convention(true)
     }
 
     /**
@@ -160,12 +160,12 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     }
 
     /**
-     * Sets the [strictCache] property.
+     * Sets the [relaxedCache] property.
      *
-     * @param strictCache the strict cache flag
+     * @param relaxedCache the relaxed cache flag
      */
-    fun strictCache(strictCache: Boolean) {
-        this.strictCache.set(strictCache)
+    fun relaxedCache(relaxedCache: Boolean) {
+        this.relaxedCache.set(relaxedCache)
     }
 
     /**

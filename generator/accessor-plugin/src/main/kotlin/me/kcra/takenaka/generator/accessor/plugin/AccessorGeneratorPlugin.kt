@@ -17,7 +17,6 @@
 
 package me.kcra.takenaka.generator.accessor.plugin
 
-import me.kcra.takenaka.core.buildWorkspaceOptions
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
@@ -43,17 +42,10 @@ class AccessorGeneratorPlugin : Plugin<Project> {
      * @param target The target object
      */
     override fun apply(target: Project) {
-        val manifest = objectMapper().versionManifest()
+        val manifest = objectMapper().versionManifest() // TODO: cache this in a file, so you can develop even without an internet connection
         val config = target.extensions.create<AccessorGeneratorExtension>("accessors", target, manifest)
 
         // automatically adds tasks for basic Mojang-based server accessor generation
-        val options = config.strictCache.map { isStrict ->
-            buildWorkspaceOptions {
-                if (!isStrict) {
-                    relaxedCache()
-                }
-            }
-        }
         val mappingBundle by target.configurations.creating
         val resolveMappings by target.tasks.creating(ResolveMappingsTask::class) {
             group = "takenaka"
@@ -61,7 +53,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
 
             this.cacheDir.set(config.cacheDirectory)
             this.versions.set(config.versions)
-            this.options.set(options)
+            this.relaxedCache.set(config.relaxedCache)
             this.manifest.set(manifest)
         }
         val generateAccessors by target.tasks.creating(GenerateAccessorsTask::class) {
@@ -78,7 +70,6 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.accessedNamespaces.set(config.accessedNamespaces)
             this.historyNamespaces.set(config.historyNamespaces)
             this.historyIndexNamespace.set(config.historyIndexNamespace)
-            this.options.set(options)
         }
 
         target.tasks.withType<JavaCompile> {

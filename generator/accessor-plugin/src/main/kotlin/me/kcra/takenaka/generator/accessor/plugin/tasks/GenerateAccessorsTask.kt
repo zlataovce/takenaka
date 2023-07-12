@@ -18,8 +18,6 @@
 package me.kcra.takenaka.generator.accessor.plugin.tasks
 
 import kotlinx.coroutines.runBlocking
-import me.kcra.takenaka.core.DefaultWorkspaceOptions
-import me.kcra.takenaka.core.WorkspaceOptions
 import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorFlavor
@@ -131,21 +129,12 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     abstract val historyIndexNamespace: Property<String?>
 
     /**
-     * The workspace options, defaults to [DefaultWorkspaceOptions.RELAXED_CACHE].
-     *
-     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.strictCache
-     */
-    @get:Input
-    abstract val options: Property<WorkspaceOptions>
-
-    /**
      * The output workspace ([outputDir]).
      */
     @get:Internal
     val outputWorkspace by lazy {
         workspace {
             rootDirectory(outputDir.asFile.get())
-            options(this@GenerateAccessorsTask.options.get())
         }
     }
 
@@ -157,7 +146,6 @@ abstract class GenerateAccessorsTask : DefaultTask() {
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
-        options.convention(DefaultWorkspaceOptions.RELAXED_CACHE)
     }
 
     /**
