@@ -146,12 +146,13 @@ public final class MethodMapping {
      * <p>
      * Namespaces are iterated in order, the first mapped namespace's name is returned.
      *
+     * @param loader the class loader used in the parent class lookup
      * @param version the version
      * @param namespaces the namespaces
      * @return the method, null if it's not mapped
      */
-    public @Nullable Method getMethod(@NotNull String version, @NotNull String... namespaces) {
-        Class<?> clazz = parent.getClass(version, namespaces);
+    public @Nullable Method getMethod(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
+        Class<?> clazz = parent.getClass(loader, version, namespaces);
         if (clazz == null) {
             return null;
         }
@@ -164,7 +165,7 @@ public final class MethodMapping {
         final String[] types = namePair.getParameters();
         final Class<?>[] paramClasses = new Class<?>[types.length];
         for (int i = 0; i < types.length; i++) {
-            final Class<?> paramClass = parseClass(types[i]);
+            final Class<?> paramClass = parseClass(loader, types[i]);
             if (paramClass == null) {
                 return null;
             }
@@ -189,8 +190,25 @@ public final class MethodMapping {
     }
 
     /**
+     * Gets the mapped method name and parameter types by the version and namespaces,
+     * and attempts to find a method in the parent class reflectively using them.
+     * <p>
+     * Namespaces are iterated in order, the first mapped namespace's name is returned.<br>
+     * The parent class is resolved using the current thread's context class loader.
+     *
+     * @param version the version
+     * @param namespaces the namespaces
+     * @return the method, null if it's not mapped
+     */
+    public @Nullable Method getMethod(@NotNull String version, @NotNull String... namespaces) {
+        return getMethod(Thread.currentThread().getContextClassLoader(), version, namespaces);
+    }
+
+    /**
      * Gets the mapped method name and parameter types by the version and namespaces of the supplied {@link MapperPlatform},
      * and attempts to find a method in the parent class reflectively using them.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @param platform the platform
      * @return the method, null if it's not mapped
@@ -202,6 +220,8 @@ public final class MethodMapping {
     /**
      * Gets the mapped method name and parameter types by the version and namespaces of the current {@link MapperPlatform},
      * and attempts to find a method in the parent class reflectively using them.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @return the method, null if it's not mapped
      */
@@ -215,13 +235,14 @@ public final class MethodMapping {
      * <p>
      * Namespaces are iterated in order, the first mapped namespace's name is returned.
      *
+     * @param loader the class loader used in the parent class lookup
      * @param version the version
      * @param namespaces the namespaces
      * @return the method handle, null if it's not mapped
      */
     @SneakyThrows
-    public @Nullable MethodHandle getMethodHandle(@NotNull String version, @NotNull String... namespaces) {
-        final Method method = getMethod(version, namespaces);
+    public @Nullable MethodHandle getMethodHandle(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
+        final Method method = getMethod(loader, version, namespaces);
         if (method == null) {
             return null;
         }
@@ -230,8 +251,25 @@ public final class MethodMapping {
     }
 
     /**
+     * Gets the mapped method name and parameter types by the version and namespaces,
+     * attempts to find a method reflectively using them and creates a {@link MethodHandle} if successful.
+     * <p>
+     * Namespaces are iterated in order, the first mapped namespace's name is returned.<br>
+     * The parent class is resolved using the current thread's context class loader.
+     *
+     * @param version the version
+     * @param namespaces the namespaces
+     * @return the method handle, null if it's not mapped
+     */
+    public @Nullable MethodHandle getMethodHandle(@NotNull String version, @NotNull String... namespaces) {
+        return getMethodHandle(Thread.currentThread().getContextClassLoader(), version, namespaces);
+    }
+
+    /**
      * Gets the mapped method name and parameter types by the version and namespaces of the supplied {@link MapperPlatform},
      * attempts to find a method reflectively using them and creates a {@link MethodHandle} if successful.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @param platform the platform
      * @return the method handle, null if it's not mapped
@@ -243,6 +281,8 @@ public final class MethodMapping {
     /**
      * Gets the mapped method name and parameter types by the version and namespaces of the current {@link MapperPlatform},
      * attempts to find a method reflectively using them and creates a {@link MethodHandle} if successful.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @return the method handle, null if it's not mapped
      */
@@ -278,13 +318,14 @@ public final class MethodMapping {
     /**
      * Parses a human-readable class name (java.lang.Integer, double, double[][], ...).
      *
-     * @param className the class name
-     * @return the class, null if the (element) type is not a primitive and couldn't be found using {@link Class#forName(String)}
+     * @param loader the class loader used for resolving
+     * @param name the class name
+     * @return the class, null if the (element) type is not a primitive and couldn't be found using {@link Class#forName(String, boolean, ClassLoader)}
      */
     @ApiStatus.Internal
-    public static @Nullable Class<?> parseClass(@NotNull String className) {
-        final String elementType = className.replace("[]", "");
-        final int dimensions = (className.length() - elementType.length()) / 2;
+    public static @Nullable Class<?> parseClass(@NotNull ClassLoader loader, @NotNull String name) {
+        final String elementType = name.replace("[]", "");
+        final int dimensions = (name.length() - elementType.length()) / 2;
 
         Class<?> element;
         switch (elementType) {
@@ -317,7 +358,7 @@ public final class MethodMapping {
                 break;
             default:
                 try {
-                    element = Class.forName(elementType);
+                    element = Class.forName(elementType, true, loader);
                 } catch (ClassNotFoundException ignored) {
                     return null;
                 }

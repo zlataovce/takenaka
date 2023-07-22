@@ -103,7 +103,30 @@ public final class ClassMapping {
     }
 
     /**
-     * Gets a mapped class name by the version and namespaces, and attempts to resolve it in the current thread class loader.
+     * Gets a mapped class name by the version and namespaces, and attempts to resolve it in the supplied class loader.
+     * <p>
+     * Namespaces are iterated in order, the first mapped namespace's name is returned.
+     *
+     * @param loader the class loader used in the {@link Class#forName(String, boolean, ClassLoader)} lookup
+     * @param version the version
+     * @param namespaces the namespaces
+     * @return the class, null if it's not mapped
+     */
+    public @Nullable Class<?> getClass(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
+        final String name = getName(version, namespaces);
+        if (name == null) {
+            return null;
+        }
+
+        try {
+            return Class.forName(name, true, loader);
+        } catch (ClassNotFoundException ignored) {
+        }
+        return null;
+    }
+
+    /**
+     * Gets a mapped class name by the version and namespaces, and attempts to resolve it in the current thread's context class loader.
      * <p>
      * Namespaces are iterated in order, the first mapped namespace's name is returned.
      *
@@ -112,21 +135,12 @@ public final class ClassMapping {
      * @return the class, null if it's not mapped
      */
     public @Nullable Class<?> getClass(@NotNull String version, @NotNull String... namespaces) {
-        final String name = getName(version, namespaces);
-        if (name == null) {
-            return null;
-        }
-
-        try {
-            return Class.forName(name);
-        } catch (ClassNotFoundException ignored) {
-        }
-        return null;
+        return getClass(Thread.currentThread().getContextClassLoader(), version, namespaces);
     }
 
     /**
      * Gets a mapped class name by the version and namespaces of the supplied {@link MapperPlatform},
-     * and attempts to resolve it in the current thread class loader.
+     * and attempts to resolve it in the current thread's context class loader.
      *
      * @param platform the platform
      * @return the class, null if it's not mapped
@@ -137,7 +151,7 @@ public final class ClassMapping {
 
     /**
      * Gets a mapped class name by the version and namespaces of the current {@link MapperPlatform},
-     * and attempts to resolve it in the current thread class loader.
+     * and attempts to resolve it in the current thread's context class loader.
      *
      * @return the class, null if it's not mapped
      */

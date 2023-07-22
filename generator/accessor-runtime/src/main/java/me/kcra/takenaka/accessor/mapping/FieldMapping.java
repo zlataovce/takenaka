@@ -150,12 +150,13 @@ public final class FieldMapping {
      * <p>
      * Namespaces are iterated in order, the first mapped namespace's name is returned.
      *
+     * @param loader the class loader used in the parent class lookup
      * @param version the version
      * @param namespaces the namespaces
      * @return the field, null if it's not mapped
      */
-    public @Nullable Field getField(@NotNull String version, @NotNull String... namespaces) {
-        Class<?> clazz = parent.getClass(version, namespaces);
+    public @Nullable Field getField(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
+        Class<?> clazz = parent.getClass(loader, version, namespaces);
         if (clazz == null) {
             return null;
         }
@@ -182,8 +183,25 @@ public final class FieldMapping {
     }
 
     /**
+     * Gets a mapped field name by the version and namespaces,
+     * and attempts to find it in the parent class reflectively.
+     * <p>
+     * Namespaces are iterated in order, the first mapped namespace's name is returned.<br>
+     * The parent class is resolved using the current thread's context class loader.
+     *
+     * @param version the version
+     * @param namespaces the namespaces
+     * @return the field, null if it's not mapped
+     */
+    public @Nullable Field getField(@NotNull String version, @NotNull String... namespaces) {
+        return getField(Thread.currentThread().getContextClassLoader(), version, namespaces);
+    }
+
+    /**
      * Gets a mapped field name by the version and namespaces of the supplied {@link MapperPlatform},
      * and attempts to find it in the parent class reflectively.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @param platform the platform
      * @return the field, null if it's not mapped
@@ -195,6 +213,8 @@ public final class FieldMapping {
     /**
      * Gets a mapped field name by the version and namespaces of the current {@link MapperPlatform},
      * and attempts to find it in the parent class reflectively.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @return the field, null if it's not mapped
      */
@@ -208,13 +228,14 @@ public final class FieldMapping {
      * <p>
      * Namespaces are iterated in order, the first mapped namespace's name is returned.
      *
+     * @param loader the class loader used in the parent class lookup
      * @param version the version
      * @param namespaces the namespaces
      * @return the field getter handle, null if it's not mapped
      */
     @SneakyThrows
-    public @Nullable MethodHandle getFieldGetter(@NotNull String version, @NotNull String... namespaces) {
-        final Field field = getField(version, namespaces);
+    public @Nullable MethodHandle getFieldGetter(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
+        final Field field = getField(loader, version, namespaces);
         if (field == null) {
             return null;
         }
@@ -223,8 +244,25 @@ public final class FieldMapping {
     }
 
     /**
+     * Gets a mapped field name by the version and namespaces,
+     * attempts to find it in the parent class and creates a getter {@link MethodHandle} if successful.
+     * <p>
+     * Namespaces are iterated in order, the first mapped namespace's name is returned.<br>
+     * The parent class is resolved using the current thread's context class loader.
+     *
+     * @param version the version
+     * @param namespaces the namespaces
+     * @return the field getter handle, null if it's not mapped
+     */
+    public @Nullable MethodHandle getFieldGetter(@NotNull String version, @NotNull String... namespaces) {
+        return getFieldGetter(Thread.currentThread().getContextClassLoader(), version, namespaces);
+    }
+
+    /**
      * Gets a mapped field name by the version and namespaces of the supplied {@link MapperPlatform},
      * attempts to find it in the parent class and creates a getter {@link MethodHandle} if successful.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @param platform the platform
      * @return the field getter handle, null if it's not mapped
@@ -236,6 +274,8 @@ public final class FieldMapping {
     /**
      * Gets a mapped field name by the version and namespaces of the current {@link MapperPlatform},
      * attempts to find it in the parent class and creates a getter {@link MethodHandle} if successful.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @return the field getter handle, null if it's not mapped
      */
@@ -249,13 +289,14 @@ public final class FieldMapping {
      * <p>
      * Namespaces are iterated in order, the first mapped namespace's name is returned.
      *
+     * @param loader the class loader used in the parent class lookup
      * @param version the version
      * @param namespaces the namespaces
      * @return the field setter handle, null if it's not mapped
      */
     @SneakyThrows
-    public @Nullable MethodHandle getFieldSetter(@NotNull String version, @NotNull String... namespaces) {
-        final Field field = getField(version, namespaces);
+    public @Nullable MethodHandle getFieldSetter(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
+        final Field field = getField(loader, version, namespaces);
         if (field == null) {
             return null;
         }
@@ -264,8 +305,26 @@ public final class FieldMapping {
     }
 
     /**
+     * Gets a mapped field name by the version and namespaces,
+     * attempts to find it in the parent class and creates a setter {@link MethodHandle} if successful.
+     * <p>
+     * Namespaces are iterated in order, the first mapped namespace's name is returned.<br>
+     * The parent class is resolved using the current thread's context class loader.
+     *
+     * @param version the version
+     * @param namespaces the namespaces
+     * @return the field setter handle, null if it's not mapped
+     */
+    @SneakyThrows
+    public @Nullable MethodHandle getFieldSetter(@NotNull String version, @NotNull String... namespaces) {
+        return getFieldSetter(Thread.currentThread().getContextClassLoader(), version, namespaces);
+    }
+
+    /**
      * Gets a mapped field name by the version and namespaces of the supplied {@link MapperPlatform},
      * attempts to find it in the parent class and creates a setter {@link MethodHandle} if successful.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @param platform the platform
      * @return the field setter handle, null if it's not mapped
@@ -277,6 +336,8 @@ public final class FieldMapping {
     /**
      * Gets a mapped field name by the version and namespaces of the current {@link MapperPlatform},
      * attempts to find it in the parent class and creates a setter {@link MethodHandle} if successful.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @return the field setter handle, null if it's not mapped
      */
@@ -288,7 +349,8 @@ public final class FieldMapping {
      * Gets a mapped field name by the version and namespaces of the current {@link MapperPlatform},
      * attempts to find it in the parent class, gets the value and caches it.
      * <p>
-     * Despite the name of this method, it can also be used to cache non-final fields.
+     * Despite the name of this method, it can also be used to cache non-final fields.<br>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @return the value, null if it's not mapped or the field's value is null
      */

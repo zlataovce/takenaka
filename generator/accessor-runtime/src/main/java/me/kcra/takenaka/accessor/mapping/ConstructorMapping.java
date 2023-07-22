@@ -106,12 +106,13 @@ public final class ConstructorMapping {
      * <p>
      * Namespaces are iterated in order, the first mapped namespace's name is returned.
      *
+     * @param loader the class loader used in the parent class lookup
      * @param version the version
      * @param namespaces the namespaces
      * @return the constructor, null if it's not mapped
      */
-    public @Nullable Constructor<?> getConstructor(@NotNull String version, @NotNull String... namespaces) {
-        final Class<?> clazz = parent.getClass(version, namespaces);
+    public @Nullable Constructor<?> getConstructor(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
+        final Class<?> clazz = parent.getClass(loader, version, namespaces);
         if (clazz == null) {
             return null;
         }
@@ -123,7 +124,7 @@ public final class ConstructorMapping {
 
         final Class<?>[] paramClasses = new Class<?>[types.length];
         for (int i = 0; i < types.length; i++) {
-            final Class<?> paramClass = MethodMapping.parseClass(types[i]);
+            final Class<?> paramClass = MethodMapping.parseClass(loader, types[i]);
             if (paramClass == null) {
                 return null;
             }
@@ -146,8 +147,25 @@ public final class ConstructorMapping {
     }
 
     /**
+     * Gets mapped constructor parameter types by the version and namespaces,
+     * and attempts to find a constructor in the parent class reflectively using them.
+     * <p>
+     * Namespaces are iterated in order, the first mapped namespace's name is returned.<br>
+     * The parent class is resolved using the current thread's context class loader.
+     *
+     * @param version the version
+     * @param namespaces the namespaces
+     * @return the constructor, null if it's not mapped
+     */
+    public @Nullable Constructor<?> getConstructor(@NotNull String version, @NotNull String... namespaces) {
+        return getConstructor(Thread.currentThread().getContextClassLoader(), version, namespaces);
+    }
+
+    /**
      * Gets mapped constructor parameter types by the version and namespaces of the supplied {@link MapperPlatform},
      * and attempts to find a constructor in the parent class reflectively using them.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @param platform the platform
      * @return the constructor, null if it's not mapped
@@ -159,6 +177,8 @@ public final class ConstructorMapping {
     /**
      * Gets mapped constructor parameter types by the version and namespaces of the current {@link MapperPlatform},
      * and attempts to find a constructor in the parent class reflectively using them.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @return the constructor, null if it's not mapped
      */
@@ -172,13 +192,14 @@ public final class ConstructorMapping {
      * <p>
      * Namespaces are iterated in order, the first mapped namespace's name is returned.
      *
+     * @param loader the class loader used in the parent class lookup
      * @param version the version
      * @param namespaces the namespaces
      * @return the constructor handle, null if it's not mapped
      */
     @SneakyThrows
-    public @Nullable MethodHandle getConstructorHandle(@NotNull String version, @NotNull String... namespaces) {
-        final Constructor<?> ctor = getConstructor(version, namespaces);
+    public @Nullable MethodHandle getConstructorHandle(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
+        final Constructor<?> ctor = getConstructor(loader, version, namespaces);
         if (ctor == null) {
             return null;
         }
@@ -187,8 +208,25 @@ public final class ConstructorMapping {
     }
 
     /**
+     * Gets mapped constructor parameter types by the version and namespaces,
+     * attempts to find a constructor reflectively using them and creates a {@link MethodHandle} if successful.
+     * <p>
+     * Namespaces are iterated in order, the first mapped namespace's name is returned.<br>
+     * The parent class is resolved using the current thread's context class loader.
+     *
+     * @param version the version
+     * @param namespaces the namespaces
+     * @return the constructor handle, null if it's not mapped
+     */
+    public @Nullable MethodHandle getConstructorHandle(@NotNull String version, @NotNull String... namespaces) {
+        return getConstructorHandle(Thread.currentThread().getContextClassLoader(), version, namespaces);
+    }
+
+    /**
      * Gets mapped constructor parameter types by the version and namespaces of the supplied {@link MapperPlatform},
      * attempts to find a constructor reflectively using them and creates a {@link MethodHandle} if successful.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @param platform the platform
      * @return the constructor handle, null if it's not mapped
@@ -200,6 +238,8 @@ public final class ConstructorMapping {
     /**
      * Gets mapped constructor parameter types by the version and namespaces of the current {@link MapperPlatform},
      * attempts to find a constructor reflectively using them and creates a {@link MethodHandle} if successful.
+     * <p>
+     * The parent class is resolved using the current thread's context class loader.
      *
      * @return the constructor handle, null if it's not mapped
      */
