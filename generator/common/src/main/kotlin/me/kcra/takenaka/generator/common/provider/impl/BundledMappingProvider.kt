@@ -18,6 +18,8 @@
 package me.kcra.takenaka.generator.common.provider.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
@@ -40,17 +42,20 @@ private val logger = KotlinLogging.logger {}
  * folders, sub-folders and extra files are permitted.
  *
  * @property file the bundle file
+ * @property versions a version subset of the bundle to be loaded, everything is loaded if empty
  * @property manifest the Mojang version manifest
  * @author Matouš Kučera
  */
-class BundledMappingProvider(val file: Path, val manifest: VersionManifest) : MappingProvider {
+class BundledMappingProvider(val file: Path, val versions: List<String>, val manifest: VersionManifest) : MappingProvider {
     /**
      * Constructs this provider with a new manifest.
      *
      * @param file the bundle file
+     * @param versions a version subset of the bundle to be loaded, everything is loaded if empty
      * @param objectMapper a JSON object mapper instance
      */
-    constructor(file: Path, objectMapper: ObjectMapper = objectMapper()) : this(file, objectMapper.versionManifest())
+    constructor(file: Path, versions: List<String>, objectMapper: ObjectMapper = objectMapper())
+            : this(file, versions, objectMapper.versionManifest())
 
     /**
      * Resolves the mappings.
@@ -59,32 +64,37 @@ class BundledMappingProvider(val file: Path, val manifest: VersionManifest) : Ma
      * @return the mappings
      */
     override suspend fun get(analyzer: MappingAnalyzer?): MutableMappingsMap {
-        return ZipFile(file.toFile()).use { zf ->
-            zf.entries().asSequence().mapNotNull { entry ->
-                if (entry.isDirectory || !entry.name.endsWith(".tiny")) return@mapNotNull null
+        return withContext(Dispatchers.IO) {
+            ZipFile(file.toFile()).use { zf ->
+                zf.entries().asSequence().mapNotNull { entry ->
+                    if (entry.isDirectory || !entry.name.endsWith(".tiny")) return@mapNotNull null
 
-                val versionString = entry.name.substringAfterLast('/').removeSuffix(".tiny")
-                try {
-                    val version = checkNotNull(manifest[versionString]) {
-                        "Version $versionString was not found in manifest"
-                    }
+                    val versionString = entry.name.substringAfterLast('/').removeSuffix(".tiny")
 
-                    return@mapNotNull version to MemoryMappingTree().apply {
-                        zf.getInputStream(entry).reader().use { r -> Tiny2Reader.read(r, this) }
-                        logger.info { "read ${version.id} mapping file from ${entry.name}" }
-
-                        if (analyzer != null) {
-                            val time = measureTimeMillis { analyzer.accept(this) }
-                            logger.info { "analyzed ${version.id} mappings in ${time}ms" }
+                    // skip this version, it's not in the targeted subset
+                    if (versions.isNotEmpty() && versionString !in versions) return@mapNotNull null
+                    try {
+                        val version = checkNotNull(manifest[versionString]) {
+                            "Version $versionString was not found in manifest"
                         }
-                    }
-                } catch (e: Exception) {
-                    logger.error(e) { "failed to read mapping file from ${entry.name}" }
-                }
 
-                return@mapNotNull null
+                        return@mapNotNull version to MemoryMappingTree().apply {
+                            zf.getInputStream(entry).reader().use { r -> Tiny2Reader.read(r, this) }
+                            logger.info { "read ${version.id} mapping file from ${entry.name}" }
+
+                            if (analyzer != null) {
+                                val time = measureTimeMillis { analyzer.accept(this) }
+                                logger.info { "analyzed ${version.id} mappings in ${time}ms" }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        logger.error(e) { "failed to read mapping file from ${entry.name}" }
+                    }
+
+                    return@mapNotNull null
+                }
+                .toMap()
             }
-            .toMap()
         }
     }
 }

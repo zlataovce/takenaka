@@ -45,6 +45,12 @@ import kotlin.reflect.KClass
 abstract class AccessorGeneratorExtension(internal val project: Project, internal val manifest: VersionManifest) {
     /**
      * Versions to be mapped.
+     *
+     * In case that a mapping bundle is selected (the `mappingBundle` configuration has exactly one file),
+     * this property is used for selecting a version subset within the bundle
+     * (every version from the bundle is mapped if no version is specified here).
+     *
+     * @see me.kcra.takenaka.generator.common.provider.impl.BundledMappingProvider.versions
      */
     abstract val versions: SetProperty<String>
 

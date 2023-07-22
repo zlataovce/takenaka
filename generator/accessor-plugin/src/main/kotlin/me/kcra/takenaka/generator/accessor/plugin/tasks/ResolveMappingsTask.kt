@@ -73,7 +73,12 @@ abstract class ResolveMappingsTask : DefaultTask() {
     /**
      * Versions to be mapped.
      *
+     * In case that a mapping bundle is selected ([mappingBundle] is present),
+     * this property is used for selecting a version subset within the bundle
+     * (every version from the bundle is mapped if no version is specified here).
+     *
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.versions
+     * @see BundledMappingProvider.versions
      */
     @get:Input
     abstract val versions: SetProperty<String>
@@ -135,18 +140,25 @@ abstract class ResolveMappingsTask : DefaultTask() {
         // manual up-to-date checking, it's an Internal property
         outputs.upToDateWhen {
             val mappings = mappings.orNull?.keys?.map(Version::id) ?: emptyList()
+
+            val requiredVersions = versions.orNull ?: emptySet<String>()
             val versions = if (mappingBundle.isPresent) {
                 ZipFile(mappingBundle.get().asFile).use { zf ->
-                    zf.entries().asSequence().mapNotNullTo(mutableSetOf()) { entry ->
-                        if (entry.isDirectory || !entry.name.endsWith(".tiny")) {
-                            return@mapNotNullTo null
-                        }
+                    zf.entries()
+                        .asSequence()
+                        .mapNotNull { entry ->
+                            if (entry.isDirectory || !entry.name.endsWith(".tiny")) {
+                                return@mapNotNull null
+                            }
 
-                        entry.name.substringAfterLast('/').removeSuffix(".tiny")
-                    }
+                            entry.name.substringAfterLast('/').removeSuffix(".tiny")
+                        }
+                        .filterTo(mutableSetOf()) { version ->
+                            requiredVersions.isEmpty() || version in requiredVersions
+                        }
                 }
             } else {
-                versions.orNull ?: emptySet<String>()
+                requiredVersions
             }
 
             mappings.size == versions.size && versions.containsAll(mappings)
@@ -159,16 +171,18 @@ abstract class ResolveMappingsTask : DefaultTask() {
     @TaskAction
     fun run() {
         val objectMapper = objectMapper()
+
+        val requiredVersions = this@ResolveMappingsTask.versions.get().toList()
         val resolvedMappings = runBlocking {
             // resolve mappings on this system, if a bundle is not available
             if (mappingBundle.isPresent) {
-                BundledMappingProvider(mappingBundle.get().asFile.toPath(), manifest.get()).get()
+                BundledMappingProvider(mappingBundle.get().asFile.toPath(), requiredVersions, manifest.get()).get()
             } else {
                 val xmlMapper = XmlMapper()
 
                 val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, xmlMapper, relaxedCache.get())
                 val mappingConfig = buildMappingConfig {
-                    version(this@ResolveMappingsTask.versions.get().toList())
+                    version(requiredVersions)
                     workspace(mappingCacheWorkspace)
 
                     // remove Searge's ID namespace, it's not necessary
