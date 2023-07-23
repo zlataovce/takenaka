@@ -21,6 +21,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import me.kcra.takenaka.accessor.platform.MapperPlatform;
 import me.kcra.takenaka.accessor.platform.MapperPlatforms;
+import me.kcra.takenaka.accessor.util.NameDescriptorPair;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -170,6 +171,24 @@ public final class ClassMapping {
     }
 
     /**
+     * Finds a field mapping by its mapped name ({@link FieldMapping#getName(String, String...)}).
+     *
+     * @param version the version where the {@code name} is contained
+     * @param namespace the namespace of the {@code name}
+     * @param name the mapped name
+     * @return the field mapping, null if not found
+     */
+    public @Nullable FieldMapping remapField(@NotNull String version, @NotNull String namespace, @NotNull String name) {
+        for (final FieldMapping field : fields.values()) {
+            if (name.equals(field.getName(version, namespace))) {
+                return field;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Gets a constructor mapping by its index ({@link ConstructorMapping#getIndex()}).
      *
      * @param index the constructor index
@@ -201,6 +220,48 @@ public final class ClassMapping {
         }
 
         return overloads.get(index);
+    }
+
+    /**
+     * Finds a method mapping by its mapped name and parameters ({@link MethodMapping#getName(String, String...)}).
+     *
+     * @param version the version where the {@code name} and {@code parameters} are contained
+     * @param namespace the namespace of the {@code name} and {@code parameters}
+     * @param namePair the mapped name and parameters
+     * @return the method mapping, null if not found
+     */
+    public @Nullable MethodMapping remapMethod(
+            @NotNull String version,
+            @NotNull String namespace,
+            @NotNull NameDescriptorPair namePair
+    ) {
+        for (final List<MethodMapping> overloads : methods.values()) {
+            for (final MethodMapping method : overloads) {
+                if (namePair.equals(method.getName(version, namespace))) {
+                    return method;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Finds a method mapping by its mapped name and parameters ({@link MethodMapping#getName(String, String...)}).
+     *
+     * @param version the version where the {@code name} and {@code parameters} are contained
+     * @param namespace the namespace of the {@code name} and {@code parameters}
+     * @param name the mapped name
+     * @param parameters the mapped parameter types
+     * @return the method mapping, null if not found
+     */
+    public @Nullable MethodMapping remapMethod(
+            @NotNull String version,
+            @NotNull String namespace,
+            @NotNull String name,
+            @NotNull String... parameters
+    ) {
+        return remapMethod(version, namespace, NameDescriptorPair.of(name, parameters));
     }
 
     /**

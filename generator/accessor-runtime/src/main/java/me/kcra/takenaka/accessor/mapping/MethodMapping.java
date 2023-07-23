@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import me.kcra.takenaka.accessor.platform.MapperPlatform;
 import me.kcra.takenaka.accessor.platform.MapperPlatforms;
+import me.kcra.takenaka.accessor.util.NameDescriptorPair;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -310,7 +311,7 @@ public final class MethodMapping {
             @NotNull String... types
     ) {
         for (final String version : versions) {
-            mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, new NameDescriptorPair(name, types));
+            mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, NameDescriptorPair.of(name, types));
         }
         return this;
     }
@@ -370,19 +371,4 @@ public final class MethodMapping {
         return Array.newInstance(element, new int[dimensions]).getClass();
     }
 
-    /**
-     * A name and method parameters data holder.
-     */
-    @Data
-    public static final class NameDescriptorPair {
-        /**
-         * The method name.
-         */
-        private final String name;
-
-        /**
-         * The method descriptor parameters.
-         */
-        private final String[] parameters;
-    }
 }
