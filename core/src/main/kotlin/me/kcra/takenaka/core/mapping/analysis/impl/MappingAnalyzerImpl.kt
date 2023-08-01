@@ -30,17 +30,16 @@ import me.kcra.takenaka.core.mapping.util.contains
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
-import java.util.*
 
 /**
  * A base implementation of [me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer] that corrects problems defined in [StandardProblemKinds].
  *
  * This analyzer expects [VanillaMappingContributor.NS_SUPER], [VanillaMappingContributor.NS_INTERFACES] and [VanillaMappingContributor.NS_MODIFIERS] namespaces to be present.
  *
- * @property analysisOptions the analysis configuration
+ * @property options the analysis configuration
  * @author Matouš Kučera
  */
-open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOptions()) : AbstractMappingAnalyzer() {
+open class MappingAnalyzerImpl(val options: AnalysisOptions = AnalysisOptions()) : AbstractMappingAnalyzer() {
     /**
      * Visits a class for analysis.
      */
@@ -52,7 +51,7 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
         klass.tree.dstNamespaces.forEach { ns ->
             val nsId = klass.tree.getNamespaceId(ns)
 
-            if (ns in analysisOptions.innerClassNameCompletionCandidates) {
+            if (ns in options.innerClassNameCompletionCandidates) {
                 // completes missing inner/anonymous class mappings
 
                 // works on the principle of presuming that the owner part
@@ -113,6 +112,11 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
      */
     open class ClassContext(final override val analyzer: MappingAnalyzerImpl, final override val klass: MappingTree.ClassMapping) : ClassAnalysisContext {
         /**
+         * Modifiers of the class.
+         */
+        protected val modifiers: Int = klass.modifiers
+
+        /**
          * Super types of the class.
          */
         protected val superTypes: List<MappingTree.ClassMapping> = klass.resolveSuperTypes()
@@ -120,7 +124,7 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
         /**
          * Additional namespace IDs of the class' mapping tree.
          */
-        protected val additionalNamespaceIds: Set<Int> = analyzer.analysisOptions.inheritanceAdditionalNamespaces.mapTo(mutableSetOf(), klass.tree::getNamespaceId)
+        protected val additionalNamespaceIds: Set<Int> = analyzer.options.inheritanceAdditionalNamespaces.mapTo(mutableSetOf(), klass.tree::getNamespaceId)
             .apply { remove(MappingTree.NULL_NAMESPACE_ID) } // pop null id, if it's present
 
         /**
@@ -152,8 +156,8 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
                 element.owner.methods.remove(element)
             }
 
-            if (method.isConstructor || method.isStaticInitializer || method.isEnumValueOf || method.isEnumValues) {
-                (method.tree.dstNamespaces - analyzer.analysisOptions.specialMethodExemptions).forEach { ns ->
+            if (method.isConstructor || method.isStaticInitializer || ((modifiers and Opcodes.ACC_ENUM) != 0 && (method.isEnumValueOf || method.isEnumValues))) {
+                (method.tree.dstNamespaces - analyzer.options.specialMethodExemptions).forEach { ns ->
                     val nsId = method.tree.getNamespaceId(ns)
                     if (nsId == MappingTree.NULL_NAMESPACE_ID) return@forEach
 
@@ -167,7 +171,7 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
                 // Intermediary & possibly more: overridden methods are not mapped, those are completed
                 // Spigot: replaces wrong names with correct ones from supertypes
 
-                val namespaceIdsToCorrect = (method.tree.dstNamespaces - analyzer.analysisOptions.inheritanceErrorExemptions)
+                val namespaceIdsToCorrect = (method.tree.dstNamespaces - analyzer.options.inheritanceErrorExemptions)
                     .mapTo(mutableSetOf(), method.tree::getNamespaceId)
 
                 namespaceIdsToCorrect.remove(MappingTree.NULL_NAMESPACE_ID) // pop null id, if it's present
@@ -182,7 +186,7 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
                             if (superMethod.srcDesc.withoutReturnTypeIfClass != srcMethodDesc || (superMethod.modifiers and Opcodes.ACC_PRIVATE) != 0) return@superEach
 
                             val rejectedByName = superMethod.srcName != method.srcName
-                            if (rejectedByName && Collections.disjoint(additionalMappings, superMethod.getAdditionalMappingSet())) return@superEach
+                            if (rejectedByName && additionalMappings.none(superMethod.getAdditionalMappingSet()::contains)) return@superEach
 
                             namespaceIdsToCorrect.removeIf { nsId ->
                                 val superMethodName = superMethod.getDstName(nsId)
@@ -211,6 +215,7 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
  * Recursively collects **mapped** supertypes of the class.
  *
  * @param mode the super type filter
+ * @return the mapped super types
  */
 fun <T : MappingTreeView.ClassMappingView> T.resolveSuperTypes(
     mode: InheritanceWalkMode = InheritanceWalkMode.ALL

@@ -370,5 +370,4 @@ public final class MethodMapping {
         }
         return Array.newInstance(element, new int[dimensions]).getClass();
     }
-
 }
