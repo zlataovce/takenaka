@@ -33,7 +33,7 @@ import org.w3c.dom.Document
  */
 fun GenerationContext.versionsPage(welcomeMessage: String?, versions: Map<Version, List<String>>): Document = createHTMLDocument().html {
     head {
-        defaultResourcesComponent()
+        defaultResourcesComponent(rootPath = "")
         title(content = "mappings")
     }
     body {
@@ -63,7 +63,7 @@ fun GenerationContext.versionsPage(welcomeMessage: String?, versions: Map<Versio
                     versions.forEach { (version, mappings) ->
                         tr {
                             td {
-                                a(href = "/${version.id}/index.html") {
+                                a(href = "${version.id}/index.html") {
                                     +version.id
                                 }
                             }

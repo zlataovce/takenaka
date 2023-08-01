@@ -21,11 +21,26 @@ import kotlinx.html.*
 
 /**
  * Appends default resources (scripts, stylesheets, meta, ...) to a head element.
+ *
+ * @param rootPath the path to the website root directory
  */
-fun HEAD.defaultResourcesComponent() {
+fun HEAD.defaultResourcesComponent(rootPath: String = "/") {
     meta(name = "viewport", content = "width=device-width, initial-scale=1")
-    link(href = "/assets/main.css", rel = "stylesheet")
-    script(src = "/assets/main.js") {}
+    link(href = "${rootPath}assets/main.css", rel = "stylesheet")
+    script(src = "${rootPath}assets/main.js") {}
+}
+
+/**
+ * Appends a script element declaring a version root path global variable to a head element.
+ *
+ * @param rootPath the path to the version root directory
+ */
+fun HEAD.versionRootComponent(rootPath: String = "./") {
+    script {
+        unsafe {
+            +"""window.versionRoot = "$rootPath";"""
+        }
+    }
 }
 
 /**

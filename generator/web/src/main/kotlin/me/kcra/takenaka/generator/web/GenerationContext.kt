@@ -110,6 +110,70 @@ class GenerationContext(
      * @return the color
      */
     fun getFriendlyNamespaceBadgeColor(ns: String): String = generator.namespacesByFriendlyNames[ns]?.color ?: "#94a3b8"
+
+    /**
+     * Gets a relative path to the website root from a package name (page).
+     *
+     * @param packageName the package name
+     * @return the relative path, with a trailing slash
+     */
+    fun getPackageRelativeRoot(packageName: String): String {
+        return "../${getPackageRelativeVersionRoot(packageName)}"
+    }
+
+    /**
+     * Gets a relative path to the version root from a package name (page).
+     *
+     * @param packageName the package name
+     * @return the relative path, with a trailing slash
+     */
+    fun getPackageRelativeVersionRoot(packageName: String): String {
+        if (packageName.isEmpty()) {
+            return "" // there's no package
+        }
+
+        return "../".repeat(packageName.count { it == '.' || it == '/' } + 1)
+    }
+
+    /**
+     * Gets a relative path to the website root from a class name (page).
+     *
+     * @param className the class name
+     * @return the relative path, with a trailing slash
+     */
+    fun getClassRelativeRoot(className: String): String {
+        return "../${getClassRelativeVersionRoot(className)}"
+    }
+
+    /**
+     * Gets a relative path to the version root from a class name (page).
+     *
+     * @param className the class name
+     * @return the relative path, with a trailing slash
+     */
+    fun getClassRelativeVersionRoot(className: String): String {
+        return "../".repeat(className.count { it == '.' || it == '/' })
+    }
+
+    /**
+     * Gets a relative path from a class name (page) to another name (page).
+     *
+     * **The classes must be from the same version and both names must be of internal format ([me.kcra.takenaka.core.mapping.toInternalName]).**
+     *
+     * @param origin the originating class name, the current location
+     * @param destination the destination class name, the location where we want to be
+     * @return the relative path, with a trailing slash
+     */
+    fun getClassRelativePath(origin: String, destination: String): String {
+        val commonPackage = destination.commonPrefixWith(origin).substringBeforeLast('/') // strip last package that wasn't matched completely
+        if (commonPackage.isEmpty()) {
+            return "../".repeat(origin.count { it == '/' }) + "$destination.html"
+        }
+
+        val originRelativeName = origin.removePrefix("$commonPackage/")
+        val destRelativeName = destination.removePrefix("$commonPackage/")
+        return "../".repeat(originRelativeName.count { it == '/' }) + "$destRelativeName.html"
+    }
 }
 
 /**

@@ -38,7 +38,10 @@ fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: St
     val packageName0 = packageName.fromInternalName()
 
     head {
-        defaultResourcesComponent()
+        val versionRootPath = getPackageRelativeVersionRoot(packageName0)
+
+        versionRootComponent(rootPath = versionRootPath)
+        defaultResourcesComponent(rootPath = "../$versionRootPath")
         if (generator.config.emitMetaTags) {
             metadataComponent(
                 title = packageName0,
@@ -76,7 +79,7 @@ fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: St
                         names.forEach { klass ->
                             tr {
                                 td {
-                                    a(href = "/${workspace.version.id}/$packageName/$klass.html") {
+                                    a(href = "$klass.html") {
                                         +klass
                                     }
                                 }

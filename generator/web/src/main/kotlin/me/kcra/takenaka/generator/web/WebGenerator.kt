@@ -209,9 +209,9 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                     const searchInput = document.getElementById("search-input");
                     const searchBox = document.getElementById("search-box");
                     
-                    if (baseUrl) {
-                        overviewLink.href = `${'$'}{baseUrl}/index.html`;
-                        licensesLink.href = `${'$'}{baseUrl}/licenses.html`;
+                    if (window.versionRoot) {
+                        overviewLink.href = `${'$'}{window.versionRoot}index.html`;
+                        licensesLink.href = `${'$'}{window.versionRoot}licenses.html`;
                         
                         searchInput.addEventListener("input", (evt) => search(evt.target.value));
                         document.addEventListener("mouseup", (evt) => {
@@ -306,7 +306,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
             appendLine("};")
         }
 
-        appendLine("window.addEventListener(\"load\", () => {")
+        appendLine("window.addEventListener(\"DOMContentLoaded\", () => {")
 
         components.forEach { (tag, _, _) ->
             appendLine("    replaceComponent(\"$tag\", ${tag}Component, ${tag}ComponentCallback);")

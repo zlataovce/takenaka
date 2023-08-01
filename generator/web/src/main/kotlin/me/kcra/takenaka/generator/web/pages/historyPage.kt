@@ -188,7 +188,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
     }
 
     head {
-        defaultResourcesComponent()
+        defaultResourcesComponent(rootPath = "../")
         if (generator.config.emitMetaTags) {
             metadataComponent(
                 title = lastFriendlyMapping,
@@ -212,7 +212,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                 }
 
                 h3 {
-                    a(href = "/${version.id}/${getFriendlyDstName(klass)}.html") {
+                    a(href = "../${version.id}/${getFriendlyDstName(klass)}.html") {
                         +version.id
                     }
                 }

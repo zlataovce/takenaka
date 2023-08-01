@@ -56,13 +56,19 @@ import java.lang.reflect.Modifier
  * @return the generated document
  */
 fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: String?, nmsVersion: String?, workspace: VersionedWorkspace, friendlyNameRemapper: ElementRemapper): Document = createHTMLDocument().html {
-    val klassDeclaration = formatClassDescriptor(klass, workspace.version, friendlyNameRemapper)
+    val klassName = getFriendlyDstName(klass)
+    val friendlyKlassName = klassName.fromInternalName()
 
+    val klassDeclaration = formatClassDescriptor(klass, workspace.version, friendlyNameRemapper, friendlyKlassName)
+
+    val versionRootPath = getClassRelativeVersionRoot(klassName)
+    val rootPath = "../$versionRootPath"
     head {
-        defaultResourcesComponent()
+        versionRootComponent(rootPath = versionRootPath)
+        defaultResourcesComponent(rootPath)
         if (generator.config.emitMetaTags) {
             metadataComponent(
-                title = klassDeclaration.friendlyName,
+                title = friendlyKlassName,
                 description = buildString {
                     append("version: ${workspace.version.id}")
                     if (hash != null) {
@@ -72,14 +78,13 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                 themeColor = "#21ff21"
             )
         }
-        title(content = "${workspace.version.id} - ${klassDeclaration.friendlyName}")
+        title(content = "${workspace.version.id} - $friendlyKlassName")
     }
     body {
         navPlaceholderComponent()
         main {
-            val friendlyPackageName = klassDeclaration.friendlyName.substringBeforeLast('.')
-            a(href = "/${workspace.version.id}/${friendlyPackageName.toInternalName()}/index.html") {
-                +friendlyPackageName
+            a(href = "index.html") {
+                +friendlyKlassName.substringBeforeLast('.')
             }
 
             div(classes = "class-header") {
@@ -90,7 +95,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                     }
                 }
                 if (hash != null) {
-                    a(classes = "history-icon", href = "/history/$hash.html") {
+                    a(classes = "history-icon", href = "${rootPath}history/$hash.html") {
                         unsafe {
                             +"""<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>"""
                         }
@@ -115,7 +120,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                         superInterfaces.forEachIndexed { i, s ->
                             val friendlyName = getFriendlyDstName(s)
 
-                            a(href = "/${workspace.version.id}/$friendlyName.html") {
+                            a(href = getClassRelativePath(klassName, friendlyName)) {
                                 +friendlyName.substringAfterLast('/')
                             }
                             if (i != superInterfaces.lastIndex) +", "
@@ -334,7 +339,6 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
 /**
  * A formatted class descriptor.
  *
- * @property friendlyName the class's name, remapped as per the [formatClassDescriptor] `nameRemapper` parameter
  * @property modifiers the class's modifiers
  * @property modifiersAndName the stringified modifiers with the package-less class name
  * @property formals the formal generic type arguments of the class itself
@@ -342,7 +346,6 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
  * @property hasVisibleSuperClass whether a superclass is visible in [superTypes]
  */
 data class ClassDeclaration(
-    val friendlyName: String,
     val modifiers: Int,
     val modifiersAndName: String,
     val formals: String?,
@@ -356,12 +359,16 @@ data class ClassDeclaration(
  * @param klass the class mapping
  * @param version the mapping's version
  * @param nameRemapper the remapper for remapping signatures
+ * @param friendlyName the friendly name of the class
  * @return the formatted descriptor
  */
-fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingView, version: Version, nameRemapper: ElementRemapper): ClassDeclaration {
-    val friendlyName = getFriendlyDstName(klass).fromInternalName()
+fun GenerationContext.formatClassDescriptor(
+    klass: MappingTreeView.ClassMappingView,
+    version: Version,
+    nameRemapper: ElementRemapper,
+    friendlyName: String = getFriendlyDstName(klass).fromInternalName()
+): ClassDeclaration {
     val mod = klass.modifiers
-
     val modifiersAndName = buildString {
         append(mod.formatModifiers(Modifier.classModifiers()))
         when {
@@ -425,7 +432,6 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
     }
 
     return ClassDeclaration(
-        friendlyName,
         mod,
         modifiersAndName,
         formals,
