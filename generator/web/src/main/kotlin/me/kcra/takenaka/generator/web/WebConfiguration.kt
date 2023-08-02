@@ -19,30 +19,29 @@ package me.kcra.takenaka.generator.web
 
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.generator.web.transformers.Transformer
-import net.fabricmc.mappingio.MappingUtil
 
 /**
  * Configuration for [WebGenerator].
  *
  * @property welcomeMessage a welcoming message that is displayed on the main page, null if it should not be added, supports arbitrary HTML markup
  * @property emitMetaTags whether HTML metadata tags (per [me.kcra.takenaka.generator.web.components.metadataComponent]) should be added to pages
+ * @property emitPseudoElements whether pseudo-elements should be used on the site (badges - for decreasing the output size)
  * @property transformers a list of transformers that transform the output
  * @property namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @property namespaces a map of namespaces and their descriptions, unspecified namespaces will not be shown
  * @property index a resolver for foreign class references
  * @property craftBukkitVersionReplaceCandidates namespaces that should have [replaceCraftBukkitNMSVersion] applied (most likely Spigot mappings or a flavor of them)
- * @property historicalNamespaces namespaces that should be used for computing history, namespaces from [namespaceFriendlinessIndex] are considered by default (excluding the obfuscated one)
  * @author Matouš Kučera
  */
 data class WebConfiguration(
     val welcomeMessage: String? = null,
     val emitMetaTags: Boolean = true,
+    val emitPseudoElements: Boolean = true,
     val transformers: List<Transformer> = emptyList(),
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val namespaces: Map<String, NamespaceDescription> = emptyMap(),
     val index: ClassSearchIndex = emptyClassSearchIndex(),
-    val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
-    val historicalNamespaces: List<String> = namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK,
+    val craftBukkitVersionReplaceCandidates: List<String> = emptyList()
 )
 
 /**
@@ -60,6 +59,11 @@ class WebConfigurationBuilder {
      * Whether HTML metadata tags (per [me.kcra.takenaka.generator.web.components.metadataComponent]) should be added to pages.
      */
     var emitMetaTags = true
+
+    /**
+     * Whether pseudo-elements should be used on the site (badges - for decreasing the output size).
+     */
+    var emitPseudoElements = true
 
     /**
      * Transformers that transform the output.
@@ -89,7 +93,12 @@ class WebConfigurationBuilder {
     /**
      * Namespaces that should be used for computing history, empty if namespaces from [namespaceFriendlinessIndex] should be considered (excluding the obfuscated one).
      */
-    var historicalNamespaces = mutableListOf<String>()
+    var historyNamespaces = mutableListOf<String>()
+
+    /**
+     * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch.
+     */
+    var historyIndexNamespace: String? = null
 
     /**
      * Sets [welcomeMessage].
@@ -107,6 +116,15 @@ class WebConfigurationBuilder {
      */
     fun emitMetaTags(value: Boolean) {
         emitMetaTags = value
+    }
+
+    /**
+     * Sets [emitPseudoElements].
+     *
+     * @param value the value
+     */
+    fun emitPseudoElements(value: Boolean) {
+        emitPseudoElements = value
     }
 
     /**
@@ -200,15 +218,6 @@ class WebConfigurationBuilder {
     }
 
     /**
-     * Appends namespaces to [historicalNamespaces].
-     *
-     * @param namespaces the namespaces
-     */
-    fun preferredHistoryNamespaces(vararg namespaces: String) {
-        historicalNamespaces += namespaces
-    }
-
-    /**
      * Builds a mapping configuration out of this builder.
      *
      * @return the configuration
@@ -216,12 +225,12 @@ class WebConfigurationBuilder {
     fun toWebConfig() = WebConfiguration(
         welcomeMessage,
         emitMetaTags,
+        emitPseudoElements,
         transformers,
         namespaceFriendlinessIndex,
         namespaces,
         index,
-        craftBukkitVersionReplaceCandidates,
-        historicalNamespaces.ifEmpty { namespaceFriendlinessIndex - MappingUtil.NS_SOURCE_FALLBACK }
+        craftBukkitVersionReplaceCandidates
     )
 }
 

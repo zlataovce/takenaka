@@ -26,9 +26,9 @@ import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.resolve.impl.*
 import me.kcra.takenaka.core.util.objectMapper
-import me.kcra.takenaka.generator.common.BundledMappingProvider
-import me.kcra.takenaka.generator.common.ResolvingMappingProvider
-import me.kcra.takenaka.generator.common.buildMappingConfig
+import me.kcra.takenaka.generator.common.provider.impl.BundledMappingProvider
+import me.kcra.takenaka.generator.common.provider.impl.ResolvingMappingProvider
+import me.kcra.takenaka.generator.common.provider.impl.buildMappingConfig
 import net.fabricmc.mappingio.tree.MappingTree
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -37,6 +37,7 @@ import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.*
+import java.util.zip.ZipFile
 
 /**
  * A [me.kcra.takenaka.core.mapping.MutableMappingsMap], but as a Gradle [MapProperty].
@@ -72,18 +73,23 @@ abstract class ResolveMappingsTask : DefaultTask() {
     /**
      * Versions to be mapped.
      *
+     * In case that a mapping bundle is selected ([mappingBundle] is present),
+     * this property is used for selecting a version subset within the bundle
+     * (every version from the bundle is mapped if no version is specified here).
+     *
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.versions
+     * @see BundledMappingProvider.versions
      */
     @get:Input
     abstract val versions: SetProperty<String>
 
     /**
-     * The workspace options, defaults to [DefaultWorkspaceOptions.RELAXED_CACHE].
+     * Whether output cache verification constraints should be relaxed, defaults to true.
      *
-     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.strictCache
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.relaxedCache
      */
     @get:Input
-    abstract val options: Property<WorkspaceOptions>
+    abstract val relaxedCache: Property<Boolean>
 
     /**
      * The version manifest.
@@ -104,7 +110,6 @@ abstract class ResolveMappingsTask : DefaultTask() {
     val cacheWorkspace by lazy {
         compositeWorkspace {
             rootDirectory(cacheDir.asFile.get())
-            options(this@ResolveMappingsTask.options.get())
         }
     }
 
@@ -130,12 +135,31 @@ abstract class ResolveMappingsTask : DefaultTask() {
 
     init {
         cacheDir.convention(project.layout.buildDirectory.dir("takenaka/cache"))
-        options.convention(DefaultWorkspaceOptions.RELAXED_CACHE)
+        relaxedCache.convention(true)
 
         // manual up-to-date checking, it's an Internal property
         outputs.upToDateWhen {
             val mappings = mappings.orNull?.keys?.map(Version::id) ?: emptyList()
-            val versions = versions.orNull ?: emptySet<String>()
+
+            val requiredVersions = versions.orNull ?: emptySet<String>()
+            val versions = if (mappingBundle.isPresent) {
+                ZipFile(mappingBundle.get().asFile).use { zf ->
+                    zf.entries()
+                        .asSequence()
+                        .mapNotNull { entry ->
+                            if (entry.isDirectory || !entry.name.endsWith(".tiny")) {
+                                return@mapNotNull null
+                            }
+
+                            entry.name.substringAfterLast('/').removeSuffix(".tiny")
+                        }
+                        .filterTo(mutableSetOf()) { version ->
+                            requiredVersions.isEmpty() || version in requiredVersions
+                        }
+                }
+            } else {
+                requiredVersions
+            }
 
             mappings.size == versions.size && versions.containsAll(mappings)
         }
@@ -147,16 +171,18 @@ abstract class ResolveMappingsTask : DefaultTask() {
     @TaskAction
     fun run() {
         val objectMapper = objectMapper()
+
+        val requiredVersions = this@ResolveMappingsTask.versions.get().toList()
         val resolvedMappings = runBlocking {
             // resolve mappings on this system, if a bundle is not available
             if (mappingBundle.isPresent) {
-                BundledMappingProvider(mappingBundle.get().asFile.toPath(), manifest.get()).get()
+                BundledMappingProvider(mappingBundle.get().asFile.toPath(), requiredVersions, manifest.get()).get()
             } else {
                 val xmlMapper = XmlMapper()
 
-                val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, xmlMapper)
+                val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, xmlMapper, relaxedCache.get())
                 val mappingConfig = buildMappingConfig {
-                    version(this@ResolveMappingsTask.versions.get().toList())
+                    version(requiredVersions)
                     workspace(mappingCacheWorkspace)
 
                     // remove Searge's ID namespace, it's not necessary
@@ -171,23 +197,23 @@ abstract class ResolveMappingsTask : DefaultTask() {
                     intercept(::MethodArgSourceFilter)
 
                     contributors { versionWorkspace ->
-                        val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper)
-                        val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper)
+                        val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper, relaxedCache.get())
+                        val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper, relaxedCache.get())
 
                         val prependedClasses = mutableListOf<String>()
 
                         listOf(
-                            VanillaMappingContributor(versionWorkspace, mojangProvider),
+                            VanillaMappingContributor(versionWorkspace, mojangProvider, relaxedCache.get()),
                             MojangServerMappingResolver(versionWorkspace, mojangProvider),
                             IntermediaryMappingResolver(versionWorkspace, sharedCacheWorkspace),
-                            YarnMappingResolver(versionWorkspace, yarnProvider),
-                            SeargeMappingResolver(versionWorkspace, sharedCacheWorkspace),
-                            WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
+                            YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache.get()),
+                            SeargeMappingResolver(versionWorkspace, sharedCacheWorkspace, relaxedCache.get()),
+                            WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get())) {
                                 // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
                                 // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
                                 LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses, prependEverything = versionWorkspace.version.id == "1.16.5")
                             },
-                            WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider)) {
+                            WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get())) {
                                 LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses)
                             }
                         )

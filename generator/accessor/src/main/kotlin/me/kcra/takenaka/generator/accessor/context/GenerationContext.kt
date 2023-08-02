@@ -25,6 +25,7 @@ import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.context.impl.JavaGenerationContext
 import me.kcra.takenaka.generator.accessor.context.impl.KotlinGenerationContext
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.common.provider.AncestryProvider
 
 /**
  * A base generation context.
@@ -49,15 +50,20 @@ interface GenerationContext : CoroutineScope {
 /**
  * Opens a generation context of the specified flavor.
  *
+ * @param ancestryProvider the ancestry provider of the context
  * @param flavor the accessor flavor of the context
  * @param block the context user
  */
-suspend inline fun <R> AccessorGenerator.generationContext(flavor: LanguageFlavor, crossinline block: suspend GenerationContext.() -> R): R =
-    coroutineScope {
-        block(
-            when (flavor) {
-                LanguageFlavor.JAVA -> JavaGenerationContext(this@generationContext, this)
-                LanguageFlavor.KOTLIN -> KotlinGenerationContext(this@generationContext, this)
-            }
-        )
-    }
+suspend inline fun <R> AccessorGenerator.generationContext(
+    ancestryProvider: AncestryProvider,
+    flavor: LanguageFlavor,
+    crossinline block: suspend GenerationContext.() -> R
+): R = coroutineScope {
+    block(
+        when (flavor) {
+            LanguageFlavor.JAVA -> JavaGenerationContext(this@generationContext, ancestryProvider, this)
+            LanguageFlavor.KOTLIN -> KotlinGenerationContext(this@generationContext, ancestryProvider, this)
+            else -> throw UnsupportedOperationException("Flavor $flavor not supported")
+        }
+    )
+}

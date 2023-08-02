@@ -25,7 +25,7 @@ import kotlin.math.abs
  * @property isDeterministic whether the minified output should be consistent with previous runs (useful for minimizing differences in Git, makes minification less effective)
  * @author Matouš Kučera
  */
-class Minifier(val isDeterministic: Boolean = false) : Transformer {
+class MinifyingTransformer(val isDeterministic: Boolean = false) : Transformer {
     /**
      * Amount of unique visited class names, used as an entropy for generating a class name.
      */
@@ -57,8 +57,8 @@ class Minifier(val isDeterministic: Boolean = false) : Transformer {
      * @return the minified class name
      */
     fun minifyClass(k: String): String = synchronized(this) {
-        classes.computeIfAbsent(k) {
-            minifiedClass(if (isDeterministic) abs(it.hashCode().toShort().toInt()) else classIndex++)
+        classes.getOrPut(k) {
+            minifiedClass(if (isDeterministic) abs(k.hashCode().toShort().toInt()) else classIndex++)
         }
     }
 

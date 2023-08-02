@@ -22,17 +22,15 @@ import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
-import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.core.mapping.ancestry.*
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
-import me.kcra.takenaka.core.mapping.ancestry.impl.ConstructorComputationMode
-import me.kcra.takenaka.core.mapping.ancestry.impl.fieldAncestryTreeOf
-import me.kcra.takenaka.core.mapping.ancestry.impl.methodAncestryTreeOf
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
+import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.*
+import net.fabricmc.mappingio.tree.MappingTreeView
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 import org.w3c.dom.Document
 import java.util.*
@@ -61,7 +59,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
         }
     }
 
-    val fieldTree = fieldAncestryTreeOf(node)
+    val fieldTree = ancestryProvider.field<_, _, FieldMappingView>(node)
     val fieldRows = buildFieldDiff {
         node.keys.forEach { version ->
             val tree = checkNotNull(fieldTree.trees[version]) {
@@ -87,7 +85,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                                     val namespacedNmsVersion = if (ns in versionReplaceCandidates) field.tree.craftBukkitNmsVersion else null
 
                                     field.getName(id)?.let { name ->
-                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name.replaceCraftBukkitNMSVersion(namespacedNmsVersion)
+                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleProvider) + name.replaceCraftBukkitNMSVersion(namespacedNmsVersion)
                                     }
                                 }
                                 .joinToString()
@@ -98,7 +96,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
         }
     }
 
-    val methodTree = methodAncestryTreeOf(node)
+    val methodTree = ancestryProvider.method<_, _, MethodMappingView>(node)
     val methodRows = buildMethodDiff {
         node.keys.forEach { version ->
             val tree = checkNotNull(methodTree.trees[version]) {
@@ -139,7 +137,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                                     val namespacedNmsVersion = if (ns in versionReplaceCandidates) method.tree.craftBukkitNmsVersion else null
 
                                     method.getName(id)?.let { name ->
-                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleConsumer) + name.replaceCraftBukkitNMSVersion(namespacedNmsVersion)
+                                        textBadgeComponentUnsafe(ns, getFriendlyNamespaceBadgeColor(ns), styleProvider) + name.replaceCraftBukkitNMSVersion(namespacedNmsVersion)
                                     }
                                 }
                                 .joinToString()
@@ -150,7 +148,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
         }
     }
 
-    val constructorTree = methodAncestryTreeOf(node, constructorMode = ConstructorComputationMode.ONLY)
+    val constructorTree = ancestryProvider.method<_, _, MethodMappingView>(node, constructorMode = ConstructorComputationMode.ONLY)
     val constructorRows = buildMethodDiff {
         node.keys.forEach { version ->
             val tree = checkNotNull(methodTree.trees[version]) {
@@ -227,7 +225,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                 if (rows.isNotEmpty()) {
                     rows.forEach { row ->
                         p(classes = "diff-${row.type}") {
-                            textBadgeComponent(row.key, getFriendlyNamespaceBadgeColor(row.key), styleConsumer)
+                            textBadgeComponent(row.key, getFriendlyNamespaceBadgeColor(row.key), styleProvider)
                             +row.value
                         }
                     }
@@ -432,8 +430,8 @@ typealias StringDiffRow = DiffRow<String, String>
 inline fun buildDiff(reverseOrder: Boolean = true, block: StringDiffBuilder.() -> Unit): Map<Version, List<StringDiffRow>> =
     StringDiffBuilder(reverseOrder).apply(block).apply(StringDiffBuilder::addRowEntries).rows
 
-typealias DescriptableDiffBuilder<T> = DiffBuilder<AncestryTree.Node<T>, HistoricalDescriptableDetail>
-typealias DescriptableDiffRow<T> = DiffRow<AncestryTree.Node<T>, HistoricalDescriptableDetail>
+typealias DescriptableDiffBuilder<T, E> = DiffBuilder<AncestryTree.Node<out T, out E>, HistoricalDescriptableDetail>
+typealias DescriptableDiffRow<T, E> = DiffRow<AncestryTree.Node<out T, out E>, HistoricalDescriptableDetail>
 
 /**
  * Builds a simple field diff.
@@ -442,8 +440,8 @@ typealias DescriptableDiffRow<T> = DiffRow<AncestryTree.Node<T>, HistoricalDescr
  * @param block the builder action
  * @return the differences, grouped by version for convenience
  */
-inline fun buildFieldDiff(reverseOrder: Boolean = true, block: DescriptableDiffBuilder<FieldMappingView>.() -> Unit): Map<Version, List<DescriptableDiffRow<FieldMappingView>>> =
-    DescriptableDiffBuilder<FieldMappingView>(reverseOrder).apply(block).apply(DescriptableDiffBuilder<FieldMappingView>::addRowEntries).rows
+inline fun buildFieldDiff(reverseOrder: Boolean = true, block: DescriptableDiffBuilder<MappingTreeView, FieldMappingView>.() -> Unit): Map<Version, List<DescriptableDiffRow<MappingTreeView, FieldMappingView>>> =
+    DescriptableDiffBuilder<MappingTreeView, FieldMappingView>(reverseOrder).apply(block).apply(DescriptableDiffBuilder<MappingTreeView, FieldMappingView>::addRowEntries).rows
 
 /**
  * Builds a simple method diff.
@@ -452,5 +450,5 @@ inline fun buildFieldDiff(reverseOrder: Boolean = true, block: DescriptableDiffB
  * @param block the builder action
  * @return the differences, grouped by version for convenience
  */
-inline fun buildMethodDiff(reverseOrder: Boolean = true, block: DescriptableDiffBuilder<MethodMappingView>.() -> Unit): Map<Version, List<DescriptableDiffRow<MethodMappingView>>> =
-    DescriptableDiffBuilder<MethodMappingView>(reverseOrder).apply(block).apply(DescriptableDiffBuilder<MethodMappingView>::addRowEntries).rows
+inline fun buildMethodDiff(reverseOrder: Boolean = true, block: DescriptableDiffBuilder<MappingTreeView, MethodMappingView>.() -> Unit): Map<Version, List<DescriptableDiffRow<MappingTreeView, MethodMappingView>>> =
+    DescriptableDiffBuilder<MappingTreeView, MethodMappingView>(reverseOrder).apply(block).apply(DescriptableDiffBuilder<MappingTreeView, MethodMappingView>::addRowEntries).rows

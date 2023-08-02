@@ -79,3 +79,32 @@ val MessageDigest.hexValue: String
             }
         }
     }
+
+/**
+ * Updates the digest using the specified string encoded to UTF-8.
+ *
+ * @param input the string
+ */
+fun MessageDigest.update(input: String) {
+    update(input.encodeToByteArray())
+}
+
+/**
+ * Updates the digest using the supplied bytes and returns the hexadecimal value.
+ *
+ * @param input the array of bytes
+ */
+fun MessageDigest.updateAndHex(input: ByteArray): String {
+    update(input)
+    return hexValue
+}
+
+/**
+ * Updates the digest using the specified string encoded to UTF-8 and returns the hexadecimal value.
+ *
+ * @param input the string
+ */
+fun MessageDigest.updateAndHex(input: String): String {
+    update(input)
+    return hexValue
+}

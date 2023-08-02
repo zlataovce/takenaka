@@ -15,26 +15,24 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.mapping.ancestry.impl
+package me.kcra.takenaka.accessor.util;
+
+import lombok.Value;
 
 /**
- * The method ancestry tree computation constructor handling.
+ * A name and method parameters immutable data holder.
  *
  * @author Matouš Kučera
  */
-enum class ConstructorComputationMode {
+@Value(staticConstructor = "of")
+public class NameDescriptorPair {
     /**
-     * Excludes all constructors.
+     * The method name.
      */
-    EXCLUDE,
+    String name;
 
     /**
-     * Includes all constructors.
+     * The method descriptor parameters.
      */
-    INCLUDE,
-
-    /**
-     * Excludes all methods except constructors.
-     */
-    ONLY
+    String[] parameters;
 }

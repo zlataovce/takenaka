@@ -38,7 +38,7 @@ fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: St
     val packageName0 = packageName.fromInternalName()
 
     head {
-        defaultResourcesComponent(workspace.version.id)
+        defaultResourcesComponent()
         if (generator.config.emitMetaTags) {
             metadataComponent(
                 title = packageName0,

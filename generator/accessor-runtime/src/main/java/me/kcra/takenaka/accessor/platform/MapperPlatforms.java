@@ -23,7 +23,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.ServiceLoader;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -132,7 +131,7 @@ public enum MapperPlatforms implements MapperPlatform {
     /**
      * The current mapper platform implementation.
      */
-    private static final AtomicReference<MapperPlatform> CURRENT = new AtomicReference<>(null);
+    private static volatile MapperPlatform CURRENT = null;
 
     /**
      * Gets the current mapper platform, discovering a supported one, if not set.
@@ -140,21 +139,23 @@ public enum MapperPlatforms implements MapperPlatform {
      * @return the current mapper platform
      */
     public static @NotNull MapperPlatform getCurrentPlatform() {
-        return CURRENT.updateAndGet(mapperPlatform -> {
-            if (mapperPlatform == null) {
-                mapperPlatform = findSupportedPlatform();
-            }
-            return mapperPlatform;
-        });
+        if (CURRENT == null) {
+            CURRENT = findSupportedPlatform();
+        }
+
+        return CURRENT;
     }
 
     /**
      * Sets the current mapper platform, useful for manual specification.
+     * <p>
+     * <strong>This should only be used in the initialization phase of the mod/plugin/...</strong><br>
+     * (no locking is performed on {@link #CURRENT} writes).
      *
      * @param platform the platform
      */
     public static void setCurrentPlatform(@NotNull MapperPlatform platform) {
-        CURRENT.set(platform);
+        CURRENT = platform;
     }
 
     /**

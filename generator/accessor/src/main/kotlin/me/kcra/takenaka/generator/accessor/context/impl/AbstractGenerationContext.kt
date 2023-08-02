@@ -20,17 +20,19 @@ package me.kcra.takenaka.generator.accessor.context.impl
 import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
-import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
+import me.kcra.takenaka.core.mapping.ancestry.ConstructorComputationMode
 import me.kcra.takenaka.core.mapping.ancestry.NameDescriptorPair
 import me.kcra.takenaka.core.mapping.ancestry.impl.*
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
+import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.context.GenerationContext
 import me.kcra.takenaka.generator.accessor.model.*
+import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import mu.KotlinLogging
-import net.fabricmc.mappingio.tree.MappingTreeView
+import net.fabricmc.mappingio.tree.MappingTreeView.*
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import java.text.SimpleDateFormat
@@ -58,7 +60,11 @@ typealias ResolvedMethodPair = Pair<MethodAccessor, MethodAncestryNode>
  *
  * @author Matouš Kučera
  */
-abstract class AbstractGenerationContext(contextScope: CoroutineScope) : GenerationContext, CoroutineScope by contextScope {
+abstract class AbstractGenerationContext(
+    override val generator: AccessorGenerator,
+    val ancestryProvider: AncestryProvider,
+    contextScope: CoroutineScope
+) : GenerationContext, CoroutineScope by contextScope {
     /**
      * The generation timestamp of this context's output.
      */
@@ -71,7 +77,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param node the ancestry node of the class defined by the model
      */
     override fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
-        val fieldTree = fieldAncestryTreeOf(node)
+        val fieldTree = ancestryProvider.field<_, _, FieldMappingView>(node)
         val fieldAccessors = model.fields.flatMap { resolveFieldChain(fieldTree, it) } +
                 resolveRequiredFields(fieldTree, model.requiredTypes).map { fieldNode ->
                     FieldAccessor(getFriendlyName(fieldNode.last.value), getFriendlyDesc(fieldNode.last.value)) to fieldNode
@@ -83,13 +89,13 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
             fieldAccessor to fieldOverloadCount.compute(fieldAccessor.upperName) { _, i -> i?.inc() ?: 0 }!!
         }
 
-        val ctorTree = methodAncestryTreeOf(node, constructorMode = ConstructorComputationMode.ONLY)
+        val ctorTree = ancestryProvider.method<_, _, MethodMappingView>(node, constructorMode = ConstructorComputationMode.ONLY)
         val ctorAccessors = model.constructors.map { ResolvedConstructorPair(it, resolveConstructor(ctorTree, it)) } +
                 resolveRequiredConstructors(ctorTree, model.requiredTypes).map { ctorNode ->
                     ConstructorAccessor(getFriendlyDesc(ctorNode.last.value)) to ctorNode
                 }
 
-        val methodTree = methodAncestryTreeOf(node)
+        val methodTree = ancestryProvider.method<_, _, MethodMappingView>(node)
         val methodAccessors = model.methods.flatMap { resolveMethodChain(methodTree, it) }  +
                 resolveRequiredMethods(methodTree, model.requiredTypes).map { methodNode ->
                     MethodAccessor(getFriendlyName(methodNode.last.value), getFriendlyDesc(methodNode.last.value)) to methodNode
@@ -117,10 +123,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param model the model
      * @return the node
      */
-    protected fun resolveField(
-        tree: AncestryTree<MappingTreeView.FieldMappingView>,
-        model: FieldAccessor
-    ): FieldAncestryNode {
+    protected fun resolveField(tree: FieldAncestryTree, model: FieldAccessor): FieldAncestryNode {
         val fieldNode = if (model.type == null) {
             tree.find(model.name, version = model.version)?.apply {
                 logger.debug { "inferred type '${getFriendlyType(last.value).className}' for field ${model.name}" }
@@ -141,10 +144,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param model the model
      * @return the nodes
      */
-    protected fun resolveFieldChain(
-        tree: AncestryTree<MappingTreeView.FieldMappingView>,
-        model: FieldAccessor
-    ): List<ResolvedFieldPair> = buildList {
+    protected fun resolveFieldChain(tree: FieldAncestryTree, model: FieldAccessor): List<ResolvedFieldPair> = buildList {
         var nextNode: FieldAccessor? = model
         while (nextNode != null) {
             add(ResolvedFieldPair(nextNode, resolveField(tree, nextNode)))
@@ -161,10 +161,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param types the required types
      * @return the nodes
      */
-    protected fun resolveRequiredFields(
-        tree: AncestryTree<MappingTreeView.FieldMappingView>,
-        types: RequiredMemberTypes
-    ): List<FieldAncestryNode> = tree.filter { node ->
+    protected fun resolveRequiredFields(tree: FieldAncestryTree, types: RequiredMemberTypes): List<FieldAncestryNode> = tree.filter { node ->
         if ((types and DefaultRequiredMemberTypes.CONSTANT) != 0) {
             val mod = node.last.value.modifiers
 
@@ -183,10 +180,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param model the model
      * @return the node
      */
-    protected fun resolveConstructor(
-        tree: AncestryTree<MappingTreeView.MethodMappingView>,
-        model: ConstructorAccessor
-    ): MethodAncestryNode {
+    protected fun resolveConstructor(tree: MethodAncestryTree, model: ConstructorAccessor): MethodAncestryNode {
         val ctorNode = tree[NameDescriptorPair("<init>", model.type)]
 
         return checkNotNull(ctorNode) {
@@ -202,7 +196,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @return the nodes
      */
     @Suppress("UNUSED_PARAMETER") // API
-    protected fun resolveRequiredConstructors(tree: AncestryTree<MappingTreeView.MethodMappingView>, types: RequiredMemberTypes): List<MethodAncestryNode> {
+    protected fun resolveRequiredConstructors(tree: MethodAncestryTree, types: RequiredMemberTypes): List<MethodAncestryNode> {
         return emptyList()
     }
 
@@ -213,10 +207,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param model the model
      * @return the node
      */
-    protected fun resolveMethod(
-        tree: AncestryTree<MappingTreeView.MethodMappingView>,
-        model: MethodAccessor
-    ): MethodAncestryNode {
+    protected fun resolveMethod(tree: MethodAncestryTree, model: MethodAccessor): MethodAncestryNode {
         val methodNode = if (model.isIncomplete || model.version != null) {
             tree.find(model.name, model.type, version = model.version)?.apply {
                 if (model.isIncomplete) {
@@ -239,10 +230,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param model the model
      * @return the nodes
      */
-    protected fun resolveMethodChain(
-        tree: AncestryTree<MappingTreeView.MethodMappingView>,
-        model: MethodAccessor
-    ): List<ResolvedMethodPair> = buildList {
+    protected fun resolveMethodChain(tree: MethodAncestryTree, model: MethodAccessor): List<ResolvedMethodPair> = buildList {
         var nextNode: MethodAccessor? = model
         while (nextNode != null) {
             add(ResolvedMethodPair(nextNode, resolveMethod(tree, nextNode)))
@@ -260,7 +248,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @return the nodes
      */
     @Suppress("UNUSED_PARAMETER") // API
-    protected fun resolveRequiredMethods(tree: AncestryTree<MappingTreeView.MethodMappingView>, types: RequiredMemberTypes): List<MethodAncestryNode> {
+    protected fun resolveRequiredMethods(tree: MethodAncestryTree, types: RequiredMemberTypes): List<MethodAncestryNode> {
         return emptyList()
     }
 
@@ -270,7 +258,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param member the member
      * @return the mapped name
      */
-    protected fun getFriendlyName(member: MappingTreeView.MemberMappingView): String {
+    protected fun getFriendlyName(member: MemberMappingView): String {
         generator.config.namespaceFriendlinessIndex.forEach { ns ->
             member.getName(ns)?.let { return it }
         }
@@ -283,7 +271,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param member the member
      * @return the mapped descriptor
      */
-    protected fun getFriendlyDesc(member: MappingTreeView.MemberMappingView): String {
+    protected fun getFriendlyDesc(member: MemberMappingView): String {
         generator.config.namespaceFriendlinessIndex.forEach { ns ->
             member.getDesc(ns)?.let { return it }
         }
@@ -296,7 +284,7 @@ abstract class AbstractGenerationContext(contextScope: CoroutineScope) : Generat
      * @param member the member
      * @return the [Type]
      */
-    protected fun getFriendlyType(member: MappingTreeView.MemberMappingView): Type = Type.getType(getFriendlyDesc(member))
+    protected fun getFriendlyType(member: MemberMappingView): Type = Type.getType(getFriendlyDesc(member))
 
     /**
      * Groups the generator's mappings by version.

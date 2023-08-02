@@ -20,9 +20,7 @@ package me.kcra.takenaka.core.mapping.resolve.impl
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.readTree
 import mu.KotlinLogging
@@ -37,9 +35,10 @@ private val logger = KotlinLogging.logger {}
  *
  * @property workspace the workspace
  * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
+ * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-class YarnMetadataProvider(val workspace: Workspace, private val xmlMapper: ObjectMapper) {
+class YarnMetadataProvider(val workspace: Workspace, private val xmlMapper: ObjectMapper, val relaxedCache: Boolean = true) {
     /**
      * A map of versions and their builds.
      */
@@ -79,7 +78,7 @@ class YarnMetadataProvider(val workspace: Workspace, private val xmlMapper: Obje
     private fun readMetadata(): JsonNode {
         val file = workspace[METADATA]
 
-        if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && METADATA in workspace) {
+        if (relaxedCache && METADATA in workspace) {
             try {
                 return xmlMapper.readTree(file).apply {
                     logger.info { "read cached Yarn metadata" }

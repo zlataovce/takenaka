@@ -41,7 +41,7 @@ fun FlowContent.navComponent() {
                 }
             }
         }
-        div(classes = "search-box") {
+        div(classes = "utils-box") {
             div(classes = "search-input-box") {
                 input(type = InputType.text, classes = "search-input") {
                     id = "search-input"
@@ -55,8 +55,29 @@ fun FlowContent.navComponent() {
                     }
                 }
             }
-            div(classes = "search-results-box") {
-                id = "search-results-box"
+            div(classes = "search-box") {
+                id = "search-box"
+                style = "display:none"
+
+                div(classes = "option-box-toggle") {
+                    onClick = "toggleOptions()"
+
+                    p {
+                        +"Namespaces"
+                    }
+                    p {
+                        unsafe {
+                            +"""<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>"""
+                        }
+                    }
+                }
+                div(classes = "option-box") {
+                    id = "option-box"
+                    style = "display:none"
+                }
+                div {
+                    id = "search-results-box"
+                }
             }
         }
     }

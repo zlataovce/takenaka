@@ -23,6 +23,8 @@ import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
+import me.kcra.takenaka.core.mapping.analysis.impl.InheritanceWalkMode
+import me.kcra.takenaka.core.mapping.analysis.impl.resolveSuperTypes
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import me.kcra.takenaka.core.mapping.matchers.isEnumValueOf
@@ -57,7 +59,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
     val klassDeclaration = formatClassDescriptor(klass, workspace.version, friendlyNameRemapper)
 
     head {
-        defaultResourcesComponent(workspace.version.id)
+        defaultResourcesComponent()
         if (generator.config.emitMetaTags) {
             metadataComponent(
                 title = klassDeclaration.friendlyName,
@@ -102,6 +104,26 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                     }
                 }
             }
+
+            if (klassDeclaration.hasVisibleSuperClass) { // don't show superinterfaces when there's no actual superclass
+                val superInterfaces = klass.resolveSuperTypes(InheritanceWalkMode.INTERFACES)
+                if (superInterfaces.isNotEmpty()) {
+                    p(classes = "interfaces-header") {
+                        +"All mapped superinterfaces:"
+                    }
+                    p(classes = "interfaces-description") {
+                        superInterfaces.forEachIndexed { i, s ->
+                            val friendlyName = getFriendlyDstName(s)
+
+                            a(href = "/${workspace.version.id}/$friendlyName.html") {
+                                +friendlyName.substringAfterLast('/')
+                            }
+                            if (i != superInterfaces.lastIndex) +", "
+                        }
+                    }
+                }
+            }
+
             spacerTopComponent()
             table {
                 tbody {
@@ -112,7 +134,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                         val namespacedNmsVersion = if (ns in versionReplaceCandidates) nmsVersion else null
                         val name = klass.getName(id)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) ?: return@forEach
                         tr {
-                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
+                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
                             td(classes = "mapping-value") {
                                 +name.fromInternalName()
                             }
@@ -132,6 +154,13 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
             }
 
             if (klass.fields.isNotEmpty()) {
+                var fieldMask = Modifier.fieldModifiers()
+                // remove public, static and final modifiers on interface fields, implicit
+                // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.3
+                if ((klassDeclaration.modifiers and Opcodes.ACC_INTERFACE) != 0) {
+                    fieldMask = fieldMask and Modifier.PUBLIC.inv() and Modifier.STATIC.inv() and Modifier.FINAL.inv()
+                }
+
                 addContentSpacer()
                 h4 {
                     +"Field summary"
@@ -151,7 +180,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                         klass.fields.forEach { field ->
                             tr {
                                 td(classes = "modifier-value") {
-                                    +field.modifiers.formatModifiers(Modifier.fieldModifiers())
+                                    +field.modifiers.formatModifiers(fieldMask)
 
                                     unsafe {
                                         +formatFieldDescriptor(field, workspace.version, friendlyNameRemapper)
@@ -168,7 +197,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                                                     val name = field.getName(id)
                                                     if (name != null) {
                                                         tr {
-                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
+                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
                                                             td(classes = "mapping-value") {
                                                                 +name
                                                             }
@@ -224,10 +253,16 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                 }
             }
 
-            // static initializers are filtered in AbstractGenerator, no need to check it here
             // skip constructors and implicit enum methods
             val methods = klass.methods.filter { !it.isConstructor && ((klassDeclaration.modifiers and Opcodes.ACC_ENUM) == 0 || !(it.isEnumValueOf || it.isEnumValues)) }
             if (methods.isNotEmpty()) {
+                var methodMask = Modifier.methodModifiers()
+                // remove public and abstract modifiers on interface methods, implicit
+                // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4
+                if ((klassDeclaration.modifiers and Opcodes.ACC_INTERFACE) != 0) {
+                    methodMask = methodMask and Modifier.PUBLIC.inv() and Modifier.ABSTRACT.inv()
+                }
+
                 addContentSpacer()
                 h4 {
                     +"Method summary"
@@ -249,13 +284,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                             tr {
                                 td(classes = "modifier-value") {
                                     unsafe {
-                                        var mask = Modifier.methodModifiers()
-                                        // remove public and abstract modifiers on interface members, they are implicit
-                                        if ((klassDeclaration.modifiers and Opcodes.ACC_INTERFACE) != 0) {
-                                            mask = mask and Modifier.PUBLIC.inv() and Modifier.ABSTRACT.inv()
-                                        }
-
-                                        +methodMod.formatModifiers(mask)
+                                        +methodMod.formatModifiers(methodMask)
 
                                         val methodDeclaration = formatMethodDescriptor(method, methodMod, workspace.version, friendlyNameRemapper)
                                         methodDeclaration.formals?.let { +"$it " }
@@ -274,7 +303,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                                                     val methodName = method.getName(id)
                                                     if (methodName != null) {
                                                         tr {
-                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleConsumer)
+                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
                                                             td(classes = "mapping-value") {
                                                                 unsafe {
                                                                     val remapper = ElementRemapper(method.tree) { it.getName(id)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) }
@@ -310,13 +339,15 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
  * @property modifiersAndName the stringified modifiers with the package-less class name
  * @property formals the formal generic type arguments of the class itself
  * @property superTypes the superclass and superinterfaces, including `extends` and `implements`, implicit ones are omitted (null if there are no non-implicit supertypes)
+ * @property hasVisibleSuperClass whether a superclass is visible in [superTypes]
  */
 data class ClassDeclaration(
     val friendlyName: String,
     val modifiers: Int,
     val modifiersAndName: String,
     val formals: String?,
-    val superTypes: String?
+    val superTypes: String?,
+    val hasVisibleSuperClass: Boolean
 )
 
 /**
@@ -347,6 +378,9 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
     var formals: String? = null
     lateinit var superTypes: String
 
+    val superClass = klass.superClass
+    val hasVisibleSuperClass = superClass != "java/lang/Object" && superClass != "java/lang/Record" && superClass != "java/lang/Enum"
+
     val signature = klass.signature
     if (signature != null) {
         val options = buildFormattingOptions {
@@ -369,11 +403,10 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
             superTypes = if (implementsClauseIndex != -1) superTypes.substring(implementsClauseIndex) else ""
         }
     } else {
-        val superClass = klass.superClass
         val interfaces = klass.interfaces.filter { it != "java/lang/annotation/Annotation" }
 
         superTypes = buildString {
-            if (superClass != "java/lang/Object" && superClass != "java/lang/Record" && superClass != "java/lang/Enum") {
+            if (hasVisibleSuperClass) {
                 append("extends ${nameRemapper.mapAndLink(superClass, version, generator.config.index)}")
                 if (interfaces.isNotEmpty()) {
                     append(" ")
@@ -396,7 +429,8 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
         mod,
         modifiersAndName,
         formals,
-        superTypes.ifBlank { null }
+        superTypes.ifBlank { null },
+        hasVisibleSuperClass
     )
 }
 
@@ -479,27 +513,31 @@ fun GenerationContext.formatMethodDescriptor(
     val args = buildString {
         append('(')
 
-        val args = type.argumentTypes
-        var argumentIndex = 0
+        var argIndex = 0
+        var lvIndex = 0 // local variable index
+
+        // the first variable is the class instance if it's not static, so offset it
+        if ((mod and Opcodes.ACC_STATIC) == 0) lvIndex++
+
+        val argTypes = type.argumentTypes
         append(
-            args.joinToString { arg ->
-                val i = argumentIndex++
+            argTypes.joinToString { arg ->
+                val currArgIndex = argIndex++
+
                 return@joinToString buildString {
-                    append(formatType(arg, version, nameRemapper, linkRemapper, isVarargs = i == (args.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0))
+                    append(formatType(arg, version, nameRemapper, linkRemapper, isVarargs = currArgIndex == (argTypes.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0))
 
                     if (generateNamedParameters) {
                         append(' ')
 
-                        var lvIndex = i  // local variable index
-                        // the first variable is the class instance if it's not static, so offset it
-                        if ((mod and Opcodes.ACC_STATIC) == 0) lvIndex++
-
                         append(
                             method.getArg(-1, lvIndex, null)
                                 ?.let(nameRemapper.elementMapper)
-                                ?: "arg$i"
+                                ?: "arg$currArgIndex"
                         )
                     }
+
+                    lvIndex += arg.size // increment by the appropriate LVT size
                 }
             }
         )

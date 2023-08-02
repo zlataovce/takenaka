@@ -19,10 +19,8 @@ package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.VersionAttributes
 import me.kcra.takenaka.core.VersionedWorkspace
-import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.readValue
 import mu.KotlinLogging
@@ -37,9 +35,10 @@ private val logger = KotlinLogging.logger {}
  *
  * @property workspace the workspace
  * @property objectMapper an [ObjectMapper] that can deserialize JSON data
+ * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-class MojangManifestAttributeProvider(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper) {
+class MojangManifestAttributeProvider(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper, val relaxedCache: Boolean = true) {
     /**
      * The version attributes.
      */
@@ -54,7 +53,7 @@ class MojangManifestAttributeProvider(val workspace: VersionedWorkspace, private
         return workspace.withLock("mojang-manifest") {
             val file = workspace[ATTRIBUTES]
 
-            if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && ATTRIBUTES in workspace) {
+            if (relaxedCache && ATTRIBUTES in workspace) {
                 try {
                     return@withLock objectMapper.readValue<VersionAttributes>(file).apply {
                         logger.info { "read cached ${workspace.version.id} attributes" }

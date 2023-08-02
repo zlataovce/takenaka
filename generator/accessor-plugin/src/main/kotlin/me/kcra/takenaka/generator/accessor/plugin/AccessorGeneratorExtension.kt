@@ -25,6 +25,7 @@ import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.model.*
+import me.kcra.takenaka.generator.accessor.plugin.tasks.DEFAULT_INDEX_NS
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
@@ -44,6 +45,12 @@ import kotlin.reflect.KClass
 abstract class AccessorGeneratorExtension(internal val project: Project, internal val manifest: VersionManifest) {
     /**
      * Versions to be mapped.
+     *
+     * In case that a mapping bundle is selected (the `mappingBundle` configuration has exactly one file),
+     * this property is used for selecting a version subset within the bundle
+     * (every version from the bundle is mapped if no version is specified here).
+     *
+     * @see me.kcra.takenaka.generator.common.provider.impl.BundledMappingProvider.versions
      */
     abstract val versions: SetProperty<String>
 
@@ -58,9 +65,9 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     abstract val cacheDirectory: DirectoryProperty
 
     /**
-     * Whether cache should be validated strictly, defaults to false.
+     * Whether output cache verification constraints should be relaxed, defaults to true.
      */
-    abstract val strictCache: Property<Boolean>
+    abstract val relaxedCache: Property<Boolean>
 
     /**
      * Class accessor models.
@@ -87,12 +94,24 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      */
     abstract val accessedNamespaces: ListProperty<String>
 
+    /**
+     * Namespaces that should be used for computing history, defaults to "mojang", "spigot", "searge" and "intermediary".
+     */
+    abstract val historyNamespaces: ListProperty<String>
+
+    /**
+     * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch, defaults to [DEFAULT_INDEX_NS].
+     */
+    abstract val historyIndexNamespace: Property<String?>
+
     init {
         outputDirectory.convention(project.layout.buildDirectory.dir("takenaka/output"))
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
         languageFlavor.convention(LanguageFlavor.JAVA)
         accessorFlavor.convention(AccessorFlavor.NONE)
-        strictCache.convention(false)
+        historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
+        historyIndexNamespace.convention(DEFAULT_INDEX_NS)
+        relaxedCache.convention(true)
     }
 
     /**
@@ -147,12 +166,12 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     }
 
     /**
-     * Sets the [strictCache] property.
+     * Sets the [relaxedCache] property.
      *
-     * @param strictCache the strict cache flag
+     * @param relaxedCache the relaxed cache flag
      */
-    fun strictCache(strictCache: Boolean) {
-        this.strictCache.set(strictCache)
+    fun relaxedCache(relaxedCache: Boolean) {
+        this.relaxedCache.set(relaxedCache)
     }
 
     /**
@@ -207,6 +226,24 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      */
     fun accessedNamespaces(vararg accessedNamespaces: String) {
         this.accessedNamespaces.addAll(*accessedNamespaces)
+    }
+
+    /**
+     * Sets the [historyNamespaces] property.
+     *
+     * @param historyNamespaces the history namespaces
+     */
+    fun historyNamespaces(vararg historyNamespaces: String) {
+        this.historyNamespaces.addAll(*historyNamespaces)
+    }
+
+    /**
+     * Sets the [historyIndexNamespace] property.
+     *
+     * @param historyIndexNamespace the index namespace, can be null
+     */
+    fun historyIndexNamespace(historyIndexNamespace: String?) {
+        this.historyIndexNamespace.set(historyIndexNamespace)
     }
 
     /**

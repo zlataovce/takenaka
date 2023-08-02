@@ -70,7 +70,7 @@ fun GenerationContext.versionsPage(welcomeMessage: String?, versions: Map<Versio
                             td(classes = "mapping-badges") {
                                 mappings.forEach { ns ->
                                     generator.config.namespaces[ns]
-                                        ?.let { badgeComponent(it.friendlyName, it.color, styleConsumer) }
+                                        ?.let { badgeComponent(it.friendlyName, it.color, styleProvider) }
                                 }
                             }
                         }

@@ -147,4 +147,3 @@ abstract class AbstractMappingAnalyzer : MappingAnalyzer {
      */
     protected abstract fun acceptClass(klass: MappingTree.ClassMapping): ClassAnalysisContext
 }
-

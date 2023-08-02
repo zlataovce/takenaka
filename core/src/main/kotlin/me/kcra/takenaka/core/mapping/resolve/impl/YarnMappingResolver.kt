@@ -18,9 +18,7 @@
 package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.VersionedWorkspace
-import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.*
@@ -46,10 +44,14 @@ private val logger = KotlinLogging.logger {}
  *
  * @property workspace the workspace
  * @property yarnProvider the Yarn metadata provider
+ * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-class YarnMappingResolver(override val workspace: VersionedWorkspace, val yarnProvider: YarnMetadataProvider) : AbstractMappingResolver(), MappingContributor,
-    LicenseResolver {
+class YarnMappingResolver(
+    override val workspace: VersionedWorkspace,
+    val yarnProvider: YarnMetadataProvider,
+    val relaxedCache: Boolean = true
+) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val licenseSource: String
         get() = "https://raw.githubusercontent.com/FabricMC/yarn/${version.id}/LICENSE"
     override val targetNamespace: String = "yarn"
@@ -61,8 +63,10 @@ class YarnMappingResolver(override val workspace: VersionedWorkspace, val yarnPr
      *
      * @param workspace the workspace
      * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
+     * @param relaxedCache whether output cache verification constraints should be relaxed
      */
-    constructor(workspace: VersionedWorkspace, xmlMapper: ObjectMapper) : this(workspace, YarnMetadataProvider(workspace, xmlMapper))
+    constructor(workspace: VersionedWorkspace, xmlMapper: ObjectMapper, relaxedCache: Boolean = true)
+            : this(workspace, YarnMetadataProvider(workspace, xmlMapper), relaxedCache)
 
     override val mappingOutput = lazyOutput<Path?> {
         resolver {
@@ -184,7 +188,7 @@ class YarnMappingResolver(override val workspace: VersionedWorkspace, val yarnPr
     private fun findMappingFile(file: Path): Path {
         val mappingFile = workspace[MAPPINGS]
 
-        if (DefaultWorkspaceOptions.RELAXED_CACHE !in workspace.options || !mappingFile.isRegularFile()) {
+        if (!relaxedCache || !mappingFile.isRegularFile()) {
             ZipFile(file.toFile()).use {
                 val entry = it.stream()
                     .filter { e -> e.name == "mappings/mappings.tiny" }

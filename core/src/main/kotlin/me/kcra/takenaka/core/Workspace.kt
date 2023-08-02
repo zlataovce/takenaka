@@ -27,76 +27,6 @@ import kotlin.properties.Delegates
 import kotlin.reflect.KProperty
 
 /**
- * Boolean options for workspace consumers, these are integers ORed together.
- */
-typealias WorkspaceOptions = Int
-
-/**
- * A group of resolver options used in the core library.
- */
-object DefaultWorkspaceOptions {
-    /**
-     * Requests resolvers to cache items without a checksum.
-     */
-    const val RELAXED_CACHE = 0x00000001
-}
-
-/**
- * Checks if the options contain an option.
- *
- * @param option the option to check
- * @return do the options contain the option?
- */
-operator fun WorkspaceOptions.contains(option: Int): Boolean = (this and option) != 0
-
-/**
- * Creates workspace options from multiple options.
- *
- * @param options the options
- * @return the resolver options
- */
-fun workspaceOptionsOf(vararg options: Int): WorkspaceOptions = options.reduceOrNull { v1, v2 -> v1 or v2 } ?: 0
-
-/**
- * A builder for [WorkspaceOptions].
- *
- * @property value the integer value, internal use only (for adding additional resolver options)
- * @author Matouš Kučera
- */
-class WorkspaceOptionsBuilder(var value: WorkspaceOptions = 0) {
-    /**
-     * Appends the [DefaultWorkspaceOptions.RELAXED_CACHE] option.
-     */
-    fun relaxedCache() {
-        value = value or DefaultWorkspaceOptions.RELAXED_CACHE
-    }
-
-    /**
-     * Checks if the options contain an option.
-     *
-     * @param option the option to check
-     * @return do the options contain the option?
-     */
-    operator fun contains(option: Int): Boolean = (value and option) != 0
-
-    /**
-     * Returns the workspace options.
-     *
-     * @return the value
-     */
-    fun toWorkspaceOptions(): WorkspaceOptions = value
-}
-
-/**
- * Creates workspace options from a builder.
- *
- * @param block the builder action
- * @return the workspace options
- */
-inline fun buildWorkspaceOptions(block: WorkspaceOptionsBuilder.() -> Unit): WorkspaceOptions =
-    WorkspaceOptionsBuilder().apply(block).toWorkspaceOptions()
-
-/**
  * A filesystem-based workspace.
  */
 interface Workspace {
@@ -104,11 +34,6 @@ interface Workspace {
      * The workspace root, this should never be navigated manually.
      */
     val rootDirectory: Path
-
-    /**
-     * Workspace options.
-     */
-    val options: WorkspaceOptions
 
     /**
      * Cleans this workspace.
@@ -202,45 +127,18 @@ open class WorkspaceBuilder {
     }
 
     /**
-     * Sets [options].
-     *
-     * @param value the options
-     */
-    fun options(value: WorkspaceOptions) {
-        options = value
-    }
-
-    /**
-     * Sets [options].
-     *
-     * @param values the options
-     */
-    fun options(vararg values: WorkspaceOptions) {
-        options = workspaceOptionsOf(*values)
-    }
-
-    /**
-     * Builds and sets [options] using [block].
-     *
-     * @param block the builder action
-     */
-    inline fun options(block: WorkspaceOptionsBuilder.() -> Unit) {
-        options = buildWorkspaceOptions(block)
-    }
-
-    /**
      * Creates a workspace from this builder.
      *
      * @return the simple workspace
      */
-    open fun toWorkspace(): Workspace = Simple(rootDirectory, options)
+    open fun toWorkspace(): Workspace = Simple(rootDirectory)
 }
 
 /**
  * A simple workspace.
  */
-private class Simple(override val rootDirectory: Path, override val options: WorkspaceOptions = workspaceOptionsOf()) : Workspace {
-    private val composite by lazy { CompositeWorkspace(rootDirectory, options, locks) }
+private class Simple(override val rootDirectory: Path) : Workspace {
+    private val composite by lazy { CompositeWorkspace(rootDirectory, locks) }
     private val locks = mutableMapOf<Any, Lock>()
 
     init {
@@ -277,7 +175,7 @@ open class CompositeWorkspaceBuilder : WorkspaceBuilder() {
      *
      * @return the composite workspace
      */
-    override fun toWorkspace() = CompositeWorkspace(rootDirectory, options)
+    override fun toWorkspace() = CompositeWorkspace(rootDirectory)
 }
 
 /**
@@ -293,13 +191,8 @@ inline fun compositeWorkspace(block: CompositeWorkspaceBuilder.() -> Unit): Comp
  * A workspace, which houses multiple sub-workspaces.
  *
  * @property rootDirectory the workspace root
- * @property options the resolver options
  */
-class CompositeWorkspace(
-    override val rootDirectory: Path,
-    override val options: WorkspaceOptions = workspaceOptionsOf(),
-    private val locks: MutableMap<Any, Lock> = mutableMapOf()
-) : Workspace {
+class CompositeWorkspace(override val rootDirectory: Path, private val locks: MutableMap<Any, Lock> = mutableMapOf()) : Workspace {
     init {
         rootDirectory.createDirectories()
     }
@@ -351,10 +244,6 @@ class CompositeWorkspace(
             set(value) {
                 rootDirectory = parent[value]
             }
-
-        init {
-            options = parent.options
-        }
     }
 
     /**
@@ -371,10 +260,6 @@ class CompositeWorkspace(
             set(value) {
                 rootDirectory = parent[value]
             }
-
-        init {
-            options = parent.options
-        }
     }
 
     /**
@@ -396,10 +281,6 @@ class CompositeWorkspace(
             set(value) {
                 rootDirectory_ = value
             }
-
-        init {
-            options = parent.options
-        }
     }
 }
 
@@ -417,7 +298,7 @@ open class VersionedWorkspaceBuilder : WorkspaceBuilder() {
      *
      * @return the versioned workspace
      */
-    override fun toWorkspace() = VersionedWorkspace(rootDirectory, options, version)
+    override fun toWorkspace() = VersionedWorkspace(rootDirectory, version)
 }
 
 /**
@@ -433,11 +314,10 @@ inline fun versionedWorkspace(block: VersionedWorkspaceBuilder.() -> Unit): Vers
  * A workspace, which belongs to a specific Minecraft version.
  *
  * @property rootDirectory the workspace root
- * @property options the resolver options
  * @property version the version which this workspace belongs to
  */
-class VersionedWorkspace(override val rootDirectory: Path, override val options: WorkspaceOptions = workspaceOptionsOf(), val version: Version) : Workspace {
-    private val composite by lazy { CompositeWorkspace(rootDirectory, options, locks) }
+class VersionedWorkspace(override val rootDirectory: Path, val version: Version) : Workspace {
+    private val composite by lazy { CompositeWorkspace(rootDirectory, locks) }
     private val locks = mutableMapOf<Any, Lock>()
 
     init {

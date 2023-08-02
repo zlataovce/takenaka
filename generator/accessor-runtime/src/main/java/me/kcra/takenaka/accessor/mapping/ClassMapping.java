@@ -21,6 +21,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import me.kcra.takenaka.accessor.platform.MapperPlatform;
 import me.kcra.takenaka.accessor.platform.MapperPlatforms;
+import me.kcra.takenaka.accessor.util.NameDescriptorPair;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -103,7 +104,30 @@ public final class ClassMapping {
     }
 
     /**
-     * Gets a mapped class name by the version and namespaces, and attempts to resolve it in the current thread class loader.
+     * Gets a mapped class name by the version and namespaces, and attempts to resolve it in the supplied class loader.
+     * <p>
+     * Namespaces are iterated in order, the first mapped namespace's name is returned.
+     *
+     * @param loader the class loader used in the {@link Class#forName(String, boolean, ClassLoader)} lookup
+     * @param version the version
+     * @param namespaces the namespaces
+     * @return the class, null if it's not mapped
+     */
+    public @Nullable Class<?> getClass(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
+        final String name = getName(version, namespaces);
+        if (name == null) {
+            return null;
+        }
+
+        try {
+            return Class.forName(name, true, loader);
+        } catch (ClassNotFoundException ignored) {
+        }
+        return null;
+    }
+
+    /**
+     * Gets a mapped class name by the version and namespaces, and attempts to resolve it in the current thread's context class loader.
      * <p>
      * Namespaces are iterated in order, the first mapped namespace's name is returned.
      *
@@ -112,21 +136,12 @@ public final class ClassMapping {
      * @return the class, null if it's not mapped
      */
     public @Nullable Class<?> getClass(@NotNull String version, @NotNull String... namespaces) {
-        final String name = getName(version, namespaces);
-        if (name == null) {
-            return null;
-        }
-
-        try {
-            return Class.forName(name);
-        } catch (ClassNotFoundException ignored) {
-        }
-        return null;
+        return getClass(Thread.currentThread().getContextClassLoader(), version, namespaces);
     }
 
     /**
      * Gets a mapped class name by the version and namespaces of the supplied {@link MapperPlatform},
-     * and attempts to resolve it in the current thread class loader.
+     * and attempts to resolve it in the current thread's context class loader.
      *
      * @param platform the platform
      * @return the class, null if it's not mapped
@@ -137,7 +152,7 @@ public final class ClassMapping {
 
     /**
      * Gets a mapped class name by the version and namespaces of the current {@link MapperPlatform},
-     * and attempts to resolve it in the current thread class loader.
+     * and attempts to resolve it in the current thread's context class loader.
      *
      * @return the class, null if it's not mapped
      */
@@ -153,6 +168,24 @@ public final class ClassMapping {
      */
     public @Nullable FieldMapping getField(@NotNull String name) {
         return fields.get(name);
+    }
+
+    /**
+     * Finds a field mapping by its mapped name ({@link FieldMapping#getName(String, String...)}).
+     *
+     * @param version the version where the {@code name} is contained
+     * @param namespace the namespace of the {@code name}
+     * @param name the mapped name
+     * @return the field mapping, null if not found
+     */
+    public @Nullable FieldMapping remapField(@NotNull String version, @NotNull String namespace, @NotNull String name) {
+        for (final FieldMapping field : fields.values()) {
+            if (name.equals(field.getName(version, namespace))) {
+                return field;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -187,6 +220,48 @@ public final class ClassMapping {
         }
 
         return overloads.get(index);
+    }
+
+    /**
+     * Finds a method mapping by its mapped name and parameters ({@link MethodMapping#getName(String, String...)}).
+     *
+     * @param version the version where the {@code name} and {@code parameters} are contained
+     * @param namespace the namespace of the {@code name} and {@code parameters}
+     * @param namePair the mapped name and parameters
+     * @return the method mapping, null if not found
+     */
+    public @Nullable MethodMapping remapMethod(
+            @NotNull String version,
+            @NotNull String namespace,
+            @NotNull NameDescriptorPair namePair
+    ) {
+        for (final List<MethodMapping> overloads : methods.values()) {
+            for (final MethodMapping method : overloads) {
+                if (namePair.equals(method.getName(version, namespace))) {
+                    return method;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Finds a method mapping by its mapped name and parameters ({@link MethodMapping#getName(String, String...)}).
+     *
+     * @param version the version where the {@code name} and {@code parameters} are contained
+     * @param namespace the namespace of the {@code name} and {@code parameters}
+     * @param name the mapped name
+     * @param parameters the mapped parameter types
+     * @return the method mapping, null if not found
+     */
+    public @Nullable MethodMapping remapMethod(
+            @NotNull String version,
+            @NotNull String namespace,
+            @NotNull String name,
+            @NotNull String... parameters
+    ) {
+        return remapMethod(version, namespace, NameDescriptorPair.of(name, parameters));
     }
 
     /**

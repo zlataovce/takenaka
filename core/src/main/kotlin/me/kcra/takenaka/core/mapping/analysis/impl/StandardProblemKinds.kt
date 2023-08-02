@@ -30,5 +30,6 @@ enum class StandardProblemKinds(override val description: String?, override val 
     NON_EXISTENT_MAPPING("mapping does not have modifiers visited or they are malformed, likely a client class", true),
     SYNTHETIC("mapping is synthetic, it does not exist at compile-time", true),
     INNER_CLASS_OWNER_NOT_MAPPED("inner/anonymous class mapping does not have the owner name remapped", false),
-    INHERITANCE_ERROR("method is overridden from a super type, but the mapping does not match", false)
+    INHERITANCE_ERROR("method is overridden from a super type, but the mapping does not match", false),
+    SPECIAL_METHOD_NOT_MAPPED("method does not have a mapping, but it can be guessed (constructor, static initializer or implicit enum method)", false)
 }

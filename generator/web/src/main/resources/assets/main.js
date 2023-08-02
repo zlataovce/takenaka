@@ -24,7 +24,7 @@ const setTheme = (theme) => {
     localStorage.setItem(themeKey, theme);
 };
 
-window.addEventListener("load", () => document.documentElement.setAttribute("data-theme", getTheme()));
+window.addEventListener("DOMContentLoaded", () => document.documentElement.setAttribute("data-theme", getTheme()));
 
 const getVersionBaseUrl = () => {
     const path = window.location.pathname.substring(1);
@@ -32,6 +32,8 @@ const getVersionBaseUrl = () => {
         const parts = [];
         for (const part of path.split("/")) {
             parts.push(part);
+
+            // FIXME: this won't work with snapshot versions
             if (!part.endsWith(".html") && part.includes(".")) {
                 return "/" + parts.join("/");
             }
@@ -47,6 +49,9 @@ const baseUrl = getVersionBaseUrl();
 let colors = {};
 // a list of { "<namespace>": <mapping string or null> }
 let classIndex = [];
+
+let resolveClassIndexPromise;
+const initialIndexLoadPromise = new Promise((resolve, _) => (resolveClassIndexPromise = resolve));
 
 const updateClassIndex = (indexString) => {
     indexString = indexString.replaceAll("%nm", "net/minecraft").replaceAll("%cm", "com/mojang");
@@ -70,62 +75,61 @@ const updateClassIndex = (indexString) => {
             classIndex.push(obj);
         }
     }
+
+    resolveClassIndexPromise();
+};
+
+// dynamically load class index, but async
+window.addEventListener("DOMContentLoaded", () => {
+    if (baseUrl) {
+        const indexScript = document.createElement("script");
+        indexScript.async = true;
+        indexScript.src = `${baseUrl}/class-index.js`;
+
+        document.head.appendChild(indexScript);
+    }
+});
+
+const searchNamespacesKey = "_namespaces";
+
+const getStoredSearchNamespaces = () => {
+    const nsString = localStorage.getItem(searchNamespacesKey);
+
+    return nsString ? nsString.split(",") : (nsString != null ? [] : null);
+};
+let searchNamespaces = getStoredSearchNamespaces();
+
+const updateSearchNamespaces = (newNamespaces) => {
+    searchNamespaces = newNamespaces;
+    localStorage.setItem(searchNamespacesKey, newNamespaces.join(","));
 };
 
 const search = (query) => {
     const resultsBox = document.getElementById("search-results-box");
 
-    query = query.trim();
+    query = query.replaceAll(".", "/").toLowerCase().trim();
     if (!query) {
         resultsBox.replaceChildren();
         return;
     }
 
-    const predicates = [];
-    let newQuery = "";
-    for (const option of query.split(" ")) {
-        const optionParts = option.split(":", 2);
-        if (optionParts.length === 2) {
-            switch (optionParts[0]) {
-                case "namespace":
-                case "type":
-                case "ns":
-                    const namespaceTarget = optionParts[1].toLowerCase();
-                    // you can use partial namespace names in this option
-                    // useful if you want to save keystrokes (e.g. `ns:obf` instead of `ns:obfuscated`)
-                    predicates.push((klass, ns, _) => ns.toLowerCase().startsWith(namespaceTarget));
-                    break;
-
-                // add more search options here
-            }
-        } else {
-            newQuery = newQuery + option;
-        }
-    }
-
-    newQuery = newQuery.replaceAll(".", "/").toLowerCase().trim();
-    if (!newQuery) {
-        resultsBox.replaceChildren();
-        return;
-    }
-
     const results = [];
-    const hasPackage = newQuery.includes("/");
+    const hasPackage = query.includes("/");
 
     klassLoop:
     for (const klass of classIndex) {
         for (const ns in klass) {
-            const klassName = klass[ns];
+            if (!searchNamespaces.includes(ns)) continue;
 
+            const klassName = klass[ns];
             if (klassName) {
-                if (!klassName.toLowerCase().includes(newQuery)) continue;
-                if (!predicates.every((p) => p(klass, ns, klassName))) continue;
+                if (!klassName.toLowerCase().includes(query)) continue;
 
                 const lastSlashIndex = klassName.lastIndexOf("/");
                 const simpleName = lastSlashIndex !== -1 ? klassName.substring(lastSlashIndex + 1) : klassName;
 
                 // if a package is not specified, match only against simple class names, not fully qualified ones
-                if (!hasPackage && !simpleName.toLowerCase().includes(newQuery)) continue;
+                if (!hasPackage && !simpleName.toLowerCase().includes(query)) continue;
 
                 // more similar = lower number
                 results.push({
@@ -133,7 +137,7 @@ const search = (query) => {
                     ns: ns,
                     simpleName: simpleName,
                     packageName: lastSlashIndex !== -1 ? klassName.substring(0, lastSlashIndex).replaceAll("/", ".") : null,
-                    similarity: (hasPackage ? klassName.length : simpleName.length) - newQuery.length
+                    similarity: (hasPackage ? klassName.length : simpleName.length) - query.length
                 });
 
                 // only show a class once, skip the other namespaces
@@ -146,11 +150,12 @@ const search = (query) => {
     resultsBox.replaceChildren(...(
         // limit results to 50, should be plenty
         results.slice(0, Math.min(results.length, 50)).map((r) => {
+            const resultWrap = document.createElement("a");
+            resultWrap.href = `${baseUrl}/${Object.values(r.klass).find((e) => e != null)}.html`;
+            resultWrap.style.textDecoration = "none";
+
             const resultElem = document.createElement("div");
             resultElem.classList.add("search-result");
-            resultElem.addEventListener("click", () => {
-                window.location.pathname = `${baseUrl}/${Object.values(r.klass).find((e) => e != null)}.html`;
-            });
 
             const title = document.createElement("p");
             title.classList.add("search-result-title");
@@ -166,10 +171,58 @@ const search = (query) => {
 
             const nsSubtitle = document.createElement("p");
             nsSubtitle.classList.add("search-result-subtitle");
-            nsSubtitle.innerHTML = `namespace: <span style="color:${colors[r.ns]}">${r.ns}</span>`;
+            nsSubtitle.innerHTML = `namespace: <span class="search-badge-text" style="color:${colors[r.ns]}">${r.ns}</span>`;
             resultElem.appendChild(nsSubtitle);
 
-            return resultElem;
+            resultWrap.appendChild(resultElem);
+
+            return resultWrap;
+        })
+    ));
+};
+
+const toggleOptions = () => {
+    const optionBox = document.getElementById("option-box");
+    optionBox.style.display = optionBox.style.display === "grid" ? "none" : "grid";
+};
+
+const updateOptions = () => {
+    const searchInput = document.getElementById("search-input");
+    const optionBox = document.getElementById("option-box");
+
+    // searchNamespaces is null if it wasn't loaded from localStorage, so just set it to all namespaces
+    if (!searchNamespaces) {
+        searchNamespaces = Object.keys(colors);
+    }
+    optionBox.replaceChildren(...(
+        Object.entries(colors).map(([ns, color]) => {
+            const labelTarget = `checkbox-${ns.toLowerCase()}`;
+
+            const checkboxWrap = document.createElement("div");
+            checkboxWrap.style.display = "flex";
+
+            const inputElem = document.createElement("input");
+            inputElem.type = "checkbox";
+            inputElem.id = labelTarget;
+            inputElem.checked = searchNamespaces.includes(ns);
+            inputElem.addEventListener("change", () => {
+                updateSearchNamespaces(inputElem.checked ? [...searchNamespaces, ns] : searchNamespaces.filter((e) => e !== ns));
+
+                // manually refresh search results
+                searchInput.dispatchEvent(new Event("input"));
+            });
+
+            checkboxWrap.appendChild(inputElem);
+
+            const labelElem = document.createElement("label");
+            labelElem.htmlFor = labelTarget;
+            labelElem.style.color = color;
+            labelElem.classList.add("search-badge-text");
+            labelElem.appendChild(document.createTextNode(ns));
+
+            checkboxWrap.appendChild(labelElem);
+
+            return checkboxWrap;
         })
     ));
 };

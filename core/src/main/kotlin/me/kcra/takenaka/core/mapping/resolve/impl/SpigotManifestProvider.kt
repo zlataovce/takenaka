@@ -36,9 +36,10 @@ private val logger = KotlinLogging.logger {}
  *
  * @property workspace the workspace
  * @property objectMapper an [ObjectMapper] that can deserialize JSON data
+ * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-class SpigotManifestProvider(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper) {
+class SpigotManifestProvider(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper, val relaxedCache: Boolean = true) {
     /**
      * The version manifest.
      */
@@ -58,7 +59,7 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
         return workspace.withLock("spigot-manifest") {
             val file = workspace[MANIFEST]
 
-            if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && MANIFEST in workspace) {
+            if (relaxedCache && MANIFEST in workspace) {
                 try {
                     return@withLock objectMapper.readValue<SpigotVersionManifest>(file).apply {
                         logger.info { "read cached ${workspace.version.id} Spigot manifest" }
@@ -94,7 +95,7 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
         return workspace.withLock("spigot-manifest") {
             val file = workspace[BUILDDATA_INFO]
 
-            if (DefaultWorkspaceOptions.RELAXED_CACHE in workspace.options && BUILDDATA_INFO in workspace) {
+            if (relaxedCache && BUILDDATA_INFO in workspace) {
                 try {
                     return@withLock objectMapper.readValue<SpigotVersionAttributes>(file).apply {
                         logger.info { "read cached ${workspace.version.id} Spigot attributes" }

@@ -18,14 +18,14 @@
 package me.kcra.takenaka.generator.accessor.plugin.tasks
 
 import kotlinx.coroutines.runBlocking
-import me.kcra.takenaka.core.DefaultWorkspaceOptions
-import me.kcra.takenaka.core.WorkspaceOptions
 import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorFlavor
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.common.provider.MappingProvider
+import me.kcra.takenaka.generator.common.provider.impl.SimpleAncestryProvider
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
@@ -34,6 +34,11 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
+
+/**
+ * The default history index namespace.
+ */
+const val DEFAULT_INDEX_NS = "takenaka_node"
 
 /**
  * A Gradle task that generates accessors from mappings.
@@ -50,10 +55,10 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     abstract val outputDir: DirectoryProperty
 
     /**
-     * The input mappings, probably linked from a [ResolveMappingsTask].
+     * The input mapping provider, probably linked from a [ResolveMappingsTask].
      */
     @get:Internal
-    abstract val mappings: MutableMappingsMapProperty
+    abstract val mappingProvider: Property<MappingProvider>
 
     /**
      * Class accessor models.
@@ -110,12 +115,18 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     abstract val craftBukkitVersionReplaceCandidates: ListProperty<String>
 
     /**
-     * The workspace options, defaults to [DefaultWorkspaceOptions.RELAXED_CACHE].
-     *
-     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.strictCache
+     * Namespaces that should be used for computing history, defaults to "mojang", "spigot", "searge" and "intermediary".
      */
     @get:Input
-    abstract val options: Property<WorkspaceOptions>
+    abstract val historyNamespaces: ListProperty<String>
+
+    /**
+     * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch, defaults to [DEFAULT_INDEX_NS].
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.historyIndexNamespace
+     */
+    @get:Input
+    abstract val historyIndexNamespace: Property<String?>
 
     /**
      * The output workspace ([outputDir]).
@@ -124,7 +135,6 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     val outputWorkspace by lazy {
         workspace {
             rootDirectory(outputDir.asFile.get())
-            options(this@GenerateAccessorsTask.options.get())
         }
     }
 
@@ -134,7 +144,8 @@ abstract class GenerateAccessorsTask : DefaultTask() {
         languageFlavor.convention(LanguageFlavor.JAVA)
         accessorFlavor.convention(AccessorFlavor.NONE)
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
-        options.convention(DefaultWorkspaceOptions.RELAXED_CACHE)
+        historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
+        historyIndexNamespace.convention(DEFAULT_INDEX_NS)
     }
 
     /**
@@ -157,7 +168,10 @@ abstract class GenerateAccessorsTask : DefaultTask() {
 
         outputWorkspace.clean()
         runBlocking {
-            generator.generate(mappings.get())
+            generator.generate(
+                mappingProvider.get(),
+                SimpleAncestryProvider(historyIndexNamespace.get(), historyNamespaces.get())
+            )
         }
     }
 }

@@ -21,19 +21,11 @@ import kotlinx.html.*
 
 /**
  * Appends default resources (scripts, stylesheets, meta, ...) to a head element.
- *
- * @param version the Minecraft version of the page's context, the corresponding class search index is added if not null
  */
-fun HEAD.defaultResourcesComponent(version: String? = null) {
+fun HEAD.defaultResourcesComponent() {
     meta(name = "viewport", content = "width=device-width, initial-scale=1")
     link(href = "/assets/main.css", rel = "stylesheet")
     script(src = "/assets/main.js") {}
-    script(src = "/assets/components.js") {}
-    if (version != null) {
-        script(src = "/$version/class-index.js") {
-            async = true
-        }
-    }
 }
 
 /**

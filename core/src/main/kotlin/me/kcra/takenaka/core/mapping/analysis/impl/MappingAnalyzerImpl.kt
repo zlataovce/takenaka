@@ -18,6 +18,10 @@
 package me.kcra.takenaka.core.mapping.analysis.impl
 
 import me.kcra.takenaka.core.mapping.analysis.ProblemResolution
+import me.kcra.takenaka.core.mapping.matchers.isConstructor
+import me.kcra.takenaka.core.mapping.matchers.isEnumValueOf
+import me.kcra.takenaka.core.mapping.matchers.isEnumValues
+import me.kcra.takenaka.core.mapping.matchers.isStaticInitializer
 import me.kcra.takenaka.core.mapping.resolve.impl.VanillaMappingContributor
 import me.kcra.takenaka.core.mapping.resolve.impl.interfaces
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
@@ -26,17 +30,16 @@ import me.kcra.takenaka.core.mapping.util.contains
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
-import java.util.*
 
 /**
  * A base implementation of [me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer] that corrects problems defined in [StandardProblemKinds].
  *
  * This analyzer expects [VanillaMappingContributor.NS_SUPER], [VanillaMappingContributor.NS_INTERFACES] and [VanillaMappingContributor.NS_MODIFIERS] namespaces to be present.
  *
- * @property analysisOptions the analysis configuration
+ * @property options the analysis configuration
  * @author Matouš Kučera
  */
-open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOptions()) : AbstractMappingAnalyzer() {
+open class MappingAnalyzerImpl(val options: AnalysisOptions = AnalysisOptions()) : AbstractMappingAnalyzer() {
     /**
      * Visits a class for analysis.
      */
@@ -48,7 +51,7 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
         klass.tree.dstNamespaces.forEach { ns ->
             val nsId = klass.tree.getNamespaceId(ns)
 
-            if (ns in analysisOptions.innerClassNameCompletionCandidates) {
+            if (ns in options.innerClassNameCompletionCandidates) {
                 // completes missing inner/anonymous class mappings
 
                 // works on the principle of presuming that the owner part
@@ -109,14 +112,19 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
      */
     open class ClassContext(final override val analyzer: MappingAnalyzerImpl, final override val klass: MappingTree.ClassMapping) : ClassAnalysisContext {
         /**
+         * Modifiers of the class.
+         */
+        protected val modifiers: Int = klass.modifiers
+
+        /**
          * Super types of the class.
          */
-        protected val superTypes: List<MappingTree.ClassMapping> = klass.superTypes
+        protected val superTypes: List<MappingTree.ClassMapping> = klass.resolveSuperTypes()
 
         /**
          * Additional namespace IDs of the class' mapping tree.
          */
-        protected val additionalNamespaceIds: Set<Int> = analyzer.analysisOptions.inheritanceAdditionalNamespaces.mapTo(mutableSetOf(), klass.tree::getNamespaceId)
+        protected val additionalNamespaceIds: Set<Int> = analyzer.options.inheritanceAdditionalNamespaces.mapTo(mutableSetOf(), klass.tree::getNamespaceId)
             .apply { remove(MappingTree.NULL_NAMESPACE_ID) } // pop null id, if it's present
 
         /**
@@ -148,15 +156,22 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
                 element.owner.methods.remove(element)
             }
 
-            // don't check inheritance for private methods, they can't technically be overridden
-            // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-8.4.8.3
-            if (!skipInheritanceChecks && (method.modifiers and Opcodes.ACC_PRIVATE) == 0) {
+            if (method.isConstructor || method.isStaticInitializer || ((modifiers and Opcodes.ACC_ENUM) != 0 && (method.isEnumValueOf || method.isEnumValues))) {
+                (method.tree.dstNamespaces - analyzer.options.specialMethodExemptions).forEach { ns ->
+                    val nsId = method.tree.getNamespaceId(ns)
+                    if (nsId == MappingTree.NULL_NAMESPACE_ID) return@forEach
+
+                    analyzer.problem(method, ns, StandardProblemKinds.SPECIAL_METHOD_NOT_MAPPED) {
+                        method.setDstName(method.srcName, nsId)
+                    }
+                }
+            } else if (!skipInheritanceChecks && (method.modifiers and Opcodes.ACC_PRIVATE) == 0) { // don't check inheritance for private methods, they can't technically be overridden, see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-8.4.8.3
                 // correct inheritance errors
 
                 // Intermediary & possibly more: overridden methods are not mapped, those are completed
                 // Spigot: replaces wrong names with correct ones from supertypes
 
-                val namespaceIdsToCorrect = (method.tree.dstNamespaces - analyzer.analysisOptions.inheritanceErrorExemptions)
+                val namespaceIdsToCorrect = (method.tree.dstNamespaces - analyzer.options.inheritanceErrorExemptions)
                     .mapTo(mutableSetOf(), method.tree::getNamespaceId)
 
                 namespaceIdsToCorrect.remove(MappingTree.NULL_NAMESPACE_ID) // pop null id, if it's present
@@ -171,7 +186,7 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
                             if (superMethod.srcDesc.withoutReturnTypeIfClass != srcMethodDesc || (superMethod.modifiers and Opcodes.ACC_PRIVATE) != 0) return@superEach
 
                             val rejectedByName = superMethod.srcName != method.srcName
-                            if (rejectedByName && Collections.disjoint(additionalMappings, superMethod.getAdditionalMappingSet())) return@superEach
+                            if (rejectedByName && additionalMappings.none(superMethod.getAdditionalMappingSet()::contains)) return@superEach
 
                             namespaceIdsToCorrect.removeIf { nsId ->
                                 val superMethodName = superMethod.getDstName(nsId)
@@ -197,28 +212,39 @@ open class MappingAnalyzerImpl(val analysisOptions: AnalysisOptions = AnalysisOp
 }
 
 /**
- * Recursively collects all **mapped** supertypes of the class.
+ * Recursively collects **mapped** supertypes of the class.
+ *
+ * @param mode the super type filter
+ * @return the mapped super types
  */
-val MappingTree.ClassMapping.superTypes: List<MappingTree.ClassMapping>
-    get() {
-        val superTypes = mutableSetOf<String>()
-        val mappedSuperTypes = mutableListOf<MappingTree.ClassMapping>()
+fun <T : MappingTreeView.ClassMappingView> T.resolveSuperTypes(
+    mode: InheritanceWalkMode = InheritanceWalkMode.ALL
+): List<T> {
+    val superTypes = mutableSetOf<String>()
+    val mappedSuperTypes = mutableListOf<T>()
 
-        fun processType(klassName: String) {
-            if (superTypes.add(klassName)) {
-                val klass = tree.getClass(klassName) ?: return
-                mappedSuperTypes += klass
+    fun processType(klassName: String, include: Boolean = true) {
+        if (superTypes.add(klassName)) {
+            val klass = tree.getClass(klassName) ?: return
+            if (include) {
+                @Suppress("UNCHECKED_CAST") // should always be the expected type
+                mappedSuperTypes += klass as T
+            }
 
-                processType(klass.superClass)
+            processType(klass.superClass, mode != InheritanceWalkMode.INTERFACES)
+            if (mode != InheritanceWalkMode.CLASSES) {
                 klass.interfaces.forEach(::processType)
             }
         }
-
-        processType(superClass)
-        interfaces.forEach(::processType)
-
-        return mappedSuperTypes
     }
+
+    processType(superClass, mode != InheritanceWalkMode.INTERFACES)
+    if (mode != InheritanceWalkMode.CLASSES) {
+        interfaces.forEach(::processType)
+    }
+
+    return mappedSuperTypes
+}
 
 /**
  * Returns a descriptor string with the return type removed, **if the return type is a class type**.

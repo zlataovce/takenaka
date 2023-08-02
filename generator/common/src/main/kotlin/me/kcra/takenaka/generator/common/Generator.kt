@@ -18,7 +18,8 @@
 package me.kcra.takenaka.generator.common
 
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.mapping.MappingsMap
+import me.kcra.takenaka.generator.common.provider.AncestryProvider
+import me.kcra.takenaka.generator.common.provider.MappingProvider
 
 /**
  * An abstract base for a generator.
@@ -34,18 +35,10 @@ interface Generator {
     val workspace: Workspace
 
     /**
-     * Launches the generator with a pre-determined set of mappings.
-     *
-     * @param mappings the mappings
-     */
-    suspend fun generate(mappings: MappingsMap)
-
-    /**
      * Launches the generator with mappings provided by the provider.
      *
-     * @param provider the provider
+     * @param mappingProvider the mapping provider
+     * @param ancestryProvider the ancestry provider
      */
-    suspend fun generate(provider: MappingProvider) {
-        generate(provider.get())
-    }
+    suspend fun generate(mappingProvider: MappingProvider, ancestryProvider: AncestryProvider)
 }

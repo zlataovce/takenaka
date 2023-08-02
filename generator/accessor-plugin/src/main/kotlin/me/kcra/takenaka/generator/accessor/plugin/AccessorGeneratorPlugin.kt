@@ -17,12 +17,12 @@
 
 package me.kcra.takenaka.generator.accessor.plugin
 
-import me.kcra.takenaka.core.buildWorkspaceOptions
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.plugin.tasks.GenerateAccessorsTask
 import me.kcra.takenaka.generator.accessor.plugin.tasks.ResolveMappingsTask
+import me.kcra.takenaka.generator.common.provider.impl.SimpleMappingProvider
 import me.kcra.takenaka.gradle.BuildConfig
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -47,13 +47,6 @@ class AccessorGeneratorPlugin : Plugin<Project> {
         val config = target.extensions.create<AccessorGeneratorExtension>("accessors", target, manifest)
 
         // automatically adds tasks for basic Mojang-based server accessor generation
-        val options = config.strictCache.map { isStrict ->
-            buildWorkspaceOptions {
-                if (!isStrict) {
-                    relaxedCache()
-                }
-            }
-        }
         val mappingBundle by target.configurations.creating
         val resolveMappings by target.tasks.creating(ResolveMappingsTask::class) {
             group = "takenaka"
@@ -61,7 +54,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
 
             this.cacheDir.set(config.cacheDirectory)
             this.versions.set(config.versions)
-            this.options.set(options)
+            this.relaxedCache.set(config.relaxedCache)
             this.manifest.set(manifest)
         }
         val generateAccessors by target.tasks.creating(GenerateAccessorsTask::class) {
@@ -70,13 +63,14 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             dependsOn(resolveMappings)
 
             this.outputDir.set(config.outputDirectory)
-            this.mappings.set(resolveMappings.mappings)
+            this.mappingProvider.set(resolveMappings.mappings.map(::SimpleMappingProvider))
             this.accessors.set(config.accessors)
             this.basePackage.set(config.basePackage)
             this.languageFlavor.set(config.languageFlavor)
             this.accessorFlavor.set(config.accessorFlavor)
             this.accessedNamespaces.set(config.accessedNamespaces)
-            this.options.set(options)
+            this.historyNamespaces.set(config.historyNamespaces)
+            this.historyIndexNamespace.set(config.historyIndexNamespace)
         }
 
         target.tasks.withType<JavaCompile> {

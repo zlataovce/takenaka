@@ -23,18 +23,18 @@ import kotlinx.coroutines.launch
 import kotlinx.html.dom.serialize
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
-import me.kcra.takenaka.core.mapping.MappingsMap
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
-import me.kcra.takenaka.core.mapping.ancestry.impl.classAncestryTreeOf
 import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.core.mapping.util.hash
 import me.kcra.takenaka.generator.common.Generator
+import me.kcra.takenaka.generator.common.provider.AncestryProvider
+import me.kcra.takenaka.generator.common.provider.MappingProvider
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
-import me.kcra.takenaka.generator.web.transformers.Minifier
+import me.kcra.takenaka.generator.web.transformers.MinifyingTransformer
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.w3c.dom.Document
@@ -42,6 +42,7 @@ import java.io.BufferedReader
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.*
+import kotlin.io.path.appendText
 import kotlin.io.path.writeText
 
 /**
@@ -57,7 +58,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
     private val namespaceFriendlyNames = config.namespaces.mapValues { it.value.friendlyName }
     private val currentComposite by workspace
 
-    internal val hasMinifier = config.transformers.any { it is Minifier }
+    internal val hasMinifier = config.transformers.any { it is MinifyingTransformer }
 
     /**
      * A [Comparator] for comparing the friendliness of namespaces, useful for sorting.
@@ -84,16 +85,17 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
     val namespacesByFriendlyNames = config.namespaces.mapKeys { it.value.friendlyName }
 
     /**
-     * Launches the generator with a pre-determined set of mappings.
+     * Launches the generator with mappings provided by the provider.
      *
-     * @param mappings the mappings
+     * @param mappingProvider the mapping provider
+     * @param ancestryProvider the ancestry provider
      */
-    override suspend fun generate(mappings: MappingsMap) {
-        val styleConsumer = DefaultStyleConsumer()
+    override suspend fun generate(mappingProvider: MappingProvider, ancestryProvider: AncestryProvider) {
+        val mappings = mappingProvider.get()
+        val tree = ancestryProvider.klass<MappingTreeView, MappingTreeView.ClassMappingView>(mappings)
 
-        generationContext(styleConsumer = styleConsumer::apply) {
-            val tree = classAncestryTreeOf(mappings, config.historicalNamespaces)
-
+        val styleProvider: StyleProvider? = if (config.emitPseudoElements) StyleProviderImpl() else null
+        generationContext(ancestryProvider, styleProvider) {
             // used for looking up history hashes - for linking
             val hashMap = IdentityHashMap<MappingTreeView.ClassMappingView, String>()
 
@@ -111,7 +113,6 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                 }
             }
 
-            // second pass: generate the documentation
             mappings.forEach { (version, tree) ->
                 val nmsVersion = tree.craftBukkitNmsVersion
 
@@ -196,7 +197,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
 
         copyAsset("main.js")
 
-        val componentFileContent = generateComponentFile(
+        val componentFileContent = generateComponentScript(
             component {
                 tag = "nav"
                 content {
@@ -206,15 +207,23 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                     const overviewLink = document.getElementById("overview-link");
                     const licensesLink = document.getElementById("licenses-link");
                     const searchInput = document.getElementById("search-input");
+                    const searchBox = document.getElementById("search-box");
                     
                     if (baseUrl) {
-                        overviewLink.href = baseUrl + "/index.html";
-                        licensesLink.href = baseUrl + "/licenses.html";
+                        overviewLink.href = `${'$'}{baseUrl}/index.html`;
+                        licensesLink.href = `${'$'}{baseUrl}/licenses.html`;
+                        
                         searchInput.addEventListener("input", (evt) => search(evt.target.value));
+                        document.addEventListener("mouseup", (evt) => {
+                            searchBox.style.display = !searchInput.contains(evt.target) && !searchBox.contains(evt.target) ? "none" : "block";
+                        });
+                        
+                        initialIndexLoadPromise.then(updateOptions);
                     } else {
                         overviewLink.remove();
                         licensesLink.remove();
                         searchInput.remove();
+                        searchBox.remove();
                         e.dataset.collapsed = "yes";
                     }
                 """.trimIndent()
@@ -226,10 +235,10 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                 }
             }
         )
-        assetWorkspace["components.js"].writeText(transformJs(componentFileContent))
-        assetWorkspace["generated.css"].writeText(transformCss(styleConsumer.generateStyleSheet()))
+        assetWorkspace["main.js"].appendText(transformJs(componentFileContent))
 
         copyAsset("main.css") // main.css should be copied last to minify correctly
+        styleProvider?.let { assetWorkspace["main.css"].appendText(transformCss(it.asStyleSheet())) }
     }
 
     /**
@@ -260,13 +269,16 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
     }
 
     /**
-     * Generates a components.js file.
+     * Generates script for loading components.
      *
      * @param components a list of tag-document-callback
      * @return the content of the component file
      */
-    fun generateComponentFile(vararg components: ComponentDefinition): String = buildString {
-        fun Document.serializeAsComponent(): String = transformHtml(serialize(prettyPrint = false)).substringAfter("\n")
+    fun generateComponentScript(vararg components: ComponentDefinition): String = buildString {
+        fun Document.serializeAsComponent(): String = transformHtml(
+            serialize(prettyPrint = false)
+                .substringAfter("\n") // remove <!DOCTYPE html>
+        )
 
         append(
             """

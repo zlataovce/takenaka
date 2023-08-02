@@ -18,9 +18,7 @@
 package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.DefaultWorkspaceOptions
 import me.kcra.takenaka.core.VersionedWorkspace
-import me.kcra.takenaka.core.contains
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.resolve.AbstractOutputContainer
 import me.kcra.takenaka.core.mapping.resolve.Output
@@ -48,11 +46,13 @@ private val logger = KotlinLogging.logger {}
  *
  * @property workspace the workspace
  * @property mojangProvider the Mojang manifest provider
+ * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
 class VanillaMappingContributor(
     val workspace: VersionedWorkspace,
-    val mojangProvider: MojangManifestAttributeProvider
+    val mojangProvider: MojangManifestAttributeProvider,
+    val relaxedCache: Boolean = true
 ) : AbstractOutputContainer<Path?>(), MappingContributor {
     override val targetNamespace: String = MappingUtil.NS_SOURCE_FALLBACK
     override val outputs: List<Output<out Path?>>
@@ -63,9 +63,10 @@ class VanillaMappingContributor(
      *
      * @param workspace the workspace
      * @param objectMapper an [ObjectMapper] that can deserialize JSON data
+     * @param relaxedCache whether output cache verification constraints should be relaxed
      */
-    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper) :
-            this(workspace, MojangManifestAttributeProvider(workspace, objectMapper))
+    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true) :
+            this(workspace, MojangManifestAttributeProvider(workspace, objectMapper), relaxedCache)
 
     /**
      * The vanilla server JAR output.
@@ -132,7 +133,7 @@ class VanillaMappingContributor(
                 if (zf.getEntry("net/minecraft/bundler/Main.class") != null) {
                     val bundledFile = file.resolveSibling(file.nameWithoutExtension + "-bundled.jar")
 
-                    if (DefaultWorkspaceOptions.RELAXED_CACHE !in workspace.options || !bundledFile.isRegularFile()) {
+                    if (!relaxedCache || !bundledFile.isRegularFile()) {
                         zf.getInputStream(zf.getEntry("META-INF/versions/${workspace.version.id}/server-${workspace.version.id}.jar")).use {
                             Files.copy(it, bundledFile, StandardCopyOption.REPLACE_EXISTING)
                         }
