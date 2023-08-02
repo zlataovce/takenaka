@@ -25,15 +25,21 @@ import com.squareup.kotlinpoet.javapoet.KotlinPoetJavaPoetPreview
 import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
+import me.kcra.takenaka.generator.common.provider.AncestryProvider
 
 /**
  * A generation context that emits Kotlin code.
  *
- * @property generator the generator
+ * @param generator the generator
+ * @param ancestryProvider the ancestryProvider
  * @param contextScope the coroutine scope of this context
  * @author Matouš Kučera
  */
-open class KotlinGenerationContext(override val generator: AccessorGenerator, contextScope: CoroutineScope) : AbstractGenerationContext(contextScope) {
+open class KotlinGenerationContext(
+    generator: AccessorGenerator,
+    ancestryProvider: AncestryProvider,
+    contextScope: CoroutineScope
+) : AbstractGenerationContext(generator, ancestryProvider, contextScope) {
     /**
      * Generates an accessor class from a model in Kotlin.
      *

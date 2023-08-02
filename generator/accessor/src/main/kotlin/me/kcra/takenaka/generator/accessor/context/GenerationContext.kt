@@ -63,7 +63,6 @@ suspend inline fun <R> AccessorGenerator.generationContext(
         when (flavor) {
             LanguageFlavor.JAVA -> JavaGenerationContext(this@generationContext, ancestryProvider, this)
             LanguageFlavor.KOTLIN -> KotlinGenerationContext(this@generationContext, ancestryProvider, this)
-            else -> throw UnsupportedOperationException("Flavor $flavor not supported")
         }
     )
 }

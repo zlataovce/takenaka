@@ -41,7 +41,8 @@ import javax.lang.model.element.Modifier
 /**
  * A generation context that emits Java code.
  *
- * @property generator the generator
+ * @param generator the generator
+ * @param ancestryProvider the ancestry provider
  * @param contextScope the coroutine scope of this context
  * @author Matouš Kučera
  */
