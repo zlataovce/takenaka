@@ -21,6 +21,9 @@ package me.kcra.takenaka.generator.accessor.context.impl
 
 import com.squareup.kotlinpoet.javapoet.*
 
+typealias JCodeBlock = com.squareup.javapoet.CodeBlock
+typealias KCodeBlock = com.squareup.kotlinpoet.CodeBlock
+
 /**
  * JavaPoet/KotlinPoet types.
  */
