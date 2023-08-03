@@ -35,3 +35,36 @@ fun String.camelToUpperSnakeCase(): String {
 
     return CAMEL_REGEX.replace(this) { "_${it.value}" }.uppercase()
 }
+
+/**
+ * Returns whether the string is a glob pattern (contains `*` or `?`).
+ */
+val String.isGlob: Boolean
+    get() = contains('*') || contains('?')
+
+/**
+ * Converts a glob pattern to a regular expression pattern.
+ *
+ * @return the pattern
+ */
+fun String.globAsRegex(): Regex {
+    val pattern = buildString {
+        append("^")
+
+        this@globAsRegex.forEach { c ->
+            append(
+                when (c) {
+                    '*' -> ".*"
+                    '?' -> '.'
+                    '.' -> "\\."
+                    '\\' -> "\\\\"
+                    else -> c
+                }
+            )
+        }
+
+        append("$")
+    }
+
+    return pattern.toRegex()
+}

@@ -56,7 +56,7 @@ open class JavaGenerationContext(
      *
      * @param resolvedAccessor the accessor model
      */
-    override fun generateClass0(resolvedAccessor: ResolvedClassAccessor) {
+    override fun generateClass(resolvedAccessor: ResolvedClassAccessor) {
         val accessedQualifiedName = resolvedAccessor.model.name.fromInternalName()
         val accessedSimpleName = resolvedAccessor.model.internalName.substringAfterLast('/')
 

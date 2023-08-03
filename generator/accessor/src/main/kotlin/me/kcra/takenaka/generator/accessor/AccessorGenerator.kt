@@ -25,10 +25,7 @@ import me.kcra.takenaka.generator.accessor.context.generationContext
 import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import me.kcra.takenaka.generator.common.provider.MappingProvider
-import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTreeView
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * A generator that generates source code for accessing obfuscated elements using mapped names across versions.
@@ -55,13 +52,7 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
         generationContext(ancestryProvider, config.languageFlavor) {
             config.accessors.forEach { classAccessor ->
                 launch(Dispatchers.Default + CoroutineName("generate-coro")) {
-                    logger.info { "generating accessors for class '${classAccessor.internalName}'" }
-
-                    val node = checkNotNull(tree[classAccessor.internalName]) {
-                        "Class ancestry node with name ${classAccessor.internalName} not found"
-                    }
-
-                    generateClass(classAccessor, node)
+                    generateClass(classAccessor, tree)
                 }
             }
         }

@@ -19,7 +19,7 @@ package me.kcra.takenaka.generator.accessor.context
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
-import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
+import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryTree
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.LanguageFlavor
 import me.kcra.takenaka.generator.accessor.context.impl.JavaGenerationContext
@@ -41,9 +41,9 @@ interface GenerationContext : CoroutineScope {
      * Generates an accessor class from a model.
      *
      * @param model the accessor model
-     * @param node the ancestry node of the class defined by the model
+     * @param tree the class ancestry tree
      */
-    fun generateClass(model: ClassAccessor, node: ClassAncestryNode)
+    fun generateClass(model: ClassAccessor, tree: ClassAncestryTree)
 }
 
 /**
