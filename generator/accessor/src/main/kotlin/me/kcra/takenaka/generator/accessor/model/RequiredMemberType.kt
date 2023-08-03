@@ -33,6 +33,11 @@ object DefaultRequiredMemberTypes {
      * A constant field (`static final` modifiers, includes enum constants).
      */
     const val CONSTANT = 0x00000001
+
+    /**
+     * An enum constant (`static final` | [org.objectweb.asm.Opcodes.ACC_ENUM] modifiers).
+     */
+    const val ENUM_CONSTANT = 0x0000002
 }
 
 /**

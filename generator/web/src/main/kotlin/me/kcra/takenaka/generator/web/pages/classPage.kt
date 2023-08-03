@@ -362,14 +362,22 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
     val friendlyName = getFriendlyDstName(klass).fromInternalName()
     val mod = klass.modifiers
 
+    val superClass = klass.superClass
+    val interfaces = klass.interfaces
+
     val modifiersAndName = buildString {
         append(mod.formatModifiers(Modifier.classModifiers()))
         when {
             (mod and Opcodes.ACC_ANNOTATION) != 0 -> append("@interface ") // annotations are interfaces, so this must be before ACC_INTERFACE
-            (mod and Opcodes.ACC_INTERFACE) != 0 -> append("interface ")
-            (mod and Opcodes.ACC_ENUM) != 0 -> append("enum ")
+            (mod and Opcodes.ACC_INTERFACE) != 0 -> {
+                // no ACC_ANNOTATION, but looks like an annotation; must be an evil obfuscator
+                if ("java/lang/annotation/Annotation" in interfaces) append('@')
+
+                append("interface ")
+            }
+            (mod and Opcodes.ACC_ENUM) != 0 || superClass == "java/lang/Enum" -> append("enum ")
             (mod and Opcodes.ACC_MODULE) != 0 -> append("module ")
-            (mod and Opcodes.ACC_RECORD) != 0 -> append("record ")
+            (mod and Opcodes.ACC_RECORD) != 0 || superClass == "java/lang/Record" -> append("record ")
             else -> append("class ")
         }
         append(friendlyName.substringAfterLast('.'))
@@ -378,7 +386,6 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
     var formals: String? = null
     lateinit var superTypes: String
 
-    val superClass = klass.superClass
     val hasVisibleSuperClass = superClass != "java/lang/Object" && superClass != "java/lang/Record" && superClass != "java/lang/Enum"
 
     val signature = klass.signature
@@ -397,29 +404,29 @@ fun GenerationContext.formatClassDescriptor(klass: MappingTreeView.ClassMappingV
 
         // remove the java/lang/Enum generic superclass, this is a hack and should have been done in SignatureFormatter,
         // however you would have to skip the superclass and then the following type parameter, so I think that this is the simpler way
-        if ((mod and Opcodes.ACC_ENUM) != 0) {
+        if ((mod and Opcodes.ACC_ENUM) != 0 || superClass == "java/lang/Enum") {
             val implementsClauseIndex = superTypes.indexOf("implements")
 
             superTypes = if (implementsClauseIndex != -1) superTypes.substring(implementsClauseIndex) else ""
         }
     } else {
-        val interfaces = klass.interfaces.filter { it != "java/lang/annotation/Annotation" }
+        val nonImplicitInterfaces = interfaces.filter { it != "java/lang/annotation/Annotation" }
 
         superTypes = buildString {
             if (hasVisibleSuperClass) {
                 append("extends ${nameRemapper.mapAndLink(superClass, version, generator.config.index)}")
-                if (interfaces.isNotEmpty()) {
+                if (nonImplicitInterfaces.isNotEmpty()) {
                     append(" ")
                 }
             }
-            if (interfaces.isNotEmpty()) {
+            if (nonImplicitInterfaces.isNotEmpty()) {
                 append(
                     when {
                         (mod and Opcodes.ACC_INTERFACE) != 0 -> "extends"
                         else -> "implements"
                     }
                 )
-                append(" ${interfaces.joinToString(", ") { nameRemapper.mapAndLink(it, version, generator.config.index) }}")
+                append(" ${nonImplicitInterfaces.joinToString(", ") { nameRemapper.mapAndLink(it, version, generator.config.index) }}")
             }
         }
     }
