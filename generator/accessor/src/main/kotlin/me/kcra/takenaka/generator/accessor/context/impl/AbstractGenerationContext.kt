@@ -161,11 +161,12 @@ abstract class AbstractGenerationContext(
      * @return the nodes
      */
     protected fun resolveRequiredFields(tree: FieldAncestryTree, types: RequiredMemberTypes): List<FieldAncestryNode> = tree.filter { node ->
-        if ((types and DefaultRequiredMemberTypes.CONSTANT) != 0) {
+        val requiresEnumConstant = (types and DefaultRequiredMemberTypes.ENUM_CONSTANT) != 0
+        if (requiresEnumConstant || (types and DefaultRequiredMemberTypes.CONSTANT) != 0) {
             val mod = node.last.value.modifiers
 
             if ((mod and Opcodes.ACC_STATIC) != 0 && (mod and Opcodes.ACC_FINAL) != 0) {
-                return@filter true
+                return@filter !(requiresEnumConstant && (mod and Opcodes.ACC_ENUM) == 0)
             }
         }
 
