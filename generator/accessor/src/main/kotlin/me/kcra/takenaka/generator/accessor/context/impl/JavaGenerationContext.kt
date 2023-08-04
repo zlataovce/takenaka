@@ -93,7 +93,7 @@ open class JavaGenerationContext(
                     .addAnnotation(SourceTypes.NOT_NULL)
                     .initializer(
                         CodeBlock.builder()
-                            .add("new \$T()", SourceTypes.CLASS_MAPPING)
+                            .add("new \$T(\$S)", SourceTypes.CLASS_MAPPING, accessedQualifiedName)
                             .indent()
                             .apply {
                                 groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
@@ -391,6 +391,43 @@ open class JavaGenerationContext(
         if (generator.config.accessorFlavor != AccessorFlavor.NONE) {
             accessorBuilder.build().writeTo(generator.workspace)
         }
+    }
+
+    /**
+     * Generates a Java mapping pool class from class names.
+     *
+     * @param names internal names of classes declared in accessor models
+     */
+    override fun generatePool(names: List<String>) {
+        val poolClassName = JClassName.get(generator.config.basePackage, "Mappings")
+
+        JTypeSpec.interfaceBuilder(poolClassName)
+            .addModifiers(Modifier.PUBLIC)
+            .addJavadoc("Mapping pool of mappings generated on {@code \$L}.", DATE_FORMAT.format(generationTime))
+            .addField(
+                FieldSpec.builder(SourceTypes.MAPPING_POOL, "POOL", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                    .addAnnotation(SourceTypes.NOT_NULL)
+                    .initializer(
+                        CodeBlock.builder()
+                            .add("new \$T()", SourceTypes.MAPPING_POOL)
+                            .indent()
+                            .apply {
+                                names.forEach { name ->
+                                    val mappingClassName = JClassName.get(
+                                        generator.config.basePackage,
+                                        "${name.substringAfterLast('/')}Mapping"
+                                    )
+
+                                    add("\n.put(\$T.MAPPING)", mappingClassName)
+                                }
+                            }
+                            .unindent()
+                            .build()
+                    )
+                    .build()
+            )
+            .build()
+            .writeTo(generator.workspace)
     }
 
     /**

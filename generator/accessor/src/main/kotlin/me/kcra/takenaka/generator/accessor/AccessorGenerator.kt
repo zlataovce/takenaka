@@ -19,6 +19,7 @@ package me.kcra.takenaka.generator.accessor
 
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.generator.accessor.context.generationContext
@@ -50,11 +51,15 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
         val tree = ancestryProvider.klass<MappingTreeView, MappingTreeView.ClassMappingView>(mappings)
 
         generationContext(ancestryProvider, config.languageFlavor) {
-            config.accessors.forEach { classAccessor ->
-                launch(Dispatchers.Default + CoroutineName("generate-coro")) {
-                    generateClass(classAccessor, tree)
+            coroutineScope {
+                config.accessors.forEach { classAccessor ->
+                    launch(Dispatchers.Default + CoroutineName("generate-coro")) {
+                        generateClass(classAccessor, tree)
+                    }
                 }
             }
+
+            generatePool()
         }
     }
 }

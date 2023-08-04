@@ -311,7 +311,7 @@ public final class MethodMapping {
             @NotNull String... types
     ) {
         for (final String version : versions) {
-            mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, NameDescriptorPair.of(name, types));
+            mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, new NameDescriptorPair(name, types));
         }
         return this;
     }

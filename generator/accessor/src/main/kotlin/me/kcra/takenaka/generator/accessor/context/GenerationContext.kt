@@ -44,6 +44,12 @@ interface GenerationContext : CoroutineScope {
      * @param tree the class ancestry tree
      */
     fun generateClass(model: ClassAccessor, tree: ClassAncestryTree)
+
+    /**
+     * Generates a mapping pool class with accessors
+     * that have been generated in this context.
+     */
+    fun generatePool()
 }
 
 /**
