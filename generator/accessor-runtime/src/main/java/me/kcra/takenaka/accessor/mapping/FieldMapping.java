@@ -65,6 +65,7 @@ public final class FieldMapping {
     /**
      * Cached value from {@link #getConstantValue()}.
      */
+    @ToString.Exclude
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
     private volatile Object constantValue = UNINITIALIZED_VALUE;
