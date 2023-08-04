@@ -36,7 +36,9 @@ import java.util.Map;
  *
  * @author Matouš Kučera
  */
-@Data
+@Getter
+@Setter
+@ToString
 @RequiredArgsConstructor
 public final class FieldMapping {
     /**
@@ -47,6 +49,7 @@ public final class FieldMapping {
     /**
      * The parent class mapping.
      */
+    @ToString.Exclude
     private final ClassMapping parent;
 
     /**
@@ -64,7 +67,6 @@ public final class FieldMapping {
      */
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
-    @EqualsAndHashCode.Exclude
     private volatile Object constantValue = UNINITIALIZED_VALUE;
 
     /**
@@ -385,5 +387,33 @@ public final class FieldMapping {
             mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, mapping);
         }
         return this;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        FieldMapping that = (FieldMapping) o;
+
+        if (parent != that.parent) { // use reference equality here to prevent stack overflow
+            return false;
+        }
+        if (!name.equals(that.name)) {
+            return false;
+        }
+        return mappings.equals(that.mappings);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = System.identityHashCode(parent); // use identity hash code here to prevent stack overflow
+        result = 31 * result + name.hashCode();
+        result = 31 * result + mappings.hashCode();
+        return result;
     }
 }
