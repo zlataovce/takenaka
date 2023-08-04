@@ -67,6 +67,11 @@ abstract class AbstractGenerationContext(
     contextScope: CoroutineScope
 ) : GenerationContext, CoroutineScope by contextScope {
     /**
+     * Names of classes that were generated.
+     */
+    private val generatedClasses = mutableSetOf<String>()
+
+    /**
      * The generation timestamp of this context's output.
      */
     val generationTime = Date()
@@ -112,6 +117,11 @@ abstract class AbstractGenerationContext(
      * @param node the ancestry node of the class defined by the model
      */
     protected fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
+        if (!generatedClasses.add(model.internalName)) {
+            logger.warn { "class '${model.internalName}' has already had accessors generated, duplicate model?" }
+            return
+        }
+
         logger.info { "generating accessors for class '${model.internalName}'" }
 
         val fieldTree = ancestryProvider.field<_, _, FieldMappingView>(node)
