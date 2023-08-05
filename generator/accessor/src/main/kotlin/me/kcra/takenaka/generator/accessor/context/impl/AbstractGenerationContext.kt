@@ -30,6 +30,8 @@ import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.context.GenerationContext
 import me.kcra.takenaka.generator.accessor.model.*
+import me.kcra.takenaka.generator.accessor.util.globAsRegex
+import me.kcra.takenaka.generator.accessor.util.isGlob
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTreeView.*
@@ -65,17 +67,63 @@ abstract class AbstractGenerationContext(
     contextScope: CoroutineScope
 ) : GenerationContext, CoroutineScope by contextScope {
     /**
+     * Names of classes that were generated.
+     */
+    private val generatedClasses = mutableSetOf<String>()
+
+    /**
      * The generation timestamp of this context's output.
      */
-    val generationTime by lazy(::Date)
+    val generationTime = Date()
 
     /**
      * Generates an accessor class from a model.
      *
      * @param model the accessor model
+     * @param tree the class ancestry tree
+     */
+    override fun generateClass(model: ClassAccessor, tree: ClassAncestryTree) {
+        if (model.internalName.isGlob) {
+            val pattern = model.internalName.globAsRegex()
+            val nodes = tree.find(pattern)
+
+            logger.info { "matched ${nodes.size} nodes from glob pattern '${model.internalName}'" }
+            nodes.forEach { node ->
+                generateClass(
+                    ClassAccessor(
+                        getFriendlyName(node.last.value),
+                        model.fields,
+                        model.constructors,
+                        model.methods,
+                        model.requiredTypes
+                    ),
+                    node
+                )
+            }
+        } else {
+            generateClass(
+                model,
+                checkNotNull(tree[model.internalName]) {
+                    "Class ancestry node with name ${model.internalName} not found"
+                }
+            )
+        }
+    }
+
+    /**
+     * Generates an accessor class from a class ancestry node.
+     *
+     * @param model the accessor model
      * @param node the ancestry node of the class defined by the model
      */
-    override fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
+    protected fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
+        if (!generatedClasses.add(model.internalName)) {
+            logger.warn { "class '${model.internalName}' has already had accessors generated, duplicate model?" }
+            return
+        }
+
+        logger.info { "generating accessors for class '${model.internalName}'" }
+
         val fieldTree = ancestryProvider.field<_, _, FieldMappingView>(node)
         val fieldAccessors = model.fields.flatMap { resolveFieldChain(fieldTree, it) } +
                 resolveRequiredFields(fieldTree, model.requiredTypes).map { fieldNode ->
@@ -105,7 +153,7 @@ abstract class AbstractGenerationContext(
             methodAccessor to methodOverloadCount.compute(methodAccessor.upperName) { _, i -> i?.inc() ?: 0 }!!
         }
 
-        generateClass0(ResolvedClassAccessor(model, node, fieldAccessors, ctorAccessors, methodAccessors, fieldOverloads, methodOverloads))
+        generateClass(ResolvedClassAccessor(model, node, fieldAccessors, ctorAccessors, methodAccessors, fieldOverloads, methodOverloads))
     }
 
     /**
@@ -113,7 +161,22 @@ abstract class AbstractGenerationContext(
      *
      * @param resolvedAccessor the resolved accessor model
      */
-    protected abstract fun generateClass0(resolvedAccessor: ResolvedClassAccessor)
+    protected abstract fun generateClass(resolvedAccessor: ResolvedClassAccessor)
+
+    /**
+     * Generates a mapping pool class with accessors
+     * that have been generated in this context.
+     */
+    override fun generatePool() {
+        generatePool(generatedClasses.toList())
+    }
+
+    /**
+     * Generates a mapping pool class from class names.
+     *
+     * @param names internal names of classes declared in accessor models
+     */
+    protected abstract fun generatePool(names: List<String>)
 
     /**
      * Resolves a field ancestry node from a model.
@@ -161,11 +224,12 @@ abstract class AbstractGenerationContext(
      * @return the nodes
      */
     protected fun resolveRequiredFields(tree: FieldAncestryTree, types: RequiredMemberTypes): List<FieldAncestryNode> = tree.filter { node ->
-        if ((types and DefaultRequiredMemberTypes.CONSTANT) != 0) {
+        val requiresEnumConstant = (types and DefaultRequiredMemberTypes.ENUM_CONSTANT) != 0
+        if (requiresEnumConstant || (types and DefaultRequiredMemberTypes.CONSTANT) != 0) {
             val mod = node.last.value.modifiers
 
             if ((mod and Opcodes.ACC_STATIC) != 0 && (mod and Opcodes.ACC_FINAL) != 0) {
-                return@filter true
+                return@filter !(requiresEnumConstant && (mod and Opcodes.ACC_ENUM) == 0)
             }
         }
 
@@ -252,16 +316,16 @@ abstract class AbstractGenerationContext(
     }
 
     /**
-     * Returns a mapped name of a member based on the friendliness index.
+     * Returns a mapped name of an element based on the friendliness index.
      *
-     * @param member the member
+     * @param elem the element
      * @return the mapped name
      */
-    protected fun getFriendlyName(member: MemberMappingView): String {
+    protected fun getFriendlyName(elem: ElementMappingView): String {
         generator.config.namespaceFriendlinessIndex.forEach { ns ->
-            member.getName(ns)?.let { return it }
+            elem.getName(ns)?.let { return it }
         }
-        return member.tree.dstNamespaceIds.firstNotNullOfOrNull(member::getDstName) ?: member.srcName
+        return elem.tree.dstNamespaceIds.firstNotNullOfOrNull(elem::getDstName) ?: elem.srcName
     }
 
     /**

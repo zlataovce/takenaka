@@ -316,6 +316,19 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeV
 }
 
 /**
+ * Searches for class nodes in a tree, an alternative to [AncestryTree.get] if you don't know the full class name.
+ *
+ * @param pattern the regular expression, which should fully match at least one mapping of the class
+ * @param T the mapping tree type
+ * @param M the mapping tree class type
+ * @return the class nodes
+ */
+fun <T : MappingTreeView, M : MappingTreeView.ClassMappingView> AncestryTree<T, M>.find(pattern: Regex): List<AncestryTree.Node<T, M>> = filter { node ->
+    @Suppress("UNCHECKED_CAST") // should always be String, since it's a class
+    (node.lastNames as Set<String>).any(pattern::matches)
+}
+
+/**
  * Searches for a member node in a tree, an alternative to [AncestryTree.get] if you don't know the descriptor or only the arguments.
  *
  * @param name the mapped field name
@@ -323,6 +336,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeV
  * @param version the version in which [name] is located, presumes last (newest) if null
  * @param T the mapping tree type
  * @param M the mapping tree member type
+ * @return the member node, null if not found
  */
 fun <T : MappingTreeView, M : MappingTreeView.MemberMappingView> AncestryTree<T, M>.find(
     name: String,

@@ -249,7 +249,7 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     /**
      * Creates a new accessor model with the supplied name.
      *
-     * @param name the mapped class name
+     * @param name the mapped class name or a glob pattern
      * @return the mapped class name ([name]), use this to refer to this class elsewhere
      */
     fun mapClass(name: String): String = mapClass(name) {}
@@ -257,7 +257,7 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     /**
      * Creates a new accessor model with the supplied name.
      *
-     * @param name the mapped class name
+     * @param name the mapped class name or a glob pattern
      * @param block the builder action
      * @return the mapped class name ([name]), use this to refer to this class elsewhere
      */

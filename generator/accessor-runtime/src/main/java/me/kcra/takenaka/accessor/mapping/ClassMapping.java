@@ -41,6 +41,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public final class ClassMapping {
     /**
+     * The accessed class name declared in the accessor model.
+     */
+    private final String name;
+
+    /**
      * The mappings, a map of namespace-mapping maps keyed by version.
      * <p>
      * Fully qualified class name parts are delimited by <strong>dots, not slashes</strong> (non-internal names).
@@ -64,9 +69,11 @@ public final class ClassMapping {
 
     /**
      * Constructs a new {@link ClassMapping} without any initial mappings or members.
+     *
+     * @param name the accessed class name declared in the accessor model
      */
-    public ClassMapping() {
-        this(new HashMap<>(), new HashMap<>(), new ArrayList<>(), new HashMap<>());
+    public ClassMapping(@NotNull String name) {
+        this(name, new HashMap<>(), new HashMap<>(), new ArrayList<>(), new HashMap<>());
     }
 
     /**
@@ -261,7 +268,7 @@ public final class ClassMapping {
             @NotNull String name,
             @NotNull String... parameters
     ) {
-        return remapMethod(version, namespace, NameDescriptorPair.of(name, parameters));
+        return remapMethod(version, namespace, new NameDescriptorPair(name, parameters));
     }
 
     /**
