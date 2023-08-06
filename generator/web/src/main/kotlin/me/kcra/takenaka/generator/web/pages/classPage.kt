@@ -165,7 +165,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                 h4 {
                     +"Field summary"
                 }
-                table(classes = "styled-table") {
+                table(classes = "styled-table styled-mobile-table") {
                     thead {
                         tr {
                             th {
@@ -267,7 +267,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                 h4 {
                     +"Method summary"
                 }
-                table(classes = "styled-table") {
+                table(classes = "styled-table styled-mobile-table") {
                     thead {
                         tr {
                             th {
