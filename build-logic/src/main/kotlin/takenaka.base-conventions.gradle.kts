@@ -23,6 +23,9 @@ java {
 license {
     skipExistingHeaders(true)
     header(rootProject.file("license_header.txt"))
+
+    exclude("**/BuildConfig.kt") // generated file
+    exclude("**/*.properties") // detection is not very good, doesn't need a license anyway
 }
 
 val versionRegex = "^[0-9,.v-]+(-r)?$".toRegex()
