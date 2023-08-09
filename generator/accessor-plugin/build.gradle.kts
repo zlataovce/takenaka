@@ -11,10 +11,10 @@ plugins {
     `kotlin-dsl`
 }
 
-apply(plugin = "org.jetbrains.kotlin.jvm")
-
 dependencies {
-    implementation(project(":generator-accessor"))
+    implementation(project(":generator-accessor")) {
+        exclude(group = "org.jetbrains.kotlin") // handled by gradle
+    }
 }
 
 gradlePlugin {

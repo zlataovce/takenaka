@@ -48,7 +48,7 @@ fun GenerationContext.versionsPage(welcomeMessage: String?, versions: Map<Versio
                 }
             }
 
-            table(classes = "styled-table") {
+            table(classes = "styled-table styled-mobile-table") {
                 thead {
                     tr {
                         th {
