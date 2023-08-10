@@ -54,7 +54,7 @@ fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: St
                         }
                     }
                     .joinToString(),
-                themeColor = "#21ff21"
+                themeColor = generator.config.themeColor
             )
         }
         title(content = "${workspace.version.id} - $packageName0")

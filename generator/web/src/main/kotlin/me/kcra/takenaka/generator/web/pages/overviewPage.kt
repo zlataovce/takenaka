@@ -40,7 +40,7 @@ fun GenerationContext.overviewPage(workspace: VersionedWorkspace, packages: Set<
             metadataComponent(
                 title = workspace.version.id,
                 description = if (packages.size == 1) "1 package" else "${packages.size} packages",
-                themeColor = "#21ff21"
+                themeColor = generator.config.themeColor
             )
         }
         title(content = "overview - ${workspace.version.id}")

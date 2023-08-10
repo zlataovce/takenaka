@@ -187,7 +187,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
             metadataComponent(
                 title = lastFriendlyMapping,
                 description = if (node.size == 1) "1 version, ${node.first.key.id}" else "${node.size} versions, ${node.first.key.id} - ${node.last.key.id}",
-                themeColor = "#21ff21"
+                themeColor = generator.config.themeColor
             )
         }
         title(content = "history - $lastFriendlyMapping")

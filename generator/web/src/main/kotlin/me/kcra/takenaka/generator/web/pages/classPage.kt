@@ -76,7 +76,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                         append(", hash: $hash")
                     }
                 },
-                themeColor = "#21ff21"
+                themeColor = generator.config.themeColor
             )
         }
         title(content = "${workspace.version.id} - $friendlyKlassName")
