@@ -26,8 +26,8 @@ import me.kcra.takenaka.core.mapping.ancestry.*
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
-import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.util.allNamespaceIds
+import me.kcra.takenaka.generator.web.ContextualElementRemapper
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.*
 import net.fabricmc.mappingio.tree.MappingTreeView
@@ -65,7 +65,9 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
             val tree = checkNotNull(fieldTree.trees[version]) {
                 "Field tree does not have parent's version"
             }
-            val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
+            val remapper = ContextualElementRemapper(ElementRemapper(tree, ::getFriendlyDstName), null, generator.config.index) { name ->
+                "../${version.id}/$name.html"
+            }
 
             fieldTree.forEach { fieldNode ->
                 val nullableField = fieldNode[version]
@@ -75,7 +77,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                     fieldNode,
                     nullableField?.let { field ->
                         HistoricalDescriptableDetail(
-                            formatFieldDescriptor(field, version, friendlyNameRemapper),
+                            field.formatDescriptor(remapper),
                             tree.allNamespaceIds
                                 .mapNotNull { id ->
                                     id to (getNamespaceFriendlyName(tree.getNamespaceName(id)) ?: return@mapNotNull null)
@@ -102,7 +104,9 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
             val tree = checkNotNull(methodTree.trees[version]) {
                 "Method tree does not have parent's version"
             }
-            val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
+            val remapper = ContextualElementRemapper(ElementRemapper(tree, ::getFriendlyDstName), null, generator.config.index) { name ->
+                "../${version.id}/$name.html"
+            }
 
             methodTree.forEach { methodNode ->
                 val nullableMethod = methodNode[version]
@@ -111,13 +115,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                     version,
                     methodNode,
                     nullableMethod?.let { method ->
-                        val methodDeclaration = formatMethodDescriptor(
-                            method,
-                            method.modifiers,
-                            version,
-                            friendlyNameRemapper,
-                            generateNamedParameters = false
-                        )
+                        val methodDeclaration = method.formatDescriptor(remapper, generateNamedParameters = false)
 
                         HistoricalDescriptableDetail(
                             buildString {
@@ -154,7 +152,9 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
             val tree = checkNotNull(methodTree.trees[version]) {
                 "Constructor tree does not have parent's version"
             }
-            val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
+            val remapper = ContextualElementRemapper(ElementRemapper(tree, ::getFriendlyDstName), null, generator.config.index) { name ->
+                "../${version.id}/$name.html"
+            }
 
             constructorTree.forEach { ctorNode ->
                 val nullableMethod = ctorNode[version]
@@ -163,13 +163,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                     version,
                     ctorNode,
                     nullableMethod?.let { method ->
-                        val methodDeclaration = formatMethodDescriptor(
-                            method,
-                            method.modifiers,
-                            version,
-                            friendlyNameRemapper,
-                            generateNamedParameters = false
-                        )
+                        val methodDeclaration = method.formatDescriptor(remapper, generateNamedParameters = false)
 
                         HistoricalDescriptableDetail(
                             buildString {
@@ -188,12 +182,12 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
     }
 
     head {
-        defaultResourcesComponent()
+        defaultResourcesComponent(rootPath = "../")
         if (generator.config.emitMetaTags) {
             metadataComponent(
                 title = lastFriendlyMapping,
                 description = if (node.size == 1) "1 version, ${node.first.key.id}" else "${node.size} versions, ${node.first.key.id} - ${node.last.key.id}",
-                themeColor = "#21ff21"
+                themeColor = generator.config.themeColor
             )
         }
         title(content = "history - $lastFriendlyMapping")
@@ -212,7 +206,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
                 }
 
                 h3 {
-                    a(href = "/${version.id}/${getFriendlyDstName(klass)}.html") {
+                    a(href = "../${version.id}/${getFriendlyDstName(klass)}.html") {
                         +version.id
                     }
                 }

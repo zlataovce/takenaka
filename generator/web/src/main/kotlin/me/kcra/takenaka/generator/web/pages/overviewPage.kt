@@ -34,12 +34,13 @@ import org.w3c.dom.Document
  */
 fun GenerationContext.overviewPage(workspace: VersionedWorkspace, packages: Set<String>): Document = createHTMLDocument().html {
     head {
-        defaultResourcesComponent()
+        versionRootComponent()
+        defaultResourcesComponent(rootPath = "../")
         if (generator.config.emitMetaTags) {
             metadataComponent(
                 title = workspace.version.id,
                 description = if (packages.size == 1) "1 package" else "${packages.size} packages",
-                themeColor = "#21ff21"
+                themeColor = generator.config.themeColor
             )
         }
         title(content = "overview - ${workspace.version.id}")
@@ -63,7 +64,7 @@ fun GenerationContext.overviewPage(workspace: VersionedWorkspace, packages: Set<
                     packages.forEach { packageName ->
                         tr {
                             td {
-                                a(href = "/${workspace.version.id}/$packageName/index.html") {
+                                a(href = "$packageName/index.html") {
                                     +packageName.fromInternalName()
                                 }
                             }

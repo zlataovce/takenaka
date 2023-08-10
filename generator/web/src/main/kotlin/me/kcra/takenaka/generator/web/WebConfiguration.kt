@@ -24,6 +24,7 @@ import me.kcra.takenaka.generator.web.transformers.Transformer
  * Configuration for [WebGenerator].
  *
  * @property welcomeMessage a welcoming message that is displayed on the main page, null if it should not be added, supports arbitrary HTML markup
+ * @property themeColor the metadata theme color, defaults to `#21ff21`
  * @property emitMetaTags whether HTML metadata tags (per [me.kcra.takenaka.generator.web.components.metadataComponent]) should be added to pages
  * @property emitPseudoElements whether pseudo-elements should be used on the site (badges - for decreasing the output size)
  * @property transformers a list of transformers that transform the output
@@ -35,6 +36,7 @@ import me.kcra.takenaka.generator.web.transformers.Transformer
  */
 data class WebConfiguration(
     val welcomeMessage: String? = null,
+    val themeColor: String = "#21ff21",
     val emitMetaTags: Boolean = true,
     val emitPseudoElements: Boolean = true,
     val transformers: List<Transformer> = emptyList(),
@@ -54,6 +56,11 @@ class WebConfigurationBuilder {
      * A welcoming message that is displayed on the main page, null if it should not be added, supports arbitrary HTML markup.
      */
     var welcomeMessage: String? = null
+
+    /**
+     * The metadata theme color.
+     */
+    var themeColor = "#21ff21"
 
     /**
      * Whether HTML metadata tags (per [me.kcra.takenaka.generator.web.components.metadataComponent]) should be added to pages.
@@ -107,6 +114,15 @@ class WebConfigurationBuilder {
      */
     fun welcomeMessage(value: String) {
         welcomeMessage = value
+    }
+
+    /**
+     * Sets [themeColor].
+     *
+     * @param value the value
+     */
+    fun themeColor(value: String) {
+        themeColor = value
     }
 
     /**
@@ -224,6 +240,7 @@ class WebConfigurationBuilder {
      */
     fun toWebConfig() = WebConfiguration(
         welcomeMessage,
+        themeColor,
         emitMetaTags,
         emitPseudoElements,
         transformers,
