@@ -443,8 +443,9 @@ class SignatureFormatter : SignatureVisitor {
         val outerClassName = classNames.removeLast()
         val className = "$outerClassName$$name"
         classNames += className
-        val remappedOuter = (remapper?.nameRemapper?.mapType(outerClassName) ?: outerClassName) + '$'
-        val remappedName = remapper?.nameRemapper?.mapType(className) ?: className
+
+        val remappedOuter = (remapper?.nameRemapper?.map(outerClassName) ?: outerClassName) + '$'
+        val remappedName = remapper?.nameRemapper?.map(className) ?: className
         val index = if (remappedName.startsWith(remappedOuter)) {
             remappedOuter.length
         } else {
