@@ -210,20 +210,20 @@ public final class MethodMapping {
      * Gets the mapped method name and parameter types by the version and namespaces of the supplied {@link MapperPlatform},
      * and attempts to find a method in the parent class reflectively using them.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @param platform the platform
      * @return the method, null if it's not mapped
      */
     public @Nullable Method getMethod(@NotNull MapperPlatform platform) {
-        return getMethod(platform.getVersion(), platform.getMappingNamespaces());
+        return getMethod(platform.getClassLoader(), platform.getVersion(), platform.getMappingNamespaces());
     }
 
     /**
      * Gets the mapped method name and parameter types by the version and namespaces of the current {@link MapperPlatform},
      * and attempts to find a method in the parent class reflectively using them.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @return the method, null if it's not mapped
      */
@@ -271,20 +271,20 @@ public final class MethodMapping {
      * Gets the mapped method name and parameter types by the version and namespaces of the supplied {@link MapperPlatform},
      * attempts to find a method reflectively using them and creates a {@link MethodHandle} if successful.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @param platform the platform
      * @return the method handle, null if it's not mapped
      */
     public @Nullable MethodHandle getMethodHandle(@NotNull MapperPlatform platform) {
-        return getMethodHandle(platform.getVersion(), platform.getMappingNamespaces());
+        return getMethodHandle(platform.getClassLoader(), platform.getVersion(), platform.getMappingNamespaces());
     }
 
     /**
      * Gets the mapped method name and parameter types by the version and namespaces of the current {@link MapperPlatform},
      * attempts to find a method reflectively using them and creates a {@link MethodHandle} if successful.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @return the method handle, null if it's not mapped
      */

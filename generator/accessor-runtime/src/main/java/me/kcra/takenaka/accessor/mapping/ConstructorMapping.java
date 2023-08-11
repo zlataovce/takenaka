@@ -166,20 +166,20 @@ public final class ConstructorMapping {
      * Gets mapped constructor parameter types by the version and namespaces of the supplied {@link MapperPlatform},
      * and attempts to find a constructor in the parent class reflectively using them.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @param platform the platform
      * @return the constructor, null if it's not mapped
      */
     public @Nullable Constructor<?> getConstructor(@NotNull MapperPlatform platform) {
-        return getConstructor(platform.getVersion(), platform.getMappingNamespaces());
+        return getConstructor(platform.getClassLoader(), platform.getVersion(), platform.getMappingNamespaces());
     }
 
     /**
      * Gets mapped constructor parameter types by the version and namespaces of the current {@link MapperPlatform},
      * and attempts to find a constructor in the parent class reflectively using them.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @return the constructor, null if it's not mapped
      */
@@ -227,20 +227,20 @@ public final class ConstructorMapping {
      * Gets mapped constructor parameter types by the version and namespaces of the supplied {@link MapperPlatform},
      * attempts to find a constructor reflectively using them and creates a {@link MethodHandle} if successful.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @param platform the platform
      * @return the constructor handle, null if it's not mapped
      */
     public @Nullable MethodHandle getConstructorHandle(@NotNull MapperPlatform platform) {
-        return getConstructorHandle(platform.getVersion(), platform.getMappingNamespaces());
+        return getConstructorHandle(platform.getClassLoader(), platform.getVersion(), platform.getMappingNamespaces());
     }
 
     /**
      * Gets mapped constructor parameter types by the version and namespaces of the current {@link MapperPlatform},
      * attempts to find a constructor reflectively using them and creates a {@link MethodHandle} if successful.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @return the constructor handle, null if it's not mapped
      */

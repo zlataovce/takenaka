@@ -148,18 +148,18 @@ public final class ClassMapping {
 
     /**
      * Gets a mapped class name by the version and namespaces of the supplied {@link MapperPlatform},
-     * and attempts to resolve it in the current thread's context class loader.
+     * and attempts to resolve it in the platform's preferred class loader.
      *
      * @param platform the platform
      * @return the class, null if it's not mapped
      */
     public @Nullable Class<?> getClass(@NotNull MapperPlatform platform) {
-        return getClass(platform.getVersion(), platform.getMappingNamespaces());
+        return getClass(platform.getClassLoader(), platform.getVersion(), platform.getMappingNamespaces());
     }
 
     /**
      * Gets a mapped class name by the version and namespaces of the current {@link MapperPlatform},
-     * and attempts to resolve it in the current thread's context class loader.
+     * and attempts to resolve it in the platform's preferred class loader.
      *
      * @return the class, null if it's not mapped
      */

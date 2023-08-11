@@ -53,4 +53,15 @@ public interface MapperPlatform {
      */
     @NotNull
     String[] getMappingNamespaces();
+
+    /**
+     * Gets the preferred class loader of this platform, used for looking up classes.
+     * <p>
+     * Returns the current thread's context class loader by default.
+     *
+     * @return the class loader
+     */
+    default @NotNull ClassLoader getClassLoader() {
+        return Thread.currentThread().getContextClassLoader();
+    }
 }
