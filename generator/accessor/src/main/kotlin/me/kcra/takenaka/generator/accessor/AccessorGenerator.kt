@@ -59,7 +59,7 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
                 }
             }
 
-            generatePool()
+            generateLookupClass()
         }
     }
 }

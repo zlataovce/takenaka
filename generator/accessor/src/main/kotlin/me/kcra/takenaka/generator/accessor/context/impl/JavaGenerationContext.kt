@@ -394,22 +394,22 @@ open class JavaGenerationContext(
     }
 
     /**
-     * Generates a Java mapping pool class from class names.
+     * Generates a Java mapping lookup class from class names.
      *
      * @param names internal names of classes declared in accessor models
      */
-    override fun generatePool(names: List<String>) {
+    override fun generateLookupClass(names: List<String>) {
         val poolClassName = JClassName.get(generator.config.basePackage, "Mappings")
 
         JTypeSpec.interfaceBuilder(poolClassName)
             .addModifiers(Modifier.PUBLIC)
-            .addJavadoc("Mapping pool of mappings generated on {@code \$L}.", DATE_FORMAT.format(generationTime))
             .addField(
-                FieldSpec.builder(SourceTypes.MAPPING_POOL, "POOL", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                FieldSpec.builder(SourceTypes.MAPPING_LOOKUP, "LOOKUP", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                     .addAnnotation(SourceTypes.NOT_NULL)
+                    .addJavadoc("Mapping lookup index generated on {@code \$L}.", DATE_FORMAT.format(generationTime))
                     .initializer(
                         CodeBlock.builder()
-                            .add("new \$T()", SourceTypes.MAPPING_POOL)
+                            .add("new \$T()", SourceTypes.MAPPING_LOOKUP)
                             .indent()
                             .apply {
                                 names.forEach { name ->

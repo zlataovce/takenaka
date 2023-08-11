@@ -34,16 +34,16 @@ import java.util.Map;
  */
 @Data
 @RequiredArgsConstructor
-public final class MappingPool {
+public final class MappingLookup {
     /**
      * Class mappings of this pool keyed by the name declared in the accessor model.
      */
     private final Map<String, ClassMapping> mappings;
 
     /**
-     * Constructs a new {@link MappingPool} without any initial mappings.
+     * Constructs a new {@link MappingLookup} without any initial mappings.
      */
-    public MappingPool() {
+    public MappingLookup() {
         this(new HashMap<>());
     }
 
@@ -80,32 +80,32 @@ public final class MappingPool {
     }
 
     /**
-     * Puts a new mapping into this {@link MappingPool}.
+     * Puts a new mapping into this {@link MappingLookup}.
      * <p>
      * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
      *
      * @param name the mapped name
      * @param mapping the {@link ClassMapping}
-     * @return this {@link MappingPool}
+     * @return this {@link MappingLookup}
      */
     @ApiStatus.Internal
     @Contract("_, _ -> this")
-    public @NotNull MappingPool put(@NotNull String name, @NotNull ClassMapping mapping) {
+    public @NotNull MappingLookup put(@NotNull String name, @NotNull ClassMapping mapping) {
         mappings.put(name, mapping);
         return this;
     }
 
     /**
-     * Puts a new mapping into this {@link MappingPool}.
+     * Puts a new mapping into this {@link MappingLookup}.
      * <p>
      * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
      *
      * @param mapping the {@link ClassMapping}
-     * @return this {@link MappingPool}
+     * @return this {@link MappingLookup}
      */
     @ApiStatus.Internal
     @Contract("_ -> this")
-    public @NotNull MappingPool put(@NotNull ClassMapping mapping) {
+    public @NotNull MappingLookup put(@NotNull ClassMapping mapping) {
         return put(mapping.getName(), mapping);
     }
 }

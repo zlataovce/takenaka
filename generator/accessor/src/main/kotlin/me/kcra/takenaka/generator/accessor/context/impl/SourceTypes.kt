@@ -25,8 +25,8 @@ import com.squareup.kotlinpoet.javapoet.*
  * JavaPoet/KotlinPoet types.
  */
 object SourceTypes {
-    val MAPPING_POOL: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "MappingPool")
-    val KT_MAPPING_POOL = MAPPING_POOL.toKClassName()
+    val MAPPING_LOOKUP: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "MappingLookup")
+    val KT_MAPPING_LOOKUP = MAPPING_LOOKUP.toKClassName()
     val CLASS_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "ClassMapping")
     val KT_CLASS_MAPPING = CLASS_MAPPING.toKClassName()
     val FIELD_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "FieldMapping")

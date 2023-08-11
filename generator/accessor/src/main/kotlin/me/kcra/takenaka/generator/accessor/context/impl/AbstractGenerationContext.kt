@@ -164,19 +164,19 @@ abstract class AbstractGenerationContext(
     protected abstract fun generateClass(resolvedAccessor: ResolvedClassAccessor)
 
     /**
-     * Generates a mapping pool class with accessors
+     * Generates a mapping lookup class with accessors
      * that have been generated in this context.
      */
-    override fun generatePool() {
-        generatePool(generatedClasses.toList())
+    override fun generateLookupClass() {
+        generateLookupClass(generatedClasses.toList())
     }
 
     /**
-     * Generates a mapping pool class from class names.
+     * Generates a mapping lookup class from class names.
      *
      * @param names internal names of classes declared in accessor models
      */
-    protected abstract fun generatePool(names: List<String>)
+    protected abstract fun generateLookupClass(names: List<String>)
 
     /**
      * Resolves a field ancestry node from a model.
