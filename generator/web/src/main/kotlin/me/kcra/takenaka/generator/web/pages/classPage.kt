@@ -167,45 +167,101 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                     fieldMask = fieldMask and Modifier.PUBLIC.inv() and Modifier.STATIC.inv() and Modifier.FINAL.inv()
                 }
 
-                addContentSpacer()
-                h4 {
-                    +"Field summary"
-                }
-                table(classes = "styled-table styled-mobile-table") {
-                    thead {
-                        tr {
-                            th {
-                                +"Modifier and Type"
+                var fields = klass.fields
+
+                if (classTypeOf(klassDeclaration.modifiers) == ClassType.ENUM) {
+                    val enumModifier = Modifier.PUBLIC or Modifier.STATIC or Modifier.FINAL or Opcodes.ACC_ENUM
+
+                    val (enumFields, nonEnumFields) = fields.partition { (it.modifiers and enumModifier) == enumModifier && it.srcDesc == 'L' + klass.srcName + ';' }
+
+                    if (enumFields.isNotEmpty()) {
+                        fields = nonEnumFields
+
+                        addContentSpacer()
+                        h4 {
+                            +"Enum constant summary"
+                        }
+                        table(classes = "styled-table styled-mobile-table") {
+                            thead {
+                                tr {
+                                    th {
+                                        +"Enum Constant"
+                                    }
+                                }
                             }
-                            th {
-                                +"Field"
+                            tbody {
+                                enumFields.forEach { field ->
+                                    tr {
+                                        td {
+                                            table {
+                                                tbody {
+                                                    klass.tree.allNamespaceIds.forEach { id ->
+                                                        val ns = klass.tree.getNamespaceName(id)
+                                                        val namespace = generator.config.namespaces[ns]
+
+                                                        if (namespace != null) {
+                                                            val name = field.getName(id)
+                                                            if (name != null) {
+                                                                tr {
+                                                                    badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
+                                                                    td(classes = "mapping-value") {
+                                                                        +name
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                    tbody {
-                        klass.fields.forEach { field ->
+                }
+
+                if (fields.isNotEmpty()) {
+                    addContentSpacer()
+                    h4 {
+                        +"Field summary"
+                    }
+                    table(classes = "styled-table styled-mobile-table") {
+                        thead {
                             tr {
-                                td(classes = "modifier-value") {
-                                    +field.modifiers.formatModifiers(fieldMask)
-
-                                    unsafe {
-                                        +field.formatDescriptor(remapper)
-                                    }
+                                th {
+                                    +"Modifier and Type"
                                 }
-                                td {
-                                    table {
-                                        tbody {
-                                            klass.tree.allNamespaceIds.forEach { id ->
-                                                val ns = klass.tree.getNamespaceName(id)
-                                                val namespace = generator.config.namespaces[ns]
+                                th {
+                                    +"Field"
+                                }
+                            }
+                        }
+                        tbody {
+                            fields.forEach { field ->
+                                tr {
+                                    td(classes = "modifier-value") {
+                                        +field.modifiers.formatModifiers(fieldMask)
 
-                                                if (namespace != null) {
-                                                    val name = field.getName(id)
-                                                    if (name != null) {
-                                                        tr {
-                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
-                                                            td(classes = "mapping-value") {
-                                                                +name
+                                        unsafe {
+                                            +field.formatDescriptor(remapper)
+                                        }
+                                    }
+                                    td {
+                                        table {
+                                            tbody {
+                                                klass.tree.allNamespaceIds.forEach { id ->
+                                                    val ns = klass.tree.getNamespaceName(id)
+                                                    val namespace = generator.config.namespaces[ns]
+
+                                                    if (namespace != null) {
+                                                        val name = field.getName(id)
+                                                        if (name != null) {
+                                                            tr {
+                                                                badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
+                                                                td(classes = "mapping-value") {
+                                                                    +name
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -267,12 +323,8 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
             // skip constructors and implicit enum methods
             val methods = klass.methods.filter { !it.isConstructor && ((klassDeclaration.modifiers and Opcodes.ACC_ENUM) == 0 || !(it.isEnumValueOf || it.isEnumValues)) }
             if (methods.isNotEmpty()) {
-                var methodMask = Modifier.methodModifiers()
-                // remove public and abstract modifiers on interface methods, implicit
-                // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4
-                if ((klassDeclaration.modifiers and Opcodes.ACC_INTERFACE) != 0) {
-                    methodMask = methodMask and Modifier.PUBLIC.inv() and Modifier.ABSTRACT.inv()
-                }
+                val methodMask = Modifier.methodModifiers()
+                val interfaceMethod = (klassDeclaration.modifiers and Opcodes.ACC_INTERFACE) != 0
 
                 addContentSpacer()
                 h4 {
@@ -295,7 +347,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                             tr {
                                 td(classes = "modifier-value") {
                                     unsafe {
-                                        +methodMod.formatModifiers(methodMask)
+                                        +methodMod.formatModifiers(methodMask, interfaceMethod)
 
                                         val methodDeclaration = method.formatDescriptor(remapper, methodMod)
                                         methodDeclaration.formals?.let { +"$it " }

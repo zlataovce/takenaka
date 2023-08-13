@@ -62,19 +62,25 @@ val MappingTreeView.ElementMappingView.hash: String
  * @param mask the modifier mask (you can get that from the [Modifier] class)
  * @return the modifier string, **may end with a space**
  */
-fun Int.formatModifiers(mask: Int = 0): String = buildString {
+fun Int.formatModifiers(mask: Int = 0, interfaceMethod: Boolean = false): String = buildString {
     val mMod = this@formatModifiers and mask
 
-    if ((mMod and Opcodes.ACC_PUBLIC) != 0) append("public ")
+    // remove public and abstract modifiers on interface methods, implicit in some cases
+    // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4
+    if (!interfaceMethod && (mMod and Opcodes.ACC_PUBLIC) != 0) append("public ")
     if ((mMod and Opcodes.ACC_PRIVATE) != 0) append("private ")
     if ((mMod and Opcodes.ACC_PROTECTED) != 0) append("protected ")
     if ((mMod and Opcodes.ACC_STATIC) != 0) append("static ")
+
+    if (interfaceMethod && (mMod and Opcodes.ACC_ABSTRACT) == 0 && (mMod and Opcodes.ACC_STATIC) == 0) {
+        append("default ")
+    }
     // enums can have an abstract modifier (methods included) if its constants have a custom impl
     // TODO: should we remove that?
 
     // an interface is implicitly abstract
     // we need to check the unmasked modifiers here, since ACC_INTERFACE is not among Modifier#classModifiers
-    if ((mMod and Opcodes.ACC_ABSTRACT) != 0 && (this@formatModifiers and Opcodes.ACC_INTERFACE) == 0) append("abstract ")
+    if ((mMod and Opcodes.ACC_ABSTRACT) != 0 && (this@formatModifiers and Opcodes.ACC_INTERFACE) == 0 && !interfaceMethod) append("abstract ")
     if ((mMod and Opcodes.ACC_FINAL) != 0) {
         // enums and records are implicitly final
         // we need to check the unmasked modifiers here, since ACC_ENUM is not among Modifier#classModifiers
