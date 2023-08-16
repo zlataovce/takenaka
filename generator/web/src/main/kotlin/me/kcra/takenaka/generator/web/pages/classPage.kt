@@ -174,7 +174,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                     h4 {
                         +"Enum constant summary"
                     }
-                    table(classes = "styled-table styled-mobile-table") {
+                    table(classes = "styled-table") {
                         thead {
                             tr {
                                 th {
@@ -315,8 +315,6 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
             // skip constructors and implicit enum methods
             val methods = klass.methods.filter { !it.isConstructor && ((klassDeclaration.modifiers and Opcodes.ACC_ENUM) == 0 || !(it.isEnumValueOf || it.isEnumValues)) }
             if (methods.isNotEmpty()) {
-                val interfaceMethod = (klassDeclaration.modifiers and Opcodes.ACC_INTERFACE) != 0
-
                 addContentSpacer()
                 h4 {
                     +"Method summary"
@@ -421,7 +419,7 @@ fun <T : MappingTreeView.ClassMappingView> T.formatDescriptor(
     val interfaces = this.interfaces
 
     val modifiersAndName = buildString {
-        append(mod.formatModifiers(Modifier.classModifiers(), classTypeOf(mod)))
+        append(mod.formatModifiers(Modifier.classModifiers()))
         when {
             (mod and Opcodes.ACC_ANNOTATION) != 0 -> append("@interface ") // annotations are interfaces, so this must be before ACC_INTERFACE
             (mod and Opcodes.ACC_INTERFACE) != 0 -> {
@@ -630,20 +628,20 @@ fun Type.format(remapper: ContextualElementRemapper, isVarargs: Boolean = false)
  * Formats a modifier integer into a string.
  *
  * @param mask the modifier mask (you can get that from the [Modifier] class)
- * @param classType the type of the class or the type of the class containing the member
+ * @param parentType the type of the class containing the member
  * @return the modifier string, **may end with a space**
  */
-fun Int.formatModifiers(mask: Int = 0, classType: ClassType): String = buildString {
+fun Int.formatModifiers(mask: Int = 0, parentType: ClassType = ClassType.CLASS): String = buildString {
     val mMod = this@formatModifiers and mask
 
     // remove public and abstract modifiers on interface methods, implicit in some cases
     // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4
-    if (classType != ClassType.INTERFACE && (mMod and Opcodes.ACC_PUBLIC) != 0) append("public ")
+    if (parentType != ClassType.INTERFACE && (mMod and Opcodes.ACC_PUBLIC) != 0) append("public ")
     if ((mMod and Opcodes.ACC_PRIVATE) != 0) append("private ")
     if ((mMod and Opcodes.ACC_PROTECTED) != 0) append("protected ")
     if ((mMod and Opcodes.ACC_STATIC) != 0) append("static ")
 
-    if (classType == ClassType.INTERFACE && (mMod and Opcodes.ACC_ABSTRACT) == 0 && (mMod and Opcodes.ACC_STATIC) == 0 && (mMod and Opcodes.ACC_PUBLIC) != 0) {
+    if (parentType == ClassType.INTERFACE && (mMod and Opcodes.ACC_ABSTRACT) == 0 && (mMod and Opcodes.ACC_STATIC) == 0 && (mMod and Opcodes.ACC_PUBLIC) != 0) {
         append("default ")
     }
     // enums can have an abstract modifier (methods included) if its constants have a custom impl
@@ -651,7 +649,7 @@ fun Int.formatModifiers(mask: Int = 0, classType: ClassType): String = buildStri
 
     // an interface is implicitly abstract
     // we need to check the unmasked modifiers here, since ACC_INTERFACE is not among Modifier#classModifiers
-    if ((mMod and Opcodes.ACC_ABSTRACT) != 0 && (this@formatModifiers and Opcodes.ACC_INTERFACE) == 0 && classType != ClassType.INTERFACE) append("abstract ")
+    if ((mMod and Opcodes.ACC_ABSTRACT) != 0 && (this@formatModifiers and Opcodes.ACC_INTERFACE) == 0 && parentType != ClassType.INTERFACE) append("abstract ")
     if ((mMod and Opcodes.ACC_FINAL) != 0) {
         // enums and records are implicitly final
         // we need to check the unmasked modifiers here, since ACC_ENUM is not among Modifier#classModifiers
