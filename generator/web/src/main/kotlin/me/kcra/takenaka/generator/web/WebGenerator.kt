@@ -147,15 +147,16 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                         appendLine(namespaces.keys.joinToString("\t") { "${namespaceFriendlyNames[it]}:${getNamespaceBadgeColor(it)}" })
 
                         tree.classes.forEach { klass ->
+                            val type = classTypeOf(klass.modifiers)
                             val friendlyName = getFriendlyDstName(klass)
 
                             launch(Dispatchers.Default + CoroutineName("page-coro")) {
-                                classPage(klass, hashMap[klass], nmsVersion, versionWorkspace, friendlyNameRemapper)
+                                classPage(klass, type, hashMap[klass], nmsVersion, versionWorkspace, friendlyNameRemapper)
                                     .serialize(versionWorkspace, "$friendlyName.html")
                             }
 
                             classMap.getOrPut(friendlyName.substringBeforeLast('/')) { sortedMapOf(compareBy(ClassType::ordinal)) }
-                                .getOrPut(classTypeOf(klass.modifiers), ::sortedSetOf) += friendlyName.substringAfterLast('/')
+                                .getOrPut(type, ::sortedSetOf) += friendlyName.substringAfterLast('/')
 
                             appendLine(namespaces.values.joinToString("\t") { nsId ->
                                 val namespacedNmsVersion = if (tree.getNamespaceName(nsId) in versionReplaceCandidates) nmsVersion else null

@@ -40,19 +40,26 @@ import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.w3c.dom.Document
-import java.lang.reflect.Modifier
 
 /**
  * Generates a class overview page.
  *
  * @param klass the class
+ * @param type the class type
  * @param hash the history file hash
  * @param nmsVersion the CraftBukkit NMS version string
  * @param workspace the workspace
  * @param friendlyNameRemapper the remapper for remapping signatures
  * @return the generated document
  */
-fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: String?, nmsVersion: String?, workspace: VersionedWorkspace, friendlyNameRemapper: ElementRemapper): Document = createHTMLDocument().html {
+fun GenerationContext.classPage(
+    klass: MappingTreeView.ClassMappingView,
+    type: ClassType,
+    hash: String?,
+    nmsVersion: String?,
+    workspace: VersionedWorkspace,
+    friendlyNameRemapper: ElementRemapper
+): Document = createHTMLDocument().html {
     val klassName = getFriendlyDstName(klass)
     val friendlyKlassName = klassName.fromInternalName()
 
@@ -62,8 +69,8 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
     val remapper = ContextualElementRemapper(friendlyNameRemapper, null, generator.config.index) { name ->
         getClassRelativePath(klassName, name)
     }
+
     val klassDeclaration = klass.formatDescriptor(friendlyKlassName, remapper)
-    val klassType = classTypeOf(klass.modifiers)
     head {
         versionRootComponent(rootPath = versionRootPath)
         defaultResourcesComponent(rootPath)
@@ -159,101 +166,38 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                 }
             }
 
-            if (klass.fields.isNotEmpty()) {
-                var fieldMask = Modifier.fieldModifiers()
-                // remove public, static and final modifiers on interface fields, implicit
-                // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.3
-                if ((klassDeclaration.modifiers and Opcodes.ACC_INTERFACE) != 0) {
-                    fieldMask = fieldMask and Modifier.PUBLIC.inv() and Modifier.STATIC.inv() and Modifier.FINAL.inv()
+            val (enumFields, fields) = klass.fields.partition { (it.modifiers and Opcodes.ACC_ENUM) != 0 }
+
+            if (enumFields.isNotEmpty()) {
+                addContentSpacer()
+                h4 {
+                    +"Enum constant summary"
                 }
-
-                val (enumFields, fields) = klass.fields.partition { (it.modifiers and Opcodes.ACC_ENUM) != 0 }
-
-                if (enumFields.isNotEmpty()) {
-                    addContentSpacer()
-                    h4 {
-                        +"Enum constant summary"
+                table(classes = "styled-table") {
+                    thead {
+                        tr {
+                            th {
+                                +"Enum Constant"
+                            }
+                        }
                     }
-                    table(classes = "styled-table") {
-                        thead {
+                    tbody {
+                        enumFields.forEach { field ->
                             tr {
-                                th {
-                                    +"Enum Constant"
-                                }
-                            }
-                        }
-                        tbody {
-                            enumFields.forEach { field ->
-                                tr {
-                                    td {
-                                        table {
-                                            tbody {
-                                                klass.tree.allNamespaceIds.forEach { id ->
-                                                    val ns = klass.tree.getNamespaceName(id)
-                                                    val namespace = generator.config.namespaces[ns]
+                                td {
+                                    table {
+                                        tbody {
+                                            klass.tree.allNamespaceIds.forEach { id ->
+                                                val ns = klass.tree.getNamespaceName(id)
+                                                val namespace = generator.config.namespaces[ns]
 
-                                                    if (namespace != null) {
-                                                        val name = field.getName(id)
-                                                        if (name != null) {
-                                                            tr {
-                                                                badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
-                                                                td(classes = "mapping-value") {
-                                                                    +name
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (fields.isNotEmpty()) {
-                    addContentSpacer()
-                    h4 {
-                        +"Field summary"
-                    }
-                    table(classes = "styled-table styled-mobile-table") {
-                        thead {
-                            tr {
-                                th {
-                                    +"Modifier and Type"
-                                }
-                                th {
-                                    +"Field"
-                                }
-                            }
-                        }
-                        tbody {
-                            fields.forEach { field ->
-                                tr {
-                                    td(classes = "modifier-value") {
-                                        +field.modifiers.formatModifiers(fieldMask, klassType)
-
-                                        unsafe {
-                                            +field.formatDescriptor(remapper)
-                                        }
-                                    }
-                                    td {
-                                        table {
-                                            tbody {
-                                                klass.tree.allNamespaceIds.forEach { id ->
-                                                    val ns = klass.tree.getNamespaceName(id)
-                                                    val namespace = generator.config.namespaces[ns]
-
-                                                    if (namespace != null) {
-                                                        val name = field.getName(id)
-                                                        if (name != null) {
-                                                            tr {
-                                                                badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
-                                                                td(classes = "mapping-value") {
-                                                                    +name
-                                                                }
+                                                if (namespace != null) {
+                                                    val name = field.getName(id)
+                                                    if (name != null) {
+                                                        tr {
+                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
+                                                            td(classes = "mapping-value") {
+                                                                +name
                                                             }
                                                         }
                                                     }
@@ -268,7 +212,62 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                 }
             }
 
-            val constructors = klass.methods.filter(MappingTreeView.MethodMappingView::isConstructor)
+            if (fields.isNotEmpty()) {
+                addContentSpacer()
+                h4 {
+                    +"Field summary"
+                }
+                table(classes = "styled-table styled-mobile-table") {
+                    thead {
+                        tr {
+                            th {
+                                +"Modifier and Type"
+                            }
+                            th {
+                                +"Field"
+                            }
+                        }
+                    }
+                    tbody {
+                        fields.forEach { field ->
+                            tr {
+                                td(classes = "modifier-value") {
+                                    +field.modifiers.formatModifiers(ModifierMask.FIELD, type)
+
+                                    unsafe {
+                                        +field.formatDescriptor(remapper)
+                                    }
+                                }
+                                td {
+                                    table {
+                                        tbody {
+                                            klass.tree.allNamespaceIds.forEach { id ->
+                                                val ns = klass.tree.getNamespaceName(id)
+                                                val namespace = generator.config.namespaces[ns]
+
+                                                if (namespace != null) {
+                                                    val name = field.getName(id)
+                                                    if (name != null) {
+                                                        tr {
+                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
+                                                            td(classes = "mapping-value") {
+                                                                +name
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            val (constructors, methods) = klass.methods.partition(MappingTreeView.MethodMappingView::isConstructor)
+
             if (constructors.isNotEmpty()) {
                 addContentSpacer()
                 h4 {
@@ -290,7 +289,7 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                             val ctorMod = ctor.modifiers
                             tr {
                                 td(classes = "modifier-value") {
-                                    +ctorMod.formatModifiers(Modifier.constructorModifiers(), klassType)
+                                    +ctorMod.formatModifiers(ModifierMask.CONSTRUCTOR, type)
                                 }
                                 td(classes = "constructor-value") {
                                     unsafe {
@@ -313,8 +312,9 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
             }
 
             // skip constructors and implicit enum methods
-            val methods = klass.methods.filter { !it.isConstructor && ((klassDeclaration.modifiers and Opcodes.ACC_ENUM) == 0 || !(it.isEnumValueOf || it.isEnumValues)) }
-            if (methods.isNotEmpty()) {
+            val nonImplicitMethods = if (type == ClassType.ENUM) methods.filterNot { it.isEnumValueOf || it.isEnumValues } else methods
+
+            if (nonImplicitMethods.isNotEmpty()) {
                 addContentSpacer()
                 h4 {
                     +"Method summary"
@@ -331,12 +331,12 @@ fun GenerationContext.classPage(klass: MappingTreeView.ClassMappingView, hash: S
                         }
                     }
                     tbody {
-                        methods.forEach { method ->
+                        nonImplicitMethods.forEach { method ->
                             val methodMod = method.modifiers
                             tr {
                                 td(classes = "modifier-value") {
                                     unsafe {
-                                        +methodMod.formatModifiers(Modifier.methodModifiers(), klassType)
+                                        +methodMod.formatModifiers(ModifierMask.METHOD, type)
 
                                         val methodDeclaration = method.formatDescriptor(remapper, methodMod)
                                         methodDeclaration.formals?.let { +"$it " }
@@ -418,8 +418,9 @@ fun <T : MappingTreeView.ClassMappingView> T.formatDescriptor(
     val superClass = this.superClass
     val interfaces = this.interfaces
 
+    val classMask = if ((mod and Opcodes.ACC_INTERFACE) != 0) ModifierMask.INTERFACE else ModifierMask.CLASS
     val modifiersAndName = buildString {
-        append(mod.formatModifiers(Modifier.classModifiers()))
+        append(mod.formatModifiers(classMask))
         when {
             (mod and Opcodes.ACC_ANNOTATION) != 0 -> append("@interface ") // annotations are interfaces, so this must be before ACC_INTERFACE
             (mod and Opcodes.ACC_INTERFACE) != 0 -> {
@@ -627,33 +628,65 @@ fun Type.format(remapper: ContextualElementRemapper, isVarargs: Boolean = false)
 /**
  * Formats a modifier integer into a string.
  *
- * @param mask the modifier mask (you can get that from the [Modifier] class)
- * @param parentType the type of the class containing the member
+ * Additional formatting is applied based on the [mask] and [parentType],
+ * don't specify them if you want a plain modifier string without any masking or removal of implicit modifiers.
+ *
+ * @param mask the modifier mask
+ * @param parentType the type of the class containing the member, **should only be specified if formatting modifiers for a class member**
  * @return the modifier string, **may end with a space**
  */
-fun Int.formatModifiers(mask: Int = 0, parentType: ClassType = ClassType.CLASS): String = buildString {
+fun Int.formatModifiers(mask: ModifierMask = ModifierMask.NONE, parentType: ClassType = ClassType.CLASS): String = buildString {
     val mMod = this@formatModifiers and mask
 
-    // remove public and abstract modifiers on interface methods, implicit in some cases
-    // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4
-    if (parentType != ClassType.INTERFACE && (mMod and Opcodes.ACC_PUBLIC) != 0) append("public ")
+    // interface fields are implicitly public
+    // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.3
+    if ((mMod and Opcodes.ACC_PUBLIC) != 0 && (mask != ModifierMask.FIELD || parentType != ClassType.INTERFACE)) {
+        // remove the public modifier on implemented non-static interface methods
+        // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4
+        append(
+            if (
+                mask == ModifierMask.METHOD
+                && parentType == ClassType.INTERFACE
+                && (mMod and Opcodes.ACC_ABSTRACT) == 0
+                && (mMod and Opcodes.ACC_STATIC) == 0
+            ) {
+                "default "
+            } else {
+                "public "
+            }
+        )
+    }
     if ((mMod and Opcodes.ACC_PRIVATE) != 0) append("private ")
     if ((mMod and Opcodes.ACC_PROTECTED) != 0) append("protected ")
-    if ((mMod and Opcodes.ACC_STATIC) != 0) append("static ")
 
-    if (parentType == ClassType.INTERFACE && (mMod and Opcodes.ACC_ABSTRACT) == 0 && (mMod and Opcodes.ACC_STATIC) == 0 && (mMod and Opcodes.ACC_PUBLIC) != 0) {
-        append("default ")
+    // interface fields are implicitly static
+    // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.3
+    if ((mMod and Opcodes.ACC_STATIC) != 0 && (mask != ModifierMask.FIELD || parentType != ClassType.INTERFACE)) {
+        append("static ")
     }
+
     // enums can have an abstract modifier (methods included) if its constants have a custom impl
     // TODO: should we remove that?
 
-    // an interface is implicitly abstract
-    // we need to check the unmasked modifiers here, since ACC_INTERFACE is not among Modifier#classModifiers
-    if ((mMod and Opcodes.ACC_ABSTRACT) != 0 && (this@formatModifiers and Opcodes.ACC_INTERFACE) == 0 && parentType != ClassType.INTERFACE) append("abstract ")
+    // an interface and possibly some of its methods are implicitly abstract
+    // we need to check the unmasked modifiers here, since ACC_INTERFACE is not among Modifier#interfaceModifiers
+    if (
+        (mMod and Opcodes.ACC_ABSTRACT) != 0
+        && (mask != ModifierMask.INTERFACE || (this@formatModifiers and Opcodes.ACC_INTERFACE) == 0)
+        && (mask != ModifierMask.METHOD || parentType != ClassType.INTERFACE)
+    ) {
+        append("abstract ")
+    }
     if ((mMod and Opcodes.ACC_FINAL) != 0) {
+        // interface fields are implicitly final
+        // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.3
+
         // enums and records are implicitly final
         // we need to check the unmasked modifiers here, since ACC_ENUM is not among Modifier#classModifiers
-        if (mask != Modifier.classModifiers() || ((this@formatModifiers and Opcodes.ACC_ENUM) == 0 && (this@formatModifiers and Opcodes.ACC_RECORD) == 0)) {
+        if (
+            (mask != ModifierMask.FIELD || parentType != ClassType.INTERFACE)
+            && (mask != ModifierMask.CLASS || ((this@formatModifiers and Opcodes.ACC_ENUM) == 0 && (this@formatModifiers and Opcodes.ACC_RECORD) == 0))
+        ) {
             append("final ")
         }
     }
