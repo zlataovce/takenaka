@@ -38,7 +38,7 @@ fun HEAD.defaultResourcesComponent(rootPath: String = "/") {
 fun HEAD.versionRootComponent(rootPath: String = "./") {
     script {
         unsafe {
-            +"""window.versionRoot = "$rootPath";"""
+            +"""window.root = "$rootPath";"""
         }
     }
 }

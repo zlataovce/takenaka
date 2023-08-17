@@ -210,9 +210,9 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                     const searchInput = document.getElementById("search-input");
                     const searchBox = document.getElementById("search-box");
                     
-                    if (window.versionRoot) {
-                        overviewLink.href = `${'$'}{window.versionRoot}index.html`;
-                        licensesLink.href = `${'$'}{window.versionRoot}licenses.html`;
+                    if (window.root) {
+                        overviewLink.href = `${'$'}{window.root}index.html`;
+                        licensesLink.href = `${'$'}{window.root}licenses.html`;
                         
                         searchInput.addEventListener("input", (evt) => search(evt.target.value));
                         document.addEventListener("mouseup", (evt) => {

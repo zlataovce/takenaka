@@ -61,10 +61,10 @@ const updateClassIndex = (indexString) => {
 };
 
 // dynamically load class index
-if (window.versionRoot) {
+if (window.root) {
     const indexScript = document.createElement("script");
     indexScript.async = true;
-    indexScript.src = `${window.versionRoot}class-index.js`;
+    indexScript.src = `${window.root}class-index.js`;
 
     document.head.appendChild(indexScript);
 }
@@ -130,7 +130,7 @@ const search = (query) => {
         // limit results to 50, should be plenty
         results.slice(0, Math.min(results.length, 50)).map((r) => {
             const resultWrap = document.createElement("a");
-            resultWrap.href = `${window.versionRoot}${Object.values(r.klass).find((e) => e != null)}.html`;
+            resultWrap.href = `${window.root}${Object.values(r.klass).find((e) => e != null)}.html`;
             resultWrap.style.textDecoration = "none";
 
             const resultElem = document.createElement("div");
