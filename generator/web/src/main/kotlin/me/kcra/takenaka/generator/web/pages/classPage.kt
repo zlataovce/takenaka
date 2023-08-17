@@ -561,34 +561,29 @@ fun <T : MappingTreeView.MethodMappingView> T.formatDescriptor(
     val args = buildString {
         append('(')
 
-        var argIndex = 0
         var lvIndex = 0 // local variable index
 
         // the first variable is the class instance if it's not static, so offset it
         if ((mod and Opcodes.ACC_STATIC) == 0) lvIndex++
 
         val argTypes = type.argumentTypes
-        append(
-            argTypes.joinToString { arg ->
-                val currArgIndex = argIndex++
+        argTypes.forEachIndexed { argIndex, arg ->
+            val isLast = argIndex == argTypes.lastIndex
 
-                return@joinToString buildString {
-                    append(arg.format(remapper, isVarargs = currArgIndex == (argTypes.size - 1) && (mod and Opcodes.ACC_VARARGS) != 0))
+            append(arg.format(remapper, isVarargs = isLast && (mod and Opcodes.ACC_VARARGS) != 0))
+            if (generateNamedParameters) {
+                append(' ')
 
-                    if (generateNamedParameters) {
-                        append(' ')
-
-                        append(
-                            this@formatDescriptor.getArg(-1, lvIndex, null)
-                                ?.let(remapper.nameRemapper.mapper)
-                                ?: "arg$currArgIndex"
-                        )
-                    }
-
-                    lvIndex += arg.size // increment by the appropriate LVT size
-                }
+                append(
+                    this@formatDescriptor.getArg(-1, lvIndex, null)
+                        ?.let(remapper.nameRemapper.mapper)
+                        ?: "arg$argIndex"
+                )
             }
-        )
+
+            lvIndex += arg.size // increment by the appropriate LVT size
+            if (!isLast) append(", ")
+        }
         append(')')
     }
 

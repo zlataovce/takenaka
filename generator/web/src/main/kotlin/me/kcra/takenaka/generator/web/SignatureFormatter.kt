@@ -288,10 +288,12 @@ class SignatureFormatter : SignatureVisitor {
      */
     val args: String
         get() {
-            val startIndex = declaration_.indexOf('(')
-            val endIndex = declaration_.indexOf(')', startIndex)
+            val declStr = declaration_.toString() // perf: convert to string, so indexOf uses the JVM method
 
-            return declaration_.substring(startIndex, endIndex + 1)
+            val startIndex = declStr.indexOf('(')
+            val endIndex = declStr.indexOf(')', startIndex)
+
+            return declStr.substring(startIndex, endIndex + 1)
         }
 
     private val formalStartStr: String

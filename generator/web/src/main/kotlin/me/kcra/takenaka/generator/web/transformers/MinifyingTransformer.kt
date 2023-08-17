@@ -17,6 +17,8 @@
 
 package me.kcra.takenaka.generator.web.transformers
 
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentMap
 import kotlin.math.abs
 
 /**
@@ -33,10 +35,8 @@ class MinifyingTransformer(val isDeterministic: Boolean = false) : Transformer {
 
     /**
      * A mapping of original -> minified CSS class names.
-     *
-     * **This map is not synchronized, you must synchronize all accesses on the Minifier object.**
      */
-    val classes = mutableMapOf<String, String>()
+    val classes: ConcurrentMap<String, String> = ConcurrentHashMap()
 
     /**
      * Minifies raw HTML markup.
@@ -45,7 +45,7 @@ class MinifyingTransformer(val isDeterministic: Boolean = false) : Transformer {
      * @return the transformed markup
      */
     override fun transformHtml(content: String): String = content.replace(CLASS_ATTR_REGEX) { m ->
-        """class="${m.groups[1]?.value?.split(' ')?.joinToString(" ", transform = ::minifyClass) ?: ""}""""
+        """class="${m.groups[1]?.value?.splitToSequence(' ')?.joinToString(" ", transform = ::minifyClass) ?: ""}""""
     }
 
     /**
@@ -56,10 +56,14 @@ class MinifyingTransformer(val isDeterministic: Boolean = false) : Transformer {
      * @param k the class name to be minified
      * @return the minified class name
      */
-    fun minifyClass(k: String): String = synchronized(this) {
-        classes.getOrPut(k) {
-            minifiedClass(if (isDeterministic) abs(k.hashCode().toShort().toInt()) else classIndex++)
-        }
+    fun minifyClass(k: String): String = classes.getOrPut(k) {
+        minifiedClass(
+            if (isDeterministic) {
+                abs(k.hashCode().toShort().toInt())
+            } else {
+                classIndex++
+            }
+        )
     }
 
     /**
@@ -73,10 +77,8 @@ class MinifyingTransformer(val isDeterministic: Boolean = false) : Transformer {
             .joinToString("", transform = String::trim)
             .replace(COMMENT_REGEX, "")
 
-        synchronized(this) {
-            classes.forEach { (original, minified) ->
-                remappedContent = remappedContent.replace("\\.$original([ :])".toRegex()) { ".$minified${it.groups[1]?.value}" }
-            }
+        classes.forEach { (original, minified) ->
+            remappedContent = remappedContent.replace("\\.$original([ :)])".toRegex()) { ".$minified${it.groups[1]?.value}" }
         }
 
         return remappedContent
@@ -98,7 +100,7 @@ class MinifyingTransformer(val isDeterministic: Boolean = false) : Transformer {
     }
 
     companion object {
-        val CLASS_ATTR_REGEX = """class="([a-z- ]+?)"""".toRegex()
+        val CLASS_ATTR_REGEX = """class="([^"]+?)"""".toRegex()
         val COMMENT_REGEX = "/\\*.*?\\*/".toRegex(RegexOption.DOT_MATCHES_ALL)
     }
 }
