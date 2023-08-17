@@ -638,23 +638,20 @@ fun Type.format(remapper: ContextualElementRemapper, isVarargs: Boolean = false)
 fun Int.formatModifiers(mask: ModifierMask = ModifierMask.NONE, parentType: ClassType = ClassType.CLASS): String = buildString {
     val mMod = this@formatModifiers and mask
 
-    // interface fields are implicitly public
-    // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.3
-    if ((mMod and Opcodes.ACC_PUBLIC) != 0 && (mask != ModifierMask.FIELD || parentType != ClassType.INTERFACE)) {
-        // remove the public modifier on implemented non-static interface methods
-        // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4
-        append(
-            if (
-                mask == ModifierMask.METHOD
-                && parentType == ClassType.INTERFACE
-                && (mMod and Opcodes.ACC_ABSTRACT) == 0
-                && (mMod and Opcodes.ACC_STATIC) == 0
-            ) {
-                "default "
-            } else {
-                "public "
+    if ((mMod and Opcodes.ACC_PUBLIC) != 0) {
+        if (parentType == ClassType.INTERFACE) {
+            // interface fields are implicitly public
+            // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.3
+
+            // substitute the public modifier on implemented non-static interface methods with the default modifier
+            // remove the public modifier on other interface methods, implicit
+            // see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4
+            if (mask == ModifierMask.METHOD && (mMod and Opcodes.ACC_ABSTRACT) == 0 && (mMod and Opcodes.ACC_STATIC) == 0) {
+                append("default ")
             }
-        )
+        } else {
+            append("public ")
+        }
     }
     if ((mMod and Opcodes.ACC_PRIVATE) != 0) append("private ")
     if ((mMod and Opcodes.ACC_PROTECTED) != 0) append("protected ")
