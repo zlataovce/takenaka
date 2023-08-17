@@ -192,7 +192,10 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                 }
             }
 
-            versionsPage(config.welcomeMessage, mappings.mapValues { it.value.dstNamespaces })
+            // reverse order = newest first
+            val versions = mappings.mapValuesTo(TreeMap(Collections.reverseOrder())) { it.value.dstNamespaces }
+
+            versionsPage(config.welcomeMessage, versions)
                 .serialize(workspace, "index.html")
         }
 
