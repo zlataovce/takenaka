@@ -50,7 +50,7 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
         val mappings = mappingProvider.get()
         val tree = ancestryProvider.klass<MappingTreeView, MappingTreeView.ClassMappingView>(mappings)
 
-        generationContext(ancestryProvider, config.languageFlavor) {
+        generationContext(ancestryProvider, config.codeLanguage) {
             coroutineScope {
                 config.accessors.forEach { classAccessor ->
                     launch(Dispatchers.Default + CoroutineName("generate-coro")) {

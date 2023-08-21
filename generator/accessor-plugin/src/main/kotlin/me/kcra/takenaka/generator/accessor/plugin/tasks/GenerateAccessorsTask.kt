@@ -20,9 +20,9 @@ package me.kcra.takenaka.generator.accessor.plugin.tasks
 import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
-import me.kcra.takenaka.generator.accessor.AccessorFlavor
+import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
-import me.kcra.takenaka.generator.accessor.LanguageFlavor
+import me.kcra.takenaka.generator.accessor.CodeLanguage
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.common.provider.MappingProvider
 import me.kcra.takenaka.generator.common.provider.impl.SimpleAncestryProvider
@@ -84,20 +84,20 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     abstract val namespaceFriendlinessIndex: ListProperty<String>
 
     /**
-     * The language of the generated code, defaults to [LanguageFlavor.JAVA].
+     * The language of the generated code, defaults to [CodeLanguage.JAVA].
      *
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.languageFlavor
      */
     @get:Input
-    abstract val languageFlavor: Property<LanguageFlavor>
+    abstract val codeLanguage: Property<CodeLanguage>
 
     /**
-     * The form of the generated accessors, defaults to [AccessorFlavor.NONE].
+     * The form of the generated accessors, defaults to [AccessorType.NONE].
      *
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.accessorFlavor
      */
     @get:Input
-    abstract val accessorFlavor: Property<AccessorFlavor>
+    abstract val accessorType: Property<AccessorType>
 
     /**
      * Namespaces that should be used in accessors, empty if all namespaces should be used.
@@ -141,8 +141,8 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     init {
         outputDir.convention(project.layout.buildDirectory.dir("takenaka/output"))
         namespaceFriendlinessIndex.convention(listOf("mojang", "spigot", "yarn", "searge", "intermediary", "source"))
-        languageFlavor.convention(LanguageFlavor.JAVA)
-        accessorFlavor.convention(AccessorFlavor.NONE)
+        codeLanguage.convention(CodeLanguage.JAVA)
+        accessorType.convention(AccessorType.NONE)
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
@@ -158,8 +158,8 @@ abstract class GenerateAccessorsTask : DefaultTask() {
             AccessorConfiguration(
                 accessors = accessors.get(),
                 basePackage = basePackage.get(),
-                languageFlavor = languageFlavor.get(),
-                accessorFlavor = accessorFlavor.get(),
+                codeLanguage = codeLanguage.get(),
+                accessorType = accessorType.get(),
                 namespaceFriendlinessIndex = namespaceFriendlinessIndex.get(),
                 accessedNamespaces = accessedNamespaces.get(),
                 craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get()
