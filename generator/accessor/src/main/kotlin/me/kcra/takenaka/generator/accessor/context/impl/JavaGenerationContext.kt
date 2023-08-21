@@ -430,7 +430,7 @@ open class JavaGenerationContext(
                     .addAnnotation(SourceTypes.NOT_NULL)
                     .addJavadoc("Mapping lookup index generated on {@code \$L}.", DATE_FORMAT.format(generationTime))
                     .initializer(
-                        CodeBlock.builder()
+                        JCodeBlock.builder()
                             .add("new \$T()", SourceTypes.MAPPING_LOOKUP)
                             .indent()
                             .apply {

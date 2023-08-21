@@ -19,6 +19,7 @@
 
 package me.kcra.takenaka.generator.accessor.context.impl
 
+import com.squareup.kotlinpoet.MemberName
 import com.squareup.kotlinpoet.javapoet.*
 
 typealias JCodeBlock = com.squareup.javapoet.CodeBlock
@@ -50,4 +51,10 @@ object SourceTypes {
     val METHOD: JClassName = JClassName.get(java.lang.reflect.Method::class.java)
     val METHOD_HANDLE: JClassName = JClassName.get(java.lang.invoke.MethodHandle::class.java)
     val STRING: JClassName = JClassName.get(java.lang.String::class.java)
+
+    val MAPPING_LOOKUP_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "mappingLookup", isExtension = true)
+    val CLASS_MAPPING_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "classMapping", isExtension = true)
+    val CLASS_MAPPING_FIELD_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "field", isExtension = true)
+    val CLASS_MAPPING_CTOR_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "constructor", isExtension = true)
+    val CLASS_MAPPING_METHOD_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "method", isExtension = true)
 }

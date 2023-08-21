@@ -17,9 +17,9 @@
 
 package me.kcra.takenaka.accessor.mapping;
 
-import lombok.*;
 import me.kcra.takenaka.accessor.platform.MapperPlatform;
 import me.kcra.takenaka.accessor.platform.MapperPlatforms;
+import me.kcra.takenaka.accessor.util.ExceptionUtil;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -36,15 +36,10 @@ import java.util.Map;
  *
  * @author Matouš Kučera
  */
-@Getter
-@Setter
-@ToString
-@RequiredArgsConstructor
 public final class ConstructorMapping {
     /**
      * The parent class mapping.
      */
-    @ToString.Exclude
     private final ClassMapping parent;
 
     /**
@@ -65,6 +60,23 @@ public final class ConstructorMapping {
      */
     public ConstructorMapping(@NotNull ClassMapping parent, int index) {
         this(parent, index, new HashMap<>());
+    }
+
+    /**
+     * Constructs a new {@link FieldMapping} with pre-defined mappings.
+     *
+     * @param parent the parent class mapping
+     * @param index the index of the declaration in the accessor model
+     * @param mappings the mappings, a map of namespace-mapping maps keyed by version
+     */
+    public ConstructorMapping(
+            @NotNull ClassMapping parent,
+            int index,
+            @NotNull Map<String, Map<String, String[]>> mappings
+    ) {
+        this.parent = parent;
+        this.index = index;
+        this.mappings = mappings;
     }
 
     /**
@@ -198,14 +210,19 @@ public final class ConstructorMapping {
      * @param namespaces the namespaces
      * @return the constructor handle, null if it's not mapped
      */
-    @SneakyThrows
     public @Nullable MethodHandle getConstructorHandle(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
         final Constructor<?> ctor = getConstructor(loader, version, namespaces);
         if (ctor == null) {
             return null;
         }
 
-        return MethodHandles.lookup().unreflectConstructor(ctor);
+        try {
+            return MethodHandles.lookup().unreflectConstructor(ctor);
+        } catch (IllegalAccessException e) {
+            ExceptionUtil.sneakyThrow(e);
+        }
+
+        return null;
     }
 
     /**
@@ -251,7 +268,7 @@ public final class ConstructorMapping {
     /**
      * Puts a new mapping into this {@link ConstructorMapping}.
      * <p>
-     * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
+     * <strong>This is only for use in generated code.</strong>
      *
      * @param namespace the mapping's namespace
      * @param versions the versions which include the mapping
@@ -267,6 +284,33 @@ public final class ConstructorMapping {
         return this;
     }
 
+    /**
+     * Gets the parent class mapping.
+     *
+     * @return the parent class mapping
+     */
+    public @NotNull ClassMapping getParent() {
+        return this.parent;
+    }
+
+    /**
+     * Gets the index of the declaration in the accessor model.
+     *
+     * @return the index
+     */
+    public int getIndex() {
+        return this.index;
+    }
+
+    /**
+     * Gets the mappings, a map of namespace-mapping maps keyed by version.
+     *
+     * @return the mappings
+     */
+    public @NotNull Map<String, Map<String, String[]>> getMappings() {
+        return this.mappings;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -276,7 +320,7 @@ public final class ConstructorMapping {
             return false;
         }
 
-        ConstructorMapping that = (ConstructorMapping) o;
+        final ConstructorMapping that = (ConstructorMapping) o;
 
         if (index != that.index) {
             return false;
@@ -293,5 +337,13 @@ public final class ConstructorMapping {
         result = 31 * result + index;
         result = 31 * result + mappings.hashCode();
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "ConstructorMapping{" +
+                "index=" + index +
+                ", mappings=" + mappings +
+                '}';
     }
 }

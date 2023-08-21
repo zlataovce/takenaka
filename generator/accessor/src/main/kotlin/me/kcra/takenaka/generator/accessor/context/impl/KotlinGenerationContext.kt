@@ -49,20 +49,19 @@ open class KotlinGenerationContext(
      *
      * @param resolvedAccessor the accessor model
      */
-    override fun generateClass0(resolvedAccessor: ResolvedClassAccessor) {
+    override fun generateClass(resolvedAccessor: ResolvedClassAccessor) {
         val accessedQualifiedName = resolvedAccessor.model.name.fromInternalName()
         val accessedSimpleName = resolvedAccessor.model.internalName.substringAfterLast('/')
 
         val mappingClassName = KClassName(generator.config.basePackage, "${accessedSimpleName}Mapping")
-        val typeSpecs = buildList {
+        val typeSpecs = buildList<Any> {
             add(
                 KTypeSpec.objectBuilder(mappingClassName)
                     .addKdoc(
                         """
                             Mappings for the `%L` class.
                             
-                            Last version: %L
-                            @since %L
+                            `%L` - `%L`
                         """.trimIndent(),
                         accessedQualifiedName,
                         resolvedAccessor.node.last.key.id,
@@ -72,125 +71,148 @@ open class KotlinGenerationContext(
                         PropertySpec.builder("MAPPING", SourceTypes.KT_CLASS_MAPPING)
                             .initializer(
                                 buildCodeBlock {
-                                    add("%T()", SourceTypes.KT_CLASS_MAPPING)
-                                    withIndent {
-                                        groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
-                                            val (ns, name) = classKey
+                                    beginControlFlow("%T", SourceTypes.CLASS_MAPPING_DSL)
 
-                                            add(
-                                                "\n.put(%S, %S, %L)",
+                                    groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
+                                        val (ns, name) = classKey
+
+                                        addStatement(
+                                            "put(%S, %S, %L)",
+                                            ns,
+                                            name,
+                                            versions.map { KCodeBlock.of("%S", it.id) }.joinToCode()
+                                        )
+                                    }
+
+                                    resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
+                                        beginControlFlow("%T(%S)", SourceTypes.CLASS_MAPPING_FIELD_DSL, fieldAccessor.name)
+
+                                        groupFieldNames(fieldNode).forEach { (fieldKey, versions) ->
+                                            val (ns, name) = fieldKey
+
+                                            addStatement(
+                                                "put(%S, %S, %L)",
                                                 ns,
                                                 name,
                                                 versions.map { KCodeBlock.of("%S", it.id) }.joinToCode()
                                             )
                                         }
-                                        
-                                        resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
-                                            add("\n.putField(%S)", fieldAccessor.name)
-                                            withIndent {
-                                                groupFieldNames(fieldNode).forEach { (fieldKey, versions) ->
-                                                    val (ns, name) = fieldKey
 
-                                                    add(
-                                                        "\n.put(%S, %S, %L)",
-                                                        ns,
-                                                        name,
-                                                        versions.map { KCodeBlock.of("%S", it.id) }.joinToCode()
-                                                    )
-                                                }
-
-                                                add("\n.getParent()")
-                                            }
-                                        }
-
-                                        resolvedAccessor.constructors.forEach { (_, ctorNode) ->
-                                            add("\n.putConstructor()")
-                                            withIndent {
-                                                groupConstructorNames(ctorNode).forEach { (ctorKey, versions) ->
-                                                    val (ns, desc) = ctorKey
-
-                                                    add(
-                                                        "\n.put(%S, arrayOf(%L)",
-                                                        ns,
-                                                        versions.map { KCodeBlock.of("%S", it.id) }.joinToCode()
-                                                    )
-
-                                                    val args = Type.getArgumentTypes(desc)
-                                                        .map { KCodeBlock.of("%S", it.className) }
-
-                                                    if (args.isNotEmpty()) {
-                                                        add(", ")
-                                                        add(args.joinToCode())
-                                                    }
-
-                                                    add(")")
-                                                }
-
-                                                add("\n.getParent()")
-                                            }
-                                        }
-
-                                        resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
-                                            add("\n.putMethod(%S)", methodAccessor.name)
-                                            withIndent {
-                                                groupMethodNames(methodNode).forEach { (methodKey, versions) ->
-                                                    val (ns, name, desc) = methodKey
-
-                                                    add(
-                                                        "\n.put(%S, arrayOf(%L), %S",
-                                                        ns,
-                                                        versions.map { KCodeBlock.of("%S", it.id) }.joinToCode(),
-                                                        name
-                                                    )
-
-                                                    val args = Type.getArgumentTypes(desc)
-                                                        .map { KCodeBlock.of("%S", it.className) }
-
-                                                    if (args.isNotEmpty()) {
-                                                        add(", ")
-                                                        add(args.joinToCode())
-                                                    }
-
-                                                    add(")")
-                                                }
-
-                                                add("\n.getParent()")
-                                            }
-                                        }
+                                        endControlFlow()
                                     }
+
+                                    resolvedAccessor.constructors.forEach { (_, ctorNode) ->
+                                        beginControlFlow("%T", SourceTypes.CLASS_MAPPING_CTOR_DSL)
+
+                                        groupConstructorNames(ctorNode).forEach { (ctorKey, versions) ->
+                                            val (ns, desc) = ctorKey
+
+                                            val args = Type.getArgumentTypes(desc)
+                                            addStatement(
+                                                "put(%S, arrayOf(%L)%L)",
+                                                ns,
+                                                versions.map { KCodeBlock.of("%S", it.id) }.joinToCode(),
+                                                if (args.isEmpty()) "" else args.map { KCodeBlock.of("%S", it.className) }.joinToCode(prefix = ", ")
+                                            )
+                                        }
+
+                                        endControlFlow()
+                                    }
+
+                                    resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
+                                        beginControlFlow("%T(%S)", SourceTypes.CLASS_MAPPING_METHOD_DSL, methodAccessor.name)
+
+                                        groupMethodNames(methodNode).forEach { (methodKey, versions) ->
+                                            val (ns, name, desc) = methodKey
+
+                                            val args = Type.getArgumentTypes(desc)
+                                            addStatement(
+                                                "put(%S, arrayOf(%L), %S%L)",
+                                                ns,
+                                                versions.map { KCodeBlock.of("%S", it.id) }.joinToCode(),
+                                                name,
+                                                if (args.isEmpty()) "" else args.map { KCodeBlock.of("%S", it.className) }.joinToCode(prefix = ", ")
+                                            )
+                                        }
+
+                                        endControlFlow()
+                                    }
+
+                                    endControlFlow()
                                 }
                             )
                             .build()
                     )
                     .build()
+
+                // TODO: add mapping breakout fields
             )
+
+            // TODO: add accessor classes
         }
 
-        typeSpecs.writeTo(accessedSimpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) }, generator.workspace)
+        typeSpecs.writeTo(generator.workspace, accessedSimpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) })
     }
 
     /**
-     * Writes a [KTypeSpec] to a workspace with default settings.
+     * Generates a Kotlin mapping lookup class from class names.
+     *
+     * @param names internal names of classes declared in accessor models
+     */
+    override fun generateLookupClass(names: List<String>) {
+        PropertySpec.builder("LOOKUP", SourceTypes.KT_MAPPING_LOOKUP)
+            .addKdoc("Mapping lookup index.")
+            .initializer(
+                buildCodeBlock {
+                    beginControlFlow("%T", SourceTypes.MAPPING_LOOKUP_DSL)
+
+                    names.forEach { name ->
+                        val mappingClassName = KClassName(
+                            generator.config.basePackage,
+                            "${name.substringAfterLast('/')}Mapping"
+                        )
+
+                        addStatement("put(%T.MAPPING)", mappingClassName)
+                    }
+
+                    endControlFlow()
+                }
+            )
+            .build()
+            .writeTo(generator.workspace, "lookup")
+    }
+
+    /**
+     * Writes a [PropertySpec] to a workspace with default settings.
      *
      * @param workspace the workspace
-     */
-    fun KTypeSpec.writeTo(workspace: Workspace) {
-        listOf(this).writeTo(requireNotNull(this.name) { "File name required, but type has no name" }, workspace)
-    }
-
-    /**
-     * Writes [KTypeSpec]s to a single file in a workspace with default settings.
-     *
      * @param name the file name
-     * @param workspace the workspace
      */
-    fun Iterable<KTypeSpec>.writeTo(name: String, workspace: Workspace) {
+    fun PropertySpec.writeTo(workspace: Workspace, name: String = requireNotNull(this.name) { "File name required, but type has no name" }) {
+        listOf(this).writeTo(workspace, name)
+    }
+
+    /**
+     * Writes KotlinPoet elements ([KTypeSpec], [FunSpec], [PropertySpec], [TypeAliasSpec]) to a single file in a workspace with default settings.
+     *
+     * @param workspace the workspace
+     * @param name the file name
+     */
+    fun Iterable<Any>.writeTo(workspace: Workspace, name: String) {
         FileSpec.builder(generator.config.basePackage, name)
             .addFileComment("This file was generated by takenaka on ${DATE_FORMAT.format(generationTime)}. Do not edit, changes will be overwritten!")
             .addKotlinDefaultImports(includeJvm = true)
             .indent(" ".repeat(4)) // 4 spaces
             .apply {
-                forEach(::addType)
+                forEach { elem ->
+                    when (elem) {
+                        is KTypeSpec -> addType(elem)
+                        is FunSpec -> addFunction(elem)
+                        is PropertySpec -> addProperty(elem)
+                        is TypeAliasSpec -> addTypeAlias(elem)
+                        else -> throw UnsupportedOperationException("${elem::class.qualifiedName} is not a recognized KotlinPoet element")
+                    }
+                }
             }
             .build()
             .writeTo(workspace)

@@ -70,7 +70,7 @@ abstract class AbstractGenerationContext(
     /**
      * Names of classes that were generated.
      */
-    private val generatedClasses = mutableSetOf<String>()
+    private val generatedClasses = Collections.synchronizedSet(mutableSetOf<String>())
 
     /**
      * The generation timestamp of this context's output.

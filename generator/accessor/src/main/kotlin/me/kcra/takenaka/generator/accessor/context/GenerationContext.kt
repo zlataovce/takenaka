@@ -47,10 +47,15 @@ interface GenerationContext : CoroutineScope {
     fun generateClass(model: ClassAccessor, tree: ClassAncestryTree)
 
     /**
-     * Generates a mapping lookup class with accessors
-     * that have been generated in this context.
+     * Generates a mapping lookup class with accessors that have been generated in this context.
      */
     fun generateLookupClass()
+
+    /**
+     * Generates extra resources needed for the function of the generated output.
+     */
+    fun generateExtras() {
+    }
 }
 
 /**
