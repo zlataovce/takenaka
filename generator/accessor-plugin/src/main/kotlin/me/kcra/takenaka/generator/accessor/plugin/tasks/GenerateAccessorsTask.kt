@@ -86,7 +86,7 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     /**
      * The language of the generated code, defaults to [CodeLanguage.JAVA].
      *
-     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.languageFlavor
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.codeLanguage
      */
     @get:Input
     abstract val codeLanguage: Property<CodeLanguage>
@@ -94,7 +94,7 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     /**
      * The form of the generated accessors, defaults to [AccessorType.NONE].
      *
-     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.accessorFlavor
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.accessorType
      */
     @get:Input
     abstract val accessorType: Property<AccessorType>

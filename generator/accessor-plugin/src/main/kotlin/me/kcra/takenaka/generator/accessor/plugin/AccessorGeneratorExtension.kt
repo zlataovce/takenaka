@@ -188,17 +188,17 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      *
      * @param codeLanguage the language flavor
      */
-    fun languageFlavor(codeLanguage: CodeLanguage) {
+    fun codeLanguage(codeLanguage: CodeLanguage) {
         this.codeLanguage.set(codeLanguage)
     }
 
     /**
-     * Sets the [languageFlavor] property.
+     * Sets the [codeLanguage] property.
      *
-     * @param languageFlavor the language flavor as a string
+     * @param codeLanguage the language flavor as a string
      */
-    fun languageFlavor(languageFlavor: String) {
-        this.codeLanguage.set(CodeLanguage.valueOf(languageFlavor.uppercase()))
+    fun codeLanguage(codeLanguage: String) {
+        this.codeLanguage.set(CodeLanguage.valueOf(codeLanguage.uppercase()))
     }
 
     /**
@@ -206,17 +206,17 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      *
      * @param accessorType the accessor flavor
      */
-    fun accessorFlavor(accessorType: AccessorType) {
+    fun accessorType(accessorType: AccessorType) {
         this.accessorType.set(accessorType)
     }
 
     /**
-     * Sets the [accessorFlavor] property.
+     * Sets the [accessorType] property.
      *
-     * @param accessorFlavor the accessor flavor as a string
+     * @param accessorType the accessor flavor as a string
      */
-    fun accessorFlavor(accessorFlavor: String) {
-        this.accessorType.set(AccessorType.valueOf(accessorFlavor.uppercase()))
+    fun accessorType(accessorType: String) {
+        this.accessorType.set(AccessorType.valueOf(accessorType.uppercase()))
     }
 
     /**
