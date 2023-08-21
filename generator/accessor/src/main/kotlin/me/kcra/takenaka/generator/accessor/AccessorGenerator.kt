@@ -19,16 +19,14 @@ package me.kcra.takenaka.generator.accessor
 
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.generator.accessor.context.generationContext
 import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import me.kcra.takenaka.generator.common.provider.MappingProvider
-import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTreeView
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * A generator that generates source code for accessing obfuscated elements using mapped names across versions.
@@ -52,18 +50,16 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
         val mappings = mappingProvider.get()
         val tree = ancestryProvider.klass<MappingTreeView, MappingTreeView.ClassMappingView>(mappings)
 
-        generationContext(ancestryProvider, config.languageFlavor) {
-            config.accessors.forEach { classAccessor ->
-                launch(Dispatchers.Default + CoroutineName("generate-coro")) {
-                    logger.info { "generating accessors for class '${classAccessor.internalName}'" }
-
-                    val node = checkNotNull(tree[classAccessor.internalName]) {
-                        "Class ancestry node with name ${classAccessor.internalName} not found"
+        generationContext(ancestryProvider, config.codeLanguage) {
+            coroutineScope {
+                config.accessors.forEach { classAccessor ->
+                    launch(Dispatchers.Default + CoroutineName("generate-coro")) {
+                        generateClass(classAccessor, tree)
                     }
-
-                    generateClass(classAccessor, node)
                 }
             }
+
+            generateLookupClass()
         }
     }
 }

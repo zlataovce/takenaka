@@ -26,25 +26,6 @@ const setTheme = (theme) => {
 
 window.addEventListener("DOMContentLoaded", () => document.documentElement.setAttribute("data-theme", getTheme()));
 
-const getVersionBaseUrl = () => {
-    const path = window.location.pathname.substring(1);
-    if (path) {
-        const parts = [];
-        for (const part of path.split("/")) {
-            parts.push(part);
-
-            // FIXME: this won't work with snapshot versions
-            if (!part.endsWith(".html") && part.includes(".")) {
-                return "/" + parts.join("/");
-            }
-        }
-    }
-
-    return null;
-};
-
-const baseUrl = getVersionBaseUrl();
-
 // a map of "<namespace>" to "<namespace badge color>"
 let colors = {};
 // a list of { "<namespace>": <mapping string or null> }
@@ -79,16 +60,14 @@ const updateClassIndex = (indexString) => {
     resolveClassIndexPromise();
 };
 
-// dynamically load class index, but async
-window.addEventListener("DOMContentLoaded", () => {
-    if (baseUrl) {
-        const indexScript = document.createElement("script");
-        indexScript.async = true;
-        indexScript.src = `${baseUrl}/class-index.js`;
+// dynamically load class index
+if (window.root) {
+    const indexScript = document.createElement("script");
+    indexScript.async = true;
+    indexScript.src = `${window.root}class-index.js`;
 
-        document.head.appendChild(indexScript);
-    }
-});
+    document.head.appendChild(indexScript);
+}
 
 const searchNamespacesKey = "_namespaces";
 
@@ -151,7 +130,7 @@ const search = (query) => {
         // limit results to 50, should be plenty
         results.slice(0, Math.min(results.length, 50)).map((r) => {
             const resultWrap = document.createElement("a");
-            resultWrap.href = `${baseUrl}/${Object.values(r.klass).find((e) => e != null)}.html`;
+            resultWrap.href = `${window.root}${Object.values(r.klass).find((e) => e != null)}.html`;
             resultWrap.style.textDecoration = "none";
 
             const resultElem = document.createElement("div");

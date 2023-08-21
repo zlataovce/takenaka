@@ -22,8 +22,8 @@ import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.VersionRangeBuilder
 import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
-import me.kcra.takenaka.generator.accessor.AccessorFlavor
-import me.kcra.takenaka.generator.accessor.LanguageFlavor
+import me.kcra.takenaka.generator.accessor.AccessorType
+import me.kcra.takenaka.generator.accessor.CodeLanguage
 import me.kcra.takenaka.generator.accessor.model.*
 import me.kcra.takenaka.generator.accessor.plugin.tasks.DEFAULT_INDEX_NS
 import org.gradle.api.Action
@@ -80,14 +80,14 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     abstract val basePackage: Property<String>
 
     /**
-     * The language of the generated code, defaults to [LanguageFlavor.JAVA].
+     * The language of the generated code, defaults to [CodeLanguage.JAVA].
      */
-    abstract val languageFlavor: Property<LanguageFlavor>
+    abstract val codeLanguage: Property<CodeLanguage>
 
     /**
-     * The form of the generated accessors, defaults to [AccessorFlavor.NONE].
+     * The form of the generated accessors, defaults to [AccessorType.NONE].
      */
-    abstract val accessorFlavor: Property<AccessorFlavor>
+    abstract val accessorType: Property<AccessorType>
 
     /**
      * Namespaces that should be used in accessors, empty if all namespaces should be used.
@@ -107,8 +107,8 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     init {
         outputDirectory.convention(project.layout.buildDirectory.dir("takenaka/output"))
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
-        languageFlavor.convention(LanguageFlavor.JAVA)
-        accessorFlavor.convention(AccessorFlavor.NONE)
+        codeLanguage.convention(CodeLanguage.JAVA)
+        accessorType.convention(AccessorType.NONE)
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         relaxedCache.convention(true)
@@ -184,12 +184,12 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     }
 
     /**
-     * Sets the [languageFlavor] property.
+     * Sets the [codeLanguage] property.
      *
-     * @param languageFlavor the language flavor
+     * @param codeLanguage the language flavor
      */
-    fun languageFlavor(languageFlavor: LanguageFlavor) {
-        this.languageFlavor.set(languageFlavor)
+    fun languageFlavor(codeLanguage: CodeLanguage) {
+        this.codeLanguage.set(codeLanguage)
     }
 
     /**
@@ -198,16 +198,16 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      * @param languageFlavor the language flavor as a string
      */
     fun languageFlavor(languageFlavor: String) {
-        this.languageFlavor.set(LanguageFlavor.valueOf(languageFlavor.uppercase()))
+        this.codeLanguage.set(CodeLanguage.valueOf(languageFlavor.uppercase()))
     }
 
     /**
-     * Sets the [accessorFlavor] property.
+     * Sets the [accessorType] property.
      *
-     * @param accessorFlavor the accessor flavor
+     * @param accessorType the accessor flavor
      */
-    fun accessorFlavor(accessorFlavor: AccessorFlavor) {
-        this.accessorFlavor.set(accessorFlavor)
+    fun accessorFlavor(accessorType: AccessorType) {
+        this.accessorType.set(accessorType)
     }
 
     /**
@@ -216,7 +216,7 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      * @param accessorFlavor the accessor flavor as a string
      */
     fun accessorFlavor(accessorFlavor: String) {
-        this.accessorFlavor.set(AccessorFlavor.valueOf(accessorFlavor.uppercase()))
+        this.accessorType.set(AccessorType.valueOf(accessorFlavor.uppercase()))
     }
 
     /**
@@ -249,7 +249,7 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     /**
      * Creates a new accessor model with the supplied name.
      *
-     * @param name the mapped class name
+     * @param name the mapped class name or a glob pattern
      * @return the mapped class name ([name]), use this to refer to this class elsewhere
      */
     fun mapClass(name: String): String = mapClass(name) {}
@@ -257,7 +257,7 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     /**
      * Creates a new accessor model with the supplied name.
      *
-     * @param name the mapped class name
+     * @param name the mapped class name or a glob pattern
      * @param block the builder action
      * @return the mapped class name ([name]), use this to refer to this class elsewhere
      */

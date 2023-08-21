@@ -147,15 +147,16 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                         appendLine(namespaces.keys.joinToString("\t") { "${namespaceFriendlyNames[it]}:${getNamespaceBadgeColor(it)}" })
 
                         tree.classes.forEach { klass ->
+                            val type = classTypeOf(klass.modifiers)
                             val friendlyName = getFriendlyDstName(klass)
 
                             launch(Dispatchers.Default + CoroutineName("page-coro")) {
-                                classPage(klass, hashMap[klass], nmsVersion, versionWorkspace, friendlyNameRemapper)
+                                classPage(klass, type, hashMap[klass], nmsVersion, versionWorkspace, friendlyNameRemapper)
                                     .serialize(versionWorkspace, "$friendlyName.html")
                             }
 
                             classMap.getOrPut(friendlyName.substringBeforeLast('/')) { sortedMapOf(compareBy(ClassType::ordinal)) }
-                                .getOrPut(classTypeOf(klass.modifiers), ::sortedSetOf) += friendlyName.substringAfterLast('/')
+                                .getOrPut(type, ::sortedSetOf) += friendlyName.substringAfterLast('/')
 
                             appendLine(namespaces.values.joinToString("\t") { nsId ->
                                 val namespacedNmsVersion = if (tree.getNamespaceName(nsId) in versionReplaceCandidates) nmsVersion else null
@@ -191,7 +192,10 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                 }
             }
 
-            versionsPage(config.welcomeMessage, mappings.mapValues { it.value.dstNamespaces })
+            // reverse order = newest first
+            val versions = mappings.mapValuesTo(TreeMap(Collections.reverseOrder())) { it.value.dstNamespaces }
+
+            versionsPage(config.welcomeMessage, versions)
                 .serialize(workspace, "index.html")
         }
 
@@ -209,9 +213,9 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
                     const searchInput = document.getElementById("search-input");
                     const searchBox = document.getElementById("search-box");
                     
-                    if (baseUrl) {
-                        overviewLink.href = `${'$'}{baseUrl}/index.html`;
-                        licensesLink.href = `${'$'}{baseUrl}/licenses.html`;
+                    if (window.root) {
+                        overviewLink.href = `${'$'}{window.root}index.html`;
+                        licensesLink.href = `${'$'}{window.root}licenses.html`;
                         
                         searchInput.addEventListener("input", (evt) => search(evt.target.value));
                         document.addEventListener("mouseup", (evt) => {
@@ -306,7 +310,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
             appendLine("};")
         }
 
-        appendLine("window.addEventListener(\"load\", () => {")
+        appendLine("window.addEventListener(\"DOMContentLoaded\", () => {")
 
         components.forEach { (tag, _, _) ->
             appendLine("    replaceComponent(\"$tag\", ${tag}Component, ${tag}ComponentCallback);")

@@ -28,6 +28,8 @@ typealias KCodeBlock = com.squareup.kotlinpoet.CodeBlock
  * JavaPoet/KotlinPoet types.
  */
 object SourceTypes {
+    val MAPPING_LOOKUP: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "MappingLookup")
+    val KT_MAPPING_LOOKUP = MAPPING_LOOKUP.toKClassName()
     val CLASS_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "ClassMapping")
     val KT_CLASS_MAPPING = CLASS_MAPPING.toKClassName()
     val FIELD_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "FieldMapping")

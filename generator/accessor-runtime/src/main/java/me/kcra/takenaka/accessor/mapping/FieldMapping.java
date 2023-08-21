@@ -36,7 +36,9 @@ import java.util.Map;
  *
  * @author Matouš Kučera
  */
-@Data
+@Getter
+@Setter
+@ToString
 @RequiredArgsConstructor
 public final class FieldMapping {
     /**
@@ -47,6 +49,7 @@ public final class FieldMapping {
     /**
      * The parent class mapping.
      */
+    @ToString.Exclude
     private final ClassMapping parent;
 
     /**
@@ -62,9 +65,9 @@ public final class FieldMapping {
     /**
      * Cached value from {@link #getConstantValue()}.
      */
+    @ToString.Exclude
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
-    @EqualsAndHashCode.Exclude
     private volatile Object constantValue = UNINITIALIZED_VALUE;
 
     /**
@@ -201,20 +204,20 @@ public final class FieldMapping {
      * Gets a mapped field name by the version and namespaces of the supplied {@link MapperPlatform},
      * and attempts to find it in the parent class reflectively.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @param platform the platform
      * @return the field, null if it's not mapped
      */
     public @Nullable Field getField(@NotNull MapperPlatform platform) {
-        return getField(platform.getVersion(), platform.getMappingNamespaces());
+        return getField(platform.getClassLoader(), platform.getVersion(), platform.getMappingNamespaces());
     }
 
     /**
      * Gets a mapped field name by the version and namespaces of the current {@link MapperPlatform},
      * and attempts to find it in the parent class reflectively.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @return the field, null if it's not mapped
      */
@@ -262,20 +265,20 @@ public final class FieldMapping {
      * Gets a mapped field name by the version and namespaces of the supplied {@link MapperPlatform},
      * attempts to find it in the parent class and creates a getter {@link MethodHandle} if successful.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @param platform the platform
      * @return the field getter handle, null if it's not mapped
      */
     public @Nullable MethodHandle getFieldGetter(@NotNull MapperPlatform platform) {
-        return getFieldGetter(platform.getVersion(), platform.getMappingNamespaces());
+        return getFieldGetter(platform.getClassLoader(), platform.getVersion(), platform.getMappingNamespaces());
     }
 
     /**
      * Gets a mapped field name by the version and namespaces of the current {@link MapperPlatform},
      * attempts to find it in the parent class and creates a getter {@link MethodHandle} if successful.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @return the field getter handle, null if it's not mapped
      */
@@ -324,20 +327,20 @@ public final class FieldMapping {
      * Gets a mapped field name by the version and namespaces of the supplied {@link MapperPlatform},
      * attempts to find it in the parent class and creates a setter {@link MethodHandle} if successful.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @param platform the platform
      * @return the field setter handle, null if it's not mapped
      */
     public @Nullable MethodHandle getFieldSetter(@NotNull MapperPlatform platform) {
-        return getFieldSetter(platform.getVersion(), platform.getMappingNamespaces());
+        return getFieldSetter(platform.getClassLoader(), platform.getVersion(), platform.getMappingNamespaces());
     }
 
     /**
      * Gets a mapped field name by the version and namespaces of the current {@link MapperPlatform},
      * attempts to find it in the parent class and creates a setter {@link MethodHandle} if successful.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @return the field setter handle, null if it's not mapped
      */
@@ -350,7 +353,7 @@ public final class FieldMapping {
      * attempts to find it in the parent class, gets the value and caches it.
      * <p>
      * Despite the name of this method, it can also be used to cache non-final fields.<br>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @return the value, null if it's not mapped or the field's value is null
      */
@@ -385,5 +388,33 @@ public final class FieldMapping {
             mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, mapping);
         }
         return this;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        FieldMapping that = (FieldMapping) o;
+
+        if (parent != that.parent) { // use reference equality here to prevent stack overflow
+            return false;
+        }
+        if (!name.equals(that.name)) {
+            return false;
+        }
+        return mappings.equals(that.mappings);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = System.identityHashCode(parent); // use identity hash code here to prevent stack overflow
+        result = 31 * result + name.hashCode();
+        result = 31 * result + mappings.hashCode();
+        return result;
     }
 }

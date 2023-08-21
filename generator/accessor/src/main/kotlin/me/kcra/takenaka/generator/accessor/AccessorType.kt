@@ -18,18 +18,23 @@
 package me.kcra.takenaka.generator.accessor
 
 /**
- * Generated code languages.
+ * Generated accessor code.
  *
  * @author Matouš Kučera
  */
-enum class LanguageFlavor {
+enum class AccessorType {
     /**
-     * Java code.
+     * No accessors are generated, only mappings.
      */
-    JAVA,
+    NONE,
 
     /**
-     * Kotlin code.
+     * Reflection-based (java.lang.reflect) accessors.
      */
-    KOTLIN
+    REFLECTION,
+
+    /**
+     * MethodHandle-based (java.lang.invoke) accessors.
+     */
+    METHOD_HANDLES
 }

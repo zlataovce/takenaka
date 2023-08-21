@@ -17,9 +17,7 @@
 
 package me.kcra.takenaka.accessor.mapping;
 
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
+import lombok.*;
 import me.kcra.takenaka.accessor.platform.MapperPlatform;
 import me.kcra.takenaka.accessor.platform.MapperPlatforms;
 import me.kcra.takenaka.accessor.util.NameDescriptorPair;
@@ -40,12 +38,15 @@ import java.util.Map;
  *
  * @author Matouš Kučera
  */
-@Data
+@Getter
+@Setter
+@ToString
 @RequiredArgsConstructor
 public final class MethodMapping {
     /**
      * The parent class mapping.
      */
+    @ToString.Exclude
     private final ClassMapping parent;
 
     /**
@@ -209,20 +210,20 @@ public final class MethodMapping {
      * Gets the mapped method name and parameter types by the version and namespaces of the supplied {@link MapperPlatform},
      * and attempts to find a method in the parent class reflectively using them.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @param platform the platform
      * @return the method, null if it's not mapped
      */
     public @Nullable Method getMethod(@NotNull MapperPlatform platform) {
-        return getMethod(platform.getVersion(), platform.getMappingNamespaces());
+        return getMethod(platform.getClassLoader(), platform.getVersion(), platform.getMappingNamespaces());
     }
 
     /**
      * Gets the mapped method name and parameter types by the version and namespaces of the current {@link MapperPlatform},
      * and attempts to find a method in the parent class reflectively using them.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @return the method, null if it's not mapped
      */
@@ -270,20 +271,20 @@ public final class MethodMapping {
      * Gets the mapped method name and parameter types by the version and namespaces of the supplied {@link MapperPlatform},
      * attempts to find a method reflectively using them and creates a {@link MethodHandle} if successful.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @param platform the platform
      * @return the method handle, null if it's not mapped
      */
     public @Nullable MethodHandle getMethodHandle(@NotNull MapperPlatform platform) {
-        return getMethodHandle(platform.getVersion(), platform.getMappingNamespaces());
+        return getMethodHandle(platform.getClassLoader(), platform.getVersion(), platform.getMappingNamespaces());
     }
 
     /**
      * Gets the mapped method name and parameter types by the version and namespaces of the current {@link MapperPlatform},
      * attempts to find a method reflectively using them and creates a {@link MethodHandle} if successful.
      * <p>
-     * The parent class is resolved using the current thread's context class loader.
+     * The parent class is resolved using the platform's preferred class loader.
      *
      * @return the method handle, null if it's not mapped
      */
@@ -311,7 +312,7 @@ public final class MethodMapping {
             @NotNull String... types
     ) {
         for (final String version : versions) {
-            mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, NameDescriptorPair.of(name, types));
+            mappings.computeIfAbsent(version, (k) -> new HashMap<>()).put(namespace, new NameDescriptorPair(name, types));
         }
         return this;
     }
@@ -369,5 +370,37 @@ public final class MethodMapping {
             return element;
         }
         return Array.newInstance(element, new int[dimensions]).getClass();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        MethodMapping that = (MethodMapping) o;
+
+        if (index != that.index) {
+            return false;
+        }
+        if (parent != that.parent) { // use reference equality here to prevent stack overflow
+            return false;
+        }
+        if (!name.equals(that.name)) {
+            return false;
+        }
+        return mappings.equals(that.mappings);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = System.identityHashCode(parent); // use identity hash code here to prevent stack overflow
+        result = 31 * result + name.hashCode();
+        result = 31 * result + index;
+        result = 31 * result + mappings.hashCode();
+        return result;
     }
 }

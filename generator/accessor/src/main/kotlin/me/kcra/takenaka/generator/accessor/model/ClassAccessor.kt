@@ -23,7 +23,7 @@ import java.io.Serializable
 /**
  * A class type accessor declaration.
  *
- * @property name the last (newest) mapped class name of the accessed class
+ * @property name the last (newest) mapped class name of the accessed class, may be a glob pattern
  * @property fields the accessed fields of the class
  * @property constructors the accessed constructors of the class
  * @property methods the accessed methods of the class

@@ -29,7 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
-import me.kcra.takenaka.generator.accessor.AccessorFlavor
+import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import org.objectweb.asm.Opcodes
@@ -55,7 +55,7 @@ open class JavaGenerationContext(
      *
      * @param resolvedAccessor the accessor model
      */
-    override fun generateClass0(resolvedAccessor: ResolvedClassAccessor) {
+    override fun generateClass(resolvedAccessor: ResolvedClassAccessor) {
         val accessedQualifiedName = resolvedAccessor.model.name.fromInternalName()
         val accessedSimpleName = resolvedAccessor.model.internalName.substringAfterLast('/')
 
@@ -97,7 +97,7 @@ open class JavaGenerationContext(
                     .addAnnotation(SourceTypes.NOT_NULL)
                     .initializer(
                         JCodeBlock.builder()
-                            .add("new \$T()", SourceTypes.CLASS_MAPPING)
+                            .add("new \$T(\$S)", SourceTypes.CLASS_MAPPING, accessedQualifiedName)
                             .indent()
                             .apply {
                                 groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
@@ -211,8 +211,8 @@ open class JavaGenerationContext(
                                 .build()
                         )
                     } else {
-                        when (generator.config.accessorFlavor) {
-                            AccessorFlavor.REFLECTION -> {
+                        when (generator.config.accessorType) {
+                            AccessorType.REFLECTION -> {
                                 accessorBuilder.addField(
                                     FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.FIELD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                         .addMeta()
@@ -220,7 +220,7 @@ open class JavaGenerationContext(
                                         .build()
                                 )
                             }
-                            AccessorFlavor.METHOD_HANDLES -> {
+                            AccessorType.METHOD_HANDLES -> {
                                 accessorBuilder.addField(
                                     FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), "${accessorName}_GETTER", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                         .addMeta()
@@ -234,7 +234,7 @@ open class JavaGenerationContext(
                                         .build()
                                 )
                             }
-                            AccessorFlavor.NONE -> {}
+                            AccessorType.NONE -> {}
                         }
                     }
 
@@ -290,8 +290,8 @@ open class JavaGenerationContext(
                         )
                     }
 
-                    when (generator.config.accessorFlavor) {
-                        AccessorFlavor.REFLECTION -> {
+                    when (generator.config.accessorType) {
+                        AccessorType.REFLECTION -> {
                             accessorBuilder.addField(
                                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.CONSTRUCTOR_WILDCARD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                     .addMeta()
@@ -299,7 +299,7 @@ open class JavaGenerationContext(
                                     .build()
                             )
                         }
-                        AccessorFlavor.METHOD_HANDLES -> {
+                        AccessorType.METHOD_HANDLES -> {
                             accessorBuilder.addField(
                                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                     .addMeta()
@@ -307,7 +307,7 @@ open class JavaGenerationContext(
                                     .build()
                             )
                         }
-                        AccessorFlavor.NONE -> {}
+                        AccessorType.NONE -> {}
                     }
 
                     FieldSpec.builder(SourceTypes.CONSTRUCTOR_MAPPING, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
@@ -353,8 +353,8 @@ open class JavaGenerationContext(
                         )
                     }
 
-                    when (generator.config.accessorFlavor) {
-                        AccessorFlavor.REFLECTION -> {
+                    when (generator.config.accessorType) {
+                        AccessorType.REFLECTION -> {
                             accessorBuilder.addField(
                                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                     .addMeta()
@@ -362,7 +362,7 @@ open class JavaGenerationContext(
                                     .build()
                             )
                         }
-                        AccessorFlavor.METHOD_HANDLES -> {
+                        AccessorType.METHOD_HANDLES -> {
                             accessorBuilder.addField(
                                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                     .addMeta()
@@ -370,7 +370,7 @@ open class JavaGenerationContext(
                                     .build()
                             )
                         }
-                        AccessorFlavor.NONE -> {}
+                        AccessorType.NONE -> {}
                     }
 
                     FieldSpec.builder(SourceTypes.METHOD_MAPPING, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
@@ -410,9 +410,46 @@ open class JavaGenerationContext(
             .build()
             .writeTo(generator.workspace)
 
-        if (generator.config.accessorFlavor != AccessorFlavor.NONE) {
+        if (generator.config.accessorType != AccessorType.NONE) {
             accessorBuilder.build().writeTo(generator.workspace)
         }
+    }
+
+    /**
+     * Generates a Java mapping lookup class from class names.
+     *
+     * @param names internal names of classes declared in accessor models
+     */
+    override fun generateLookupClass(names: List<String>) {
+        val poolClassName = JClassName.get(generator.config.basePackage, "Mappings")
+
+        JTypeSpec.interfaceBuilder(poolClassName)
+            .addModifiers(Modifier.PUBLIC)
+            .addField(
+                FieldSpec.builder(SourceTypes.MAPPING_LOOKUP, "LOOKUP", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                    .addAnnotation(SourceTypes.NOT_NULL)
+                    .addJavadoc("Mapping lookup index generated on {@code \$L}.", DATE_FORMAT.format(generationTime))
+                    .initializer(
+                        CodeBlock.builder()
+                            .add("new \$T()", SourceTypes.MAPPING_LOOKUP)
+                            .indent()
+                            .apply {
+                                names.forEach { name ->
+                                    val mappingClassName = JClassName.get(
+                                        generator.config.basePackage,
+                                        "${name.substringAfterLast('/')}Mapping"
+                                    )
+
+                                    add("\n.put(\$T.MAPPING)", mappingClassName)
+                                }
+                            }
+                            .unindent()
+                            .build()
+                    )
+                    .build()
+            )
+            .build()
+            .writeTo(generator.workspace)
     }
 
     /**

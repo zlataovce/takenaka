@@ -19,9 +19,9 @@ package me.kcra.takenaka.generator.accessor.context
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
-import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryNode
+import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryTree
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
-import me.kcra.takenaka.generator.accessor.LanguageFlavor
+import me.kcra.takenaka.generator.accessor.CodeLanguage
 import me.kcra.takenaka.generator.accessor.context.impl.JavaGenerationContext
 import me.kcra.takenaka.generator.accessor.context.impl.KotlinGenerationContext
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
@@ -42,9 +42,15 @@ interface GenerationContext : CoroutineScope {
      * Generates an accessor class from a model.
      *
      * @param model the accessor model
-     * @param node the ancestry node of the class defined by the model
+     * @param tree the class ancestry tree
      */
-    fun generateClass(model: ClassAccessor, node: ClassAncestryNode)
+    fun generateClass(model: ClassAccessor, tree: ClassAncestryTree)
+
+    /**
+     * Generates a mapping lookup class with accessors
+     * that have been generated in this context.
+     */
+    fun generateLookupClass()
 }
 
 /**
@@ -56,13 +62,13 @@ interface GenerationContext : CoroutineScope {
  */
 suspend inline fun <R> AccessorGenerator.generationContext(
     ancestryProvider: AncestryProvider,
-    flavor: LanguageFlavor,
+    flavor: CodeLanguage,
     crossinline block: suspend GenerationContext.() -> R
 ): R = coroutineScope {
     block(
         when (flavor) {
-            LanguageFlavor.JAVA -> JavaGenerationContext(this@generationContext, ancestryProvider, this)
-            LanguageFlavor.KOTLIN -> KotlinGenerationContext(this@generationContext, ancestryProvider, this)
+            CodeLanguage.JAVA -> JavaGenerationContext(this@generationContext, ancestryProvider, this)
+            CodeLanguage.KOTLIN -> KotlinGenerationContext(this@generationContext, ancestryProvider, this)
         }
     )
 }

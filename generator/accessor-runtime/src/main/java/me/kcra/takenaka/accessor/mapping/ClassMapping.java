@@ -41,6 +41,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public final class ClassMapping {
     /**
+     * The accessed class name declared in the accessor model.
+     */
+    private final String name;
+
+    /**
      * The mappings, a map of namespace-mapping maps keyed by version.
      * <p>
      * Fully qualified class name parts are delimited by <strong>dots, not slashes</strong> (non-internal names).
@@ -64,9 +69,11 @@ public final class ClassMapping {
 
     /**
      * Constructs a new {@link ClassMapping} without any initial mappings or members.
+     *
+     * @param name the accessed class name declared in the accessor model
      */
-    public ClassMapping() {
-        this(new HashMap<>(), new HashMap<>(), new ArrayList<>(), new HashMap<>());
+    public ClassMapping(@NotNull String name) {
+        this(name, new HashMap<>(), new HashMap<>(), new ArrayList<>(), new HashMap<>());
     }
 
     /**
@@ -141,18 +148,18 @@ public final class ClassMapping {
 
     /**
      * Gets a mapped class name by the version and namespaces of the supplied {@link MapperPlatform},
-     * and attempts to resolve it in the current thread's context class loader.
+     * and attempts to resolve it in the platform's preferred class loader.
      *
      * @param platform the platform
      * @return the class, null if it's not mapped
      */
     public @Nullable Class<?> getClass(@NotNull MapperPlatform platform) {
-        return getClass(platform.getVersion(), platform.getMappingNamespaces());
+        return getClass(platform.getClassLoader(), platform.getVersion(), platform.getMappingNamespaces());
     }
 
     /**
      * Gets a mapped class name by the version and namespaces of the current {@link MapperPlatform},
-     * and attempts to resolve it in the current thread's context class loader.
+     * and attempts to resolve it in the platform's preferred class loader.
      *
      * @return the class, null if it's not mapped
      */
@@ -261,7 +268,7 @@ public final class ClassMapping {
             @NotNull String name,
             @NotNull String... parameters
     ) {
-        return remapMethod(version, namespace, NameDescriptorPair.of(name, parameters));
+        return remapMethod(version, namespace, new NameDescriptorPair(name, parameters));
     }
 
     /**

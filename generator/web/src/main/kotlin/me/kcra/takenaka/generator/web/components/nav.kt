@@ -46,6 +46,7 @@ fun FlowContent.navComponent() {
                 input(type = InputType.text, classes = "search-input") {
                     id = "search-input"
 
+                    spellCheck = false
                     placeholder = "Type a package name..."
                 }
                 p(classes = "icon-button") {

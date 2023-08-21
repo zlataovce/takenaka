@@ -24,7 +24,7 @@ import lombok.Value;
  *
  * @author Matouš Kučera
  */
-@Value(staticConstructor = "of")
+@Value
 public class NameDescriptorPair {
     /**
      * The method name.
