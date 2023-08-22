@@ -95,22 +95,18 @@ open class JavaGenerationContext(
             .addField(
                 FieldSpec.builder(SourceTypes.CLASS_MAPPING, "MAPPING", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                     .addAnnotation(SourceTypes.NOT_NULL)
-                    .initializer(
-                        JCodeBlock.builder()
-                            .add("new \$T(\$S)", SourceTypes.CLASS_MAPPING, accessedQualifiedName)
-                            .indent()
-                            .apply {
-                                groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
-                                    val (ns, name) = classKey
+                    .initializer {
+                        add("new \$T(\$S)", SourceTypes.CLASS_MAPPING, accessedQualifiedName)
+                        withIndent {
+                            groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
+                                val (ns, name) = classKey
 
-                                    add("\n.put(\$S, \$S, \$L)", ns, name, JCodeBlock.join(versions.map { JCodeBlock.of("\$S", it.id) }, ", "))
-                                }
+                                add("\n.put(\$S, \$S, \$L)", ns, name, JCodeBlock.join(versions.map { JCodeBlock.of("\$S", it.id) }, ", "))
                             }
-                            .apply {
-                                resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
-                                    add("\n.putField(\$S)", fieldAccessor.name)
-                                    indent()
 
+                            resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
+                                add("\n.putField(\$S)", fieldAccessor.name)
+                                withIndent {
                                     groupFieldNames(fieldNode).forEach { (fieldKey, versions) ->
                                         val (ns, name) = fieldKey
 
@@ -118,14 +114,12 @@ open class JavaGenerationContext(
                                     }
 
                                     add("\n.getParent()")
-                                    unindent()
                                 }
                             }
-                            .apply {
-                                resolvedAccessor.constructors.forEach { (_, ctorNode) ->
-                                    add("\n.putConstructor()")
-                                    indent()
 
+                            resolvedAccessor.constructors.forEach { (_, ctorNode) ->
+                                add("\n.putConstructor()")
+                                withIndent {
                                     groupConstructorNames(ctorNode).forEach { (ctorKey, versions) ->
                                         val (ns, desc) = ctorKey
 
@@ -143,14 +137,12 @@ open class JavaGenerationContext(
                                     }
 
                                     add("\n.getParent()")
-                                    unindent()
                                 }
                             }
-                            .apply {
-                                resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
-                                    add("\n.putMethod(\$S)", methodAccessor.name)
-                                    indent()
 
+                            resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
+                                add("\n.putMethod(\$S)", methodAccessor.name)
+                                withIndent {
                                     groupMethodNames(methodNode).forEach { (methodKey, versions) ->
                                         val (ns, name, desc) = methodKey
 
@@ -168,12 +160,10 @@ open class JavaGenerationContext(
                                     }
 
                                     add("\n.getParent()")
-                                    unindent()
                                 }
                             }
-                            .unindent()
-                            .build()
-                    )
+                        }
+                    }
                     .build()
             )
             .addFields(
@@ -252,22 +242,18 @@ open class JavaGenerationContext(
                             fieldNode.first.key.id,
                             fieldNode.last.key.id
                         )
-                        .initializer(
-                            JCodeBlock.builder()
-                                .add("MAPPING.getField(\$S)", fieldAccessor.name)
-                                .apply {
-                                    if (fieldAccessor.chain != null) {
-                                        add(
-                                            ".chain(FIELD_\$L\$L)",
-                                            fieldAccessor.chain.upperName,
-                                            resolvedAccessor.fieldOverloads[fieldAccessor.chain]
-                                                ?.let { if (it != 0) "_$it" else "" }
-                                                ?: ""
-                                        )
-                                    }
-                                }
-                                .build()
-                        )
+                        .initializer {
+                            add("MAPPING.getField(\$S)", fieldAccessor.name)
+                            if (fieldAccessor.chain != null) {
+                                add(
+                                    ".chain(FIELD_\$L\$L)",
+                                    fieldAccessor.chain.upperName,
+                                    resolvedAccessor.fieldOverloads[fieldAccessor.chain]
+                                        ?.let { if (it != 0) "_$it" else "" }
+                                        ?: ""
+                                )
+                            }
+                        }
                         .build()
                 }
             )
@@ -388,22 +374,18 @@ open class JavaGenerationContext(
                             methodNode.first.key.id,
                             methodNode.last.key.id
                         )
-                        .initializer(
-                            JCodeBlock.builder()
-                                .add("MAPPING.getMethod(\$S, \$L)", methodAccessor.name, overloadIndex)
-                                .apply {
-                                    if (methodAccessor.chain != null) {
-                                        add(
-                                            ".chain(METHOD_\$L\$L)",
-                                            methodAccessor.chain.upperName,
-                                            resolvedAccessor.methodOverloads[methodAccessor.chain]
-                                                ?.let { if (it != 0) "_$it" else "" }
-                                                ?: ""
-                                        )
-                                    }
-                                }
-                                .build()
-                        )
+                        .initializer {
+                            add("MAPPING.getMethod(\$S, \$L)", methodAccessor.name, overloadIndex)
+                            if (methodAccessor.chain != null) {
+                                add(
+                                    ".chain(METHOD_\$L\$L)",
+                                    methodAccessor.chain.upperName,
+                                    resolvedAccessor.methodOverloads[methodAccessor.chain]
+                                        ?.let { if (it != 0) "_$it" else "" }
+                                        ?: ""
+                                )
+                            }
+                        }
                         .build()
                 }
             )
@@ -429,23 +411,19 @@ open class JavaGenerationContext(
                 FieldSpec.builder(SourceTypes.MAPPING_LOOKUP, "LOOKUP", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                     .addAnnotation(SourceTypes.NOT_NULL)
                     .addJavadoc("Mapping lookup index generated on {@code \$L}.", DATE_FORMAT.format(generationTime))
-                    .initializer(
-                        JCodeBlock.builder()
-                            .add("new \$T()", SourceTypes.MAPPING_LOOKUP)
-                            .indent()
-                            .apply {
-                                names.forEach { name ->
-                                    val mappingClassName = JClassName.get(
-                                        generator.config.basePackage,
-                                        "${name.substringAfterLast('/')}Mapping"
-                                    )
+                    .initializer {
+                        add("new \$T()", SourceTypes.MAPPING_LOOKUP)
+                        withIndent {
+                            names.forEach { name ->
+                                val mappingClassName = JClassName.get(
+                                    generator.config.basePackage,
+                                    "${name.substringAfterLast('/')}Mapping"
+                                )
 
-                                    add("\n.put(\$T.MAPPING)", mappingClassName)
-                                }
+                                add("\n.put(\$T.MAPPING)", mappingClassName)
                             }
-                            .unindent()
-                            .build()
-                    )
+                        }
+                    }
                     .build()
             )
             .build()

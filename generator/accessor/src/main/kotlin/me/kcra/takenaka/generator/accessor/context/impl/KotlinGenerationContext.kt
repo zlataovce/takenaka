@@ -69,12 +69,25 @@ open class KotlinGenerationContext(
                     )
                     .addProperty(
                         PropertySpec.builder("MAPPING", SourceTypes.KT_CLASS_MAPPING)
-                            .initializer(
-                                buildCodeBlock {
-                                    beginControlFlow("%T", SourceTypes.CLASS_MAPPING_DSL)
+                            .initializer {
+                                beginControlFlow("%T", SourceTypes.KT_CLASS_MAPPING_DSL)
 
-                                    groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
-                                        val (ns, name) = classKey
+                                groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
+                                    val (ns, name) = classKey
+
+                                    addStatement(
+                                        "put(%S, %S, %L)",
+                                        ns,
+                                        name,
+                                        versions.map { KCodeBlock.of("%S", it.id) }.joinToCode()
+                                    )
+                                }
+
+                                resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
+                                    beginControlFlow("%T(%S)", SourceTypes.KT_CLASS_MAPPING_FIELD_DSL, fieldAccessor.name)
+
+                                    groupFieldNames(fieldNode).forEach { (fieldKey, versions) ->
+                                        val (ns, name) = fieldKey
 
                                         addStatement(
                                             "put(%S, %S, %L)",
@@ -84,63 +97,48 @@ open class KotlinGenerationContext(
                                         )
                                     }
 
-                                    resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
-                                        beginControlFlow("%T(%S)", SourceTypes.CLASS_MAPPING_FIELD_DSL, fieldAccessor.name)
+                                    endControlFlow()
+                                }
 
-                                        groupFieldNames(fieldNode).forEach { (fieldKey, versions) ->
-                                            val (ns, name) = fieldKey
+                                resolvedAccessor.constructors.forEach { (_, ctorNode) ->
+                                    beginControlFlow("%T", SourceTypes.KT_CLASS_MAPPING_CTOR_DSL)
 
-                                            addStatement(
-                                                "put(%S, %S, %L)",
-                                                ns,
-                                                name,
-                                                versions.map { KCodeBlock.of("%S", it.id) }.joinToCode()
-                                            )
-                                        }
+                                    groupConstructorNames(ctorNode).forEach { (ctorKey, versions) ->
+                                        val (ns, desc) = ctorKey
 
-                                        endControlFlow()
-                                    }
-
-                                    resolvedAccessor.constructors.forEach { (_, ctorNode) ->
-                                        beginControlFlow("%T", SourceTypes.CLASS_MAPPING_CTOR_DSL)
-
-                                        groupConstructorNames(ctorNode).forEach { (ctorKey, versions) ->
-                                            val (ns, desc) = ctorKey
-
-                                            val args = Type.getArgumentTypes(desc)
-                                            addStatement(
-                                                "put(%S, arrayOf(%L)%L)",
-                                                ns,
-                                                versions.map { KCodeBlock.of("%S", it.id) }.joinToCode(),
-                                                if (args.isEmpty()) "" else args.map { KCodeBlock.of("%S", it.className) }.joinToCode(prefix = ", ")
-                                            )
-                                        }
-
-                                        endControlFlow()
-                                    }
-
-                                    resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
-                                        beginControlFlow("%T(%S)", SourceTypes.CLASS_MAPPING_METHOD_DSL, methodAccessor.name)
-
-                                        groupMethodNames(methodNode).forEach { (methodKey, versions) ->
-                                            val (ns, name, desc) = methodKey
-
-                                            val args = Type.getArgumentTypes(desc)
-                                            addStatement(
-                                                "put(%S, arrayOf(%L), %S%L)",
-                                                ns,
-                                                versions.map { KCodeBlock.of("%S", it.id) }.joinToCode(),
-                                                name,
-                                                if (args.isEmpty()) "" else args.map { KCodeBlock.of("%S", it.className) }.joinToCode(prefix = ", ")
-                                            )
-                                        }
-
-                                        endControlFlow()
+                                        val args = Type.getArgumentTypes(desc)
+                                        addStatement(
+                                            "put(%S, arrayOf(%L)%L)",
+                                            ns,
+                                            versions.map { KCodeBlock.of("%S", it.id) }.joinToCode(),
+                                            if (args.isEmpty()) "" else args.map { KCodeBlock.of("%S", it.className) }.joinToCode(prefix = ", ")
+                                        )
                                     }
 
                                     endControlFlow()
                                 }
-                            )
+
+                                resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
+                                    beginControlFlow("%T(%S)", SourceTypes.KT_CLASS_MAPPING_METHOD_DSL, methodAccessor.name)
+
+                                    groupMethodNames(methodNode).forEach { (methodKey, versions) ->
+                                        val (ns, name, desc) = methodKey
+
+                                        val args = Type.getArgumentTypes(desc)
+                                        addStatement(
+                                            "put(%S, arrayOf(%L), %S%L)",
+                                            ns,
+                                            versions.map { KCodeBlock.of("%S", it.id) }.joinToCode(),
+                                            name,
+                                            if (args.isEmpty()) "" else args.map { KCodeBlock.of("%S", it.className) }.joinToCode(prefix = ", ")
+                                        )
+                                    }
+
+                                    endControlFlow()
+                                }
+
+                                endControlFlow()
+                            }
                             .build()
                     )
                     .build()
@@ -162,22 +160,20 @@ open class KotlinGenerationContext(
     override fun generateLookupClass(names: List<String>) {
         PropertySpec.builder("LOOKUP", SourceTypes.KT_MAPPING_LOOKUP)
             .addKdoc("Mapping lookup index.")
-            .initializer(
-                buildCodeBlock {
-                    beginControlFlow("%T", SourceTypes.MAPPING_LOOKUP_DSL)
+            .initializer {
+                beginControlFlow("%T", SourceTypes.KT_MAPPING_LOOKUP_DSL)
 
-                    names.forEach { name ->
-                        val mappingClassName = KClassName(
-                            generator.config.basePackage,
-                            "${name.substringAfterLast('/')}Mapping"
-                        )
+                names.forEach { name ->
+                    val mappingClassName = KClassName(
+                        generator.config.basePackage,
+                        "${name.substringAfterLast('/')}Mapping"
+                    )
 
-                        addStatement("put(%T.MAPPING)", mappingClassName)
-                    }
-
-                    endControlFlow()
+                    addStatement("put(%T.MAPPING)", mappingClassName)
                 }
-            )
+
+                endControlFlow()
+            }
             .build()
             .writeTo(generator.workspace, "lookup")
     }

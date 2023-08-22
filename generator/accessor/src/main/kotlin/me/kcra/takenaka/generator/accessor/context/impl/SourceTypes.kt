@@ -19,11 +19,50 @@
 
 package me.kcra.takenaka.generator.accessor.context.impl
 
+import com.squareup.javapoet.FieldSpec
 import com.squareup.kotlinpoet.MemberName
+import com.squareup.kotlinpoet.PropertySpec
+import com.squareup.kotlinpoet.buildCodeBlock
 import com.squareup.kotlinpoet.javapoet.*
 
 typealias JCodeBlock = com.squareup.javapoet.CodeBlock
+typealias JCodeBlockBuilder = com.squareup.javapoet.CodeBlock.Builder
+
 typealias KCodeBlock = com.squareup.kotlinpoet.CodeBlock
+typealias KCodeBlockBuilder = com.squareup.kotlinpoet.CodeBlock.Builder
+
+/**
+ * Builds new [JCodeBlock] by populating newly created [JCodeBlockBuilder] using provided
+ * [builderAction] and then converting it to [JCodeBlock].
+ */
+inline fun buildJCodeBlock(builderAction: JCodeBlockBuilder.() -> Unit): JCodeBlock {
+    return JCodeBlock.builder().apply(builderAction).build()
+}
+
+/**
+ * Calls [JCodeBlockBuilder.indent] then executes the provided [builderAction] on the
+ * [JCodeBlockBuilder] and then executes [JCodeBlockBuilder.unindent] before returning the
+ * original [JCodeBlockBuilder].
+ */
+inline fun JCodeBlockBuilder.withIndent(builderAction: JCodeBlockBuilder.() -> Unit): JCodeBlockBuilder {
+    return indent().also(builderAction).unindent()
+}
+
+/**
+ * Builds and sets the initializer for this field builder.
+ *
+ * @param block the code block builder action
+ * @return the field builder
+ */
+inline fun FieldSpec.Builder.initializer(block: JCodeBlockBuilder.() -> Unit): FieldSpec.Builder = initializer(buildJCodeBlock(block))
+
+/**
+ * Builds and sets the initializer for this property builder.
+ *
+ * @param block the code block builder action
+ * @return the property builder
+ */
+inline fun PropertySpec.Builder.initializer(block: KCodeBlockBuilder.() -> Unit): PropertySpec.Builder = initializer(buildCodeBlock(block))
 
 /**
  * JavaPoet/KotlinPoet types.
@@ -52,9 +91,9 @@ object SourceTypes {
     val METHOD_HANDLE: JClassName = JClassName.get(java.lang.invoke.MethodHandle::class.java)
     val STRING: JClassName = JClassName.get(java.lang.String::class.java)
 
-    val MAPPING_LOOKUP_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "mappingLookup", isExtension = true)
-    val CLASS_MAPPING_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "classMapping", isExtension = true)
-    val CLASS_MAPPING_FIELD_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "field", isExtension = true)
-    val CLASS_MAPPING_CTOR_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "constructor", isExtension = true)
-    val CLASS_MAPPING_METHOD_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "method", isExtension = true)
+    val KT_MAPPING_LOOKUP_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "mappingLookup", isExtension = true)
+    val KT_CLASS_MAPPING_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "classMapping", isExtension = true)
+    val KT_CLASS_MAPPING_FIELD_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "field", isExtension = true)
+    val KT_CLASS_MAPPING_CTOR_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "constructor", isExtension = true)
+    val KT_CLASS_MAPPING_METHOD_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "method", isExtension = true)
 }
