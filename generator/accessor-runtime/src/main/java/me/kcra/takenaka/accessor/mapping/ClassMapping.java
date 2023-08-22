@@ -32,7 +32,7 @@ import java.util.*;
  *
  * @author Matouš Kučera
  */
-public final class ClassMapping {
+public class ClassMapping {
     /**
      * The accessed class name declared in the accessor model.
      */

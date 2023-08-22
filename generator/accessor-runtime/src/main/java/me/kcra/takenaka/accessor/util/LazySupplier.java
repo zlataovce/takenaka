@@ -37,6 +37,8 @@ public final class LazySupplier<T> implements Supplier<T> {
 
     /**
      * The wrapped {@link Supplier}, <strong>not lazy</strong>.
+     * <p>
+     * <i>May be called more than once.</i>
      */
     private final Supplier<T> resultSupplier;
 

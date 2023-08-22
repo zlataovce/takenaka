@@ -31,7 +31,7 @@ import java.util.Objects;
  *
  * @author Matouš Kučera
  */
-public final class MappingLookup {
+public class MappingLookup {
     /**
      * Class mappings of this pool keyed by the name declared in the accessor model.
      */

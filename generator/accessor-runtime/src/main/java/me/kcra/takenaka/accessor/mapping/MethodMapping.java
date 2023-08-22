@@ -38,7 +38,7 @@ import java.util.Map;
  *
  * @author Matouš Kučera
  */
-public final class MethodMapping {
+public class MethodMapping {
     /**
      * The parent class mapping.
      */

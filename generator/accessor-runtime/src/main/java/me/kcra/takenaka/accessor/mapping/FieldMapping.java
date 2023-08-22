@@ -36,7 +36,7 @@ import java.util.Map;
  *
  * @author Matouš Kučera
  */
-public final class FieldMapping {
+public class FieldMapping {
     /**
      * A value for {@link #constantValue} representing an uninitialized state.
      */

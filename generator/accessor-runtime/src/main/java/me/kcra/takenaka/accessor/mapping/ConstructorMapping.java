@@ -36,7 +36,7 @@ import java.util.Map;
  *
  * @author Matouš Kučera
  */
-public final class ConstructorMapping {
+public class ConstructorMapping {
     /**
      * The parent class mapping.
      */
