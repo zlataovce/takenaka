@@ -19,7 +19,6 @@
 
 package me.kcra.takenaka.generator.accessor.context.impl
 
-import com.squareup.javapoet.CodeBlock
 import com.squareup.javapoet.FieldSpec
 import com.squareup.javapoet.JavaFile
 import com.squareup.kotlinpoet.javapoet.JClassName
@@ -36,13 +35,13 @@ import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import java.nio.file.Path
-import java.text.SimpleDateFormat
 import javax.lang.model.element.Modifier
 
 /**
  * A generation context that emits Java code.
  *
- * @property generator the generator
+ * @param generator the generator
+ * @param ancestryProvider the ancestry provider
  * @param contextScope the coroutine scope of this context
  * @author Matouš Kučera
  */
@@ -66,10 +65,12 @@ open class JavaGenerationContext(
             .addModifiers(Modifier.PUBLIC)
             .addJavadoc(
                 """
-                    Accessors for the {@code $accessedQualifiedName} class.
+                    Accessors for the {@code ${'$'}L} class.
                     
-                    @see ${mappingClassName.canonicalName()}
-                """.trimIndent().escape()
+                    @see ${'$'}L
+                """.trimIndent(),
+                accessedQualifiedName,
+                mappingClassName.canonicalName()
             )
             .addField(
                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.CLASS_WILDCARD), "TYPE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
@@ -82,94 +83,87 @@ open class JavaGenerationContext(
             .addModifiers(Modifier.PUBLIC)
             .addJavadoc(
                 """
-                    Mappings for the {@code $accessedQualifiedName} class.
+                    Mappings for the {@code ${'$'}L} class.
                     
-                    @since ${resolvedAccessor.node.first.key.id}
-                    @version ${resolvedAccessor.node.last.key.id}
-                """.trimIndent().escape()
+                    @since ${'$'}L
+                    @version ${'$'}L
+                """.trimIndent(),
+                accessedQualifiedName,
+                resolvedAccessor.node.first.key.id,
+                resolvedAccessor.node.last.key.id
             )
             .addField(
                 FieldSpec.builder(SourceTypes.CLASS_MAPPING, "MAPPING", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                     .addAnnotation(SourceTypes.NOT_NULL)
-                    .initializer(
-                        CodeBlock.builder()
-                            .add("new \$T(\$S)", SourceTypes.CLASS_MAPPING, accessedQualifiedName)
-                            .indent()
-                            .apply {
-                                groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
-                                    val (ns, name) = classKey
+                    .initializer {
+                        add("new \$T(\$S)", SourceTypes.CLASS_MAPPING, accessedQualifiedName)
+                        withIndent {
+                            groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
+                                val (ns, name) = classKey
 
-                                    add("\n.put(\$S, \$S, \$L)", ns, name, CodeBlock.join(versions.map { CodeBlock.of("\$S", it.id) }, ", "))
-                                }
+                                add("\n.put(\$S, \$S, \$L)", ns, name, JCodeBlock.join(versions.map { JCodeBlock.of("\$S", it.id) }, ", "))
                             }
-                            .apply {
-                                resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
-                                    add("\n.putField(\$S)", fieldAccessor.name)
-                                    indent()
 
+                            resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
+                                add("\n.putField(\$S)", fieldAccessor.name)
+                                withIndent {
                                     groupFieldNames(fieldNode).forEach { (fieldKey, versions) ->
                                         val (ns, name) = fieldKey
 
-                                        add("\n.put(\$S, \$S, \$L)", ns, name, CodeBlock.join(versions.map { CodeBlock.of("\$S", it.id) }, ", "))
+                                        add("\n.put(\$S, \$S, \$L)", ns, name, JCodeBlock.join(versions.map { JCodeBlock.of("\$S", it.id) }, ", "))
                                     }
 
                                     add("\n.getParent()")
-                                    unindent()
                                 }
                             }
-                            .apply {
-                                resolvedAccessor.constructors.forEach { (_, ctorNode) ->
-                                    add("\n.putConstructor()")
-                                    indent()
 
+                            resolvedAccessor.constructors.forEach { (_, ctorNode) ->
+                                add("\n.putConstructor()")
+                                withIndent {
                                     groupConstructorNames(ctorNode).forEach { (ctorKey, versions) ->
                                         val (ns, desc) = ctorKey
 
-                                        add("\n.put(\$S, new \$T[] { \$L }", ns, SourceTypes.STRING, CodeBlock.join(versions.map { CodeBlock.of("\$S", it.id) }, ", "))
+                                        add("\n.put(\$S, new \$T[] { \$L }", ns, SourceTypes.STRING, JCodeBlock.join(versions.map { JCodeBlock.of("\$S", it.id) }, ", "))
 
                                         val args = Type.getArgumentTypes(desc)
-                                            .map { CodeBlock.of("\$S", it.className) }
+                                            .map { JCodeBlock.of("\$S", it.className) }
 
                                         if (args.isNotEmpty()) {
                                             add(", ")
-                                            add(CodeBlock.join(args, ", "))
+                                            add(JCodeBlock.join(args, ", "))
                                         }
 
                                         add(")")
                                     }
 
                                     add("\n.getParent()")
-                                    unindent()
                                 }
                             }
-                            .apply {
-                                resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
-                                    add("\n.putMethod(\$S)", methodAccessor.name)
-                                    indent()
 
+                            resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
+                                add("\n.putMethod(\$S)", methodAccessor.name)
+                                withIndent {
                                     groupMethodNames(methodNode).forEach { (methodKey, versions) ->
                                         val (ns, name, desc) = methodKey
 
-                                        add("\n.put(\$S, new \$T[] { \$L }, \$S", ns, SourceTypes.STRING, CodeBlock.join(versions.map { CodeBlock.of("\$S", it.id) }, ", "), name)
+                                        add("\n.put(\$S, new \$T[] { \$L }, \$S", ns, SourceTypes.STRING, JCodeBlock.join(versions.map { JCodeBlock.of("\$S", it.id) }, ", "), name)
 
                                         val args = Type.getArgumentTypes(desc)
-                                            .map { CodeBlock.of("\$S", it.className) }
+                                            .map { JCodeBlock.of("\$S", it.className) }
 
                                         if (args.isNotEmpty()) {
                                             add(", ")
-                                            add(CodeBlock.join(args, ", "))
+                                            add(JCodeBlock.join(args, ", "))
                                         }
 
                                         add(")")
                                     }
 
                                     add("\n.getParent()")
-                                    unindent()
                                 }
                             }
-                            .unindent()
-                            .build()
-                    )
+                        }
+                    }
                     .build()
             )
             .addFields(
@@ -178,18 +172,31 @@ open class JavaGenerationContext(
                     val fieldType = fieldAccessor.type?.let(Type::getType)
                         ?: getFriendlyType(fieldNode.last.value)
 
+                    fun FieldSpec.Builder.addMeta(constant: Boolean = false): FieldSpec.Builder = apply {
+                        addAnnotation(SourceTypes.NOT_NULL)
+                        addJavadoc(
+                            """
+                                Accessor for the {@code ${'$'}L ${'$'}L} ${'$'}L.
+                                
+                                @see ${'$'}L#${'$'}L
+                            """.trimIndent(),
+                            fieldType.className,
+                            fieldAccessor.name,
+                            if (constant) {
+                                "constant field value"
+                            } else {
+                                "field"
+                            },
+                            mappingClassName.canonicalName(),
+                            accessorName
+                        )
+                    }
+
                     val mod = fieldNode.last.value.modifiers
                     if ((mod and Opcodes.ACC_STATIC) != 0 && (mod and Opcodes.ACC_FINAL) != 0) { // constant
                         accessorBuilder.addField(
                             FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, JClassName.OBJECT), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                .addAnnotation(SourceTypes.NOT_NULL)
-                                .addJavadoc(
-                                    """
-                                        Accessor for the {@code ${fieldType.className} ${fieldAccessor.name}} constant field value.
-                                                            
-                                        @see ${mappingClassName.canonicalName()}#$accessorName
-                                    """.trimIndent().escape()
-                                )
+                                .addMeta(constant = true)
                                 .initializer("\$T.of(\$T.$accessorName::getConstantValue)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
                                 .build()
                         )
@@ -198,14 +205,7 @@ open class JavaGenerationContext(
                             AccessorType.REFLECTION -> {
                                 accessorBuilder.addField(
                                     FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.FIELD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                        .addAnnotation(SourceTypes.NOT_NULL)
-                                        .addJavadoc(
-                                            """
-                                            Accessor for the {@code ${fieldType.className} ${fieldAccessor.name}} field.
-                                                                
-                                            @see ${mappingClassName.canonicalName()}#$accessorName
-                                        """.trimIndent().escape()
-                                        )
+                                        .addMeta()
                                         .initializer("\$T.of(\$T.$accessorName::getField)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
                                         .build()
                                 )
@@ -213,27 +213,13 @@ open class JavaGenerationContext(
                             AccessorType.METHOD_HANDLES -> {
                                 accessorBuilder.addField(
                                     FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), "${accessorName}_GETTER", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                        .addAnnotation(SourceTypes.NOT_NULL)
-                                        .addJavadoc(
-                                            """
-                                            Accessor for the {@code ${fieldType.className} ${fieldAccessor.name}} field.
-                                                                
-                                            @see ${mappingClassName.canonicalName()}#$accessorName
-                                        """.trimIndent().escape()
-                                        )
+                                        .addMeta()
                                         .initializer("\$T.of(\$T.$accessorName::getFieldGetter)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
                                         .build()
                                 )
                                 accessorBuilder.addField(
                                     FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), "${accessorName}_SETTER", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                        .addAnnotation(SourceTypes.NOT_NULL)
-                                        .addJavadoc(
-                                            """
-                                            Accessor for the {@code ${fieldType.className} ${fieldAccessor.name}} field.
-                                                                
-                                            @see ${mappingClassName.canonicalName()}#$accessorName
-                                        """.trimIndent().escape()
-                                        )
+                                        .addMeta()
                                         .initializer("\$T.of(\$T.$accessorName::getFieldSetter)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
                                         .build()
                                 )
@@ -246,22 +232,28 @@ open class JavaGenerationContext(
                         .addAnnotation(SourceTypes.NOT_NULL)
                         .addJavadoc(
                             """
-                                Mapping for the {@code ${fieldType.className} ${fieldAccessor.name}} field.
-                                                    
-                                @since ${fieldNode.first.key.id}
-                                @version ${fieldNode.last.key.id}
-                            """.trimIndent().escape()
+                                Mapping for the {@code ${'$'}L ${'$'}L} field.
+                                
+                                @since ${'$'}L
+                                @version ${'$'}L
+                            """.trimIndent(),
+                            fieldType.className,
+                            fieldAccessor.name,
+                            fieldNode.first.key.id,
+                            fieldNode.last.key.id
                         )
-                        .initializer(
-                            CodeBlock.builder()
-                                .add("MAPPING.getField(\$S)", fieldAccessor.name)
-                                .apply {
-                                    if (fieldAccessor.chain != null) {
-                                        add(".chain(FIELD_${fieldAccessor.chain.upperName}${resolvedAccessor.fieldOverloads[fieldAccessor.chain]?.let { if (it != 0) "_$it" else "" } ?: ""})")
-                                    }
-                                }
-                                .build()
-                        )
+                        .initializer {
+                            add("MAPPING.getField(\$S)", fieldAccessor.name)
+                            if (fieldAccessor.chain != null) {
+                                add(
+                                    ".chain(FIELD_\$L\$L)",
+                                    fieldAccessor.chain.upperName,
+                                    resolvedAccessor.fieldOverloads[fieldAccessor.chain]
+                                        ?.let { if (it != 0) "_$it" else "" }
+                                        ?: ""
+                                )
+                            }
+                        }
                         .build()
                 }
             )
@@ -270,18 +262,25 @@ open class JavaGenerationContext(
                     val accessorName = "CONSTRUCTOR_$i"
                     val ctorArgs = Type.getArgumentTypes(ctorAccessor.type)
 
+                    fun FieldSpec.Builder.addMeta(): FieldSpec.Builder = apply {
+                        addAnnotation(SourceTypes.NOT_NULL)
+                        addJavadoc(
+                            """
+                                Accessor for the {@code (${'$'}L)} constructor.
+                                
+                                @see ${'$'}L#${'$'}L
+                            """.trimIndent(),
+                            ctorArgs.joinToString(transform = Type::getClassName),
+                            mappingClassName.canonicalName(),
+                            accessorName
+                        )
+                    }
+
                     when (generator.config.accessorType) {
                         AccessorType.REFLECTION -> {
                             accessorBuilder.addField(
                                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.CONSTRUCTOR_WILDCARD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                    .addAnnotation(SourceTypes.NOT_NULL)
-                                    .addJavadoc(
-                                        """
-                                            Accessor for the {@code (${ctorArgs.joinToString(transform = Type::getClassName)})} constructor.
-                                                                
-                                            @see ${mappingClassName.canonicalName()}#$accessorName
-                                        """.trimIndent().escape()
-                                    )
+                                    .addMeta()
                                     .initializer("\$T.of(\$T.$accessorName::getConstructor)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
                                     .build()
                             )
@@ -289,14 +288,7 @@ open class JavaGenerationContext(
                         AccessorType.METHOD_HANDLES -> {
                             accessorBuilder.addField(
                                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                    .addAnnotation(SourceTypes.NOT_NULL)
-                                    .addJavadoc(
-                                        """
-                                            Accessor for the {@code (${ctorArgs.joinToString(transform = Type::getClassName)})} constructor.
-                                                                
-                                            @see ${mappingClassName.canonicalName()}#$accessorName
-                                        """.trimIndent().escape()
-                                    )
+                                    .addMeta()
                                     .initializer("\$T.of(\$T.$accessorName::getConstructorHandle)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
                                     .build()
                             )
@@ -308,11 +300,14 @@ open class JavaGenerationContext(
                         .addAnnotation(SourceTypes.NOT_NULL)
                         .addJavadoc(
                             """
-                                Mapping for the {@code (${ctorArgs.joinToString(transform = Type::getClassName)})} constructor.
-                                                    
-                                @since ${ctorNode.first.key.id}
-                                @version ${ctorNode.last.key.id}
-                            """.trimIndent().escape()
+                                Mapping for the {@code (${'$'}L)} constructor.
+                                
+                                @since ${'$'}L
+                                @version ${'$'}L
+                            """.trimIndent(),
+                            ctorArgs.joinToString(transform = Type::getClassName),
+                            ctorNode.first.key.id,
+                            ctorNode.last.key.id
                         )
                         .initializer("MAPPING.getConstructor(\$L)", i)
                         .build()
@@ -328,18 +323,27 @@ open class JavaGenerationContext(
                         Type.getType(methodAccessor.type)
                     }
 
+                    fun FieldSpec.Builder.addMeta(): FieldSpec.Builder = apply {
+                        addAnnotation(SourceTypes.NOT_NULL)
+                        addJavadoc(
+                            """
+                                Accessor for the {@code ${'$'}L ${'$'}L(${'$'}L)} method.
+                                
+                                @see ${'$'}L#${'$'}L
+                            """.trimIndent(),
+                            methodType.returnType.className,
+                            methodAccessor.name,
+                            methodType.argumentTypes.joinToString(transform = Type::getClassName),
+                            mappingClassName.canonicalName(),
+                            accessorName
+                        )
+                    }
+
                     when (generator.config.accessorType) {
                         AccessorType.REFLECTION -> {
                             accessorBuilder.addField(
                                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                    .addAnnotation(SourceTypes.NOT_NULL)
-                                    .addJavadoc(
-                                        """
-                                            Accessor for the {@code ${methodType.returnType.className} ${methodAccessor.name}(${methodType.argumentTypes.joinToString(transform = Type::getClassName)})} method.
-                                                                
-                                            @see ${mappingClassName.canonicalName()}#$accessorName
-                                        """.trimIndent().escape()
-                                    )
+                                    .addMeta()
                                     .initializer("\$T.of(\$T.$accessorName::getMethod)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
                                     .build()
                             )
@@ -347,14 +351,7 @@ open class JavaGenerationContext(
                         AccessorType.METHOD_HANDLES -> {
                             accessorBuilder.addField(
                                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                    .addAnnotation(SourceTypes.NOT_NULL)
-                                    .addJavadoc(
-                                        """
-                                            Accessor for the {@code ${methodType.returnType.className} ${methodAccessor.name}(${methodType.argumentTypes.joinToString(transform = Type::getClassName)})} method.
-                                                                
-                                            @see ${mappingClassName.canonicalName()}#$accessorName
-                                        """.trimIndent().escape()
-                                    )
+                                    .addMeta()
                                     .initializer("\$T.of(\$T.$accessorName::getMethodHandle)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
                                     .build()
                             )
@@ -366,22 +363,29 @@ open class JavaGenerationContext(
                         .addAnnotation(SourceTypes.NOT_NULL)
                         .addJavadoc(
                             """
-                                Mapping for the {@code ${methodType.returnType.className} ${methodAccessor.name}(${methodType.argumentTypes.joinToString(transform = Type::getClassName)})} method.
-                                                    
-                                @since ${methodNode.first.key.id}
-                                @version ${methodNode.last.key.id}
-                            """.trimIndent().escape()
+                                Mapping for the {@code ${'$'}L ${'$'}L(${'$'}L)} method.
+                                
+                                @since ${'$'}L
+                                @version ${'$'}L
+                            """.trimIndent(),
+                            methodType.returnType.className,
+                            methodAccessor.name,
+                            methodType.argumentTypes.joinToString(transform = Type::getClassName),
+                            methodNode.first.key.id,
+                            methodNode.last.key.id
                         )
-                        .initializer(
-                            CodeBlock.builder()
-                                .add("MAPPING.getMethod(\$S, \$L)", methodAccessor.name, overloadIndex)
-                                .apply {
-                                    if (methodAccessor.chain != null) {
-                                        add(".chain(METHOD_${methodAccessor.chain.upperName}${resolvedAccessor.methodOverloads[methodAccessor.chain]?.let { if (it != 0) "_$it" else "" } ?: ""})")
-                                    }
-                                }
-                                .build()
-                        )
+                        .initializer {
+                            add("MAPPING.getMethod(\$S, \$L)", methodAccessor.name, overloadIndex)
+                            if (methodAccessor.chain != null) {
+                                add(
+                                    ".chain(METHOD_\$L\$L)",
+                                    methodAccessor.chain.upperName,
+                                    resolvedAccessor.methodOverloads[methodAccessor.chain]
+                                        ?.let { if (it != 0) "_$it" else "" }
+                                        ?: ""
+                                )
+                            }
+                        }
                         .build()
                 }
             )
@@ -407,23 +411,19 @@ open class JavaGenerationContext(
                 FieldSpec.builder(SourceTypes.MAPPING_LOOKUP, "LOOKUP", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                     .addAnnotation(SourceTypes.NOT_NULL)
                     .addJavadoc("Mapping lookup index generated on {@code \$L}.", DATE_FORMAT.format(generationTime))
-                    .initializer(
-                        CodeBlock.builder()
-                            .add("new \$T()", SourceTypes.MAPPING_LOOKUP)
-                            .indent()
-                            .apply {
-                                names.forEach { name ->
-                                    val mappingClassName = JClassName.get(
-                                        generator.config.basePackage,
-                                        "${name.substringAfterLast('/')}Mapping"
-                                    )
+                    .initializer {
+                        add("new \$T()", SourceTypes.MAPPING_LOOKUP)
+                        withIndent {
+                            names.forEach { name ->
+                                val mappingClassName = JClassName.get(
+                                    generator.config.basePackage,
+                                    "${name.substringAfterLast('/')}Mapping"
+                                )
 
-                                    add("\n.put(\$T.MAPPING)", mappingClassName)
-                                }
+                                add("\n.put(\$T.MAPPING)", mappingClassName)
                             }
-                            .unindent()
-                            .build()
-                    )
+                        }
+                    }
                     .build()
             )
             .build()
@@ -443,13 +443,6 @@ open class JavaGenerationContext(
             .indent(" ".repeat(4)) // 4 spaces
             .build()
             .writeTo(workspace)
-
-    companion object {
-        /**
-         * The file comment's generation timestamp date format.
-         */
-        val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-    }
 }
 
 /**
@@ -459,10 +452,3 @@ open class JavaGenerationContext(
  * @return the file where the source was actually written
  */
 fun JavaFile.writeTo(workspace: Workspace): Path = writeToPath(workspace.rootDirectory)
-
-/**
- * Escapes JavaPoet formatting symbols.
- *
- * @return the escaped string
- */
-fun String.escape(): String = replace("$", "$$")

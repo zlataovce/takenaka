@@ -23,6 +23,7 @@ import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryTree
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.CodeLanguage
 import me.kcra.takenaka.generator.accessor.context.impl.JavaGenerationContext
+import me.kcra.takenaka.generator.accessor.context.impl.KotlinGenerationContext
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 
@@ -46,10 +47,15 @@ interface GenerationContext : CoroutineScope {
     fun generateClass(model: ClassAccessor, tree: ClassAncestryTree)
 
     /**
-     * Generates a mapping lookup class with accessors
-     * that have been generated in this context.
+     * Generates a mapping lookup class with accessors that have been generated in this context.
      */
     fun generateLookupClass()
+
+    /**
+     * Generates extra resources needed for the function of the generated output.
+     */
+    fun generateExtras() {
+    }
 }
 
 /**
@@ -67,7 +73,7 @@ suspend inline fun <R> AccessorGenerator.generationContext(
     block(
         when (flavor) {
             CodeLanguage.JAVA -> JavaGenerationContext(this@generationContext, ancestryProvider, this)
-            else -> throw UnsupportedOperationException("Flavor $flavor not supported")
+            CodeLanguage.KOTLIN -> KotlinGenerationContext(this@generationContext, ancestryProvider, this)
         }
     )
 }

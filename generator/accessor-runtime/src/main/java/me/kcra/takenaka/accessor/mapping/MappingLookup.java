@@ -17,8 +17,6 @@
 
 package me.kcra.takenaka.accessor.mapping;
 
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -26,15 +24,14 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A collection of {@link ClassMapping}s.
  *
  * @author Matouš Kučera
  */
-@Data
-@RequiredArgsConstructor
-public final class MappingLookup {
+public class MappingLookup {
     /**
      * Class mappings of this pool keyed by the name declared in the accessor model.
      */
@@ -45,6 +42,15 @@ public final class MappingLookup {
      */
     public MappingLookup() {
         this(new HashMap<>());
+    }
+
+    /**
+     * Constructs a new {@link MappingLookup} with pre-defined mappings.
+     *
+     * @param mappings class mappings of this pool keyed by the name declared in the accessor model
+     */
+    public MappingLookup(@NotNull Map<String, ClassMapping> mappings) {
+        this.mappings = mappings;
     }
 
     /**
@@ -82,23 +88,7 @@ public final class MappingLookup {
     /**
      * Puts a new mapping into this {@link MappingLookup}.
      * <p>
-     * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
-     *
-     * @param name the mapped name
-     * @param mapping the {@link ClassMapping}
-     * @return this {@link MappingLookup}
-     */
-    @ApiStatus.Internal
-    @Contract("_, _ -> this")
-    public @NotNull MappingLookup put(@NotNull String name, @NotNull ClassMapping mapping) {
-        mappings.put(name, mapping);
-        return this;
-    }
-
-    /**
-     * Puts a new mapping into this {@link MappingLookup}.
-     * <p>
-     * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
+     * <strong>This is only for use in generated code.</strong>
      *
      * @param mapping the {@link ClassMapping}
      * @return this {@link MappingLookup}
@@ -106,6 +96,41 @@ public final class MappingLookup {
     @ApiStatus.Internal
     @Contract("_ -> this")
     public @NotNull MappingLookup put(@NotNull ClassMapping mapping) {
-        return put(mapping.getName(), mapping);
+        mappings.put(mapping.getName(), mapping);
+        return this;
+    }
+
+    /**
+     * Gets the class mappings of this pool keyed by the name declared in the accessor model.
+     *
+     * @return the class mappings
+     */
+    public @NotNull Map<String, ClassMapping> getMappings() {
+        return this.mappings;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        final MappingLookup that = (MappingLookup) o;
+        return Objects.equals(mappings, that.mappings);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mappings);
+    }
+
+    @Override
+    public String toString() {
+        return "MappingLookup{" +
+                "mappings=" + mappings +
+                '}';
     }
 }

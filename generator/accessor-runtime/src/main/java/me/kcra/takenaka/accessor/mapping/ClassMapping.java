@@ -17,8 +17,6 @@
 
 package me.kcra.takenaka.accessor.mapping;
 
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import me.kcra.takenaka.accessor.platform.MapperPlatform;
 import me.kcra.takenaka.accessor.platform.MapperPlatforms;
 import me.kcra.takenaka.accessor.util.NameDescriptorPair;
@@ -27,19 +25,14 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * A multi-version multi-namespace class mapping.
  *
  * @author Matouš Kučera
  */
-@Data
-@RequiredArgsConstructor
-public final class ClassMapping {
+public class ClassMapping {
     /**
      * The accessed class name declared in the accessor model.
      */
@@ -66,6 +59,29 @@ public final class ClassMapping {
      * Method mappings of this class keyed by the name declared in the accessor model.
      */
     private final Map<String, List<MethodMapping>> methods;
+
+    /**
+     * Constructs a new {@link ClassMapping} with pre-defined mappings.
+     *
+     * @param name the accessed class name declared in the accessor model
+     * @param mappings the mappings, a map of namespace-mapping maps keyed by version
+     * @param fields field mappings of this class keyed by the name declared in the accessor model
+     * @param constructors constructor mappings of this class indexed as declared in the accessor model
+     * @param methods method mappings of this class keyed by the name declared in the accessor model
+     */
+    public ClassMapping(
+            @NotNull String name,
+            @NotNull Map<String, Map<String, String>> mappings,
+            @NotNull Map<String, FieldMapping> fields,
+            @NotNull List<ConstructorMapping> constructors,
+            @NotNull Map<String, List<MethodMapping>> methods
+    ) {
+        this.name = name;
+        this.mappings = mappings;
+        this.fields = fields;
+        this.constructors = constructors;
+        this.methods = methods;
+    }
 
     /**
      * Constructs a new {@link ClassMapping} without any initial mappings or members.
@@ -274,7 +290,7 @@ public final class ClassMapping {
     /**
      * Puts a new mapping into this {@link ClassMapping}.
      * <p>
-     * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
+     * <strong>This is only for use in generated code.</strong>
      *
      * @param namespace the mapping's namespace
      * @param mapping the mapped name
@@ -293,7 +309,7 @@ public final class ClassMapping {
     /**
      * Puts a new field mapping into this {@link ClassMapping}.
      * <p>
-     * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
+     * <strong>This is only for use in generated code.</strong>
      *
      * @param name the field name declared in the accessor model
      * @return the new {@link FieldMapping}
@@ -309,7 +325,7 @@ public final class ClassMapping {
     /**
      * Puts a new constructor mapping into this {@link ClassMapping}.
      * <p>
-     * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
+     * <strong>This is only for use in generated code.</strong>
      *
      * @return the new {@link ConstructorMapping}
      */
@@ -324,7 +340,7 @@ public final class ClassMapping {
     /**
      * Puts a new method mapping into this {@link ClassMapping}.
      * <p>
-     * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
+     * <strong>This is only for use in generated code.</strong>
      *
      * @param name the method name declared in the accessor model
      * @return the new {@link MethodMapping}
@@ -336,5 +352,83 @@ public final class ClassMapping {
 
         overloads.add(mapping);
         return mapping;
+    }
+
+    /**
+     * Gets the accessed class name declared in the accessor model.
+     *
+     * @return the name
+     */
+    public @NotNull String getName() {
+        return this.name;
+    }
+
+    /**
+     * Gets the mappings, a map of namespace-mapping maps keyed by version.
+     *
+     * @return the mappings
+     */
+    public @NotNull Map<String, Map<String, String>> getMappings() {
+        return this.mappings;
+    }
+
+    /**
+     * Gets the field mappings of this class keyed by the name declared in the accessor model.
+     *
+     * @return the field mappings
+     */
+    public @NotNull Map<String, FieldMapping> getFields() {
+        return this.fields;
+    }
+
+    /**
+     * Gets the constructor mappings of this class indexed as declared in the accessor model.
+     *
+     * @return the constructor mappings
+     */
+    public @NotNull List<ConstructorMapping> getConstructors() {
+        return this.constructors;
+    }
+
+    /**
+     * Gets the method mappings of this class keyed by the name declared in the accessor model.
+     *
+     * @return the method mappings
+     */
+    public @NotNull Map<String, List<MethodMapping>> getMethods() {
+        return this.methods;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        final ClassMapping that = (ClassMapping) o;
+        return Objects.equals(name, that.name)
+                && Objects.equals(mappings, that.mappings)
+                && Objects.equals(fields, that.fields)
+                && Objects.equals(constructors, that.constructors)
+                && Objects.equals(methods, that.methods);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, mappings, fields, constructors, methods);
+    }
+
+    @Override
+    public String toString() {
+        return "ClassMapping{" +
+                "name='" + name + '\'' +
+                ", mappings=" + mappings +
+                ", fields=" + fields +
+                ", constructors=" + constructors +
+                ", methods=" + methods +
+                '}';
     }
 }

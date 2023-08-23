@@ -37,6 +37,7 @@ import mu.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
+import java.text.SimpleDateFormat
 import java.util.*
 
 private val logger = KotlinLogging.logger {}
@@ -69,7 +70,7 @@ abstract class AbstractGenerationContext(
     /**
      * Names of classes that were generated.
      */
-    private val generatedClasses = mutableSetOf<String>()
+    private val generatedClasses = Collections.synchronizedSet(mutableSetOf<String>())
 
     /**
      * The generation timestamp of this context's output.
@@ -419,6 +420,13 @@ abstract class AbstractGenerationContext(
                 getOrPut(MethodKey(ns, name, desc.replaceCraftBukkitNMSVersion(nmsVersion)), ::mutableListOf) += version
             }
         }
+    }
+
+    companion object {
+        /**
+         * The file comment's generation timestamp date format.
+         */
+        val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
     }
 }
 

@@ -17,9 +17,9 @@
 
 package me.kcra.takenaka.accessor.mapping;
 
-import lombok.*;
 import me.kcra.takenaka.accessor.platform.MapperPlatform;
 import me.kcra.takenaka.accessor.platform.MapperPlatforms;
+import me.kcra.takenaka.accessor.util.ExceptionUtil;
 import me.kcra.takenaka.accessor.util.NameDescriptorPair;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
@@ -38,15 +38,10 @@ import java.util.Map;
  *
  * @author Matouš Kučera
  */
-@Getter
-@Setter
-@ToString
-@RequiredArgsConstructor
-public final class MethodMapping {
+public class MethodMapping {
     /**
      * The parent class mapping.
      */
-    @ToString.Exclude
     private final ClassMapping parent;
 
     /**
@@ -73,6 +68,81 @@ public final class MethodMapping {
      */
     public MethodMapping(@NotNull ClassMapping parent, @NotNull String name, int index) {
         this(parent, name, index, new HashMap<>());
+    }
+
+    /**
+     * Constructs a new {@link MethodMapping} with pre-defined mappings.
+     *
+     * @param parent the parent class mapping
+     * @param name the accessed method name declared in the accessor model
+     * @param index the overload index of the declaration
+     * @param mappings the mappings, a map of namespace-mapping maps keyed by version
+     */
+    public MethodMapping(
+            @NotNull ClassMapping parent,
+            @NotNull String name,
+            int index,
+            @NotNull Map<String, Map<String, NameDescriptorPair>> mappings
+    ) {
+        this.parent = parent;
+        this.name = name;
+        this.index = index;
+        this.mappings = mappings;
+    }
+
+    /**
+     * Parses a human-readable class name (java.lang.Integer, double, double[][], ...).
+     *
+     * @param loader the class loader used for resolving
+     * @param name the class name
+     * @return the class, null if the (element) type is not a primitive and couldn't be found using {@link Class#forName(String, boolean, ClassLoader)}
+     */
+    @ApiStatus.Internal
+    public static @Nullable Class<?> parseClass(@NotNull ClassLoader loader, @NotNull String name) {
+        final String elementType = name.replace("[]", "");
+        final int dimensions = (name.length() - elementType.length()) / 2;
+
+        Class<?> element;
+        switch (elementType) {
+            case "boolean":
+                element = boolean.class;
+                break;
+            case "byte":
+                element = byte.class;
+                break;
+            case "short":
+                element = short.class;
+                break;
+            case "int":
+                element = int.class;
+                break;
+            case "long":
+                element = long.class;
+                break;
+            case "float":
+                element = float.class;
+                break;
+            case "double":
+                element = double.class;
+                break;
+            case "char":
+                element = char.class;
+                break;
+            case "void":
+                element = void.class;
+                break;
+            default:
+                try {
+                    element = Class.forName(elementType, true, loader);
+                } catch (ClassNotFoundException ignored) {
+                    return null;
+                }
+        }
+
+        if (dimensions == 0) {
+            return element;
+        }
+        return Array.newInstance(element, new int[dimensions]).getClass();
     }
 
     /**
@@ -115,8 +185,8 @@ public final class MethodMapping {
      * This mapping is given precedence over the other mapping when combining (if versions overlap), overload index is set to -1.
      *
      * @param other the other method mapping
-     * @throws IllegalArgumentException if the mapping's parents are not the same
      * @return the new {@link MethodMapping}
+     * @throws IllegalArgumentException if the mapping's parents are not the same
      */
     @Contract(pure = true)
     public @NotNull MethodMapping chain(@NotNull MethodMapping other) {
@@ -242,14 +312,19 @@ public final class MethodMapping {
      * @param namespaces the namespaces
      * @return the method handle, null if it's not mapped
      */
-    @SneakyThrows
     public @Nullable MethodHandle getMethodHandle(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
         final Method method = getMethod(loader, version, namespaces);
         if (method == null) {
             return null;
         }
 
-        return MethodHandles.lookup().unreflect(method);
+        try {
+            return MethodHandles.lookup().unreflect(method);
+        } catch (IllegalAccessException e) {
+            ExceptionUtil.sneakyThrow(e);
+        }
+
+        return null;
     }
 
     /**
@@ -318,58 +393,39 @@ public final class MethodMapping {
     }
 
     /**
-     * Parses a human-readable class name (java.lang.Integer, double, double[][], ...).
+     * Gets the parent class mapping.
      *
-     * @param loader the class loader used for resolving
-     * @param name the class name
-     * @return the class, null if the (element) type is not a primitive and couldn't be found using {@link Class#forName(String, boolean, ClassLoader)}
+     * @return the parent class mapping
      */
-    @ApiStatus.Internal
-    public static @Nullable Class<?> parseClass(@NotNull ClassLoader loader, @NotNull String name) {
-        final String elementType = name.replace("[]", "");
-        final int dimensions = (name.length() - elementType.length()) / 2;
+    public @NotNull ClassMapping getParent() {
+        return this.parent;
+    }
 
-        Class<?> element;
-        switch (elementType) {
-            case "boolean":
-                element = boolean.class;
-                break;
-            case "byte":
-                element = byte.class;
-                break;
-            case "short":
-                element = short.class;
-                break;
-            case "int":
-                element = int.class;
-                break;
-            case "long":
-                element = long.class;
-                break;
-            case "float":
-                element = float.class;
-                break;
-            case "double":
-                element = double.class;
-                break;
-            case "char":
-                element = char.class;
-                break;
-            case "void":
-                element = void.class;
-                break;
-            default:
-                try {
-                    element = Class.forName(elementType, true, loader);
-                } catch (ClassNotFoundException ignored) {
-                    return null;
-                }
-        }
+    /**
+     * Gets the accessed method name declared in the accessor model.
+     *
+     * @return the method name
+     */
+    public @NotNull String getName() {
+        return this.name;
+    }
 
-        if (dimensions == 0) {
-            return element;
-        }
-        return Array.newInstance(element, new int[dimensions]).getClass();
+    /**
+     * Gets the index of the declaration in the accessor model.
+     *
+     * @return the index
+     */
+    public int getIndex() {
+        return this.index;
+    }
+
+    /**
+     * Gets the mappings, a map of namespace-mapping maps keyed by version.
+     *
+     * @return the mappings
+     */
+    public @NotNull Map<String, Map<String, NameDescriptorPair>> getMappings() {
+        return this.mappings;
     }
 
     @Override
@@ -381,7 +437,7 @@ public final class MethodMapping {
             return false;
         }
 
-        MethodMapping that = (MethodMapping) o;
+        final MethodMapping that = (MethodMapping) o;
 
         if (index != that.index) {
             return false;
@@ -402,5 +458,14 @@ public final class MethodMapping {
         result = 31 * result + index;
         result = 31 * result + mappings.hashCode();
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "MethodMapping{" +
+                "name='" + name + '\'' +
+                ", index=" + index +
+                ", mappings=" + mappings +
+                '}';
     }
 }

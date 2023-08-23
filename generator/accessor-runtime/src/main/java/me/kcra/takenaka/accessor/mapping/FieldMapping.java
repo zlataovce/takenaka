@@ -17,9 +17,9 @@
 
 package me.kcra.takenaka.accessor.mapping;
 
-import lombok.*;
 import me.kcra.takenaka.accessor.platform.MapperPlatform;
 import me.kcra.takenaka.accessor.platform.MapperPlatforms;
+import me.kcra.takenaka.accessor.util.ExceptionUtil;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -36,11 +36,7 @@ import java.util.Map;
  *
  * @author Matouš Kučera
  */
-@Getter
-@Setter
-@ToString
-@RequiredArgsConstructor
-public final class FieldMapping {
+public class FieldMapping {
     /**
      * A value for {@link #constantValue} representing an uninitialized state.
      */
@@ -49,7 +45,6 @@ public final class FieldMapping {
     /**
      * The parent class mapping.
      */
-    @ToString.Exclude
     private final ClassMapping parent;
 
     /**
@@ -65,9 +60,6 @@ public final class FieldMapping {
     /**
      * Cached value from {@link #getConstantValue()}.
      */
-    @ToString.Exclude
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
     private volatile Object constantValue = UNINITIALIZED_VALUE;
 
     /**
@@ -78,6 +70,23 @@ public final class FieldMapping {
      */
     public FieldMapping(@NotNull ClassMapping parent, @NotNull String name) {
         this(parent, name, new HashMap<>());
+    }
+
+    /**
+     * Constructs a new {@link FieldMapping} with pre-defined mappings.
+     *
+     * @param parent the parent class mapping
+     * @param name the field name declared in the accessor model
+     * @param mappings the mappings, a map of namespace-mapping maps keyed by version
+     */
+    public FieldMapping(
+            @NotNull ClassMapping parent,
+            @NotNull String name,
+            @NotNull Map<String, Map<String, String>> mappings
+    ) {
+        this.parent = parent;
+        this.name = name;
+        this.mappings = mappings;
     }
 
     /**
@@ -120,8 +129,8 @@ public final class FieldMapping {
      * This mapping is given precedence over the other mapping when combining (if versions overlap).
      *
      * @param other the other field mapping
-     * @throws IllegalArgumentException if the mapping's parents are not the same
      * @return the new {@link FieldMapping}
+     * @throws IllegalArgumentException if the mapping's parents are not the same
      */
     @Contract(pure = true)
     public @NotNull FieldMapping chain(@NotNull FieldMapping other) {
@@ -236,14 +245,19 @@ public final class FieldMapping {
      * @param namespaces the namespaces
      * @return the field getter handle, null if it's not mapped
      */
-    @SneakyThrows
     public @Nullable MethodHandle getFieldGetter(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
         final Field field = getField(loader, version, namespaces);
         if (field == null) {
             return null;
         }
 
-        return MethodHandles.lookup().unreflectGetter(field);
+        try {
+            return MethodHandles.lookup().unreflectGetter(field);
+        } catch (IllegalAccessException e) {
+            ExceptionUtil.sneakyThrow(e);
+        }
+
+        return null;
     }
 
     /**
@@ -297,14 +311,19 @@ public final class FieldMapping {
      * @param namespaces the namespaces
      * @return the field setter handle, null if it's not mapped
      */
-    @SneakyThrows
     public @Nullable MethodHandle getFieldSetter(@NotNull ClassLoader loader, @NotNull String version, @NotNull String... namespaces) {
         final Field field = getField(loader, version, namespaces);
         if (field == null) {
             return null;
         }
 
-        return MethodHandles.lookup().unreflectSetter(field);
+        try {
+            return MethodHandles.lookup().unreflectSetter(field);
+        } catch (IllegalAccessException e) {
+            ExceptionUtil.sneakyThrow(e);
+        }
+
+        return null;
     }
 
     /**
@@ -318,7 +337,6 @@ public final class FieldMapping {
      * @param namespaces the namespaces
      * @return the field setter handle, null if it's not mapped
      */
-    @SneakyThrows
     public @Nullable MethodHandle getFieldSetter(@NotNull String version, @NotNull String... namespaces) {
         return getFieldSetter(Thread.currentThread().getContextClassLoader(), version, namespaces);
     }
@@ -357,7 +375,6 @@ public final class FieldMapping {
      *
      * @return the value, null if it's not mapped or the field's value is null
      */
-    @SneakyThrows
     public @Nullable Object getConstantValue() {
         if (constantValue != UNINITIALIZED_VALUE) {
             return constantValue;
@@ -368,13 +385,19 @@ public final class FieldMapping {
             return null;
         }
 
-        return (constantValue = field.get(null));
+        try {
+            return (constantValue = field.get(null));
+        } catch (IllegalAccessException e) {
+            ExceptionUtil.sneakyThrow(e);
+        }
+
+        return null;
     }
 
     /**
      * Puts a new mapping into this {@link FieldMapping}.
      * <p>
-     * <strong>This is only for use in generated code, it is not API and may be subject to change.</strong>
+     * <strong>This is only for use in generated code.</strong>
      *
      * @param namespace the mapping's namespace
      * @param mapping the mapped name
@@ -390,6 +413,33 @@ public final class FieldMapping {
         return this;
     }
 
+    /**
+     * Gets the parent class mapping.
+     *
+     * @return the parent class mapping
+     */
+    public @NotNull ClassMapping getParent() {
+        return this.parent;
+    }
+
+    /**
+     * Gets the accessed field name declared in the accessor model.
+     *
+     * @return the field name
+     */
+    public @NotNull String getName() {
+        return this.name;
+    }
+
+    /**
+     * Gets the mappings, a map of namespace-mapping maps keyed by version.
+     *
+     * @return the mappings
+     */
+    public @NotNull Map<String, Map<String, String>> getMappings() {
+        return this.mappings;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -399,7 +449,7 @@ public final class FieldMapping {
             return false;
         }
 
-        FieldMapping that = (FieldMapping) o;
+        final FieldMapping that = (FieldMapping) o;
 
         if (parent != that.parent) { // use reference equality here to prevent stack overflow
             return false;
@@ -416,5 +466,13 @@ public final class FieldMapping {
         result = 31 * result + name.hashCode();
         result = 31 * result + mappings.hashCode();
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "FieldMapping{" +
+                "name='" + name + '\'' +
+                ", mappings=" + mappings +
+                '}';
     }
 }

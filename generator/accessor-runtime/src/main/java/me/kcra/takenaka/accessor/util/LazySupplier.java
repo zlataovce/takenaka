@@ -17,10 +17,10 @@
 
 package me.kcra.takenaka.accessor.util;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.NotNull;
 
+import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
@@ -29,7 +29,6 @@ import java.util.function.Supplier;
  * @param <T> the type of results supplied by this supplier
  * @author Matouš Kučera
  */
-@Data(staticConstructor = "of")
 public final class LazySupplier<T> implements Supplier<T> {
     /**
      * A default object for {@link #value} meaning that the result was not yet initialized.
@@ -38,17 +37,36 @@ public final class LazySupplier<T> implements Supplier<T> {
 
     /**
      * The wrapped {@link Supplier}, <strong>not lazy</strong>.
+     * <p>
+     * <i>May be called more than once.</i>
      */
-    @ApiStatus.Internal
     private final Supplier<T> resultSupplier;
 
     /**
      * The cached supplier result, set to {@link #UNINITIALIZED_VALUE} if it wasn't yet initialized.
      */
     @SuppressWarnings("unchecked")
-    @ApiStatus.Internal
-    @EqualsAndHashCode.Exclude
     private volatile T value = (T) UNINITIALIZED_VALUE;
+
+    /**
+     * Constructs a new {@link LazySupplier} with a given supplier.
+     *
+     * @param resultSupplier the supplier function that provides the result value
+     */
+    private LazySupplier(@NotNull Supplier<T> resultSupplier) {
+        this.resultSupplier = resultSupplier;
+    }
+
+    /**
+     * Creates a new {@link LazySupplier} with a given supplier.
+     *
+     * @param resultSupplier the supplier function that provides the result value
+     * @param <T> the result type
+     * @return the lazy supplier
+     */
+    public static <T> @NotNull LazySupplier<T> of(@NotNull Supplier<T> resultSupplier) {
+        return new LazySupplier<>(resultSupplier);
+    }
 
     /**
      * Gets a result.
@@ -71,5 +89,33 @@ public final class LazySupplier<T> implements Supplier<T> {
      */
     public boolean isInitialized() {
         return value != UNINITIALIZED_VALUE;
+    }
+
+    /**
+     * Returns the wrapped supplier.
+     *
+     * @return the wrapped supplier
+     */
+    @ApiStatus.Internal
+    public @NotNull Supplier<T> getResultSupplier() {
+        return this.resultSupplier;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        final LazySupplier<?> that = (LazySupplier<?>) o;
+        return Objects.equals(resultSupplier, that.resultSupplier);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(resultSupplier);
     }
 }
