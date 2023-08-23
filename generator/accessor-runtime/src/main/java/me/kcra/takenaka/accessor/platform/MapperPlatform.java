@@ -18,6 +18,7 @@
 package me.kcra.takenaka.accessor.platform;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * An abstraction for platform-dependent calls.
@@ -28,6 +29,31 @@ import org.jetbrains.annotations.NotNull;
  * @author Matouš Kučera
  */
 public interface MapperPlatform {
+    /**
+     * Creates a new {@link MapperPlatform} using the provided version and mapping namespaces.
+     * <p>
+     * The returned implementation uses the default semantics for {@link #getClassLoader()}.
+     *
+     * @param version the Minecraft version of the platform
+     * @param mappingNamespaces the namespaces to be used for mapping
+     * @return the {@link MapperPlatform}
+     */
+    static @NotNull MapperPlatform create(@NotNull String version, @NotNull String... mappingNamespaces) {
+        return create(version, null, mappingNamespaces);
+    }
+
+    /**
+     * Creates a new {@link MapperPlatform} using the provided version, mapping namespaces and class loader.
+     *
+     * @param version the Minecraft version of the platform
+     * @param loader the class loader of the platform, defaults to the context class loader of the thread calling {@link #getClassLoader()} if null
+     * @param mappingNamespaces the namespaces to be used for mapping
+     * @return the {@link MapperPlatform}
+     */
+    static @NotNull MapperPlatform create(@NotNull String version, @Nullable ClassLoader loader, @NotNull String... mappingNamespaces) {
+        return new MapperPlatformImpl(version, mappingNamespaces, loader);
+    }
+
     /**
      * Determines whether the current environment is supported by this platform abstraction.
      * <p>
@@ -48,6 +74,8 @@ public interface MapperPlatform {
 
     /**
      * Gets the preferred mapping namespaces of this platform.
+     * <p>
+     * The first value is expected to be the most preferred (resolved first), i.e. sorted by descending preference.
      *
      * @return the namespaces
      */
@@ -57,7 +85,7 @@ public interface MapperPlatform {
     /**
      * Gets the preferred class loader of this platform, used for looking up classes.
      * <p>
-     * Returns the current thread's context class loader by default.
+     * Returns the caller thread's context class loader by default.
      *
      * @return the class loader
      */
