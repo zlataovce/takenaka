@@ -392,7 +392,7 @@ open class KotlinGenerationContext(
         PropertySpec.builder("LOOKUP", SourceTypes.KT_MAPPING_LOOKUP)
             .addKdoc("Mapping lookup index.")
             .initializer {
-                beginControlFlow("%T", SourceTypes.KT_MAPPING_LOOKUP_DSL)
+                beginControlFlow("%M", SourceTypes.KT_MAPPING_LOOKUP_DSL)
 
                 names.forEach { name ->
                     val mappingClassName = KClassName(
