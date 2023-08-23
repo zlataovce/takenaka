@@ -71,7 +71,7 @@ open class KotlinGenerationContext(
                     mappingClassName.canonicalName
                 )
                 .addProperty(
-                    PropertySpec.builder("TYPE", SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_CLASS_WILDCARD))
+                    PropertySpec.builder("TYPE", SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_CLASS_WILDCARD))
                         .initializer("%M(%T::getClazz)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                         .build()
                 )

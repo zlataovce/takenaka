@@ -87,6 +87,7 @@ object SourceTypes {
     val CLASS: JClassName = JClassName.get(java.lang.Class::class.java)
     val CLASS_WILDCARD: JParameterizedTypeName = JParameterizedTypeName.get(CLASS, JWildcardTypeName.subtypeOf(JClassName.OBJECT))
     val KT_CLASS_WILDCARD = CLASS_WILDCARD.toKParameterizedTypeName()
+    val KT_NULLABLE_CLASS_WILDCARD = KT_CLASS_WILDCARD.copy(nullable = true)
     val FIELD: JClassName = JClassName.get(java.lang.reflect.Field::class.java)
     val KT_FIELD = FIELD.toKClassName()
     val KT_NULLABLE_FIELD = KT_FIELD.copy(nullable = true)
