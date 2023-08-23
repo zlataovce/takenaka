@@ -20,6 +20,7 @@
 package me.kcra.takenaka.generator.accessor.context.impl
 
 import com.squareup.javapoet.FieldSpec
+import com.squareup.kotlinpoet.ANY
 import com.squareup.kotlinpoet.MemberName
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.buildCodeBlock
@@ -87,11 +88,20 @@ object SourceTypes {
     val CLASS_WILDCARD: JParameterizedTypeName = JParameterizedTypeName.get(CLASS, JWildcardTypeName.subtypeOf(JClassName.OBJECT))
     val KT_CLASS_WILDCARD = CLASS_WILDCARD.toKParameterizedTypeName()
     val FIELD: JClassName = JClassName.get(java.lang.reflect.Field::class.java)
+    val KT_FIELD = FIELD.toKClassName()
+    val KT_NULLABLE_FIELD = KT_FIELD.copy(nullable = true)
     val CONSTRUCTOR: JClassName = JClassName.get(java.lang.reflect.Constructor::class.java)
     val CONSTRUCTOR_WILDCARD: JParameterizedTypeName = JParameterizedTypeName.get(CONSTRUCTOR, JWildcardTypeName.subtypeOf(JClassName.OBJECT))
+    val KT_CONSTRUCTOR_WILDCARD = CONSTRUCTOR_WILDCARD.toKParameterizedTypeName()
+    val KT_NULLABLE_CONSTRUCTOR_WILDCARD = KT_CONSTRUCTOR_WILDCARD.copy(nullable = true)
     val METHOD: JClassName = JClassName.get(java.lang.reflect.Method::class.java)
+    val KT_METHOD = METHOD.toKClassName()
+    val KT_NULLABLE_METHOD = KT_METHOD.copy(nullable = true)
     val METHOD_HANDLE: JClassName = JClassName.get(java.lang.invoke.MethodHandle::class.java)
+    val KT_METHOD_HANDLE = METHOD_HANDLE.toKClassName()
+    val KT_NULLABLE_METHOD_HANDLE = KT_METHOD_HANDLE.copy(nullable = true)
     val STRING: JClassName = JClassName.get(java.lang.String::class.java)
+    val KT_NULLABLE_ANY = ANY.copy(nullable = true)
 
     val KT_MAPPING_LOOKUP_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "mappingLookup")
     val KT_CLASS_MAPPING_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "classMapping")

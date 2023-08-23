@@ -27,9 +27,11 @@ import com.squareup.kotlinpoet.javapoet.KotlinPoetJavaPoetPreview
 import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.fromInternalName
+import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
+import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import java.util.*
 
@@ -156,9 +158,221 @@ open class KotlinGenerationContext(
                             }
                         }
                     )
-                    .build()
+                    .addProperties(
+                        resolvedAccessor.fields.map { (fieldAccessor, fieldNode) ->
+                            val accessorName = "FIELD_${fieldAccessor.upperName}${resolvedAccessor.fieldOverloads[fieldAccessor]?.let { if (it != 0) "_$it" else "" } ?: ""}"
+                            val fieldType = fieldAccessor.type?.let(Type::getType)
+                                ?: getFriendlyType(fieldNode.last.value)
 
-                // TODO: add mapping + accessor breakout fields
+                            fun PropertySpec.Builder.addMeta(constant: Boolean = false): PropertySpec.Builder = apply {
+                                addKdoc(
+                                    """
+                                        Accessor for the `%L %L` %L.
+                                        
+                                        @see %L.%L
+                                    """.trimIndent(),
+                                    fieldType.className,
+                                    fieldAccessor.name,
+                                    if (constant) {
+                                        "constant field value"
+                                    } else {
+                                        "field"
+                                    },
+                                    mappingClassName.canonicalName,
+                                    accessorName
+                                )
+                            }
+
+                            val mod = fieldNode.last.value.modifiers
+                            if ((mod and Opcodes.ACC_STATIC) != 0 && (mod and Opcodes.ACC_FINAL) != 0) { // constant
+                                accessorBuilder.addProperty(
+                                    PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_ANY))
+                                        .addMeta(constant = true)
+                                        .initializer("%M(%T.$accessorName::getConstantValue)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                        .build()
+                                )
+                            } else {
+                                when (generator.config.accessorType) {
+                                    AccessorType.REFLECTION -> {
+                                        accessorBuilder.addProperty(
+                                            PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_FIELD))
+                                                .addMeta()
+                                                .initializer("%M(%T.$accessorName::getField)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                                .build()
+                                        )
+                                    }
+                                    AccessorType.METHOD_HANDLES -> {
+                                        accessorBuilder.addProperty(
+                                            PropertySpec.builder("${accessorName}_GETTER", SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD_HANDLE))
+                                                .addMeta()
+                                                .initializer("%M(%T.$accessorName::getFieldGetter)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                                .build()
+                                        )
+                                        accessorBuilder.addProperty(
+                                            PropertySpec.builder("${accessorName}_SETTER", SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD_HANDLE))
+                                                .addMeta()
+                                                .initializer("%M(%T.$accessorName::getFieldSetter)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                                .build()
+                                        )
+                                    }
+                                    AccessorType.NONE -> {}
+                                }
+                            }
+
+                            PropertySpec.builder(accessorName, SourceTypes.KT_FIELD_MAPPING)
+                                .addKdoc(
+                                    """
+                                        Mapping for the `%L %L` field.
+                                        
+                                        `%L` - `%L`
+                                    """.trimIndent(),
+                                    fieldType.className,
+                                    fieldAccessor.name,
+                                    fieldNode.first.key.id,
+                                    fieldNode.last.key.id
+                                )
+                                .initializer {
+                                    add("getField(%S)!!", fieldAccessor.name)
+                                    if (fieldAccessor.chain != null) {
+                                        add(
+                                            ".chain(FIELD_%L%L)",
+                                            fieldAccessor.chain.upperName,
+                                            resolvedAccessor.fieldOverloads[fieldAccessor.chain]
+                                                ?.let { if (it != 0) "_$it" else "" }
+                                                ?: ""
+                                        )
+                                    }
+                                }
+                                .build()
+                        }
+                    )
+                    .addProperties(
+                        resolvedAccessor.constructors.mapIndexed { i, (ctorAccessor, ctorNode) ->
+                            val accessorName = "CONSTRUCTOR_$i"
+                            val ctorArgs = Type.getArgumentTypes(ctorAccessor.type)
+
+                            fun PropertySpec.Builder.addMeta(): PropertySpec.Builder = apply {
+                                addKdoc(
+                                    """
+                                        Accessor for the `(%L)` constructor.
+                                        
+                                        @see %L.%L
+                                    """.trimIndent(),
+                                    ctorArgs.joinToString(transform = Type::getClassName),
+                                    mappingClassName.canonicalName,
+                                    accessorName
+                                )
+                            }
+
+                            when (generator.config.accessorType) {
+                                AccessorType.REFLECTION -> {
+                                    accessorBuilder.addProperty(
+                                        PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_CONSTRUCTOR_WILDCARD))
+                                            .addMeta()
+                                            .initializer("%M(%T.$accessorName::getConstructor)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                            .build()
+                                    )
+                                }
+                                AccessorType.METHOD_HANDLES -> {
+                                    accessorBuilder.addProperty(
+                                        PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD_HANDLE))
+                                            .addMeta()
+                                            .initializer("%M(%T.$accessorName::getConstructorHandle)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                            .build()
+                                    )
+                                }
+                                AccessorType.NONE -> {}
+                            }
+
+                            PropertySpec.builder(accessorName, SourceTypes.KT_CONSTRUCTOR_MAPPING)
+                                .addKdoc(
+                                    """
+                                        Mapping for the `(%L)` constructor.
+                                        
+                                        `%L` - `%L`
+                                    """.trimIndent(),
+                                    ctorArgs.joinToString(transform = Type::getClassName),
+                                    ctorNode.first.key.id,
+                                    ctorNode.last.key.id
+                                )
+                                .initializer("getConstructor(%L)!!", i)
+                                .build()
+                        }
+                    )
+                    .addProperties(
+                        resolvedAccessor.methods.map { (methodAccessor, methodNode) ->
+                            val overloadIndex = resolvedAccessor.methodOverloads[methodAccessor]
+                            val accessorName = "METHOD_${methodAccessor.upperName}${overloadIndex?.let { if (it != 0) "_$it" else "" } ?: ""}"
+                            val methodType = if (methodAccessor.isIncomplete) {
+                                getFriendlyType(methodNode.last.value)
+                            } else {
+                                Type.getType(methodAccessor.type)
+                            }
+
+                            fun PropertySpec.Builder.addMeta(): PropertySpec.Builder = apply {
+                                addKdoc(
+                                    """
+                                        Accessor for the `%L %L(%L)` method.
+                                        
+                                        @see %L.%L
+                                    """.trimIndent(),
+                                    methodType.returnType.className,
+                                    methodAccessor.name,
+                                    methodType.argumentTypes.joinToString(transform = Type::getClassName),
+                                    mappingClassName.canonicalName,
+                                    accessorName
+                                )
+                            }
+
+                            when (generator.config.accessorType) {
+                                AccessorType.REFLECTION -> {
+                                    accessorBuilder.addProperty(
+                                        PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD))
+                                            .addMeta()
+                                            .initializer("%M(%T.$accessorName::getMethod)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                            .build()
+                                    )
+                                }
+                                AccessorType.METHOD_HANDLES -> {
+                                    accessorBuilder.addProperty(
+                                        PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD_HANDLE))
+                                            .addMeta()
+                                            .initializer("%M(%T.$accessorName::getMethodHandle)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                            .build()
+                                    )
+                                }
+                                AccessorType.NONE -> {}
+                            }
+
+                            PropertySpec.builder(accessorName, SourceTypes.KT_METHOD_MAPPING)
+                                .addKdoc(
+                                    """
+                                        Mapping for the {@code %L %L(%L)} method.
+                                        
+                                        `%L` - `%L`
+                                    """.trimIndent(),
+                                    methodType.returnType.className,
+                                    methodAccessor.name,
+                                    methodType.argumentTypes.joinToString(transform = Type::getClassName),
+                                    methodNode.first.key.id,
+                                    methodNode.last.key.id
+                                )
+                                .initializer {
+                                    add("getMethod(%S, %L)!!", methodAccessor.name, overloadIndex)
+                                    if (methodAccessor.chain != null) {
+                                        add(
+                                            ".chain(METHOD_%L%L)",
+                                            methodAccessor.chain.upperName,
+                                            resolvedAccessor.methodOverloads[methodAccessor.chain]
+                                                ?.let { if (it != 0) "_$it" else "" }
+                                                ?: ""
+                                        )
+                                    }
+                                }
+                                .build()
+                        }
+                    )
+                    .build()
             )
 
             if (generator.config.accessorType != AccessorType.NONE) {
@@ -186,7 +400,7 @@ open class KotlinGenerationContext(
                         "${name.substringAfterLast('/')}Mapping"
                     )
 
-                    addStatement("put(%T.MAPPING)", mappingClassName)
+                    addStatement("put(%T)", mappingClassName)
                 }
 
                 endControlFlow()
