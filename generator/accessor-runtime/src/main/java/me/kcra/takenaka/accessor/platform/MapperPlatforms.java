@@ -42,7 +42,7 @@ public enum MapperPlatforms implements MapperPlatform {
 
         {
             try {
-                final Class<?> bukkitClass = Class.forName("org.bukkit.Bukkit");
+                final Class<?> bukkitClass = Class.forName("org.bukkit.Bukkit", true, getClassLoader());
                 try {
                     final Method getVersionMethod = bukkitClass.getMethod("getVersion");
 
@@ -91,11 +91,11 @@ public enum MapperPlatforms implements MapperPlatform {
             try {
                 try {
                     // Flattening versions
-                    final Class<?> mcpVersionClass = Class.forName("net.minecraftforge.versions.mcp.MCPVersion");
+                    final Class<?> mcpVersionClass = Class.forName("net.minecraftforge.versions.mcp.MCPVersion", true, getClassLoader());
                     minecraftVersion = (String) mcpVersionClass.getMethod("getMCVersion").invoke(null);
                 } catch (ClassNotFoundException | NoSuchMethodException ignored) {
                     // Legacy versions
-                    final Class<?> forgeClass = Class.forName("net.minecraftforge.common.MinecraftForge");
+                    final Class<?> forgeClass = Class.forName("net.minecraftforge.common.MinecraftForge", true, getClassLoader());
                     minecraftVersion = (String) forgeClass.getField("MC_VERSION").get(null);
                 }
             } catch (NoSuchFieldException | IllegalAccessException | InvocationTargetException e) {
