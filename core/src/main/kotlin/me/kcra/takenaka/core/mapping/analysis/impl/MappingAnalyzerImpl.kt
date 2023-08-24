@@ -107,6 +107,8 @@ open class MappingAnalyzerImpl(val options: AnalysisOptions = AnalysisOptions())
     /**
      * A [MappingAnalyzerImpl]-specific class analysis context.
      *
+     * **This class is designed to be used by a single thread at a time.**
+     *
      * @property analyzer the analyzer which created this context
      * @property klass the analyzed class
      */
@@ -119,22 +121,23 @@ open class MappingAnalyzerImpl(val options: AnalysisOptions = AnalysisOptions())
         /**
          * Super types of the class.
          */
-        protected val superTypes: List<MappingTree.ClassMapping> = klass.resolveSuperTypes()
+        protected val superTypes: List<MappingTree.ClassMapping> by lazy(LazyThreadSafetyMode.NONE, klass::resolveSuperTypes)
 
         /**
          * Additional namespace IDs of the class' mapping tree.
          */
-        protected val additionalNamespaceIds: Set<Int> = analyzer.options.inheritanceAdditionalNamespaces.mapTo(mutableSetOf(), klass.tree::getNamespaceId)
-            .apply { remove(MappingTree.NULL_NAMESPACE_ID) } // pop null id, if it's present
+        protected val additionalNamespaceIds: Set<Int> by lazy(LazyThreadSafetyMode.NONE) {
+            analyzer.options.inheritanceAdditionalNamespaces.mapTo(mutableSetOf(), klass.tree::getNamespaceId)
+                .apply { remove(MappingTree.NULL_NAMESPACE_ID) } // pop null id, if it's present
+        }
 
         /**
          * Whether inheritance error correction should be skipped for further visited members.
          *
-         * The class is exempt from inheritance correction if there are only `java.*` super types
+         * The class is exempt from inheritance correction if there are no mapped super types
          * and/or if both [VanillaMappingContributor.NS_INTERFACES] and [VanillaMappingContributor.NS_SUPER] are missing.
          */
-        protected var skipInheritanceChecks: Boolean = (VanillaMappingContributor.NS_INTERFACES !in klass.tree && VanillaMappingContributor.NS_SUPER !in klass.tree)
-                || (klass.superClass.startsWith("java/") && klass.interfaces.all { it.startsWith("java/") })
+        protected var skipInheritanceChecks: Boolean = (VanillaMappingContributor.NS_INTERFACES !in klass.tree && VanillaMappingContributor.NS_SUPER !in klass.tree) || superTypes.isEmpty()
 
         /**
          * Visits a field for analysis.
