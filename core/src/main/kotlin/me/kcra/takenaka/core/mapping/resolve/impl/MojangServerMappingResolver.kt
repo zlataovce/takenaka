@@ -128,7 +128,9 @@ class MojangServerMappingResolver(
         val mappingPath by mappingOutput
 
         // Mojang maps are original -> obfuscated, so we need to switch it beforehand
-        mappingPath?.reader()?.use { ProGuardReader.read(it, targetNamespace, MappingUtil.NS_SOURCE_FALLBACK, MappingSourceNsSwitch(visitor, MappingUtil.NS_SOURCE_FALLBACK)) }
+        mappingPath?.reader()?.use {
+            ProGuardReader.read(it, targetNamespace, MappingUtil.NS_SOURCE_FALLBACK, MappingSourceNsSwitch(visitor, MappingUtil.NS_SOURCE_FALLBACK))
+        }
 
         val licensePath by licenseOutput
 

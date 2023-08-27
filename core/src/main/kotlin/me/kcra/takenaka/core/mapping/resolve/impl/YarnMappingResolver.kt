@@ -20,13 +20,16 @@ package me.kcra.takenaka.core.mapping.resolve.impl
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
+import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import me.kcra.takenaka.core.mapping.resolve.*
+import me.kcra.takenaka.core.mapping.util.unwrap
 import me.kcra.takenaka.core.util.*
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
+import net.fabricmc.mappingio.tree.MappingTree
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
@@ -81,12 +84,18 @@ class YarnMappingResolver(
             val targetBuild = builds.maxBy(YarnBuild::buildNumber)
 
             var urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild-mergedv2.jar"
-            URL(urlString).httpRequest(method = "HEAD") {
-                if (!it.ok) {
-                    logger.info { "mergedv2 Yarn JAR for ${version.id} failed to fetch, falling back to normal one" }
+            URL(urlString).httpRequest(method = "HEAD") { mergedv2 ->
+                if (!mergedv2.ok) {
+                    logger.info { "mergedv2 Yarn JAR for ${version.id} failed to fetch, falling back to v2" }
 
-                    // TODO: use enigma mappings or normal v2 JAR instead (requires merging with intermediary)
-                    urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild.jar"
+                    urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild-v2.jar"
+                    URL(urlString).httpRequest(method = "HEAD") { v2 ->
+                        if (!v2.ok) {
+                            logger.info { "v2 Yarn JAR for ${version.id} failed to fetch, falling back to no classifier" }
+
+                            urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild.jar"
+                        }
+                    }
                 }
             }
 
@@ -165,15 +174,35 @@ class YarnMappingResolver(
         val mappingPath by mappingOutput
 
         mappingPath?.reader()?.use { reader ->
+            val visitor0 = visitor.unwrap()
+
+            // FIXME: this shouldn't be here, but it's necessary for mapping-io to map Yarn parameter names
+            // add missing intermediary mappings for constructors, an equivalent of StandardProblemKinds#SPECIAL_METHOD_NOT_MAPPED
+            if (visitor0 is MappingTree) {
+                val nsId = visitor0.getNamespaceId("intermediary")
+                if (nsId != MappingTree.NULL_NAMESPACE_ID) {
+                    visitor0.classes.forEach { klass ->
+                        klass.methods.forEach { method ->
+                            if (method.isConstructor) {
+                                method.setDstName(method.srcName, nsId)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Yarn has official, named and intermediary namespaces
             // official is the obfuscated one
-            MappingReader.read(reader, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK, "named" to "yarn")))
+            MappingReader.read(reader, MappingNsRenamer(visitor, mapOf(
+                "official" to MappingUtil.NS_SOURCE_FALLBACK,
+                "named" to "yarn"
+            )))
 
             val licensePath by licenseOutput
 
             // limit the license file to 12 lines for conciseness
             licensePath?.bufferedReader()?.use {
-                visitor.visitMetadata(META_LICENSE, it.lineSequence().take(12).joinToString("\\n") { line -> line.replace("\t", "    ") })
+                visitor.visitMetadata(META_LICENSE, it.lineSequence().take(12).joinToString("\\n").replace("\t", "    "))
                 visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
             }
         }

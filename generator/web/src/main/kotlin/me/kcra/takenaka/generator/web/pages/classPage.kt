@@ -36,6 +36,7 @@ import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.components.*
+import me.kcra.takenaka.generator.web.util.escapeHtml
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -577,6 +578,7 @@ fun <T : MappingTreeView.MethodMappingView> T.formatDescriptor(
                 append(
                     this@formatDescriptor.getArg(-1, lvIndex, null)
                         ?.let(remapper.nameRemapper.mapper)
+                        ?.escapeHtml()
                         ?: "arg$argIndex"
                 )
             }

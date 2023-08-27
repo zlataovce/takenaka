@@ -32,6 +32,9 @@
 
 package me.kcra.takenaka.generator.web
 
+import me.kcra.takenaka.generator.web.util.HTML_GT
+import me.kcra.takenaka.generator.web.util.HTML_LT
+import me.kcra.takenaka.generator.web.util.escapeHtml
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.signature.SignatureReader
@@ -297,9 +300,9 @@ class SignatureFormatter : SignatureVisitor {
         }
 
     private val formalStartStr: String
-        get() = if (DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS in options) "&lt;" else "<"
+        get() = if (DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS in options) HTML_LT else "<"
     private val formalEndStr: String
-        get() = if (DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS in options) "&gt;" else ">"
+        get() = if (DefaultFormattingOptions.ESCAPE_HTML_SYMBOLS in options) HTML_GT else ">"
 
     /**
      * Constructs a new [SignatureFormatter].
@@ -546,7 +549,13 @@ class SignatureFormatter : SignatureVisitor {
             }
 
             val currArgIndex = argIndex++
-            declaration_.append(' ').append(remapper?.nameRemapper?.mapper?.let { method?.getArg(-1, lvIndex, null)?.let(it) } ?: "arg$currArgIndex")
+            declaration_.append(' ')
+                .append(
+                    remapper?.nameRemapper?.mapper
+                        ?.let { method?.getArg(-1, lvIndex, null)?.let(it) }
+                        ?.escapeHtml()
+                        ?: "arg$currArgIndex"
+                )
 
             lvIndex += argSize // increment the lvIndex by the appropriate arg size
         }

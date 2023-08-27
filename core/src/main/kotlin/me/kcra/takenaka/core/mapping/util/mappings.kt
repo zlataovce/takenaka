@@ -19,7 +19,11 @@ package me.kcra.takenaka.core.mapping.util
 
 import me.kcra.takenaka.core.util.md5Digest
 import me.kcra.takenaka.core.util.updateAndHex
+import net.fabricmc.mappingio.MappingVisitor
+import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
 import net.fabricmc.mappingio.tree.MappingTreeView
+import java.lang.invoke.MethodHandle
+import java.lang.invoke.MethodHandles
 
 /**
  * Returns IDs of all namespaces in this tree.
@@ -53,3 +57,26 @@ val MappingTreeView.ElementMappingView.hash: String
             .sorted()
             .joinToString(",")
     )
+
+// HACK!
+val NEXT_VISITOR_FIELD: MethodHandle = MethodHandles.lookup()
+    .unreflectGetter(ForwardingMappingVisitor::class.java.getDeclaredField("next").apply { isAccessible = true })
+
+/**
+ * Gets the delegate visitor.
+ */
+inline val ForwardingMappingVisitor.next: MappingVisitor
+    get() = NEXT_VISITOR_FIELD.invokeExact(this) as MappingVisitor
+
+/**
+ * Unwraps a [ForwardingMappingVisitor] forward chain to the initial visitor.
+ *
+ * @return the initial visitor
+ */
+tailrec fun MappingVisitor.unwrap(): MappingVisitor {
+    if (this is ForwardingMappingVisitor) {
+        return next.unwrap()
+    }
+
+    return this
+}

@@ -142,7 +142,7 @@ class SeargeMappingResolver(
             val licensePath by licenseOutput
 
             licensePath.reader().use {
-                visitor.visitMetadata(META_LICENSE, it.readLines().joinToString("\\n") { line -> line.replace("\t", "    ") })
+                visitor.visitMetadata(META_LICENSE, it.readLines().joinToString("\\n").replace("\t", "    "))
                 visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
             }
         }

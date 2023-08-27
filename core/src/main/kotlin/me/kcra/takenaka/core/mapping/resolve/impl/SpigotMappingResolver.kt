@@ -22,6 +22,7 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.mapping.toInternalName
+import me.kcra.takenaka.core.mapping.util.unwrap
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
@@ -34,7 +35,6 @@ import net.fabricmc.mappingio.format.TsrgReader
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.commons.Remapper
-import java.lang.invoke.MethodHandles
 import java.net.URL
 import java.nio.file.Path
 import kotlin.io.path.bufferedReader
@@ -374,10 +374,7 @@ class SpigotMemberMappingResolver(
         val mappingPath by mappingOutput
         if (mappingPath == null) return // mappings don't exist, return
 
-        var visitor0 = visitor
-
-        // skip over forwarding visitors in search of a mapping tree
-        while (visitor0 is ForwardingMappingVisitor) visitor0 = visitor0.next
+        val visitor0 = visitor.unwrap()
         if (visitor0 !is MappingTreeView) {
             throw UnsupportedOperationException("Spigot class member mappings can only be visited to a mapping tree")
         }
@@ -467,17 +464,5 @@ class SpigotMemberMappingResolver(
                 break
             }
         }
-    }
-
-    companion object {
-        // HACK!
-        private val NEXT_VISITOR_FIELD = MethodHandles.lookup()
-            .unreflectGetter(ForwardingMappingVisitor::class.java.getDeclaredField("next").apply { isAccessible = true })
-
-        /**
-         * Gets the delegate visitor.
-         */
-        val ForwardingMappingVisitor.next: MappingVisitor
-            get() = NEXT_VISITOR_FIELD.invokeExact(this) as MappingVisitor
     }
 }
