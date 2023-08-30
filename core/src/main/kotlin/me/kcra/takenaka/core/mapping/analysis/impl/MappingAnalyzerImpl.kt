@@ -22,7 +22,7 @@ import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import me.kcra.takenaka.core.mapping.matchers.isEnumValueOf
 import me.kcra.takenaka.core.mapping.matchers.isEnumValues
 import me.kcra.takenaka.core.mapping.matchers.isStaticInitializer
-import me.kcra.takenaka.core.mapping.resolve.impl.VanillaMappingContributor
+import me.kcra.takenaka.core.mapping.resolve.impl.AbstractVanillaMappingContributor
 import me.kcra.takenaka.core.mapping.resolve.impl.interfaces
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.resolve.impl.superClass
@@ -34,7 +34,7 @@ import org.objectweb.asm.Opcodes
 /**
  * A base implementation of [me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer] that corrects problems defined in [StandardProblemKinds].
  *
- * This analyzer expects [VanillaMappingContributor.NS_SUPER], [VanillaMappingContributor.NS_INTERFACES] and [VanillaMappingContributor.NS_MODIFIERS] namespaces to be present.
+ * This analyzer expects [AbstractVanillaMappingContributor.NS_SUPER], [AbstractVanillaMappingContributor.NS_INTERFACES] and [AbstractVanillaMappingContributor.NS_MODIFIERS] namespaces to be present.
  *
  * @property options the analysis configuration
  * @author Matouš Kučera
@@ -94,7 +94,7 @@ open class MappingAnalyzerImpl(val options: AnalysisOptions = AnalysisOptions())
      * @param T the element type
      */
     protected fun <T : MappingTree.ElementMapping> checkElementModifiers(element: T, removeResolution: ProblemResolution<T>) {
-        val mod = element.getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull()
+        val mod = element.getName(AbstractVanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull()
 
         if (mod == null) {
             problem(element, null, StandardProblemKinds.NON_EXISTENT_MAPPING, removeResolution)
@@ -135,9 +135,9 @@ open class MappingAnalyzerImpl(val options: AnalysisOptions = AnalysisOptions())
          * Whether inheritance error correction should be skipped for further visited members.
          *
          * The class is exempt from inheritance correction if there are no mapped super types
-         * and/or if both [VanillaMappingContributor.NS_INTERFACES] and [VanillaMappingContributor.NS_SUPER] are missing.
+         * and/or if both [AbstractVanillaMappingContributor.NS_INTERFACES] and [AbstractVanillaMappingContributor.NS_SUPER] are missing.
          */
-        protected var skipInheritanceChecks: Boolean = (VanillaMappingContributor.NS_INTERFACES !in klass.tree && VanillaMappingContributor.NS_SUPER !in klass.tree) || superTypes.isEmpty()
+        protected var skipInheritanceChecks: Boolean = (AbstractVanillaMappingContributor.NS_INTERFACES !in klass.tree && AbstractVanillaMappingContributor.NS_SUPER !in klass.tree) || superTypes.isEmpty()
 
         /**
          * Visits a field for analysis.

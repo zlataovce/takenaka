@@ -195,7 +195,7 @@ class YarnMappingResolver(
             // official is the obfuscated one
             MappingReader.read(reader, MappingNsRenamer(visitor, mapOf(
                 "official" to MappingUtil.NS_SOURCE_FALLBACK,
-                "named" to "yarn"
+                "named" to targetNamespace
             )))
 
             val licensePath by licenseOutput

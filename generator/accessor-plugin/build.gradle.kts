@@ -25,7 +25,7 @@ gradlePlugin {
         create("generator-accessor-plugin") {
             id = "me.kcra.takenaka.accessor"
             displayName = "Plugin for generating Minecraft: JE reflective accessors"
-            description = "A plugin for generating reflective to access Minecraft internals"
+            description = "A plugin for generating reflective bindings to access Minecraft internals"
             tags.set(listOf("minecraft", "obfuscation", "accessors", "reflection"))
             implementationClass = "me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorPlugin"
         }

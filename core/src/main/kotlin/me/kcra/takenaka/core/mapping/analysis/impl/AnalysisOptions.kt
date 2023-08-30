@@ -17,7 +17,7 @@
 
 package me.kcra.takenaka.core.mapping.analysis.impl
 
-import me.kcra.takenaka.core.mapping.resolve.impl.VanillaMappingContributor
+import me.kcra.takenaka.core.mapping.resolve.impl.AbstractVanillaMappingContributor
 
 /**
  * Basic analysis configuration.
@@ -29,7 +29,7 @@ import me.kcra.takenaka.core.mapping.resolve.impl.VanillaMappingContributor
  */
 data class AnalysisOptions(
     val innerClassNameCompletionCandidates: Set<String> = emptySet(),
-    val inheritanceErrorExemptions: Set<String> = VanillaMappingContributor.NAMESPACES.toSet(),
+    val inheritanceErrorExemptions: Set<String> = AbstractVanillaMappingContributor.NAMESPACES.toSet(),
     val inheritanceAdditionalNamespaces: Set<String> = emptySet(),
-    val specialMethodExemptions: Set<String> = VanillaMappingContributor.NAMESPACES.toSet()
+    val specialMethodExemptions: Set<String> = AbstractVanillaMappingContributor.NAMESPACES.toSet()
 )

@@ -39,14 +39,14 @@ interface MappingResolver : OutputContainer<Path?> {
 }
 
 /**
- * A shorthand for getting the workspace version.
- */
-inline val MappingResolver.version: Version
-    get() = workspace.version
-
-/**
  * A base for a mapping resolver.
  *
  * Subclasses should override the [outputs] property with their own values.
  */
-abstract class AbstractMappingResolver : AbstractOutputContainer<Path?>(), MappingResolver
+abstract class AbstractMappingResolver : AbstractOutputContainer<Path?>(), MappingResolver {
+    /**
+     * A shorthand for getting the workspace version.
+     */
+    val version: Version
+        get() = workspace.version
+}

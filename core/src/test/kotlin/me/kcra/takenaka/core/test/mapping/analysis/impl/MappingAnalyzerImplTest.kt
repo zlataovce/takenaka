@@ -20,7 +20,7 @@ package me.kcra.takenaka.core.test.mapping.analysis.impl
 import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.analysis.impl.StandardProblemKinds
-import me.kcra.takenaka.core.mapping.resolve.impl.VanillaMappingContributor
+import me.kcra.takenaka.core.mapping.resolve.impl.AbstractVanillaMappingContributor
 import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.tree.MappingTree
@@ -114,7 +114,7 @@ class MappingAnalyzerImplTest {
 
         while (true) {
             if (tree.visitHeader()) {
-                tree.visitNamespaces(MappingUtil.NS_SOURCE_FALLBACK, listOf("missing_namespace", "wrong_namespace", VanillaMappingContributor.NS_SUPER, VanillaMappingContributor.NS_INTERFACES))
+                tree.visitNamespaces(MappingUtil.NS_SOURCE_FALLBACK, listOf("missing_namespace", "wrong_namespace", AbstractVanillaMappingContributor.NS_SUPER, AbstractVanillaMappingContributor.NS_INTERFACES))
             }
 
             if (tree.visitContent()) {

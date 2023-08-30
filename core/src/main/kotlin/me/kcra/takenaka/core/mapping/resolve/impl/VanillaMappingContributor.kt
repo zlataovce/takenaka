@@ -42,59 +42,59 @@ import kotlin.io.path.nameWithoutExtension
 private val logger = KotlinLogging.logger {}
 
 /**
- * A mapping contributor that completes any missing names and descriptors, and visits modifiers and the generic signature as mappings.
+ * A base mapping contributor that completes any missing names and descriptors,
+ * and visits modifiers and the generic signature as mappings.
  *
  * @property workspace the workspace
- * @property mojangProvider the Mojang manifest provider
  * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-class VanillaMappingContributor(
+abstract class AbstractVanillaMappingContributor(
     val workspace: VersionedWorkspace,
-    val mojangProvider: MojangManifestAttributeProvider,
     val relaxedCache: Boolean = true
 ) : AbstractOutputContainer<Path?>(), MappingContributor {
     override val targetNamespace: String = MappingUtil.NS_SOURCE_FALLBACK
     override val outputs: List<Output<out Path?>>
-        get() = listOf(serverJarOutput)
+        get() = listOf(jarOutput)
 
     /**
-     * Creates a new resolver with a default metadata provider.
-     *
-     * @param workspace the workspace
-     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
-     * @param relaxedCache whether output cache verification constraints should be relaxed
+     * The resolved JAR attribute.
      */
-    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true) :
-            this(workspace, MojangManifestAttributeProvider(workspace, objectMapper), relaxedCache)
+    val jarAttribute by lazy(::resolveJarAttribute)
 
     /**
-     * The vanilla server JAR output.
+     * The vanilla JAR output.
      */
-    val serverJarOutput = lazyOutput<Path?> {
+    val jarOutput = lazyOutput<Path?> {
         resolver {
-            val file = workspace[SERVER]
+            if (!jarAttribute.exists) {
+                logger.info { "did not find vanilla JAR for ${workspace.version.id} (${jarAttribute.name})" }
+                return@resolver null
+            }
 
-            if (SERVER in workspace) {
+            val fileName = "${jarAttribute.name}.jar"
+            val file = workspace[fileName]
+
+            if (fileName in workspace) {
                 val checksum = file.getChecksum(sha1Digest)
 
-                if (mojangProvider.attributes.downloads.server.sha1 == checksum) {
-                    logger.info { "matched checksum for cached ${workspace.version.id} vanilla JAR" }
+                if (jarAttribute.checksum == checksum) {
+                    logger.info { "matched checksum for cached ${workspace.version.id} vanilla JAR (name: ${jarAttribute.name}, value: ${jarAttribute.value})" }
                     return@resolver file
                 }
 
-                logger.warn { "checksum mismatch for ${workspace.version.id} vanilla JAR cache, fetching it again" }
+                logger.warn { "checksum mismatch for ${workspace.version.id} vanilla JAR cache, fetching it again (name: ${jarAttribute.name}, value: ${jarAttribute.value})" }
             }
 
-            URL(mojangProvider.attributes.downloads.server.url).httpRequest {
+            URL(jarAttribute.value!!).httpRequest {
                 if (it.ok) {
                     it.copyTo(file)
 
-                    logger.info { "fetched ${workspace.version.id} vanilla JAR" }
+                    logger.info { "fetched ${workspace.version.id} vanilla JAR (name: ${jarAttribute.name}, value: ${jarAttribute.value})" }
                     return@resolver file
                 }
 
-                logger.info { "failed to fetch ${workspace.version.id} vanilla JAR, received ${it.responseCode}" }
+                logger.info { "failed to fetch ${workspace.version.id} vanilla JAR (name: ${jarAttribute.name}, value: ${jarAttribute.value}), received ${it.responseCode}" }
             }
 
             return@resolver null
@@ -102,6 +102,13 @@ class VanillaMappingContributor(
 
         upToDateWhen { it == null || it.isRegularFile() }
     }
+
+    /**
+     * Resolves a Mojang manifest JAR attribute.
+     *
+     * @return the JAR attribute
+     */
+    protected abstract fun resolveJarAttribute(): ManifestAttribute
 
     /**
      * Visits the original mappings to the supplied visitor.
@@ -112,7 +119,7 @@ class VanillaMappingContributor(
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
-        val serverJar by serverJarOutput
+        val jarPath by jarOutput
 
         fun read(zf: ZipFile) {
             val classVisitor = MappingClassVisitor(visitor, targetNamespace)
@@ -128,7 +135,7 @@ class VanillaMappingContributor(
                 .collect(Collectors.toList())
         }
 
-        serverJar?.let { file ->
+        jarPath?.let { file ->
             ZipFile(file.toFile()).use { zf ->
                 if (zf.getEntry("net/minecraft/bundler/Main.class") != null) {
                     val bundledFile = file.resolveSibling(file.nameWithoutExtension + "-bundled.jar")
@@ -149,12 +156,7 @@ class VanillaMappingContributor(
     }
 
     companion object {
-        private val CLASS_PATTERN = "net/minecraft/.*\\.class|[^/]+\\.class".toRegex()
-
-        /**
-         * The file name of the cached server JAR.
-         */
-        const val SERVER = "server.jar"
+        private val CLASS_PATTERN = "com/mojang/.*\\.class|net/minecraft/.*\\.class|[^/]+\\.class".toRegex()
 
         /**
          * The namespace of the class modifiers.
@@ -256,32 +258,106 @@ class VanillaMappingContributor(
 }
 
 /**
- * Gets the modifiers from the [VanillaMappingContributor.NS_MODIFIERS] namespace.
+ * Gets the modifiers from the [AbstractVanillaMappingContributor.NS_MODIFIERS] namespace.
  */
 inline val MappingTreeView.ElementMappingView.modifiers: Int
-    get() = getName(VanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: 0
+    get() = getName(AbstractVanillaMappingContributor.NS_MODIFIERS)?.toIntOrNull() ?: 0
 
 /**
- * Gets the generic signature from the [VanillaMappingContributor.NS_SIGNATURE] namespace.
+ * Gets the generic signature from the [AbstractVanillaMappingContributor.NS_SIGNATURE] namespace.
  */
 inline val MappingTreeView.ElementMappingView.signature: String?
-    get() = getName(VanillaMappingContributor.NS_SIGNATURE)
+    get() = getName(AbstractVanillaMappingContributor.NS_SIGNATURE)
 
 /**
- * Gets the superclass from the [VanillaMappingContributor.NS_SUPER] namespace.
+ * Gets the superclass from the [AbstractVanillaMappingContributor.NS_SUPER] namespace.
  */
 inline val MappingTreeView.ClassMappingView.superClass: String
-    get() = getName(VanillaMappingContributor.NS_SUPER) ?: "java/lang/Object"
+    get() = getName(AbstractVanillaMappingContributor.NS_SUPER) ?: "java/lang/Object"
 
 /**
- * Gets interfaces from the [VanillaMappingContributor.NS_INTERFACES] namespace.
+ * Gets interfaces from the [AbstractVanillaMappingContributor.NS_INTERFACES] namespace.
  */
 inline val MappingTreeView.ClassMappingView.interfaces: List<String>
-    get() = getName(VanillaMappingContributor.NS_INTERFACES).parseInterfaces()
+    get() = getName(AbstractVanillaMappingContributor.NS_INTERFACES).parseInterfaces()
 
 /**
- * Parses interfaces per the [VanillaMappingContributor.NS_INTERFACES] format.
+ * Parses interfaces per the [AbstractVanillaMappingContributor.NS_INTERFACES] format.
  *
  * @return the interfaces, empty if there were none
  */
 fun String?.parseInterfaces(): List<String> = this?.split(',') ?: emptyList()
+
+/**
+ * A mapping contributor for vanilla client JARs.
+ *
+ * @param workspace the workspace
+ * @property mojangProvider the Mojang manifest provider
+ * @param relaxedCache whether output cache verification constraints should be relaxed
+ * @author Matouš Kučera
+ */
+class VanillaClientMappingContributor(
+    workspace: VersionedWorkspace,
+    val mojangProvider: MojangManifestAttributeProvider,
+    relaxedCache: Boolean = true
+) : AbstractVanillaMappingContributor(workspace, relaxedCache) {
+    /**
+     * Creates a new resolver with a default metadata provider.
+     *
+     * @param workspace the workspace
+     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
+     * @param relaxedCache whether output cache verification constraints should be relaxed
+     */
+    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true) :
+            this(workspace, MojangManifestAttributeProvider(workspace, objectMapper, relaxedCache))
+
+    /**
+     * Resolves a Mojang manifest JAR attribute.
+     *
+     * @return the JAR attribute
+     */
+    override fun resolveJarAttribute(): ManifestAttribute {
+        return ManifestAttribute(
+            "client",
+            mojangProvider.attributes.downloads.client.url,
+            mojangProvider.attributes.downloads.client.sha1
+        )
+    }
+}
+
+/**
+ * A mapping contributor for vanilla server JARs.
+ *
+ * @param workspace the workspace
+ * @property mojangProvider the Mojang manifest provider
+ * @param relaxedCache whether output cache verification constraints should be relaxed
+ * @author Matouš Kučera
+ */
+class VanillaServerMappingContributor(
+    workspace: VersionedWorkspace,
+    val mojangProvider: MojangManifestAttributeProvider,
+    relaxedCache: Boolean = true
+) : AbstractVanillaMappingContributor(workspace, relaxedCache) {
+    /**
+     * Creates a new resolver with a default metadata provider.
+     *
+     * @param workspace the workspace
+     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
+     * @param relaxedCache whether output cache verification constraints should be relaxed
+     */
+    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true)
+            : this(workspace, MojangManifestAttributeProvider(workspace, objectMapper, relaxedCache), relaxedCache)
+
+    /**
+     * Resolves a Mojang manifest JAR attribute.
+     *
+     * @return the JAR attribute
+     */
+    override fun resolveJarAttribute(): ManifestAttribute {
+        return ManifestAttribute(
+            "server",
+            mojangProvider.attributes.downloads.server.url,
+            mojangProvider.attributes.downloads.server.sha1
+        )
+    }
+}

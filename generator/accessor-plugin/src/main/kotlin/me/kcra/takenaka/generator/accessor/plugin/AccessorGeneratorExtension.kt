@@ -70,6 +70,11 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
     abstract val relaxedCache: Property<Boolean>
 
     /**
+     * The mapped platform(s), defaults to [PlatformTristate.SERVER].
+     */
+    abstract val platform: Property<PlatformTristate>
+
+    /**
      * Class accessor models.
      */
     abstract val accessors: ListProperty<ClassAccessor>
@@ -112,6 +117,7 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         relaxedCache.convention(true)
+        platform.convention(PlatformTristate.SERVER)
     }
 
     /**
@@ -172,6 +178,24 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
      */
     fun relaxedCache(relaxedCache: Boolean) {
         this.relaxedCache.set(relaxedCache)
+    }
+
+    /**
+     * Sets the [platform] property.
+     *
+     * @param platform the platform
+     */
+    fun platform(platform: PlatformTristate) {
+        this.platform.set(platform)
+    }
+
+    /**
+     * Sets the [platform] property.
+     *
+     * @param platform the platform as a string
+     */
+    fun platform(platform: String) {
+        this.platform.set(PlatformTristate.valueOf(platform.uppercase()))
     }
 
     /**
@@ -265,6 +289,30 @@ abstract class AccessorGeneratorExtension(internal val project: Project, interna
         accessors.add(ClassAccessorBuilder(name, manifest).apply(block::execute).toClassAccessor())
         return name
     }
+}
+
+/**
+ * A three-way choice of mappings.
+ *
+ * @property wantsClient whether this choice wants client mappings
+ * @property wantsServer whether this choice wants server mappings
+ * @author Matouš Kučera
+ */
+enum class PlatformTristate(val wantsClient: Boolean, val wantsServer: Boolean) {
+    /**
+     * Client and server mappings.
+     */
+    CLIENT_SERVER(true, true),
+
+    /**
+     * Client mappings.
+     */
+    CLIENT(true, false),
+
+    /**
+     * Server mappings.
+     */
+    SERVER(false, true)
 }
 
 /**

@@ -77,3 +77,18 @@ class MojangManifestAttributeProvider(val workspace: VersionedWorkspace, private
         const val ATTRIBUTES = "mojang_manifest_attributes.json"
     }
 }
+
+/**
+ * A Mojang manifest attribute.
+ *
+ * @property name the attribute name
+ * @property value the attribute value
+ * @property checksum the attribute checksum
+ */
+data class ManifestAttribute(val name: String, val value: String?, val checksum: String?) {
+    /**
+     * Whether this attribute exists in the manifest, i.e. [value] is not null.
+     */
+    val exists: Boolean
+        get() = value != null && checksum != null
+}

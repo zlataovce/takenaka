@@ -60,57 +60,46 @@ abstract class AbstractSpigotMappingResolver(
     val relaxedCache: Boolean = true
 ) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
     override val licenseSource: String?
-        get() = spigotProvider.manifest?.let { "https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute?at=${it.refs["BuildData"]}" }
+        get() = spigotProvider.manifest?.let { manifest ->
+            mappingAttribute.value?.let { value ->
+                "https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$value?at=${manifest.refs["BuildData"]}"
+            }
+        }
+
     override val targetNamespace: String = "spigot"
     override val outputs: List<Output<out Path?>>
         get() = listOf(mappingOutput, licenseOutput, pomOutput)
 
     /**
-     * The name of the attribute with the mapping file name.
+     * The resolved mapping attribute.
      */
-    abstract val mappingAttributeName: String
-
-    /**
-     * The value of the attribute with the mapping file name.
-     */
-    abstract val mappingAttribute: String?
-
-    /**
-     * Creates a new resolver with a default metadata provider.
-     *
-     * @param workspace the workspace
-     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
-     * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
-     */
-    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper) :
-            this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper))
+    val mappingAttribute by lazy(::resolveMappingAttribute)
 
     override val mappingOutput = lazyOutput<Path?> {
         resolver {
-            val mappingAttribute0 = mappingAttribute
-            if (mappingAttribute0 == null) {
-                logger.warn { "did not find ${version.id} Spigot mappings ($mappingAttributeName)" }
+            if (!mappingAttribute.exists) {
+                logger.warn { "did not find ${version.id} Spigot mappings (${mappingAttribute.name})" }
                 return@resolver null
             }
 
-            val file = workspace[mappingAttribute0]
+            val file = workspace[mappingAttribute.value!!]
 
             // Spigot's stash doesn't seem to support sending Content-Length headers
             if (relaxedCache && file.isRegularFile()) {
-                logger.info { "found cached ${version.id} Spigot mappings ($mappingAttribute0)" }
+                logger.info { "found cached ${version.id} Spigot mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value})" }
                 return@resolver file
             }
 
             // manifest is going to be non-null, since it's used to fetch mappingAttribute
-            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/$mappingAttribute0?at=${spigotProvider.manifest!!.refs["BuildData"]}").httpRequest {
+            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/${mappingAttribute.value}?at=${spigotProvider.manifest!!.refs["BuildData"]}").httpRequest {
                 if (it.ok) {
                     it.copyTo(file)
 
-                    logger.info { "fetched ${version.id} Spigot mappings ($mappingAttribute0)" }
+                    logger.info { "fetched ${version.id} Spigot mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value})" }
                     return@resolver file
                 }
 
-                logger.warn { "failed to fetch ${version.id} Spigot mappings ($mappingAttribute0), received ${it.responseCode}" }
+                logger.warn { "failed to fetch ${version.id} Spigot mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value}), received ${it.responseCode}" }
             }
 
             return@resolver null
@@ -172,6 +161,13 @@ abstract class AbstractSpigotMappingResolver(
     }
 
     /**
+     * Resolves a BuildData mapping attribute.
+     *
+     * @return the mapping attribute
+     */
+    protected abstract fun resolveMappingAttribute(): MappingAttribute
+
+    /**
      * Visits the mappings to the supplied visitor.
      *
      * @param visitor the visitor
@@ -228,6 +224,20 @@ abstract class AbstractSpigotMappingResolver(
          */
         const val META_CB_NMS_VERSION = "cb_nms_version"
     }
+
+    /**
+     * A BuildData mapping attribute.
+     *
+     * @property name the attribute name
+     * @property value the attribute value
+     */
+    data class MappingAttribute(val name: String, val value: String?) {
+        /**
+         * Whether this attribute exists in the manifest, i.e. [value] is not null.
+         */
+        val exists: Boolean
+            get() = value != null
+    }
 }
 
 /**
@@ -251,9 +261,6 @@ class SpigotClassMappingResolver(
     spigotProvider: SpigotManifestProvider,
     relaxedCache: Boolean = true
 ) : AbstractSpigotMappingResolver(workspace, xmlMapper, spigotProvider, relaxedCache) {
-    override val mappingAttributeName: String = "classMappings"
-    override val mappingAttribute: String? = spigotProvider.attributes?.classMappings
-
     /**
      * Creates a new resolver with a default metadata provider.
      *
@@ -264,6 +271,15 @@ class SpigotClassMappingResolver(
      */
     constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper, relaxedCache: Boolean = true) :
             this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper), relaxedCache)
+
+    /**
+     * Resolves a BuildData mapping attribute.
+     *
+     * @return the mapping attribute
+     */
+    override fun resolveMappingAttribute(): MappingAttribute {
+        return MappingAttribute("classMappings", spigotProvider.attributes?.classMappings)
+    }
 
     /**
      * Visits the mappings to the supplied visitor.
@@ -347,8 +363,6 @@ class SpigotMemberMappingResolver(
     relaxedCache: Boolean = true
 ) : AbstractSpigotMappingResolver(workspace, xmlMapper, spigotProvider, relaxedCache) {
     private var expectPrefixedClassNames = false
-    override val mappingAttributeName: String = "memberMappings"
-    override val mappingAttribute: String? = spigotProvider.attributes?.memberMappings
 
     /**
      * Creates a new resolver with a default metadata provider.
@@ -359,6 +373,15 @@ class SpigotMemberMappingResolver(
      */
     constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper, relaxedCache: Boolean = true) :
             this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper), relaxedCache)
+
+    /**
+     * Resolves a BuildData mapping attribute.
+     *
+     * @return the mapping attribute
+     */
+    override fun resolveMappingAttribute(): MappingAttribute {
+        return MappingAttribute("memberMappings", spigotProvider.attributes?.memberMappings)
+    }
 
     /**
      * Visits the mappings to the supplied visitor.

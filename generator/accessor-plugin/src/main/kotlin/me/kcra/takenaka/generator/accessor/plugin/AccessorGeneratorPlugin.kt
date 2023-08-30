@@ -46,11 +46,11 @@ class AccessorGeneratorPlugin : Plugin<Project> {
         val manifest = objectMapper().versionManifest()
         val config = target.extensions.create<AccessorGeneratorExtension>("accessors", target, manifest)
 
-        // automatically adds tasks for basic Mojang-based server accessor generation
+        // automatically adds tasks for basic Mojang-based accessor generation
         val mappingBundle by target.configurations.creating
         val resolveMappings by target.tasks.creating(ResolveMappingsTask::class) {
             group = "takenaka"
-            description = "Resolves a basic set of mappings for development on Mojang-based servers."
+            description = "Resolves a basic set of mappings for development on Mojang-based software."
 
             this.cacheDir.set(config.cacheDirectory)
             this.versions.set(config.versions)

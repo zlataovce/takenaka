@@ -26,6 +26,7 @@ import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.resolve.impl.*
 import me.kcra.takenaka.core.util.objectMapper
+import me.kcra.takenaka.generator.accessor.plugin.PlatformTristate
 import me.kcra.takenaka.generator.common.provider.impl.BundledMappingProvider
 import me.kcra.takenaka.generator.common.provider.impl.ResolvingMappingProvider
 import me.kcra.takenaka.generator.common.provider.impl.buildMappingConfig
@@ -92,6 +93,14 @@ abstract class ResolveMappingsTask : DefaultTask() {
     abstract val relaxedCache: Property<Boolean>
 
     /**
+     * The mapped platform(s), defaults to [PlatformTristate.SERVER].
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.platform
+     */
+    @get:Input
+    abstract val platform: Property<PlatformTristate>
+
+    /**
      * The version manifest.
      */
     @get:Input
@@ -136,6 +145,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
     init {
         cacheDir.convention(project.layout.buildDirectory.dir("takenaka/cache"))
         relaxedCache.convention(true)
+        platform.convention(PlatformTristate.SERVER)
 
         // manual up-to-date checking, it's an Internal property
         outputs.upToDateWhen {
@@ -172,7 +182,8 @@ abstract class ResolveMappingsTask : DefaultTask() {
     fun run() {
         val objectMapper = objectMapper()
 
-        val requiredVersions = this@ResolveMappingsTask.versions.get().toList()
+        val requiredPlatform = platform.get()
+        val requiredVersions = versions.get().toList()
         val resolvedMappings = runBlocking {
             // resolve mappings on this system, if a bundle is not available
             if (mappingBundle.isPresent) {
@@ -202,21 +213,46 @@ abstract class ResolveMappingsTask : DefaultTask() {
 
                         val prependedClasses = mutableListOf<String>()
 
-                        listOf(
-                            VanillaMappingContributor(versionWorkspace, mojangProvider, relaxedCache.get()),
-                            MojangServerMappingResolver(versionWorkspace, mojangProvider),
-                            IntermediaryMappingResolver(versionWorkspace, sharedCacheWorkspace),
-                            YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache.get()),
-                            SeargeMappingResolver(versionWorkspace, sharedCacheWorkspace, relaxedCache.get()),
-                            WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get())) {
-                                // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
-                                // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
-                                LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses, prependEverything = versionWorkspace.version.id == "1.16.5")
-                            },
-                            WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get())) {
-                                LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses)
+                        buildList {
+                            if (requiredPlatform.wantsServer) {
+                                add(VanillaServerMappingContributor(versionWorkspace, mojangProvider, relaxedCache.get()))
+                                add(MojangServerMappingResolver(versionWorkspace, mojangProvider))
                             }
-                        )
+                            if (requiredPlatform.wantsClient) {
+                                add(VanillaClientMappingContributor(versionWorkspace, mojangProvider, relaxedCache.get()))
+                                add(MojangClientMappingResolver(versionWorkspace, mojangProvider))
+                            }
+
+                            add(IntermediaryMappingResolver(versionWorkspace, sharedCacheWorkspace))
+                            add(YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache.get()))
+                            add(SeargeMappingResolver(versionWorkspace, sharedCacheWorkspace, relaxedCache = relaxedCache.get()))
+
+                            // Spigot resolvers have to be last
+                            if (requiredPlatform.wantsServer) {
+                                add(
+                                    WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get())) {
+                                        // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
+                                        // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
+                                        LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses, prependEverything = versionWorkspace.version.id == "1.16.5")
+                                    }
+                                )
+                                add(
+                                    WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get())) {
+                                        LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses)
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    joinedOutputPath { workspace ->
+                        val fileName = when (requiredPlatform) {
+                            PlatformTristate.CLIENT_SERVER -> "client+server.tiny"
+                            PlatformTristate.CLIENT -> "client.tiny"
+                            else -> "server.tiny"
+                        }
+
+                        workspace[fileName]
                     }
                 }
 
