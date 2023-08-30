@@ -9,7 +9,7 @@ The goal of this project is to improve the maintainability and performance of th
 ## Features
 
 * fetching and deserialization of various mappings
-* parsing of the server JAR (modifiers, superclasses, superinterfaces and more)
+* parsing of the server and client JAR (modifiers, superclasses, superinterfaces and more)
 * mapping semantic analysis and error correction
 * cross-version mapping history comparison
 * web documentation generation (including generics!)
