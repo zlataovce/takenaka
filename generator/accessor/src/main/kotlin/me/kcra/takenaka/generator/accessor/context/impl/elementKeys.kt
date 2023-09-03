@@ -54,8 +54,40 @@ data class ConstructorKey(override val namespace: String, val descriptor: String
 /**
  * A method mapping key.
  *
+ * *The method return type is not used when checking equality, mimicking reflective lookups.*
+ *
  * @property namespace the mapping namespace
  * @property name the mapped method name
  * @property descriptor the mapped method descriptor
  */
-data class MethodKey(override val namespace: String, val name: String, val descriptor: String) : NamespacedKey
+data class MethodKey(override val namespace: String, val name: String, val descriptor: String) : NamespacedKey {
+    /**
+     * [descriptor], but with the return type removed.
+     */
+    private val partialDescriptor: String
+
+    init {
+        val parenthesisIndex = descriptor.lastIndexOf(')')
+        this.partialDescriptor = if (parenthesisIndex != -1) descriptor.substring(0, parenthesisIndex + 1) else descriptor
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as MethodKey
+
+        if (namespace != other.namespace) return false
+        if (name != other.name) return false
+        if (partialDescriptor != other.partialDescriptor) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = namespace.hashCode()
+        result = 31 * result + name.hashCode()
+        result = 31 * result + partialDescriptor.hashCode()
+        return result
+    }
+}
