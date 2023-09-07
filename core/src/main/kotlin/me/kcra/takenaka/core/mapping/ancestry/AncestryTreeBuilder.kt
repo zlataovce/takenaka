@@ -131,7 +131,14 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
          *
          * **This is not set by the [put] methods.**
          */
-        internal var lastNames: Set<Any>? = null
+        internal var lastNames: Set<String>? = null
+
+        /**
+         * Internal cache of descriptors (as per the tree's allowed namespaces) of the last entry.
+         *
+         * **This is not set by the [put] methods.**
+         */
+        internal var lastDescs: Set<String>? = null
 
         init {
             if (delegate.isNotEmpty()) {
