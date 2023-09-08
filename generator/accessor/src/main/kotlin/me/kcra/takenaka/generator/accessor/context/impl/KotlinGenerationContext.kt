@@ -72,7 +72,7 @@ open class KotlinGenerationContext(
                 )
                 .addProperty(
                     PropertySpec.builder("TYPE", SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_CLASS_WILDCARD))
-                        .initializer("%M(%T::getClazz)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                        .delegate("%M(%T::getClazz)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                         .build()
                 )
 
@@ -188,7 +188,7 @@ open class KotlinGenerationContext(
                                 accessorBuilder.addProperty(
                                     PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_ANY))
                                         .addMeta(constant = true)
-                                        .initializer("%M(%T.$accessorName::getConstantValue)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                        .delegate("%M(%T.$accessorName::getConstantValue)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                         .build()
                                 )
                             } else {
@@ -197,7 +197,7 @@ open class KotlinGenerationContext(
                                         accessorBuilder.addProperty(
                                             PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_FIELD))
                                                 .addMeta()
-                                                .initializer("%M(%T.$accessorName::getField)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                                .delegate("%M(%T.$accessorName::getField)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                                 .build()
                                         )
                                     }
@@ -205,13 +205,13 @@ open class KotlinGenerationContext(
                                         accessorBuilder.addProperty(
                                             PropertySpec.builder("${accessorName}_GETTER", SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD_HANDLE))
                                                 .addMeta()
-                                                .initializer("%M(%T.$accessorName::getFieldGetter)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                                .delegate("%M(%T.$accessorName::getFieldGetter)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                                 .build()
                                         )
                                         accessorBuilder.addProperty(
                                             PropertySpec.builder("${accessorName}_SETTER", SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD_HANDLE))
                                                 .addMeta()
-                                                .initializer("%M(%T.$accessorName::getFieldSetter)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                                .delegate("%M(%T.$accessorName::getFieldSetter)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                                 .build()
                                         )
                                     }
@@ -269,7 +269,7 @@ open class KotlinGenerationContext(
                                     accessorBuilder.addProperty(
                                         PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_CONSTRUCTOR_WILDCARD))
                                             .addMeta()
-                                            .initializer("%M(%T.$accessorName::getConstructor)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                            .delegate("%M(%T.$accessorName::getConstructor)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                             .build()
                                     )
                                 }
@@ -277,7 +277,7 @@ open class KotlinGenerationContext(
                                     accessorBuilder.addProperty(
                                         PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD_HANDLE))
                                             .addMeta()
-                                            .initializer("%M(%T.$accessorName::getConstructorHandle)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                            .delegate("%M(%T.$accessorName::getConstructorHandle)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                             .build()
                                     )
                                 }
@@ -329,7 +329,7 @@ open class KotlinGenerationContext(
                                     accessorBuilder.addProperty(
                                         PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD))
                                             .addMeta()
-                                            .initializer("%M(%T.$accessorName::getMethod)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                            .delegate("%M(%T.$accessorName::getMethod)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                             .build()
                                     )
                                 }
@@ -337,7 +337,7 @@ open class KotlinGenerationContext(
                                     accessorBuilder.addProperty(
                                         PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD_HANDLE))
                                             .addMeta()
-                                            .initializer("%M(%T.$accessorName::getMethodHandle)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                            .delegate("%M(%T.$accessorName::getMethodHandle)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                             .build()
                                     )
                                 }
@@ -380,7 +380,12 @@ open class KotlinGenerationContext(
             }
         }
 
-        typeSpecs.writeTo(generator.workspace, accessedSimpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) })
+        typeSpecs.writeTo(
+            generator.workspace,
+            accessedSimpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) },
+            // import LazySupplier delegate for accessors
+            includeMappingDsl = generator.config.accessorType != AccessorType.NONE
+        )
     }
 
     /**
@@ -414,9 +419,14 @@ open class KotlinGenerationContext(
      *
      * @param workspace the workspace
      * @param name the file name
+     * @param includeMappingDsl whether imports for implicit mapping DSL should be added
      */
-    fun PropertySpec.writeTo(workspace: Workspace, name: String = requireNotNull(this.name) { "File name required, but type has no name" }) {
-        listOf(this).writeTo(workspace, name)
+    fun PropertySpec.writeTo(
+        workspace: Workspace,
+        name: String = requireNotNull(this.name) { "File name required, but type has no name" },
+        includeMappingDsl: Boolean = false
+    ) {
+        listOf(this).writeTo(workspace, name, includeMappingDsl)
     }
 
     /**
@@ -424,13 +434,18 @@ open class KotlinGenerationContext(
      *
      * @param workspace the workspace
      * @param name the file name
+     * @param includeMappingDsl whether imports for implicit mapping DSL should be added
      */
-    fun Iterable<Any>.writeTo(workspace: Workspace, name: String) {
+    fun Iterable<Any>.writeTo(workspace: Workspace, name: String, includeMappingDsl: Boolean = false) {
         FileSpec.builder(generator.config.basePackage, name)
             .addFileComment("This file was generated by takenaka on ${DATE_FORMAT.format(generationTime)}. Do not edit, changes will be overwritten!")
             .addKotlinDefaultImports(includeJvm = true)
             .indent(" ".repeat(4)) // 4 spaces
             .apply {
+                if (includeMappingDsl) {
+                    addImport(SourceTypes.KT_LAZY_DELEGATE_DSL)
+                }
+
                 forEach { elem ->
                     when (elem) {
                         is KTypeSpec -> addType(elem)

@@ -19,10 +19,7 @@
 
 package me.kcra.takenaka.generator.accessor.context.impl
 
-import com.squareup.javapoet.FieldSpec
-import com.squareup.kotlinpoet.ANY
 import com.squareup.kotlinpoet.MemberName
-import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.buildCodeBlock
 import com.squareup.kotlinpoet.javapoet.*
 
@@ -55,7 +52,8 @@ inline fun JCodeBlockBuilder.withIndent(builderAction: JCodeBlockBuilder.() -> U
  * @param block the code block builder action
  * @return the field builder
  */
-inline fun FieldSpec.Builder.initializer(block: JCodeBlockBuilder.() -> Unit): FieldSpec.Builder = initializer(buildJCodeBlock(block))
+inline fun com.squareup.javapoet.FieldSpec.Builder.initializer(block: JCodeBlockBuilder.() -> Unit): com.squareup.javapoet.FieldSpec.Builder =
+    initializer(buildJCodeBlock(block))
 
 /**
  * Builds and sets the initializer for this property builder.
@@ -63,7 +61,17 @@ inline fun FieldSpec.Builder.initializer(block: JCodeBlockBuilder.() -> Unit): F
  * @param block the code block builder action
  * @return the property builder
  */
-inline fun PropertySpec.Builder.initializer(block: KCodeBlockBuilder.() -> Unit): PropertySpec.Builder = initializer(buildCodeBlock(block))
+inline fun com.squareup.kotlinpoet.PropertySpec.Builder.initializer(block: KCodeBlockBuilder.() -> Unit): com.squareup.kotlinpoet.PropertySpec.Builder =
+    initializer(buildCodeBlock(block))
+
+/**
+ * Adds a member import to the file.
+ *
+ * @param memberName the member
+ * @return the file builder
+ */
+fun com.squareup.kotlinpoet.FileSpec.Builder.addImport(memberName: MemberName): com.squareup.kotlinpoet.FileSpec.Builder =
+    memberName.run { addImport("$packageName${enclosingClassName?.let { ".$it" } ?: ""}", simpleName) }
 
 /**
  * JavaPoet/KotlinPoet types.
@@ -102,7 +110,7 @@ object SourceTypes {
     val KT_METHOD_HANDLE = METHOD_HANDLE.toKClassName()
     val KT_NULLABLE_METHOD_HANDLE = KT_METHOD_HANDLE.copy(nullable = true)
     val STRING: JClassName = JClassName.get(java.lang.String::class.java)
-    val KT_NULLABLE_ANY = ANY.copy(nullable = true)
+    val KT_NULLABLE_ANY = com.squareup.kotlinpoet.ANY.copy(nullable = true)
 
     val KT_MAPPING_LOOKUP_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "mappingLookup")
     val KT_CLASS_MAPPING_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "classMapping")
@@ -110,4 +118,5 @@ object SourceTypes {
     val KT_CLASS_MAPPING_CTOR_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "constructor", isExtension = true)
     val KT_CLASS_MAPPING_METHOD_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "method", isExtension = true)
     val KT_LAZY_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "lazy")
+    val KT_LAZY_DELEGATE_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "getValue", isExtension = true)
 }
