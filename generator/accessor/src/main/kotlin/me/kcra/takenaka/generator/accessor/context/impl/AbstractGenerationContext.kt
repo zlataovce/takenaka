@@ -85,14 +85,17 @@ abstract class AbstractGenerationContext(
      */
     override fun generateClass(model: ClassAccessor, tree: ClassAncestryTree) {
         if (model.internalName.isGlob) {
-            val pattern = model.internalName.globAsRegex()
-            val nodes = tree.find(pattern)
+            val results = tree.find(model.internalName.globAsRegex())
 
-            logger.info { "matched ${nodes.size} nodes from glob pattern '${model.internalName}'" }
-            nodes.forEach { node ->
+            logger.info { "matched ${results.size} nodes from glob pattern '${model.internalName}'" }
+            if (results.isEmpty()) {
+                logger.warn { "glob pattern '${model.internalName}' did not match any nodes" }
+            }
+
+            results.forEach { (name, node) ->
                 generateClass(
                     ClassAccessor(
-                        getFriendlyName(node.last.value),
+                        name,
                         model.fields,
                         model.constructors,
                         model.methods,

@@ -39,7 +39,7 @@ fun String.camelToUpperSnakeCase(): String {
 /**
  * Returns whether the string is a glob pattern (contains `*` or `?`).
  */
-val String.isGlob: Boolean
+inline val String.isGlob: Boolean
     get() = contains('*') || contains('?')
 
 /**

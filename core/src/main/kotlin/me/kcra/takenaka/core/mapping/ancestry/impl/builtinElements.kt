@@ -318,16 +318,26 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeV
 }
 
 /**
+ * A pattern-based search result.
+ *
+ * @property name the matched name of the node
+ * @property node the matched node
+ * @param T the mapping tree type
+ * @param M the mapping tree class type
+ */
+data class FindResult<T : MappingTreeView, M : MappingTreeView.ClassMappingView>(val name: String, val node: AncestryTree.Node<T, M>)
+
+/**
  * Searches for class nodes in a tree, an alternative to [AncestryTree.get] if you don't know the full class name.
  *
  * @param pattern the regular expression, which should fully match at least one mapping of the class
  * @param T the mapping tree type
  * @param M the mapping tree class type
- * @return the class nodes
+ * @return the results
  */
-fun <T : MappingTreeView, M : MappingTreeView.ClassMappingView> AncestryTree<T, M>.find(pattern: Regex): List<AncestryTree.Node<T, M>> = filter { node ->
+fun <T : MappingTreeView, M : MappingTreeView.ClassMappingView> AncestryTree<T, M>.find(pattern: Regex): List<FindResult<T, M>> = mapNotNull { node ->
     @Suppress("UNCHECKED_CAST") // should always be String, since it's a class
-    (node.lastNames as Set<String>).any(pattern::matches)
+    (node.lastNames as Set<String>).firstOrNull(pattern::matches)?.let { name -> FindResult(name, node) }
 }
 
 /**
