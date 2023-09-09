@@ -77,7 +77,7 @@ public enum MapperPlatforms implements MapperPlatform {
 
         @Override
         public @NotNull String[] getMappingNamespaces() {
-            return new String[] { "spigot", "source" };
+            return new String[] { "spigot" };
         }
     },
 

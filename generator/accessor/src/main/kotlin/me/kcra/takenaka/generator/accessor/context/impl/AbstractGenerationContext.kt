@@ -361,7 +361,10 @@ abstract class AbstractGenerationContext(
             val nmsVersion = klass.tree.craftBukkitNmsVersion
 
             generator.config.accessedNamespaces.forEach { ns ->
-                klass.getName(ns)?.let { name ->
+                val nsId = klass.tree.getNamespaceId(ns)
+                if (nsId != NULL_NAMESPACE_ID) {
+                    val name = klass.getName(nsId) ?: klass.srcName
+
                     // de-internalize the name beforehand to meet the ClassMapping contract
                     getOrPut(ClassKey(ns, name.fromInternalName().replaceCraftBukkitNMSVersion(nmsVersion, separator = '.')), ::mutableListOf) += version
                 }
@@ -378,7 +381,10 @@ abstract class AbstractGenerationContext(
     protected fun groupFieldNames(node: FieldAncestryNode): Map<FieldKey, List<Version>> = buildMap<FieldKey, MutableList<Version>> {
         node.forEach { (version, field) ->
             generator.config.accessedNamespaces.forEach { ns ->
-                field.getName(ns)?.let { name ->
+                val nsId = field.tree.getNamespaceId(ns)
+                if (nsId != NULL_NAMESPACE_ID) {
+                    val name = field.getName(nsId) ?: field.srcName
+
                     getOrPut(FieldKey(ns, name), ::mutableListOf) += version
                 }
             }
@@ -413,11 +419,12 @@ abstract class AbstractGenerationContext(
         node.forEach { (version, method) ->
             val nmsVersion = method.tree.craftBukkitNmsVersion
 
-            generator.config.accessedNamespaces.forEach nsEach@ { ns ->
-                val name = method.getName(ns) ?: return@nsEach
-                val desc = method.getDesc(ns) ?: return@nsEach
+            generator.config.accessedNamespaces.forEach { ns ->
+                method.getDesc(ns)?.let { desc ->
+                    val name = method.getName(ns) ?: method.srcName
 
-                getOrPut(MethodKey(ns, name, desc.replaceCraftBukkitNMSVersion(nmsVersion)), ::mutableListOf) += version
+                    getOrPut(MethodKey(ns, name, desc.replaceCraftBukkitNMSVersion(nmsVersion)), ::mutableListOf) += version
+                }
             }
         }
     }
