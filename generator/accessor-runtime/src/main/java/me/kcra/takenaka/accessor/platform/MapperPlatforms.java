@@ -48,7 +48,7 @@ public enum MapperPlatforms implements MapperPlatform {
 
                     final String versionString = (String) getVersionMethod.invoke(null);
 
-                    final Pattern versionPattern = Pattern.compile("\\(MC: ([A-Za-z0-9-_. ]+)\\)");
+                    final Pattern versionPattern = Pattern.compile("\\(MC: ([^)]+?)\\)");
                     final Matcher matcher = versionPattern.matcher(versionString);
                     if (!matcher.find()) {
                         throw new RuntimeException("Failed to find Minecraft version in version string " + versionString);
