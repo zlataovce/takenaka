@@ -40,14 +40,14 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
     val trees = mutableMapOf<Version, T>()
 
     /**
-     * Namespace IDs used for computing node indices, distinguished by version.
+     * Namespaces used for computing node indices, distinguished by version.
      */
-    val indexNamespaces = mutableMapOf<Version, Int>()
+    val indexNamespaces = mutableMapOf<Version, ResolvedNamespace>()
 
     /**
-     * Namespace IDs used for computing history, distinguished by version.
+     * Namespaces used for computing history, distinguished by version.
      */
-    val allowedNamespaces = mutableMapOf<Version, Array<Int>>()
+    val allowedNamespaces = mutableMapOf<Version, Array<ResolvedNamespace>>()
 
     /**
      * Lookup for nodes by their indices.
@@ -131,7 +131,7 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
          *
          * **This is not set by the [put] methods.**
          */
-        internal var lastNames: Set<String>? = null
+        internal var lastNames: Set<NamespacedName>? = null
 
         /**
          * Internal cache of descriptors (as per the tree's allowed namespaces) of the last entry.

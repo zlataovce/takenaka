@@ -39,8 +39,8 @@ typealias NameDescriptorPair = Pair<String, String>
  *
  * @param nodes the ancestry nodes
  * @property trees mapping trees used for the computation of this ancestry tree
- * @property indexNamespaces namespace IDs used for computing node indices (IDs can be absent or [NULL_NAMESPACE_ID]), distinguished by version
- * @property allowedNamespaces namespace IDs used for computing history, distinguished by version
+ * @property indexNamespaces namespaces used for computing node indices (IDs can be absent or [NULL_NAMESPACE_ID]), distinguished by version
+ * @property allowedNamespaces namespaces used for computing history, distinguished by version
  * @param T the type of the mapping tree
  * @param E the kind of the traced element; can be a class, method, field, ...
  * @author Matouš Kučera
@@ -48,8 +48,8 @@ typealias NameDescriptorPair = Pair<String, String>
 class AncestryTree<T : MappingTreeView, E : ElementMappingView>(
     nodes: List<Node<T, E>>,
     val trees: Map<Version, T>,
-    val indexNamespaces: Map<Version, Int>,
-    val allowedNamespaces: Map<Version, Array<Int>>
+    val indexNamespaces: Map<Version, ResolvedNamespace>,
+    val allowedNamespaces: Map<Version, Array<ResolvedNamespace>>
 ) : List<AncestryTree.Node<T, E>> by nodes {
     /**
      * A node in the ancestry tree, immutable.
@@ -80,9 +80,9 @@ class AncestryTree<T : MappingTreeView, E : ElementMappingView>(
                 val isConstructor = lastMapping is MethodMappingView && lastMapping.isConstructor
 
                 tree.allowedNamespaces[lastVersion]
-                    ?.mapNotNullTo(mutableSetOf()) { ns ->
-                        val name = if (isConstructor) "<init>" else (lastMapping.getDstName(ns) ?: return@mapNotNullTo null)
-                        val desc = lastMapping.getDstDesc(ns)
+                    ?.mapNotNullTo(mutableSetOf()) { (_, id) ->
+                        val name = if (isConstructor) "<init>" else (lastMapping.getDstName(id) ?: return@mapNotNullTo null)
+                        val desc = lastMapping.getDstDesc(id)
                             ?: return@mapNotNullTo null
 
                         name to desc
@@ -90,7 +90,7 @@ class AncestryTree<T : MappingTreeView, E : ElementMappingView>(
                     ?: error("Version $lastVersion is not mapped in parent tree")
             } else {
                 tree.allowedNamespaces[lastVersion]
-                    ?.mapNotNullTo(mutableSetOf(), lastMapping::getDstName)
+                    ?.mapNotNullTo(mutableSetOf()) { (_, id) -> lastMapping.getDstName(id) }
                     ?: error("Version $lastVersion is not mapped in parent tree")
             }
         }
