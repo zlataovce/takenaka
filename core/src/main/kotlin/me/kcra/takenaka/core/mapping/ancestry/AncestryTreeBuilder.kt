@@ -55,6 +55,22 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
     val indices = mutableMapOf<Int, MutableNode<E>>()
 
     /**
+     * Whether ancestry nodes should be put into [nodeBuffer] instead of directly into [nodes].
+     */
+    var buffering = false
+
+    /**
+     * A buffer of ancestry nodes that have been added in this cycle.
+     */
+    private val nodeBuffer = mutableListOf<MutableNode<E>>()
+
+    /**
+     * Collection that new nodes should be appended to.
+     */
+    private val currentNodes: MutableCollection<MutableNode<E>>
+        get() = if (buffering) nodeBuffer else nodes
+
+    /**
      * Gets a node by its index, creating a new one if not found.
      *
      * @param index the index
@@ -68,14 +84,14 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
      * @param block the search predicate
      * @return the node
      */
-    fun findOrEmpty(block: (MutableNode<E>) -> Boolean): MutableNode<E> = nodes.find(block) ?: emptyNode()
+    inline fun findOrEmpty(block: (MutableNode<E>) -> Boolean): MutableNode<E> = nodes.find(block) ?: emptyNode()
 
     /**
      * Creates a new empty node and appends it to the builder.
      *
      * @return the node
      */
-    fun emptyNode(): MutableNode<E> = MutableNode<E>().also(nodes::add)
+    fun emptyNode(): MutableNode<E> = MutableNode<E>().also(currentNodes::add)
 
     /**
      * Makes the builder inherit mapping trees from another tree.
@@ -102,10 +118,44 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
      * @return the ancestry tree
      */
     fun toAncestryTree(): AncestryTree<T, E> {
+        flushBuffer()
+
         val immutableNodes = mutableListOf<AncestryTree.Node<T, E>>()
         return AncestryTree(immutableNodes, trees, indexNamespaces, allowedNamespaces).apply {
-            immutableNodes += nodes.map { AncestryTree.Node(this, it, it.first, it.last) }
+            immutableNodes += nodes.map {
+                AncestryTree.Node(
+                    this,
+                    it.delegate, // use the delegate here to discard of the MutableNode reference
+                    checkNotNull(it.first) {
+                        "Node does not have a first mapping"
+                    },
+                    checkNotNull(it.last) {
+                        "Node does not have a last mapping"
+                    }
+                )
+            }
         }
+    }
+
+    /**
+     * Buffers nodes added in [block] and flushes the buffer afterward.
+     *
+     * @param block the builder action
+     */
+    inline fun bufferCycle(block: AncestryTreeBuilder<T, E>.() -> Unit) {
+        buffering = true
+        block()
+        buffering = false
+
+        flushBuffer()
+    }
+
+    /**
+     * Flushes [nodeBuffer] into [nodes].
+     */
+    fun flushBuffer() {
+        nodes += nodeBuffer
+        nodeBuffer.clear()
     }
 
     /**
@@ -119,26 +169,26 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
         /**
          * The first version mapping (oldest).
          */
-        lateinit var first: Map.Entry<Version, E>
+        var first: Map.Entry<Version, E>? = null
 
         /**
          * The last version mapping (newest).
          */
-        lateinit var last: Map.Entry<Version, E>
+        var last: Map.Entry<Version, E>? = null
 
         /**
          * Internal cache of names (as per the tree's allowed namespaces) of the last entry.
          *
          * **This is not set by the [put] methods.**
          */
-        internal var lastNames: Set<NamespacedName>? = null
+        internal var lastNames: Set<NamespacedMapping>? = null
 
         /**
          * Internal cache of descriptors (as per the tree's allowed namespaces) of the last entry.
          *
          * **This is not set by the [put] methods.**
          */
-        internal var lastDescs: Set<String>? = null
+        internal var lastDescs: Set<NamespacedMapping>? = null
 
         init {
             if (delegate.isNotEmpty()) {
@@ -150,7 +200,7 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
         override fun put(key: Version, value: E): E? {
             val oldValue = delegate.put(key, value)
 
-            if (!::first.isInitialized) {
+            if (first == null) {
                 first = entryOf(key, value)
             }
             if (oldValue == null) {
@@ -158,6 +208,14 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
             }
 
             return oldValue
+        }
+
+        override fun putAll(from: Map<out Version, E>) {
+            // replaced the putAll implementation here to route everything through the put method
+            // makes dealing with the first and last items easier
+            from.forEach { (key, value) ->
+                delegate[key] = value
+            }
         }
     }
 }

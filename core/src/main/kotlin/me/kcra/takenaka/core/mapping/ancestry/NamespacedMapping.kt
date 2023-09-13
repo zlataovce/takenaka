@@ -18,10 +18,10 @@
 package me.kcra.takenaka.core.mapping.ancestry
 
 /**
- * A name with its origin namespace.
+ * A mapping with its origin namespace.
  *
  * @property ns the namespace name
- * @property name the mapped name
+ * @property value the mapping (name or descriptor)
  * @author Matouš Kučera
  */
-data class NamespacedName(val ns: String, val name: String)
+data class NamespacedMapping(val ns: String, val value: String)
