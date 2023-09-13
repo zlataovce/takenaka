@@ -104,7 +104,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView> classAncestryTre
                     }
                 }
 
-                val classMappings = treeAllowedNamespaces.mapNotNullTo(mutableSetOf()) { (ns, id) ->
+                val classMappings = treeAllowedNamespaces.mapNotNullTo(HashSet(treeAllowedNamespaces.size)) { (ns, id) ->
                     klass.getDstName(id)?.let { name -> NamespacedMapping(ns, name) }
                 }
                 val classMappingsArray = classMappings.toTypedArray() // perf: use array due to marginally better iteration performance
@@ -114,7 +114,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView> classAncestryTre
                 val node = findOrEmpty { node ->
                     val (lastVersion, lastMapping) = node.last ?: error("Encountered a node without a last mapping")
                     val lastNames = node.lastNames
-                        ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNull { (ns, id) ->
+                        ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNullTo(HashSet()) { (ns, id) ->
                             lastMapping.getDstName(id)?.let { name -> NamespacedMapping(ns, name) }
                         }
                         ?: error("Version ${version.id} has not been mapped yet, make sure mappings are sorted correctly")
@@ -183,10 +183,10 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, F : MappingTreeV
                 }
             }
 
-            val fieldNameMappings = treeAllowedNamespaces.mapNotNullTo(mutableSetOf()) { (ns, id) ->
+            val fieldNameMappings = treeAllowedNamespaces.mapNotNullTo(HashSet(treeAllowedNamespaces.size)) { (ns, id) ->
                 field.getDstName(id)?.let { name -> NamespacedMapping(ns, name) }
             }
-            val fieldDescMappings = treeAllowedNamespaces.mapNotNullTo(mutableSetOf()) { (ns, id) ->
+            val fieldDescMappings = treeAllowedNamespaces.mapNotNullTo(HashSet(treeAllowedNamespaces.size)) { (ns, id) ->
                 field.getDstDesc(id)?.let { name -> NamespacedMapping(ns, name) }
             }
 
@@ -199,14 +199,14 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, F : MappingTreeV
             val node = findOrEmpty { node ->
                 val (lastVersion, lastMapping) = node.last ?: error("Encountered a node without a last mapping")
                 val lastNames = node.lastNames
-                    ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNullTo(mutableSetOf()) { (ns, id) ->
+                    ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNullTo(HashSet()) { (ns, id) ->
                         lastMapping.getDstName(id)?.let { name -> NamespacedMapping(ns, name) }
                     }
                     ?: error("Version ${lastVersion.id} has not been mapped yet")
 
                 if (fieldNameMappingsArray.any(lastNames::contains)) {
                     val lastDescs = node.lastDescs
-                        ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNullTo(mutableSetOf()) { (ns, id) ->
+                        ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNullTo(HashSet()) { (ns, id) ->
                             lastMapping.getDstDesc(id)?.let { name -> NamespacedMapping(ns, name) }
                         }
                         ?: error("Version ${lastVersion.id} has not been mapped yet")
@@ -257,7 +257,7 @@ typealias MutableMethodAncestryNode = AncestryTree.Node<MappingTree, MappingTree
  * @param M the mapping tree method member type
  * @return the ancestry tree
  */
-fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeView.MethodMappingView>  methodAncestryTreeOf(
+fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeView.MethodMappingView> methodAncestryTreeOf(
     klass: AncestryTree.Node<T, C>,
     constructorMode: ConstructorComputationMode = ConstructorComputationMode.EXCLUDE
 ): AncestryTree<T, M> = buildAncestryTree {
@@ -295,10 +295,10 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeV
                 }
             }
 
-            val methodNameMappings = if (isConstructor) CTOR_NAME_SET else treeAllowedNamespaces.mapNotNullTo(mutableSetOf()) { (ns, id) ->
+            val methodNameMappings = if (isConstructor) CTOR_NAME_SET else treeAllowedNamespaces.mapNotNullTo(HashSet(treeAllowedNamespaces.size)) { (ns, id) ->
                 method.getDstName(id)?.let { name -> NamespacedMapping(ns, name) }
             }
-            val methodDescMappings = treeAllowedNamespaces.mapNotNullTo(mutableSetOf()) { (ns, id) ->
+            val methodDescMappings = treeAllowedNamespaces.mapNotNullTo(HashSet(treeAllowedNamespaces.size)) { (ns, id) ->
                 method.getDstDesc(id)?.let { name -> NamespacedMapping(ns, name) }
             }
 
@@ -317,14 +317,14 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeV
 
                 val lastNames = node.lastNames
                     ?: if (isLastConstructor) CTOR_NAME_SET else this@buildAncestryTree.allowedNamespaces[lastVersion]
-                        ?.mapNotNullTo(mutableSetOf()) { (ns, id) ->
+                        ?.mapNotNullTo(HashSet()) { (ns, id) ->
                             lastMapping.getDstName(id)?.let { name -> NamespacedMapping(ns, name) }
                         }
                     ?: error("Version ${lastVersion.id} has not been mapped yet")
 
                 if (methodNameMappingsArray.any(lastNames::contains)) {
                     val lastDescs = node.lastDescs
-                        ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNullTo(mutableSetOf()) { (ns, id) ->
+                        ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNullTo(HashSet()) { (ns, id) ->
                             lastMapping.getDstDesc(id)?.let { name -> NamespacedMapping(ns, name) }
                         }
                         ?: error("Version ${lastVersion.id} has not been mapped yet")
