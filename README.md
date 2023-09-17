@@ -1,6 +1,7 @@
 # takenaka
 
 [![Maven snapshots](https://repo.screamingsandals.org/api/badge/latest/snapshots/me/kcra/takenaka/core?color=000000&name=sandals-snapshots)](https://repo.screamingsandals.org/#/snapshots/me/kcra/takenaka)
+[![Discord](https://img.shields.io/discord/1151104250487783555?logo=discord)](https://discord.gg/HZhPBbxpFP)
 
 A Kotlin library for reconciling multiple obfuscation mapping files from multiple versions of Minecraft: JE.
 
