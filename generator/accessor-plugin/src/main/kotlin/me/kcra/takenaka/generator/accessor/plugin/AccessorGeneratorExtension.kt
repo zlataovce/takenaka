@@ -467,7 +467,7 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
     /**
      * Adds a new getter method accessor model (`{type} get{name}()` descriptor).
      *
-     * **This method does not account for boolean-abbreviated getters (`isSomething`).**
+     * *This method does not account for boolean-abbreviated getters (`isSomething`).*
      *
      * @param name the mapped method name
      * @param version the version of the [name] declaration, latest if null
@@ -478,9 +478,9 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
     }
 
     /**
-     * Adds a new getter method accessor model (`{type} get{name}()` descriptor).
+     * Adds a new getter method accessor model (`{type} [is|get]{name}()` descriptor).
      *
-     * **This method does not account for boolean-abbreviated getters (`isSomething`).**
+     * *This method accounts for boolean-abbreviated getters (`isSomething`).*
      *
      * **The type and name must both be mapped by the same namespace, else generation will fail!**
      * (e.g. both [type] and [name] must be Mojang names)
@@ -489,13 +489,15 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
      * @param name the mapped method name
      */
     fun getter(type: Any, name: String) {
-        method(type, "get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}")
+        val prefix = if (type.asDescriptor() == "Z") "is" else "get" // presume boolean getter name to be isSomething instead of getSomething
+
+        method(type, "$prefix${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}")
     }
 
     /**
      * Adds a new chained getter method accessor model, useful for chaining together normal and record getters.
      *
-     * **This method does not account for boolean-abbreviated getters (`isSomething`).**
+     * *This method does not account for boolean-abbreviated getters (`isSomething`).*
      *
      * @param name the mapped method name
      * @param version the version of the [name] declaration, latest if null
@@ -511,7 +513,7 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
     /**
      * Adds a new chained getter method accessor model, useful for chaining together normal and record getters.
      *
-     * **This method does not account for boolean-abbreviated getters (`isSomething`).**
+     * *This method accounts for boolean-abbreviated getters (`isSomething`).*
      *
      * **The type and name must both be mapped by the same namespace, else generation will fail!**
      * (e.g. both [type] and [name] must be Mojang names)
@@ -520,9 +522,11 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
      * @param name the mapped method name
      */
     fun getterChain(type: Any, name: String) {
+        val prefix = if (type.asDescriptor() == "Z") "is" else "get" // presume boolean getter name to be isSomething instead of getSomething
+
         methodChain {
             item(type, name)
-            item(type, "get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}")
+            item(type, "$prefix${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}")
         }
     }
 
