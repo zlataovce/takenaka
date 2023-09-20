@@ -17,7 +17,6 @@
 
 package me.kcra.takenaka.generator.accessor.model
 
-import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.accessor.util.camelToUpperSnakeCase
 import java.io.Serializable
@@ -34,7 +33,7 @@ import java.io.Serializable
 data class FieldAccessor(
     val name: String,
     val type: String? = null,
-    val version: Version? = null,
+    val version: String? = null,
     val chain: FieldAccessor? = null
 ) : Serializable {
     /**

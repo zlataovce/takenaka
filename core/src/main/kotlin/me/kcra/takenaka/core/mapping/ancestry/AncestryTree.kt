@@ -52,6 +52,12 @@ class AncestryTree<T : MappingTreeView, E : ElementMappingView>(
     val allowedNamespaces: Map<Version, Array<ResolvedNamespace>>
 ) : List<AncestryTree.Node<T, E>> by nodes {
     /**
+     * The versions mapped in this tree.
+     */
+    val versions: Set<Version>
+        get() = trees.keys
+
+    /**
      * A node in the ancestry tree, immutable.
      * This represents one element (class, field, method) in multiple versions.
      *

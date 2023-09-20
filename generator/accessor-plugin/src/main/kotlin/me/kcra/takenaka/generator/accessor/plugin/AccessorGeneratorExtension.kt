@@ -20,11 +20,13 @@ package me.kcra.takenaka.generator.accessor.plugin
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.VersionRangeBuilder
-import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.CodeLanguage
-import me.kcra.takenaka.generator.accessor.model.*
+import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.accessor.model.ClassAccessorBuilder
+import me.kcra.takenaka.generator.accessor.model.FieldChainBuilder
+import me.kcra.takenaka.generator.accessor.model.MethodChainBuilder
 import me.kcra.takenaka.generator.accessor.plugin.tasks.DEFAULT_INDEX_NS
 import org.gradle.api.Action
 import org.gradle.api.Project
@@ -32,9 +34,6 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
-import org.objectweb.asm.Type
-import java.util.*
-import kotlin.reflect.KClass
 
 /**
  * A Gradle-specific builder for [AccessorConfiguration] with Minecraft presets.
@@ -286,8 +285,13 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      * @param block the builder action
      * @return the mapped class name ([name]), use this to refer to this class elsewhere
      */
-    fun mapClass(name: String, block: Action<ClassAccessorBuilder>): String {
-        accessors.add(ClassAccessorBuilder(name, manifest).apply(block::execute).toClassAccessor())
+    fun mapClass(name: String, block: Action<GradleFlavoredClassAccessorBuilder>): String {
+        accessors.add(
+            GradleFlavoredClassAccessorBuilder(name)
+                .apply(block::execute)
+                .toClassAccessor()
+        )
+
         return name
     }
 }
@@ -317,143 +321,19 @@ enum class PlatformTristate(val wantsClient: Boolean, val wantsServer: Boolean) 
 }
 
 /**
- * A builder for [ClassAccessor].
+ * A [ClassAccessorBuilder] with Gradle-specific enhancements.
  *
- * @property name mapped name of the accessed class
- * @property manifest the Mojang version manifest
+ * @param name mapped name of the accessed class
  * @author Matouš Kučera
  */
-class ClassAccessorBuilder(val name: String, internal val manifest: VersionManifest) {
-    /**
-     * Field accessor models.
-     */
-    var fields = mutableListOf<FieldAccessor>()
-
-    /**
-     * Constructor accessor models.
-     */
-    var constructors = mutableListOf<ConstructorAccessor>()
-
-    /**
-     * Method accessor models.
-     */
-    var methods = mutableListOf<MethodAccessor>()
-
-    /**
-     * Member types required in bulk.
-     */
-    var requiredMemberTypes = 0
-
-    /**
-     * Adds a new field accessor model with an explicitly defined type.
-     *
-     * **The type and name must both be mapped by the same namespace, else generation will fail!**
-     * (e.g. both [type] and [name] must be Mojang names)
-     *
-     * @param name the mapped field name
-     * @param type the mapped field type, converted with [Any.asDescriptor]
-     */
-    fun field(type: Any, name: String) {
-        fields += FieldAccessor(name, type.asDescriptor())
-    }
-
-    /**
-     * Adds a new field accessor model with an inferred type.
-     *
-     * @param name the mapped field name
-     * @param version the version of the [name] declaration, latest if null
-     */
-    @JvmOverloads
-    fun fieldInferred(name: String, version: String? = null) {
-        fields += FieldAccessor(name, null, version?.let { manifest[it] ?: error("Version $it not found in manifest") })
-    }
-
+class GradleFlavoredClassAccessorBuilder(name: String) : ClassAccessorBuilder(name) {
     /**
      * Adds a new chained field accessor model.
      *
      * @param block the builder action
      */
     fun fieldChain(block: Action<FieldChainBuilder>) {
-        fields += FieldChainBuilder(manifest).apply(block::execute).toFieldAccessor()
-    }
-
-    /**
-     * Adds new field accessor models with a type that matches [ClassAccessorBuilder.name].
-     *
-     * **The names must all be mapped by the same namespace as [ClassAccessorBuilder.name], else generation will fail!**
-     * (e.g. both [ClassAccessorBuilder.name] and [name] must be Mojang names)
-     *
-     * @param names the mapped enum constant names
-     */
-    fun enumConstant(vararg names: String) {
-        names.forEach { name ->
-            field(this.name, name)
-        }
-    }
-
-    /**
-     * Adds a new chained field accessor model with a type that matches [ClassAccessorBuilder.name].
-     *
-     * **The names must all be mapped by the same namespace as [ClassAccessorBuilder.name], else generation will fail!**
-     * (e.g. both [ClassAccessorBuilder.name] and [name] must be Mojang names)
-     *
-     * @param names the mapped enum constant names to be chained
-     */
-    fun enumConstantChain(vararg names: String) {
-        fieldChain {
-            names.forEach { name ->
-                item(this@ClassAccessorBuilder.name, name)
-            }
-        }
-    }
-
-    /**
-     * Adds a new constructor accessor model.
-     *
-     * **The parameter types must all be mapped by the same namespace, else generation will fail!**
-     * (e.g. all types in [parameters] must be Mojang names)
-     *
-     * @param parameters the mapped constructor parameters, converted with [Any.asDescriptor]
-     */
-    fun constructor(vararg parameters: Any) {
-        constructors += ConstructorAccessor("(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})V")
-    }
-
-    /**
-     * Adds a new method accessor model with an explicitly defined return type.
-     *
-     * **The return type, method name and parameter types must all be mapped by the same namespace, else generation will fail!**
-     * (e.g. [returnType], [name] and all types in [parameters] must be Mojang names)
-     *
-     * @param returnType the mapped return type
-     * @param name the mapped method name
-     * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
-     */
-    fun method(returnType: Any, name: String, vararg parameters: Any) {
-        methods += MethodAccessor(name, "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})${returnType.asDescriptor()}")
-    }
-
-    /**
-     * Adds a new method accessor model with an inferred return type.
-     *
-     * **The method name and parameter types must both be mapped by the same namespace, else generation will fail!**
-     * (e.g. [name] and all types in [parameters] must be Mojang names)
-     *
-     * @param name the mapped method name
-     * @param version the version of the [name] and [parameters] declaration, latest if null
-     * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
-     */
-    @JvmOverloads
-    fun methodInferred(name: String, version: String? = null, vararg parameters: Any) {
-        methods += MethodAccessor(
-            name,
-            "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})",
-            version?.let {
-                requireNotNull(manifest[it]) {
-                    "Version $it not found in manifest"
-                }
-            }
-        )
+        fieldChain(block::execute)
     }
 
     /**
@@ -462,275 +342,6 @@ class ClassAccessorBuilder(val name: String, internal val manifest: VersionManif
      * @param block the builder action
      */
     fun methodChain(block: Action<MethodChainBuilder>) {
-        methods += MethodChainBuilder(manifest).apply(block::execute).toMethodAccessor()
+        methodChain(block::execute)
     }
-
-    /**
-     * Adds a new getter method accessor model (`{type} get{name}()` descriptor).
-     *
-     * *This method does not account for boolean-abbreviated getters (`isSomething`).*
-     *
-     * @param name the mapped method name
-     * @param version the version of the [name] declaration, latest if null
-     */
-    @JvmOverloads
-    fun getterInferred(name: String, version: String? = null) {
-        methodInferred("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", version)
-    }
-
-    /**
-     * Adds a new getter method accessor model (`{type} [is|get]{name}()` descriptor).
-     *
-     * *This method accounts for boolean-abbreviated getters (`isSomething`).*
-     *
-     * **The type and name must both be mapped by the same namespace, else generation will fail!**
-     * (e.g. both [type] and [name] must be Mojang names)
-     *
-     * @param type the mapped getter type, converted with [Any.asDescriptor]
-     * @param name the mapped method name
-     */
-    fun getter(type: Any, name: String) {
-        val prefix = if (type.asDescriptor() == "Z") "is" else "get" // presume boolean getter name to be isSomething instead of getSomething
-
-        method(type, "$prefix${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}")
-    }
-
-    /**
-     * Adds a new chained getter method accessor model, useful for chaining together normal and record getters.
-     *
-     * *This method does not account for boolean-abbreviated getters (`isSomething`).*
-     *
-     * @param name the mapped method name
-     * @param version the version of the [name] declaration, latest if null
-     */
-    @JvmOverloads
-    fun getterChainInferred(name: String, version: String? = null) {
-        methodChain {
-            itemInferred(name, version)
-            itemInferred("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", version)
-        }
-    }
-
-    /**
-     * Adds a new chained getter method accessor model, useful for chaining together normal and record getters.
-     *
-     * *This method accounts for boolean-abbreviated getters (`isSomething`).*
-     *
-     * **The type and name must both be mapped by the same namespace, else generation will fail!**
-     * (e.g. both [type] and [name] must be Mojang names)
-     *
-     * @param type the mapped getter type, converted with [Any.asDescriptor]
-     * @param name the mapped method name
-     */
-    fun getterChain(type: Any, name: String) {
-        val prefix = if (type.asDescriptor() == "Z") "is" else "get" // presume boolean getter name to be isSomething instead of getSomething
-
-        methodChain {
-            item(type, name)
-            item(type, "$prefix${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}")
-        }
-    }
-
-    /**
-     * Adds a new setter method accessor model (`{type} set{name}({type})` descriptor).
-     *
-     * **The type and name must both be mapped by the same namespace, else generation will fail!**
-     * (e.g. both [type] and [name] must be Mojang names)
-     *
-     * @param type the mapped setter type, converted with [Any.asDescriptor]
-     * @param name the mapped method name
-     */
-    fun setter(type: Any, name: String) {
-        method(Void.TYPE, "set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
-    }
-
-    /**
-     * Adds a new chained setter method accessor model, useful for chaining together normal and record setters.
-     *
-     * **The type and name must both be mapped by the same namespace, else generation will fail!**
-     * (e.g. both [type] and [name] must be Mojang names)
-     *
-     * @param type the mapped setter type, converted with [Any.asDescriptor]
-     * @param name the mapped method name
-     */
-    fun setterChain(type: Any, name: String) {
-        methodChain {
-            item(Void.TYPE, name, type)
-            item(Void.TYPE, "set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
-        }
-    }
-
-    /**
-     * Adds new required member types.
-     *
-     * @param options the member types
-     * @see DefaultRequiredMemberTypes
-     */
-    fun memberTypes(vararg options: Int) {
-        requiredMemberTypes = requiredMemberTypesOf(requiredMemberTypes, *options)
-    }
-
-    /**
-     * Creates a [ClassAccessor] out of this builder.
-     *
-     * @return the class accessor
-     */
-    internal fun toClassAccessor() = ClassAccessor(name, fields, constructors, methods, requiredMemberTypes)
-}
-
-/**
- * A single chain step.
- */
-typealias ChainStep<T> = (T?) -> T
-
-/**
- * A builder for field mapping chains.
- *
- * @property manifest the Mojang version manifest
- * @author Matouš Kučera
- */
-class FieldChainBuilder(internal val manifest: VersionManifest) {
-    /**
-     * Members of this chain.
-     */
-    val steps = mutableListOf<ChainStep<FieldAccessor>>()
-
-    /**
-     * Adds a new field accessor model with an explicitly defined type to the chain.
-     *
-     * @param name the mapped field name
-     * @param type the mapped field type, converted with [Any.asDescriptor]
-     */
-    fun item(type: Any, name: String) {
-        steps += { last -> FieldAccessor(name, type.asDescriptor(), chain = last) }
-    }
-
-    /**
-     * Adds a new field accessor model with an inferred type to the chain.
-     *
-     * @param name the mapped field name
-     * @param version the version of the [name] declaration, latest if null
-     */
-    @JvmOverloads
-    fun itemInferred(name: String, version: String? = null) {
-        steps += { last -> FieldAccessor(name, null, version?.let { manifest[it] ?: error("Version $it not found in manifest") }, chain = last) }
-    }
-
-    /**
-     * Creates a [FieldAccessor] out of this builder.
-     *
-     * @return the field accessor
-     */
-    internal fun toFieldAccessor(): FieldAccessor {
-        var currentAccessor: FieldAccessor? = null
-
-        for (step in steps.reversed()) {
-            currentAccessor = step(currentAccessor)
-        }
-
-        return requireNotNull(currentAccessor) {
-            "Chain was empty"
-        }
-    }
-}
-
-/**
- * A builder for method mapping chains.
- *
- * @property manifest the Mojang version manifest
- * @author Matouš Kučera
- */
-class MethodChainBuilder(internal val manifest: VersionManifest) {
-    /**
-     * Members of this chain.
-     */
-    val steps = mutableListOf<ChainStep<MethodAccessor>>()
-
-    /**
-     * Adds a new method accessor model with an explicitly defined return type to the chain.
-     *
-     * @param name the mapped method name
-     * @param returnType the mapped return type
-     * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
-     */
-    fun item(returnType: Any, name: String, vararg parameters: Any) {
-        steps += { last ->
-            MethodAccessor(
-                name,
-                "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})${returnType.asDescriptor()}",
-                chain = last
-            )
-        }
-    }
-
-    /**
-     * Adds a new method accessor model with an inferred return type to the chain.
-     *
-     * @param name the mapped method name
-     * @param version the version of the [name] and [parameters] declaration, latest if null
-     * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
-     */
-    @JvmOverloads
-    fun itemInferred(name: String, version: String? = null, vararg parameters: Any) {
-       steps += { last ->
-           MethodAccessor(
-               name,
-               "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})",
-               version?.let {
-                   requireNotNull(manifest[it]) {
-                       "Version $it not found in manifest"
-                   }
-               },
-               chain = last
-           )
-       }
-    }
-
-    /**
-     * Creates a [MethodAccessor] out of this builder.
-     *
-     * @return the method accessor
-     */
-    internal fun toMethodAccessor(): MethodAccessor {
-        var currentAccessor: MethodAccessor? = null
-
-        for (step in steps.reversed()) {
-            currentAccessor = step(currentAccessor)
-        }
-
-        return requireNotNull(currentAccessor) {
-            "Chain was empty"
-        }
-    }
-}
-
-/**
- * Tries to convert an object into a class type descriptor (`Lpackage/ClassName;`).
- *
- * This method accounts for multidimensional array types.
- *
- * @return the descriptor
- */
-internal fun Any.asDescriptor(): String = when (this) {
-    is Class<*> -> Type.getDescriptor(this)
-    is KClass<*> -> Type.getDescriptor(this.java)
-    is String -> {
-        val componentType = this.replace("[]", "")
-        val dimensions = (this.length - componentType.length) / 2
-        val componentTypeDescriptor = when (componentType) {
-            "boolean" -> "Z"
-            "byte" -> "B"
-            "short" -> "S"
-            "int" -> "I"
-            "long" -> "J"
-            "float" -> "F"
-            "double" -> "D"
-            "char" -> "C"
-            "void" -> "V"
-            else -> "L${componentType.toInternalName()};"
-        }
-
-        "${"[".repeat(dimensions)}$componentTypeDescriptor"
-    }
-    else -> throw IllegalArgumentException("Could not read parameter of type ${this.javaClass.name}")
 }

@@ -191,7 +191,11 @@ abstract class AbstractGenerationContext(
      */
     protected fun resolveField(tree: FieldAncestryTree, model: FieldAccessor): FieldAncestryNode {
         val fieldNode = if (model.type == null) {
-            tree.find(model.name, version = model.version)?.apply {
+            val version = checkNotNull(tree.versions.find { it.id == model.version }) {
+                "Could not resolve version ${model.version} in ancestry tree"
+            }
+
+            tree.find(model.name, version = version)?.apply {
                 logger.debug { "inferred type '${getFriendlyType(last.value).className}' for field ${model.name}" }
             }
         } else {
@@ -276,7 +280,11 @@ abstract class AbstractGenerationContext(
      */
     protected fun resolveMethod(tree: MethodAncestryTree, model: MethodAccessor): MethodAncestryNode {
         val methodNode = if (model.isIncomplete || model.version != null) {
-            tree.find(model.name, model.type, version = model.version)?.apply {
+            val version = checkNotNull(tree.versions.find { it.id == model.version }) {
+                "Could not resolve version ${model.version} in ancestry tree"
+            }
+
+            tree.find(model.name, model.type, version = version)?.apply {
                 if (model.isIncomplete) {
                     logger.debug { "inferred return type '${getFriendlyType(last.value).returnType.className}' for method ${model.name}" }
                 }
