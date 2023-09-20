@@ -19,8 +19,9 @@ package me.kcra.takenaka.generator.accessor.plugin.tasks
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.coroutines.runBlocking
-import me.kcra.takenaka.core.*
-import me.kcra.takenaka.core.mapping.WrappingContributor
+import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.core.VersionManifest
+import me.kcra.takenaka.core.compositeWorkspace
 import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
@@ -211,8 +212,6 @@ abstract class ResolveMappingsTask : DefaultTask() {
                         val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper, relaxedCache.get())
                         val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper, relaxedCache.get())
 
-                        val prependedClasses = mutableListOf<String>()
-
                         buildList {
                             if (requiredPlatform.wantsServer) {
                                 add(VanillaServerMappingContributor(versionWorkspace, mojangProvider, relaxedCache.get()))
@@ -229,18 +228,17 @@ abstract class ResolveMappingsTask : DefaultTask() {
 
                             // Spigot resolvers have to be last
                             if (requiredPlatform.wantsServer) {
+                                val link = LegacySpigotMappingPrepender.Link()
+
                                 add(
-                                    WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get())) {
-                                        // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
-                                        // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
-                                        LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses, prependEverything = versionWorkspace.version.id == "1.16.5")
-                                    }
+                                    // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
+                                    // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
+                                    link.createPrependingContributor(
+                                        SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get()),
+                                        prependEverything = versionWorkspace.version.id == "1.16.5"
+                                    )
                                 )
-                                add(
-                                    WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get())) {
-                                        LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses)
-                                    }
-                                )
+                                add(link.createPrependingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get())))
                             }
                         }
                     }

@@ -19,11 +19,17 @@ package me.kcra.takenaka.core
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import me.kcra.takenaka.core.util.*
+import java.io.IOException
 import java.io.Serializable
 import java.net.URL
+import java.nio.file.Path
 import java.time.Instant
+import kotlin.io.path.fileSize
+import kotlin.io.path.isRegularFile
 
 /**
  * The URL to the v2 version manifest.
@@ -36,6 +42,38 @@ const val VERSION_MANIFEST_V2 = "https://piston-meta.mojang.com/mc/game/version_
  * @return the version manifest
  */
 fun ObjectMapper.versionManifest(): VersionManifest = readValue(URL(VERSION_MANIFEST_V2))
+
+/**
+ * Retrieves the version manifest from Mojang's API or a cache file,
+ * fetching it if it could not be deserialized or the content length changed.
+ *
+ * @param cacheFile the cache file, does not need to exist
+ * @return the version manifest
+ */
+fun ObjectMapper.cachedVersionManifest(cacheFile: Path): VersionManifest {
+    val url = URL(VERSION_MANIFEST_V2)
+
+    if (cacheFile.isRegularFile()) {
+        val length = url.contentLength
+        if (cacheFile.fileSize() == length) {
+            try {
+                return readValue(cacheFile)
+            } catch (_: JacksonException) {
+                // failed to read cached file, corrupted? fetch it again
+            }
+        }
+    }
+
+    url.httpRequest {
+        if (it.ok) {
+            it.copyTo(cacheFile)
+
+            return readValue(cacheFile)
+        }
+
+        throw IOException("Failed to fetch v2 Mojang manifest, received ${it.responseCode}")
+    }
+}
 
 /**
  * Mojang's v2 version manifest.

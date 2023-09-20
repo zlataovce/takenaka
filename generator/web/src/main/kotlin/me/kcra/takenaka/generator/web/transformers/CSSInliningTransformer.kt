@@ -23,19 +23,23 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * A transformer that inlines remote CSS `@import` declarations.
  *
- * @property exclude domains which should not have imports inlined
+ * *This transformer does not do recursive inlining - inlined stylesheets do not have their imports inlined*.
+ *
+ * @property include domains which should have imports inlined
  * @author Matouš Kučera
  */
-class CSSInliningTransformer(val exclude: List<String>) : Transformer {
+class CSSInliningTransformer(val include: List<String>) : Transformer {
     /**
      * A cache of URLs and their responses' text content.
      */
     private val cache = ConcurrentHashMap<String, String>()
 
     /**
-     * @param exclude domains which should not have imports inlined
+     * Constructs a new [CSSInliningTransformer].
+     *
+     * @param include domains which should have imports inlined
      */
-    constructor(vararg exclude: String) : this(exclude.toList())
+    constructor(vararg include: String) : this(include.toList())
 
     /**
      * Inlines remote `@import` declarations in a raw CSS stylesheet.
@@ -48,7 +52,7 @@ class CSSInliningTransformer(val exclude: List<String>) : Transformer {
             val urlString = m.groups[1]!!.value
             if (urlString.startsWith("http://") || urlString.startsWith("https://")) {
                 val url = URL(urlString)
-                if (url.host !in exclude) {
+                if (url.host in include) {
                     return@replace cache.getOrPut(urlString) { url.readText() }
                 }
             }

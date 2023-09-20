@@ -20,7 +20,10 @@ package me.kcra.takenaka.core.mapping.resolve.impl
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.mapping.resolve.*
+import me.kcra.takenaka.core.mapping.resolve.AbstractMappingResolver
+import me.kcra.takenaka.core.mapping.resolve.LicenseResolver
+import me.kcra.takenaka.core.mapping.resolve.Output
+import me.kcra.takenaka.core.mapping.resolve.lazyOutput
 import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.core.mapping.util.unwrap
 import me.kcra.takenaka.core.util.copyTo

@@ -23,7 +23,6 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.cli.*
 import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.compositeWorkspace
-import me.kcra.takenaka.core.mapping.WrappingContributor
 import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
@@ -137,8 +136,6 @@ fun main(args: Array<String>) {
             val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper, relaxedCache = !strictCache)
             val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper, relaxedCache = !strictCache)
 
-            val prependedClasses = mutableListOf<String>()
-
             buildList {
                 if (server) {
                     add(VanillaServerMappingContributor(versionWorkspace, mojangProvider, relaxedCache = !strictCache))
@@ -155,18 +152,17 @@ fun main(args: Array<String>) {
 
                 // Spigot resolvers have to be last
                 if (server) {
+                    val link = LegacySpigotMappingPrepender.Link()
+
                     add(
-                        WrappingContributor(SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache = !strictCache)) {
-                            // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
-                            // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
-                            LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses, prependEverything = versionWorkspace.version.id == "1.16.5")
-                        }
+                        // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
+                        // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
+                        link.createPrependingContributor(
+                            SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache = !strictCache),
+                            prependEverything = versionWorkspace.version.id == "1.16.5"
+                        )
                     )
-                    add(
-                        WrappingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache = !strictCache)) {
-                            LegacySpigotMappingPrepender(it, prependedClasses = prependedClasses)
-                        }
-                    )
+                    add(link.createPrependingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache = !strictCache)))
                 }
             }
         }
@@ -220,7 +216,7 @@ fun main(args: Array<String>) {
         emitMetaTags(!noMeta)
         emitPseudoElements(!noPseudoElems)
 
-        transformer(CSSInliningTransformer("fonts.googleapis.com"))
+        transformer(CSSInliningTransformer("cdn.jsdelivr.net"))
         logger.info { "using minification mode $minifier" }
         if (minifier != MinifierImpls.NONE) {
             transformer(MinifyingTransformer(isDeterministic = minifier == MinifierImpls.DETERMINISTIC))

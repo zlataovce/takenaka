@@ -40,9 +40,10 @@ import kotlin.reflect.KClass
  * A Gradle-specific builder for [AccessorConfiguration] with Minecraft presets.
  *
  * @property project the project
+ * @property manifest the version manifest
  * @author Matouš Kučera
  */
-abstract class AccessorGeneratorExtension(internal val project: Project, internal val manifest: VersionManifest) {
+abstract class AccessorGeneratorExtension(protected val project: Project, protected val manifest: VersionManifest) {
     /**
      * Versions to be mapped.
      *
