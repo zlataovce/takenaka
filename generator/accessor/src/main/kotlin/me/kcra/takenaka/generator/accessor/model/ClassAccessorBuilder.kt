@@ -23,12 +23,12 @@ import java.util.*
 import kotlin.reflect.KClass
 
 /**
- * A builder for [ClassAccessor].
+ * A base class for a [ClassAccessor] builder.
  *
  * @property name mapped name of the accessed class
  * @author Matouš Kučera
  */
-open class ClassAccessorBuilder(val name: String) {
+abstract class AbstractClassAccessorBuilder(val name: String) {
     /**
      * Field accessor models.
      */
@@ -78,7 +78,7 @@ open class ClassAccessorBuilder(val name: String) {
      *
      * @param block the builder action
      */
-    inline fun fieldChain(block: FieldChainBuilder.() -> Unit) {
+    protected inline fun fieldChain0(block: FieldChainBuilder.() -> Unit) {
         fields += buildFieldChain(block)
     }
 
@@ -105,9 +105,9 @@ open class ClassAccessorBuilder(val name: String) {
      * @param names the mapped enum constant names to be chained
      */
     fun enumConstantChain(vararg names: String) {
-        fieldChain {
+        fieldChain0 {
             names.forEach { name ->
-                item(this@ClassAccessorBuilder.name, name)
+                item(this@AbstractClassAccessorBuilder.name, name)
             }
         }
     }
@@ -162,7 +162,7 @@ open class ClassAccessorBuilder(val name: String) {
      *
      * @param block the builder action
      */
-    inline fun methodChain(block: MethodChainBuilder.() -> Unit) {
+    protected inline fun methodChain0(block: MethodChainBuilder.() -> Unit) {
         methods += buildMethodChain(block)
     }
 
@@ -206,7 +206,7 @@ open class ClassAccessorBuilder(val name: String) {
      */
     @JvmOverloads
     fun getterChainInferred(name: String, version: String? = null) {
-        methodChain {
+        methodChain0 {
             itemInferred(name, version)
             itemInferred("get${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", version)
         }
@@ -226,7 +226,7 @@ open class ClassAccessorBuilder(val name: String) {
     fun getterChain(type: Any, name: String) {
         val prefix = if (type.asDescriptor() == "Z") "is" else "get" // presume boolean getter name to be isSomething instead of getSomething
 
-        methodChain {
+        methodChain0 {
             item(type, name)
             item(type, "$prefix${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}")
         }
@@ -255,7 +255,7 @@ open class ClassAccessorBuilder(val name: String) {
      * @param name the mapped method name
      */
     fun setterChain(type: Any, name: String) {
-        methodChain {
+        methodChain0 {
             item(Void.TYPE, name, type)
             item(Void.TYPE, "set${name.replaceFirstChar { it.titlecase(Locale.getDefault()) }}", type)
         }
@@ -277,6 +277,31 @@ open class ClassAccessorBuilder(val name: String) {
      * @return the class accessor
      */
     fun toClassAccessor() = ClassAccessor(name, fields, constructors, methods, requiredMemberTypes)
+}
+
+/**
+ * A simple implementation of [AbstractClassAccessorBuilder].
+ *
+ * @param name mapped name of the accessed class
+ */
+class ClassAccessorBuilder(name: String) : AbstractClassAccessorBuilder(name) {
+    /**
+     * Adds a new chained field accessor model.
+     *
+     * @param block the builder action
+     */
+    fun fieldChain(block: FieldChainBuilder.() -> Unit) {
+        fieldChain0(block)
+    }
+
+    /**
+     * Adds a new chained method accessor model.
+     *
+     * @param block the builder action
+     */
+    fun methodChain(block: MethodChainBuilder.() -> Unit) {
+        methodChain0(block)
+    }
 }
 
 /**

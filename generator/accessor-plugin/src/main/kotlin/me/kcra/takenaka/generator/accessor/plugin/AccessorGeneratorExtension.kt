@@ -23,10 +23,7 @@ import me.kcra.takenaka.core.VersionRangeBuilder
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.CodeLanguage
-import me.kcra.takenaka.generator.accessor.model.ClassAccessor
-import me.kcra.takenaka.generator.accessor.model.ClassAccessorBuilder
-import me.kcra.takenaka.generator.accessor.model.FieldChainBuilder
-import me.kcra.takenaka.generator.accessor.model.MethodChainBuilder
+import me.kcra.takenaka.generator.accessor.model.*
 import me.kcra.takenaka.generator.accessor.plugin.tasks.DEFAULT_INDEX_NS
 import org.gradle.api.Action
 import org.gradle.api.Project
@@ -326,14 +323,14 @@ enum class PlatformTristate(val wantsClient: Boolean, val wantsServer: Boolean) 
  * @param name mapped name of the accessed class
  * @author Matouš Kučera
  */
-class GradleFlavoredClassAccessorBuilder(name: String) : ClassAccessorBuilder(name) {
+class GradleFlavoredClassAccessorBuilder(name: String) : AbstractClassAccessorBuilder(name) {
     /**
      * Adds a new chained field accessor model.
      *
      * @param block the builder action
      */
     fun fieldChain(block: Action<FieldChainBuilder>) {
-        fieldChain(block::execute)
+        fieldChain0(block::execute)
     }
 
     /**
@@ -342,6 +339,6 @@ class GradleFlavoredClassAccessorBuilder(name: String) : ClassAccessorBuilder(na
      * @param block the builder action
      */
     fun methodChain(block: Action<MethodChainBuilder>) {
-        methodChain(block::execute)
+        methodChain0(block::execute)
     }
 }
