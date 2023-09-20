@@ -83,10 +83,10 @@ abstract class AbstractClassAccessorBuilder(val name: String) {
     }
 
     /**
-     * Adds new field accessor models with a type that matches [ClassAccessorBuilder.name].
+     * Adds new field accessor models with a type that matches [AbstractClassAccessorBuilder.name].
      *
-     * **The names must all be mapped by the same namespace as [ClassAccessorBuilder.name], else generation will fail!**
-     * (e.g. both [ClassAccessorBuilder.name] and [name] must be Mojang names)
+     * **The names must all be mapped by the same namespace as [AbstractClassAccessorBuilder.name], else generation will fail!**
+     * (e.g. both [AbstractClassAccessorBuilder.name] and [name] must be Mojang names)
      *
      * @param names the mapped enum constant names
      */
@@ -97,10 +97,10 @@ abstract class AbstractClassAccessorBuilder(val name: String) {
     }
 
     /**
-     * Adds a new chained field accessor model with a type that matches [ClassAccessorBuilder.name].
+     * Adds a new chained field accessor model with a type that matches [AbstractClassAccessorBuilder.name].
      *
-     * **The names must all be mapped by the same namespace as [ClassAccessorBuilder.name], else generation will fail!**
-     * (e.g. both [ClassAccessorBuilder.name] and [name] must be Mojang names)
+     * **The names must all be mapped by the same namespace as [AbstractClassAccessorBuilder.name], else generation will fail!**
+     * (e.g. both [AbstractClassAccessorBuilder.name] and [name] must be Mojang names)
      *
      * @param names the mapped enum constant names to be chained
      */

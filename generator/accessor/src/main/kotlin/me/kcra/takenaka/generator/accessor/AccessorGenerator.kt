@@ -48,7 +48,7 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
      */
     override suspend fun generate(mappingProvider: MappingProvider, ancestryProvider: AncestryProvider) {
         val mappings = mappingProvider.get()
-        val tree = ancestryProvider.klass<MappingTreeView, MappingTreeView.ClassMappingView>(mappings)
+        val tree = ancestryProvider.klass<_, MappingTreeView.ClassMappingView>(mappings)
 
         generationContext(ancestryProvider, config.codeLanguage) {
             coroutineScope {

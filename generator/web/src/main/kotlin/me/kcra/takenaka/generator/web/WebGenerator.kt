@@ -92,7 +92,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
      */
     override suspend fun generate(mappingProvider: MappingProvider, ancestryProvider: AncestryProvider) {
         val mappings = mappingProvider.get()
-        val tree = ancestryProvider.klass<MappingTreeView, MappingTreeView.ClassMappingView>(mappings)
+        val tree = ancestryProvider.klass<_, MappingTreeView.ClassMappingView>(mappings)
 
         val styleProvider: StyleProvider? = if (config.emitPseudoElements) StyleProviderImpl() else null
         generationContext(ancestryProvider, styleProvider) {
