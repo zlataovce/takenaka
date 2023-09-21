@@ -1,5 +1,6 @@
 # takenaka
 
+[![Maven releases](https://repo.screamingsandals.org/api/badge/latest/releases/me/kcra/takenaka/core?color=000000&name=sandals-releases)](https://repo.screamingsandals.org/#/releases/me/kcra/takenaka)
 [![Maven snapshots](https://repo.screamingsandals.org/api/badge/latest/snapshots/me/kcra/takenaka/core?color=000000&name=sandals-snapshots)](https://repo.screamingsandals.org/#/snapshots/me/kcra/takenaka)
 [![Discord](https://img.shields.io/discord/1151104250487783555?logo=discord)](https://discord.gg/HZhPBbxpFP)
 
