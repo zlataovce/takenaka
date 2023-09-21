@@ -28,6 +28,7 @@ import java.io.Serializable
 import java.net.URL
 import java.nio.file.Path
 import java.time.Instant
+import kotlin.io.path.createDirectories
 import kotlin.io.path.fileSize
 import kotlin.io.path.isRegularFile
 
@@ -66,6 +67,7 @@ fun ObjectMapper.cachedVersionManifest(cacheFile: Path): VersionManifest {
 
     url.httpRequest {
         if (it.ok) {
+            cacheFile.createDirectories()
             it.copyTo(cacheFile)
 
             return readValue(cacheFile)
