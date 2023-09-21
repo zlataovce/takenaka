@@ -142,7 +142,7 @@ abstract class AbstractSpigotMappingResolver(
             val file = workspace[CRAFTBUKKIT_POM]
 
             if (relaxedCache && file.isRegularFile()) {
-                logger.info { "found cached ${version.id} CraftBukkit pom.xml ($mappingAttribute)" }
+                logger.info { "found cached ${version.id} CraftBukkit pom.xml" }
                 return@resolver file
             }
 
