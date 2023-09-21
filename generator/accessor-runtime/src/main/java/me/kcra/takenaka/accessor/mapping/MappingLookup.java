@@ -28,7 +28,6 @@ import java.util.Objects;
 
 /**
  * A collection of {@link ClassMapping}s.
- * <p>
  * <h3>Generated code semantics</h3>
  * An accessed namespace must <strong>always</strong> have a mapping, unless the namespace is not present for the version of the mapping.
  * If the namespace is present, but a mapped <i>name</i> is not declared, the obfuscated (source) name is used.
