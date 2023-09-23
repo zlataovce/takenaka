@@ -26,6 +26,7 @@ import me.kcra.takenaka.generator.common.provider.impl.SimpleMappingProvider
 import me.kcra.takenaka.gradle.BuildConfig
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Task
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.compile.JavaCompile
@@ -80,6 +81,14 @@ class AccessorGeneratorPlugin : Plugin<Project> {
         target.tasks.withType<JavaCompile> {
             dependsOn(generateAccessors)
         }
+
+        @Suppress("UNCHECKED_CAST")
+        runCatching { Class.forName("org.jetbrains.kotlin.gradle.tasks.KotlinCompile") as Class<Task> }
+            .onSuccess { klass ->
+                target.tasks.withType(klass) {
+                    dependsOn(generateAccessors)
+                }
+            }
 
         target.afterEvaluate {
             val defaultLocation = layout.buildDirectory.dir("takenaka/output").get().asFile
