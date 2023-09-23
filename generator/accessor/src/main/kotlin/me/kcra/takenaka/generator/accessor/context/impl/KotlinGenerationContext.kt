@@ -20,7 +20,6 @@
 package me.kcra.takenaka.generator.accessor.context.impl
 
 import com.squareup.kotlinpoet.*
-import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.javapoet.KClassName
 import com.squareup.kotlinpoet.javapoet.KTypeSpec
 import com.squareup.kotlinpoet.javapoet.KotlinPoetJavaPoetPreview
@@ -71,7 +70,7 @@ open class KotlinGenerationContext(
                     mappingClassName.canonicalName
                 )
                 .addProperty(
-                    PropertySpec.builder("TYPE", SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_CLASS_WILDCARD))
+                    PropertySpec.builder("TYPE", SourceTypes.KT_NULLABLE_CLASS_WILDCARD)
                         .delegate("%M(%T::getClazz)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                         .build()
                 )
@@ -186,7 +185,7 @@ open class KotlinGenerationContext(
                             val mod = fieldNode.last.value.modifiers
                             if ((mod and Opcodes.ACC_STATIC) != 0 && (mod and Opcodes.ACC_FINAL) != 0) { // constant
                                 accessorBuilder.addProperty(
-                                    PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_ANY))
+                                    PropertySpec.builder(accessorName, SourceTypes.KT_NULLABLE_ANY)
                                         .addMeta(constant = true)
                                         .delegate("%M(%T.$accessorName::getConstantValue)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                         .build()
@@ -195,7 +194,7 @@ open class KotlinGenerationContext(
                                 when (generator.config.accessorType) {
                                     AccessorType.REFLECTION -> {
                                         accessorBuilder.addProperty(
-                                            PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_FIELD))
+                                            PropertySpec.builder(accessorName, SourceTypes.KT_NULLABLE_FIELD)
                                                 .addMeta()
                                                 .delegate("%M(%T.$accessorName::getField)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                                 .build()
@@ -203,13 +202,13 @@ open class KotlinGenerationContext(
                                     }
                                     AccessorType.METHOD_HANDLES -> {
                                         accessorBuilder.addProperty(
-                                            PropertySpec.builder("${accessorName}_GETTER", SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD_HANDLE))
+                                            PropertySpec.builder("${accessorName}_GETTER", SourceTypes.KT_NULLABLE_METHOD_HANDLE)
                                                 .addMeta()
                                                 .delegate("%M(%T.$accessorName::getFieldGetter)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                                 .build()
                                         )
                                         accessorBuilder.addProperty(
-                                            PropertySpec.builder("${accessorName}_SETTER", SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD_HANDLE))
+                                            PropertySpec.builder("${accessorName}_SETTER", SourceTypes.KT_NULLABLE_METHOD_HANDLE)
                                                 .addMeta()
                                                 .delegate("%M(%T.$accessorName::getFieldSetter)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                                 .build()
@@ -267,7 +266,7 @@ open class KotlinGenerationContext(
                             when (generator.config.accessorType) {
                                 AccessorType.REFLECTION -> {
                                     accessorBuilder.addProperty(
-                                        PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_CONSTRUCTOR_WILDCARD))
+                                        PropertySpec.builder(accessorName, SourceTypes.KT_NULLABLE_CONSTRUCTOR_WILDCARD)
                                             .addMeta()
                                             .delegate("%M(%T.$accessorName::getConstructor)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                             .build()
@@ -275,7 +274,7 @@ open class KotlinGenerationContext(
                                 }
                                 AccessorType.METHOD_HANDLES -> {
                                     accessorBuilder.addProperty(
-                                        PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD_HANDLE))
+                                        PropertySpec.builder(accessorName, SourceTypes.KT_NULLABLE_METHOD_HANDLE)
                                             .addMeta()
                                             .delegate("%M(%T.$accessorName::getConstructorHandle)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                             .build()
@@ -327,7 +326,7 @@ open class KotlinGenerationContext(
                             when (generator.config.accessorType) {
                                 AccessorType.REFLECTION -> {
                                     accessorBuilder.addProperty(
-                                        PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD))
+                                        PropertySpec.builder(accessorName, SourceTypes.KT_NULLABLE_METHOD)
                                             .addMeta()
                                             .delegate("%M(%T.$accessorName::getMethod)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                             .build()
@@ -335,7 +334,7 @@ open class KotlinGenerationContext(
                                 }
                                 AccessorType.METHOD_HANDLES -> {
                                     accessorBuilder.addProperty(
-                                        PropertySpec.builder(accessorName, SourceTypes.KT_LAZY_SUPPLIER.parameterizedBy(SourceTypes.KT_NULLABLE_METHOD_HANDLE))
+                                        PropertySpec.builder(accessorName, SourceTypes.KT_NULLABLE_METHOD_HANDLE)
                                             .addMeta()
                                             .delegate("%M(%T.$accessorName::getMethodHandle)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                             .build()
