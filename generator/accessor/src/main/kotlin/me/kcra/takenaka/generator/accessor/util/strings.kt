@@ -68,3 +68,12 @@ fun String.globAsRegex(): Regex {
 
     return pattern.toRegex()
 }
+
+/**
+ * Escapes or replaces troublesome characters in Kotlin names.
+ *
+ * - $ (dollar sign): KDoc doesn't accept it in @see references and possibly elsewhere
+ *
+ * @return the escaped name
+ */
+fun String.escapeKotlinName(): String = replace('$', '_')

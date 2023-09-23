@@ -29,6 +29,7 @@ import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.AccessorType
+import me.kcra.takenaka.generator.accessor.util.escapeKotlinName
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -57,8 +58,8 @@ open class KotlinGenerationContext(
         val accessedSimpleName = resolvedAccessor.model.internalName.substringAfterLast('/')
 
         val typeSpecs = buildList<Any> {
-            val mappingClassName = KClassName(generator.config.basePackage, "${accessedSimpleName}Mapping")
-            val accessorClassName = KClassName(generator.config.basePackage, "${accessedSimpleName}Accessor")
+            val mappingClassName = KClassName(generator.config.basePackage, "${accessedSimpleName.escapeKotlinName()}Mapping")
+            val accessorClassName = KClassName(generator.config.basePackage, "${accessedSimpleName.escapeKotlinName()}Accessor")
             val accessorBuilder = KTypeSpec.objectBuilder(accessorClassName)
                 .addKdoc(
                     """
@@ -159,7 +160,7 @@ open class KotlinGenerationContext(
                     )
                     .addProperties(
                         resolvedAccessor.fields.map { (fieldAccessor, fieldNode) ->
-                            val accessorName = "FIELD_${fieldAccessor.upperName}${resolvedAccessor.fieldOverloads[fieldAccessor]?.let { if (it != 0) "_$it" else "" } ?: ""}"
+                            val accessorName = "FIELD_${fieldAccessor.upperName.escapeKotlinName()}${resolvedAccessor.fieldOverloads[fieldAccessor]?.let { if (it != 0) "_$it" else "" } ?: ""}"
                             val fieldType = fieldAccessor.type?.let(Type::getType)
                                 ?: getFriendlyType(fieldNode.last.value)
 
@@ -235,7 +236,7 @@ open class KotlinGenerationContext(
                                     if (fieldAccessor.chain != null) {
                                         add(
                                             ".chain(FIELD_%L%L)",
-                                            fieldAccessor.chain.upperName,
+                                            fieldAccessor.chain.upperName.escapeKotlinName(),
                                             resolvedAccessor.fieldOverloads[fieldAccessor.chain]
                                                 ?.let { if (it != 0) "_$it" else "" }
                                                 ?: ""
@@ -301,7 +302,7 @@ open class KotlinGenerationContext(
                     .addProperties(
                         resolvedAccessor.methods.map { (methodAccessor, methodNode) ->
                             val overloadIndex = resolvedAccessor.methodOverloads[methodAccessor]
-                            val accessorName = "METHOD_${methodAccessor.upperName}${overloadIndex?.let { if (it != 0) "_$it" else "" } ?: ""}"
+                            val accessorName = "METHOD_${methodAccessor.upperName.escapeKotlinName()}${overloadIndex?.let { if (it != 0) "_$it" else "" } ?: ""}"
                             val methodType = if (methodAccessor.isIncomplete) {
                                 getFriendlyType(methodNode.last.value)
                             } else {
@@ -346,7 +347,7 @@ open class KotlinGenerationContext(
                             PropertySpec.builder(accessorName, SourceTypes.KT_METHOD_MAPPING)
                                 .addKdoc(
                                     """
-                                        Mapping for the {@code %L %L(%L)} method.
+                                        Mapping for the `%L %L(%L)` method.
                                         
                                         `%L` - `%L`
                                     """.trimIndent(),
@@ -361,7 +362,7 @@ open class KotlinGenerationContext(
                                     if (methodAccessor.chain != null) {
                                         add(
                                             ".chain(METHOD_%L%L)",
-                                            methodAccessor.chain.upperName,
+                                            methodAccessor.chain.upperName.escapeKotlinName(),
                                             resolvedAccessor.methodOverloads[methodAccessor.chain]
                                                 ?.let { if (it != 0) "_$it" else "" }
                                                 ?: ""
@@ -401,7 +402,7 @@ open class KotlinGenerationContext(
                 names.forEach { name ->
                     val mappingClassName = KClassName(
                         generator.config.basePackage,
-                        "${name.substringAfterLast('/')}Mapping"
+                        "${name.substringAfterLast('/').escapeKotlinName()}Mapping"
                     )
 
                     addStatement("put(%T)", mappingClassName)
