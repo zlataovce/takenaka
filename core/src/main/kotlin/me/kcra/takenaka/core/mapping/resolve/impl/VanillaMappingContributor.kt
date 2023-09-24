@@ -34,7 +34,6 @@ import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
-import java.util.stream.Collectors
 import java.util.zip.ZipFile
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.nameWithoutExtension
@@ -124,15 +123,15 @@ abstract class AbstractVanillaMappingContributor(
         fun read(zf: ZipFile) {
             val classVisitor = MappingClassVisitor(visitor, targetNamespace)
 
-            zf.stream()
-                .filter { it.name.matches(CLASS_PATTERN) && !it.isDirectory }
-                .map { entry ->
+            zf.entries()
+                .asSequence()
+                .filter { !it.isDirectory && it.name.matches(CLASS_PATTERN) }
+                .forEach { entry ->
                     zf.getInputStream(entry).use { inputStream ->
                         // ignore any method content and debugging data
                         ClassReader(inputStream).accept(classVisitor, ClassReader.SKIP_CODE or ClassReader.SKIP_DEBUG)
                     }
                 }
-                .collect(Collectors.toList())
         }
 
         jarPath?.let { file ->
@@ -156,7 +155,8 @@ abstract class AbstractVanillaMappingContributor(
     }
 
     companion object {
-        private val CLASS_PATTERN = "com/mojang/.*\\.class|net/minecraft/.*\\.class|[^/]+\\.class".toRegex()
+        // include only com.mojang.[math|blaze3d|realmsclient].* (DFU, Brigadier and others are open source), net.minecraft.* and classes without a package (obfuscated)
+        private val CLASS_PATTERN = "com/mojang/(?:math|blaze3d|realmsclient)/.*\\.class|net/minecraft/.*\\.class|[^/]+\\.class".toRegex()
 
         /**
          * The namespace of the class modifiers.
