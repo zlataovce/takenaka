@@ -58,6 +58,7 @@ fun String.globAsRegex(): Regex {
                     '?' -> '.'
                     '.' -> "\\."
                     '\\' -> "\\\\"
+                    '$' -> "\\$"
                     else -> c
                 }
             )
