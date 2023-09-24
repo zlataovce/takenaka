@@ -20,7 +20,6 @@ package me.kcra.takenaka.accessor.platform;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.ServiceLoader;
 import java.util.regex.Matcher;
@@ -44,9 +43,11 @@ public enum MapperPlatforms implements MapperPlatform {
             try {
                 final Class<?> bukkitClass = Class.forName("org.bukkit.Bukkit", true, getClassLoader());
                 try {
-                    final Method getVersionMethod = bukkitClass.getMethod("getVersion");
-
-                    final String versionString = (String) getVersionMethod.invoke(null);
+                    // Paper API
+                    minecraftVersion = (String) bukkitClass.getMethod("getMinecraftVersion").invoke(null);
+                } catch (NoSuchMethodException ignored) {
+                    // normal Bukkit API
+                    final String versionString = (String) bukkitClass.getMethod("getVersion").invoke(null);
 
                     final Pattern versionPattern = Pattern.compile("\\(MC: ([^)]+?)\\)");
                     final Matcher matcher = versionPattern.matcher(versionString);
@@ -55,9 +56,9 @@ public enum MapperPlatforms implements MapperPlatform {
                     }
 
                     minecraftVersion = matcher.group(1);
-                } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                    throw new RuntimeException("Failed to get Minecraft version", e);
                 }
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                throw new RuntimeException("Failed to get Minecraft version", e);
             } catch (ClassNotFoundException ignored) {
             }
         }
