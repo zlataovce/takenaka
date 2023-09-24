@@ -17,12 +17,11 @@
 
 package me.kcra.takenaka.generator.accessor
 
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.generator.accessor.context.generationContext
+import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.accessor.util.isGlob
 import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import me.kcra.takenaka.generator.common.provider.MappingProvider
@@ -51,12 +50,19 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
         val tree = ancestryProvider.klass<_, MappingTreeView.ClassMappingView>(mappings)
 
         generationContext(ancestryProvider, config.codeLanguage) {
-            coroutineScope {
-                config.accessors.forEach { classAccessor ->
-                    launch(Dispatchers.Default + CoroutineName("generate-coro")) {
-                        generateClass(classAccessor, tree)
-                    }
+            fun CoroutineScope.generateAccessor(classAccessor: ClassAccessor) {
+                launch(Dispatchers.Default + CoroutineName("generate-coro")) {
+                    generateClass(classAccessor, tree)
                 }
+            }
+
+            // generate non-glob accessors before glob ones to ensure that an explicit accessor doesn't get ignored
+            val (glob, nonGlob) = config.accessors.partition { it.internalName.isGlob }
+            coroutineScope {
+                nonGlob.forEach(::generateAccessor)
+            }
+            coroutineScope {
+                glob.forEach(::generateAccessor)
             }
 
             generateLookupClass()
