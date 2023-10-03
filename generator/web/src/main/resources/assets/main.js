@@ -128,7 +128,7 @@ const search = (query) => {
     results.sort((a, b) => a.similarity - b.similarity);
     resultsBox.replaceChildren(...(
         // limit results to 50, should be plenty
-        results.slice(0, Math.min(results.length, 50)).map((r) => {
+        results.slice(0, Math.min(results.length, 50 + 1 /* exclusive */)).map((r) => {
             const resultWrap = document.createElement("a");
             resultWrap.href = `${window.root}${Object.values(r.klass).find((e) => e != null)}.html`;
             resultWrap.style.textDecoration = "none";
@@ -145,16 +145,23 @@ const search = (query) => {
                 const packageSubtitle = document.createElement("p");
                 packageSubtitle.classList.add("search-result-subtitle");
                 packageSubtitle.innerText = `package: ${r.packageName}`;
+                // add line break opportunities on raw HTML
+                packageSubtitle.innerHTML = packageSubtitle.innerHTML.replaceAll(".", ".<wbr>");
                 resultElem.appendChild(packageSubtitle);
             }
 
             const nsSubtitle = document.createElement("p");
             nsSubtitle.classList.add("search-result-subtitle");
-            nsSubtitle.innerHTML = `namespace: <span class="search-badge-text" style="color:${colors[r.ns]}">${r.ns}</span>`;
+            nsSubtitle.appendChild(document.createTextNode("namespace: "));
+
+            const nsSubtitleBadge = document.createElement("span");
+            nsSubtitleBadge.classList.add("search-badge-text");
+            nsSubtitleBadge.style.color = colors[r.ns];
+            nsSubtitleBadge.innerText = r.ns;
+
+            nsSubtitle.appendChild(nsSubtitleBadge);
             resultElem.appendChild(nsSubtitle);
-
             resultWrap.appendChild(resultElem);
-
             return resultWrap;
         })
     ));
