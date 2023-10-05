@@ -15,6 +15,14 @@
  * limitations under the License.
  */
 
+const scheduleOnDOMLoad = (callback) => {
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", callback);
+    } else {
+        callback();
+    }
+};
+
 const themeKey = "_theme";
 
 const toggleTheme = () => setTheme(getTheme() === "light" ? "dark" : "light");
@@ -24,7 +32,7 @@ const setTheme = (theme) => {
     localStorage.setItem(themeKey, theme);
 };
 
-window.addEventListener("DOMContentLoaded", () => document.documentElement.setAttribute("data-theme", getTheme()));
+scheduleOnDOMLoad(() => document.documentElement.setAttribute("data-theme", getTheme()));
 
 // a map of "<namespace>" to "<namespace badge color>"
 let colors = {};
