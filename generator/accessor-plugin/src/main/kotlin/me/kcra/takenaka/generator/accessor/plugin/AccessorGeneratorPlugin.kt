@@ -77,6 +77,22 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.historyNamespaces.set(config.historyNamespaces)
             this.historyIndexNamespace.set(config.historyIndexNamespace)
         }
+        val traceAccessors by target.tasks.creating(GenerateAccessorsTask::class) {
+            group = "takenaka"
+            description = "Creates an accessor generation report."
+            dependsOn(resolveMappings)
+
+            this.outputDir.set(config.outputDirectory)
+            this.mappingProvider.set(resolveMappings.mappings.map(::SimpleMappingProvider))
+            this.accessors.set(config.accessors)
+            this.basePackage.set(config.basePackage)
+            this.codeLanguage.set(config.codeLanguage)
+            this.accessorType.set(config.accessorType)
+            this.accessedNamespaces.set(config.accessedNamespaces)
+            this.historyNamespaces.set(config.historyNamespaces)
+            this.historyIndexNamespace.set(config.historyIndexNamespace)
+            this.tracingStream.set(System.out) // print to standard output
+        }
 
         target.tasks.withType<JavaCompile> {
             dependsOn(generateAccessors)

@@ -24,15 +24,17 @@ import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.CodeLanguage
 import me.kcra.takenaka.generator.accessor.context.impl.JavaGenerationContext
 import me.kcra.takenaka.generator.accessor.context.impl.KotlinGenerationContext
+import me.kcra.takenaka.generator.accessor.context.impl.TracingGenerationContext
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
+import java.io.PrintStream
 
 /**
  * A base generation context.
  *
  * @author Matouš Kučera
  */
-interface GenerationContext : CoroutineScope {
+interface GenerationContext : CoroutineScope { // TODO: remove CoroutineScope
     /**
      * The generator.
      */
@@ -44,12 +46,14 @@ interface GenerationContext : CoroutineScope {
      * @param model the accessor model
      * @param tree the class ancestry tree
      */
-    fun generateClass(model: ClassAccessor, tree: ClassAncestryTree)
+    fun generateClass(model: ClassAccessor, tree: ClassAncestryTree) {
+    }
 
     /**
      * Generates a mapping lookup class with accessors that have been generated in this context.
      */
-    fun generateLookupClass()
+    fun generateLookupClass() {
+    }
 
     /**
      * Generates extra resources needed for the function of the generated output.
@@ -63,13 +67,19 @@ interface GenerationContext : CoroutineScope {
  *
  * @param ancestryProvider the ancestry provider of the context
  * @param flavor the accessor flavor of the context
+ * @param tracingStream the generation trace output stream
  * @param block the context user
  */
 suspend inline fun <R> AccessorGenerator.generationContext(
     ancestryProvider: AncestryProvider,
     flavor: CodeLanguage,
+    tracingStream: PrintStream? = null,
     crossinline block: suspend GenerationContext.() -> R
 ): R = coroutineScope {
+    if (tracingStream != null) {
+        return@coroutineScope block(TracingGenerationContext(tracingStream, this@generationContext, ancestryProvider, this))
+    }
+
     block(
         when (flavor) {
             CodeLanguage.JAVA -> JavaGenerationContext(this@generationContext, ancestryProvider, this)

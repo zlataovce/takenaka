@@ -26,6 +26,7 @@ import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import me.kcra.takenaka.generator.common.provider.MappingProvider
 import net.fabricmc.mappingio.tree.MappingTreeView
+import java.io.PrintStream
 
 /**
  * A generator that generates source code for accessing obfuscated elements using mapped names across versions.
@@ -36,9 +37,14 @@ import net.fabricmc.mappingio.tree.MappingTreeView
  *
  * @property workspace the workspace in which this generator can move around
  * @property config the accessor generation configuration
+ * @property tracingStream the generation trace output stream, **no accessors are generated if it's provided - dry run**
  * @author Matouš Kučera
  */
-class AccessorGenerator(override val workspace: Workspace, val config: AccessorConfiguration) : Generator {
+open class AccessorGenerator(
+    override val workspace: Workspace,
+    val config: AccessorConfiguration,
+    val tracingStream: PrintStream? = null
+) : Generator {
     /**
      * Launches the generator with mappings provided by the provider.
      *
@@ -49,7 +55,7 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
         val mappings = mappingProvider.get()
         val tree = ancestryProvider.klass<_, MappingTreeView.ClassMappingView>(mappings)
 
-        generationContext(ancestryProvider, config.codeLanguage) {
+        generationContext(ancestryProvider, config.codeLanguage, tracingStream) {
             fun CoroutineScope.generateAccessor(classAccessor: ClassAccessor) {
                 launch(Dispatchers.Default + CoroutineName("generate-coro")) {
                     generateClass(classAccessor, tree)
@@ -58,12 +64,8 @@ class AccessorGenerator(override val workspace: Workspace, val config: AccessorC
 
             // generate non-glob accessors before glob ones to ensure that an explicit accessor doesn't get ignored
             val (glob, nonGlob) = config.accessors.partition { it.internalName.isGlob }
-            coroutineScope {
-                nonGlob.forEach(::generateAccessor)
-            }
-            coroutineScope {
-                glob.forEach(::generateAccessor)
-            }
+            coroutineScope { nonGlob.forEach(::generateAccessor) }
+            coroutineScope { glob.forEach(::generateAccessor) }
 
             generateLookupClass()
             generateExtras()

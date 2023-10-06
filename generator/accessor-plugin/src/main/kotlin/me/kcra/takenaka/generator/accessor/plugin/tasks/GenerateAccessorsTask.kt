@@ -34,6 +34,7 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
+import java.io.PrintStream
 
 /**
  * The default history index namespace.
@@ -129,6 +130,14 @@ abstract class GenerateAccessorsTask : DefaultTask() {
     abstract val historyIndexNamespace: Property<String?>
 
     /**
+     * The generation trace output stream, **no accessors are generated if it's provided - dry run**, defaults to null.
+     *
+     * *The stream is not closed automatically.*
+     */
+    @get:Input
+    abstract val tracingStream: Property<PrintStream?>
+
+    /**
      * The output workspace ([outputDir]).
      */
     @get:Internal
@@ -146,6 +155,7 @@ abstract class GenerateAccessorsTask : DefaultTask() {
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
+        tracingStream.convention(null)
     }
 
     /**
@@ -163,10 +173,13 @@ abstract class GenerateAccessorsTask : DefaultTask() {
                 namespaceFriendlinessIndex = namespaceFriendlinessIndex.get(),
                 accessedNamespaces = accessedNamespaces.get(),
                 craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get()
-            )
+            ),
+            tracingStream.get()
         )
 
-        outputWorkspace.clean()
+        if (generator.tracingStream == null) { // don't clean the workspace for tracing contexts
+            outputWorkspace.clean()
+        }
         runBlocking {
             generator.generate(
                 mappingProvider.get(),

@@ -120,7 +120,7 @@ abstract class AbstractGenerationContext(
      * @param model the accessor model
      * @param node the ancestry node of the class defined by the model
      */
-    protected fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
+    protected open fun generateClass(model: ClassAccessor, node: ClassAncestryNode) {
         if (!generatedClasses.add(model.internalName)) {
             logger.warn { "class '${model.internalName}' has already had accessors generated, duplicate model?" }
             return
@@ -165,7 +165,8 @@ abstract class AbstractGenerationContext(
      *
      * @param resolvedAccessor the resolved accessor model
      */
-    protected abstract fun generateClass(resolvedAccessor: ResolvedClassAccessor)
+    protected open fun generateClass(resolvedAccessor: ResolvedClassAccessor) {
+    }
 
     /**
      * Generates a mapping lookup class with accessors
@@ -180,7 +181,8 @@ abstract class AbstractGenerationContext(
      *
      * @param names internal names of classes declared in accessor models
      */
-    protected abstract fun generateLookupClass(names: List<String>)
+    protected open fun generateLookupClass(names: List<String>) {
+    }
 
     /**
      * Resolves a field ancestry node from a model.
@@ -189,7 +191,7 @@ abstract class AbstractGenerationContext(
      * @param model the model
      * @return the node
      */
-    protected fun resolveField(tree: FieldAncestryTree, model: FieldAccessor): FieldAncestryNode {
+    protected open fun resolveField(tree: FieldAncestryTree, model: FieldAccessor): FieldAncestryNode {
         val fieldNode = if (model.type == null) {
             val version = checkNotNull(tree.versions.find { it.id == model.version }) {
                 "Could not resolve version ${model.version} in ancestry tree"
@@ -214,7 +216,7 @@ abstract class AbstractGenerationContext(
      * @param model the model
      * @return the nodes
      */
-    protected fun resolveFieldChain(tree: FieldAncestryTree, model: FieldAccessor): List<ResolvedFieldPair> = buildList {
+    protected open fun resolveFieldChain(tree: FieldAncestryTree, model: FieldAccessor): List<ResolvedFieldPair> = buildList {
         var nextNode: FieldAccessor? = model
         while (nextNode != null) {
             add(ResolvedFieldPair(nextNode, resolveField(tree, nextNode)))
@@ -231,7 +233,7 @@ abstract class AbstractGenerationContext(
      * @param types the required types
      * @return the nodes
      */
-    protected fun resolveRequiredFields(tree: FieldAncestryTree, types: RequiredMemberTypes): List<FieldAncestryNode> = tree.filter { node ->
+    protected open fun resolveRequiredFields(tree: FieldAncestryTree, types: RequiredMemberTypes): List<FieldAncestryNode> = tree.filter { node ->
         val requiresEnumConstant = (types and DefaultRequiredMemberTypes.ENUM_CONSTANT) != 0
         if (requiresEnumConstant || (types and DefaultRequiredMemberTypes.CONSTANT) != 0) {
             val mod = node.last.value.modifiers
@@ -251,7 +253,7 @@ abstract class AbstractGenerationContext(
      * @param model the model
      * @return the node
      */
-    protected fun resolveConstructor(tree: MethodAncestryTree, model: ConstructorAccessor): MethodAncestryNode {
+    protected open fun resolveConstructor(tree: MethodAncestryTree, model: ConstructorAccessor): MethodAncestryNode {
         val ctorNode = tree[NameDescriptorPair("<init>", model.type)]
 
         return checkNotNull(ctorNode) {
@@ -266,8 +268,7 @@ abstract class AbstractGenerationContext(
      * @param types the required types
      * @return the nodes
      */
-    @Suppress("UNUSED_PARAMETER") // API
-    protected fun resolveRequiredConstructors(tree: MethodAncestryTree, types: RequiredMemberTypes): List<MethodAncestryNode> {
+    protected open fun resolveRequiredConstructors(tree: MethodAncestryTree, types: RequiredMemberTypes): List<MethodAncestryNode> {
         return emptyList()
     }
 
@@ -278,7 +279,7 @@ abstract class AbstractGenerationContext(
      * @param model the model
      * @return the node
      */
-    protected fun resolveMethod(tree: MethodAncestryTree, model: MethodAccessor): MethodAncestryNode {
+    protected open fun resolveMethod(tree: MethodAncestryTree, model: MethodAccessor): MethodAncestryNode {
         val methodNode = if (model.isIncomplete || model.version != null) {
             val version = checkNotNull(tree.versions.find { it.id == model.version }) {
                 "Could not resolve version ${model.version} in ancestry tree"
@@ -305,7 +306,7 @@ abstract class AbstractGenerationContext(
      * @param model the model
      * @return the nodes
      */
-    protected fun resolveMethodChain(tree: MethodAncestryTree, model: MethodAccessor): List<ResolvedMethodPair> = buildList {
+    protected open fun resolveMethodChain(tree: MethodAncestryTree, model: MethodAccessor): List<ResolvedMethodPair> = buildList {
         var nextNode: MethodAccessor? = model
         while (nextNode != null) {
             add(ResolvedMethodPair(nextNode, resolveMethod(tree, nextNode)))
@@ -322,8 +323,7 @@ abstract class AbstractGenerationContext(
      * @param types the required types
      * @return the nodes
      */
-    @Suppress("UNUSED_PARAMETER") // API
-    protected fun resolveRequiredMethods(tree: MethodAncestryTree, types: RequiredMemberTypes): List<MethodAncestryNode> {
+    protected open fun resolveRequiredMethods(tree: MethodAncestryTree, types: RequiredMemberTypes): List<MethodAncestryNode> {
         return emptyList()
     }
 
@@ -333,7 +333,7 @@ abstract class AbstractGenerationContext(
      * @param elem the element
      * @return the mapped name
      */
-    protected fun getFriendlyName(elem: ElementMappingView): String {
+    protected open fun getFriendlyName(elem: ElementMappingView): String {
         generator.config.namespaceFriendlinessIndex.forEach { ns ->
             elem.getName(ns)?.let { return it }
         }
@@ -346,7 +346,7 @@ abstract class AbstractGenerationContext(
      * @param member the member
      * @return the mapped descriptor
      */
-    protected fun getFriendlyDesc(member: MemberMappingView): String {
+    protected open fun getFriendlyDesc(member: MemberMappingView): String {
         generator.config.namespaceFriendlinessIndex.forEach { ns ->
             member.getDesc(ns)?.let { return it }
         }
@@ -359,7 +359,7 @@ abstract class AbstractGenerationContext(
      * @param member the member
      * @return the [Type]
      */
-    protected fun getFriendlyType(member: MemberMappingView): Type = Type.getType(getFriendlyDesc(member))
+    protected open fun getFriendlyType(member: MemberMappingView): Type = Type.getType(getFriendlyDesc(member))
 
     /**
      * Groups the generator's mappings by version.
@@ -367,7 +367,7 @@ abstract class AbstractGenerationContext(
      * @param node the ancestry node
      * @return the grouped class mappings
      */
-    protected fun groupClassNames(node: ClassAncestryNode): Map<ClassKey, List<Version>> = buildMap<ClassKey, MutableList<Version>> {
+    protected open fun groupClassNames(node: ClassAncestryNode): Map<ClassKey, List<Version>> = buildMap<ClassKey, MutableList<Version>> {
         node.forEach { (version, klass) ->
             val nmsVersion = klass.tree.craftBukkitNmsVersion
 
@@ -389,7 +389,7 @@ abstract class AbstractGenerationContext(
      * @param node the ancestry node
      * @return the grouped field mappings
      */
-    protected fun groupFieldNames(node: FieldAncestryNode): Map<FieldKey, List<Version>> = buildMap<FieldKey, MutableList<Version>> {
+    protected open fun groupFieldNames(node: FieldAncestryNode): Map<FieldKey, List<Version>> = buildMap<FieldKey, MutableList<Version>> {
         node.forEach { (version, field) ->
             generator.config.accessedNamespaces.forEach { ns ->
                 val nsId = field.tree.getNamespaceId(ns)
@@ -408,7 +408,7 @@ abstract class AbstractGenerationContext(
      * @param node the ancestry node
      * @return the grouped constructor mappings
      */
-    protected fun groupConstructorNames(node: MethodAncestryNode): Map<ConstructorKey, List<Version>> = buildMap<ConstructorKey, MutableList<Version>> {
+    protected open fun groupConstructorNames(node: MethodAncestryNode): Map<ConstructorKey, List<Version>> = buildMap<ConstructorKey, MutableList<Version>> {
         node.forEach { (version, ctor) ->
             val nmsVersion = ctor.tree.craftBukkitNmsVersion
 
@@ -426,7 +426,7 @@ abstract class AbstractGenerationContext(
      * @param node the ancestry node
      * @return the grouped method mappings
      */
-    protected fun groupMethodNames(node: MethodAncestryNode): Map<MethodKey, List<Version>> = buildMap<MethodKey, MutableList<Version>> {
+    protected open fun groupMethodNames(node: MethodAncestryNode): Map<MethodKey, List<Version>> = buildMap<MethodKey, MutableList<Version>> {
         node.forEach { (version, method) ->
             val nmsVersion = method.tree.craftBukkitNmsVersion
 
