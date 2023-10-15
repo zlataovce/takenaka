@@ -22,6 +22,7 @@ import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.plugin.tasks.GenerateAccessorsTask
 import me.kcra.takenaka.generator.accessor.plugin.tasks.ResolveMappingsTask
+import me.kcra.takenaka.generator.accessor.plugin.tasks.TraceAccessorsTask
 import me.kcra.takenaka.generator.common.provider.impl.SimpleMappingProvider
 import me.kcra.takenaka.gradle.BuildConfig
 import org.gradle.api.Plugin
@@ -77,7 +78,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.historyNamespaces.set(config.historyNamespaces)
             this.historyIndexNamespace.set(config.historyIndexNamespace)
         }
-        val traceAccessors by target.tasks.creating(GenerateAccessorsTask::class) {
+        val traceAccessors by target.tasks.creating(TraceAccessorsTask::class) {
             group = "takenaka"
             description = "Creates an accessor generation report."
             dependsOn(resolveMappings)
@@ -91,7 +92,6 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.accessedNamespaces.set(config.accessedNamespaces)
             this.historyNamespaces.set(config.historyNamespaces)
             this.historyIndexNamespace.set(config.historyIndexNamespace)
-            this.tracingStream.set(System.out) // print to standard output
         }
 
         target.tasks.withType<JavaCompile> {

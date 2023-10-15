@@ -67,23 +67,32 @@ interface GenerationContext : CoroutineScope { // TODO: remove CoroutineScope
  *
  * @param ancestryProvider the ancestry provider of the context
  * @param flavor the accessor flavor of the context
- * @param tracingStream the generation trace output stream
  * @param block the context user
  */
 suspend inline fun <R> AccessorGenerator.generationContext(
     ancestryProvider: AncestryProvider,
     flavor: CodeLanguage,
-    tracingStream: PrintStream? = null,
     crossinline block: suspend GenerationContext.() -> R
 ): R = coroutineScope {
-    if (tracingStream != null) {
-        return@coroutineScope block(TracingGenerationContext(tracingStream, this@generationContext, ancestryProvider, this))
-    }
-
     block(
         when (flavor) {
             CodeLanguage.JAVA -> JavaGenerationContext(this@generationContext, ancestryProvider, this)
             CodeLanguage.KOTLIN -> KotlinGenerationContext(this@generationContext, ancestryProvider, this)
         }
     )
+}
+
+/**
+ * Opens a tracing generation context.
+ *
+ * @param out the tracing output stream
+ * @param ancestryProvider the ancestry provider of the context
+ * @param block the context user
+ */
+suspend inline fun <R> AccessorGenerator.tracingContext(
+    out: PrintStream,
+    ancestryProvider: AncestryProvider,
+    crossinline block: suspend GenerationContext.() -> R
+): R = coroutineScope {
+    block(TracingGenerationContext(out, this@tracingContext, ancestryProvider, this))
 }

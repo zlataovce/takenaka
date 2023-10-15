@@ -54,7 +54,7 @@ import kotlin.io.path.writeText
  * @property config the website generation configuration
  * @author Matouš Kučera
  */
-open class WebGenerator(final override val workspace: Workspace, val config: WebConfiguration) : Generator, Transformer {
+open class WebGenerator(override val workspace: Workspace, val config: WebConfiguration) : Generator, Transformer {
     protected val namespaceFriendlyNames = config.namespaces.mapValues { it.value.friendlyName }
     protected val currentComposite by workspace
 

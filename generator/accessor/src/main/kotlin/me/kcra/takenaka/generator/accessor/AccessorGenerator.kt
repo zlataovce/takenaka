@@ -19,14 +19,14 @@ package me.kcra.takenaka.generator.accessor
 
 import kotlinx.coroutines.*
 import me.kcra.takenaka.core.Workspace
+import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryTree
+import me.kcra.takenaka.generator.accessor.context.GenerationContext
 import me.kcra.takenaka.generator.accessor.context.generationContext
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.accessor.util.isGlob
 import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import me.kcra.takenaka.generator.common.provider.MappingProvider
-import net.fabricmc.mappingio.tree.MappingTreeView
-import java.io.PrintStream
 
 /**
  * A generator that generates source code for accessing obfuscated elements using mapped names across versions.
@@ -37,14 +37,9 @@ import java.io.PrintStream
  *
  * @property workspace the workspace in which this generator can move around
  * @property config the accessor generation configuration
- * @property tracingStream the generation trace output stream, **no accessors are generated if it's provided - dry run**
  * @author Matouš Kučera
  */
-open class AccessorGenerator(
-    override val workspace: Workspace,
-    val config: AccessorConfiguration,
-    val tracingStream: PrintStream? = null
-) : Generator {
+open class AccessorGenerator(override val workspace: Workspace, val config: AccessorConfiguration) : Generator {
     /**
      * Launches the generator with mappings provided by the provider.
      *
@@ -53,22 +48,31 @@ open class AccessorGenerator(
      */
     override suspend fun generate(mappingProvider: MappingProvider, ancestryProvider: AncestryProvider) {
         val mappings = mappingProvider.get()
-        val tree = ancestryProvider.klass<_, MappingTreeView.ClassMappingView>(mappings)
 
-        generationContext(ancestryProvider, config.codeLanguage, tracingStream) {
-            fun CoroutineScope.generateAccessor(classAccessor: ClassAccessor) {
-                launch(Dispatchers.Default + CoroutineName("generate-coro")) {
-                    generateClass(classAccessor, tree)
-                }
-            }
-
-            // generate non-glob accessors before glob ones to ensure that an explicit accessor doesn't get ignored
-            val (glob, nonGlob) = config.accessors.partition { it.internalName.isGlob }
-            coroutineScope { nonGlob.forEach(::generateAccessor) }
-            coroutineScope { glob.forEach(::generateAccessor) }
-
-            generateLookupClass()
-            generateExtras()
+        generationContext(ancestryProvider, config.codeLanguage) {
+            generateAccessors(this, ancestryProvider.klass(mappings))
         }
+    }
+
+    /**
+     * Generates the configured accessors in the supplied context.
+     *
+     * @param context the generation context
+     * @param tree the ancestry tree
+     */
+    protected suspend fun generateAccessors(context: GenerationContext, tree: ClassAncestryTree) {
+        fun CoroutineScope.generateAccessor(classAccessor: ClassAccessor) {
+            launch(Dispatchers.Default + CoroutineName("generate-coro")) {
+                context.generateClass(classAccessor, tree)
+            }
+        }
+
+        // generate non-glob accessors before glob ones to ensure that an explicit accessor doesn't get ignored
+        val (glob, nonGlob) = config.accessors.partition { it.internalName.isGlob }
+        coroutineScope { nonGlob.forEach(::generateAccessor) }
+        coroutineScope { glob.forEach(::generateAccessor) }
+
+        context.generateLookupClass()
+        context.generateExtras()
     }
 }

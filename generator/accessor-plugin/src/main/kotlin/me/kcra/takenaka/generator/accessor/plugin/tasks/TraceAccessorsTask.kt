@@ -19,22 +19,38 @@ package me.kcra.takenaka.generator.accessor.plugin.tasks
 
 import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
-import me.kcra.takenaka.generator.accessor.AccessorGenerator
+import me.kcra.takenaka.generator.accessor.TracingAccessorGenerator
 import me.kcra.takenaka.generator.common.provider.impl.SimpleAncestryProvider
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
+import java.io.PrintStream
 
 /**
- * A Gradle task that generates accessors from mappings.
+ * A Gradle task that prints accessor debugging information.
  *
  * @author Matouš Kučera
  */
-abstract class GenerateAccessorsTask : GenerationTask() {
+abstract class TraceAccessorsTask : GenerationTask() {
+    /**
+     * The generation trace output stream, defaults to [System.out].
+     *
+     * *The stream is not closed automatically.*
+     */
+    @get:Input
+    abstract val tracingStream: Property<PrintStream>
+
+    init {
+        tracingStream.convention(System.out)
+    }
+
     /**
      * Runs the task.
      */
     @TaskAction
     fun run() {
-        val generator = AccessorGenerator(
+        val generator = TracingAccessorGenerator(
+            tracingStream.get(),
             outputWorkspace,
             AccessorConfiguration(
                 accessors = accessors.get(),
@@ -47,7 +63,6 @@ abstract class GenerateAccessorsTask : GenerationTask() {
             )
         )
 
-        outputWorkspace.clean()
         runBlocking {
             generator.generate(
                 mappingProvider.get(),
