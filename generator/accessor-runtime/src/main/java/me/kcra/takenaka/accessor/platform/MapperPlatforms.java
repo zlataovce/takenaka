@@ -171,4 +171,17 @@ public enum MapperPlatforms implements MapperPlatform {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Failed to find a supported platform, specify one with MapperPlatforms#setCurrentPlatform manually"));
     }
+
+    /**
+     * Gets the preferred class loader of the platform, used for looking up classes.
+     * <p>
+     * Returns the class loader of this class ({@link MapperPlatforms}) by default.
+     *
+     * @return the class loader
+     */
+    @Override
+    public @NotNull ClassLoader getClassLoader() {
+        // use the MapperPlatforms loader, Bukkit seemingly has issues with the threads' context class loaders (issue #30)
+        return MapperPlatforms.class.getClassLoader();
+    }
 }
