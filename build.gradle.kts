@@ -5,5 +5,5 @@ plugins {
 
 allprojects {
     group = "me.kcra.takenaka"
-    version = "1.0.3"
+    version = "1.0.4-SNAPSHOT"
 }
