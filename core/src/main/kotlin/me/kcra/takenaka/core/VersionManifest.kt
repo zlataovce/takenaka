@@ -67,7 +67,7 @@ fun ObjectMapper.cachedVersionManifest(cacheFile: Path): VersionManifest {
 
     url.httpRequest {
         if (it.ok) {
-            cacheFile.createDirectories()
+            cacheFile.parent.createDirectories()
             it.copyTo(cacheFile)
 
             return readValue(cacheFile)
