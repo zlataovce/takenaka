@@ -18,6 +18,8 @@
 package me.kcra.takenaka.generator.accessor.context.impl
 
 import kotlinx.coroutines.CoroutineScope
+import me.kcra.takenaka.core.Version
+import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import java.io.OutputStream
@@ -79,6 +81,69 @@ open class TracingGenerationContext(
      */
     @Synchronized
     override fun generateClass(resolvedAccessor: ResolvedClassAccessor) {
-        TODO("Not implemented yet")
+        output.println("CLASS: ${resolvedAccessor.model.name}")
+        output.printNodeHistory(resolvedAccessor.node)
+
+        groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
+            val (ns, name) = classKey
+
+            output.println("namespace: $ns, mapping: $name, versions: [${versions.joinToString(transform = Version::id)}]")
+        }
+
+        output.println("-".repeat(10))
+
+        resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
+            output.println("FIELD: ${resolvedAccessor.model.name}.${fieldAccessor.name}")
+            output.printNodeHistory(fieldNode)
+
+            groupFieldNames(fieldNode).forEach { (fieldKey, versions) ->
+                val (ns, name) = fieldKey
+
+                output.println("namespace: $ns, mapping: $name, versions: [${versions.joinToString(transform = Version::id)}]")
+            }
+
+            output.println("-".repeat(10))
+        }
+
+        resolvedAccessor.constructors.forEach { (ctorAccessor, ctorNode) ->
+            output.println("CONSTRUCTOR: ${resolvedAccessor.model.name}.<init>${ctorAccessor.type}")
+            output.printNodeHistory(ctorNode)
+
+            groupConstructorNames(ctorNode).forEach { (ctorKey, versions) ->
+                val (ns, desc) = ctorKey
+
+                output.println("namespace: $ns, descriptor: $desc, versions: [${versions.joinToString(transform = Version::id)}]")
+            }
+
+            output.println("-".repeat(10))
+        }
+
+        resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
+            output.println("METHOD: ${resolvedAccessor.model.name}.${methodAccessor.name}${methodAccessor.type}")
+            output.printNodeHistory(methodNode)
+
+            groupMethodNames(methodNode).forEach { (methodKey, versions) ->
+                val (ns, name, desc) = methodKey
+
+                output.println("namespace: $ns, mapping: $name, descriptor: $desc, versions: [${versions.joinToString(transform = Version::id)}]")
+            }
+
+            output.println("-".repeat(10))
+        }
+    }
+
+    /**
+     * Prints history information about an ancestry node to the stream.
+     *
+     * @param node the ancestry node
+     */
+    fun PrintStream.printNodeHistory(node: AncestryTree.Node<*, *>) {
+        println("exists since: ${node.first.key.id}")
+
+        if (node.last.key != node.tree.versions.max()) {
+            println("exists until (inclusive): ${node.last.key.id}")
+        }
+
+        println()
     }
 }

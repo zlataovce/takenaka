@@ -21,9 +21,10 @@ import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.TracingAccessorGenerator
 import me.kcra.takenaka.generator.common.provider.impl.SimpleAncestryProvider
-import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Input
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
+import java.io.OutputStream
 import java.io.PrintStream
 
 /**
@@ -33,15 +34,13 @@ import java.io.PrintStream
  */
 abstract class TraceAccessorsTask : GenerationTask() {
     /**
-     * The generation trace output stream, defaults to [System.out].
-     *
-     * *The stream is not closed automatically.*
+     * The generation trace output file, defaults to `build/takenaka/accessor-trace.txt`, nothing is saved if null.
      */
-    @get:Input
-    abstract val tracingStream: Property<PrintStream>
+    @get:OutputFile
+    abstract val tracingFile: RegularFileProperty
 
     init {
-        tracingStream.convention(System.out)
+        tracingFile.convention(project.layout.buildDirectory.file("takenaka/accessor-trace.txt"))
     }
 
     /**
@@ -49,8 +48,15 @@ abstract class TraceAccessorsTask : GenerationTask() {
      */
     @TaskAction
     fun run() {
+        var tracingStream = System.out
+
+        val tracingFile0 = tracingFile.orNull?.asFile
+        if (tracingFile0 != null) {
+            tracingStream = PrintStream(Splitter(tracingStream, tracingFile0.outputStream()))
+        }
+
         val generator = TracingAccessorGenerator(
-            tracingStream.get(),
+            tracingStream,
             outputWorkspace,
             AccessorConfiguration(
                 accessors = accessors.get(),
@@ -68,6 +74,41 @@ abstract class TraceAccessorsTask : GenerationTask() {
                 mappingProvider.get(),
                 SimpleAncestryProvider(historyIndexNamespace.get(), historyNamespaces.get())
             )
+        }
+
+        tracingFile0?.let { println("Report saved to ${it.absolutePath}.") }
+    }
+
+    /**
+     * A T-piece [OutputStream] splitter.
+     */
+    private class Splitter(private val left: OutputStream, private val right: OutputStream) : OutputStream() {
+        override fun write(b: ByteArray) {
+            left.write(b)
+            right.write(b)
+        }
+
+        override fun write(b: ByteArray, off: Int, len: Int) {
+            left.write(b, off, len)
+            right.write(b, off, len)
+        }
+
+        override fun write(b: Int) {
+            left.write(b)
+            right.write(b)
+        }
+
+        override fun flush() {
+            left.flush()
+            right.flush()
+        }
+
+        override fun close() {
+            try {
+                left.close()
+            } finally {
+                right.close()
+            }
         }
     }
 }
