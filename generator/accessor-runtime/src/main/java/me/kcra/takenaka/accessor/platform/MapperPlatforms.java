@@ -34,7 +34,7 @@ import java.util.stream.StreamSupport;
  */
 public enum MapperPlatforms implements MapperPlatform {
     /**
-     * An abstraction for platforms that implement the Bukkit API (Spigot mappings).
+     * An abstraction for platforms that implement the Bukkit API.
      */
     BUKKIT {
         private String minecraftVersion = null;
@@ -83,45 +83,7 @@ public enum MapperPlatforms implements MapperPlatform {
     },
 
     /**
-     * An abstraction for NeoForge-based platforms (Mojang mappings).
-     */
-    NEOFORGE {
-        private String minecraftVersion = null;
-
-        {
-            try {
-                final Class<?> neoFormVersionClass = Class.forName(
-                        "net.neoforged.neoforge.internal.versions.neoform.NeoFormVersion",
-                        true, getClassLoader()
-                );
-                minecraftVersion = (String) neoFormVersionClass.getMethod("getMCVersion").invoke(null);
-            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                throw new RuntimeException("Failed to get Minecraft version", e);
-            } catch (ClassNotFoundException ignored) {
-            }
-        }
-
-        @Override
-        public boolean isSupported() {
-            return minecraftVersion != null;
-        }
-
-        @Override
-        public @NotNull String getVersion() {
-            if (!isSupported()) {
-                throw new UnsupportedOperationException("NeoForge is not supported by this environment");
-            }
-            return minecraftVersion;
-        }
-
-        @Override
-        public @NotNull String[] getMappingNamespaces() {
-            return new String[] { "mojang" };
-        }
-    },
-
-    /**
-     * An abstraction for Forge-based platforms (Searge mappings).
+     * An abstraction for Forge-based platforms.
      */
     FORGE {
         private String minecraftVersion = null;
