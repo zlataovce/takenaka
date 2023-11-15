@@ -48,15 +48,15 @@ abstract class TraceAccessorsTask : GenerationTask() {
      */
     @TaskAction
     fun run() {
-        var tracingStream = System.out
+        var tracingStream: OutputStream = NoOpCloser(System.out)
 
         val tracingFile0 = tracingFile.orNull?.asFile
         if (tracingFile0 != null) {
-            tracingStream = PrintStream(Splitter(tracingStream, tracingFile0.outputStream()))
+            tracingStream = Splitter(tracingStream, tracingFile0.outputStream())
         }
 
         val generator = TracingAccessorGenerator(
-            tracingStream,
+            PrintStream(tracingStream),
             outputWorkspace,
             AccessorConfiguration(
                 accessors = accessors.get(),
@@ -76,7 +76,20 @@ abstract class TraceAccessorsTask : GenerationTask() {
             )
         }
 
+        tracingStream.close()
         tracingFile0?.let { println("Report saved to ${it.absolutePath}.") }
+    }
+
+    /**
+     * An [OutputStream] wrapper that no-ops [close] calls.
+     */
+    private class NoOpCloser(private val delegate: OutputStream) : OutputStream() {
+        override fun write(b: ByteArray) = delegate.write(b)
+        override fun write(b: ByteArray, off: Int, len: Int) = delegate.write(b, off, len)
+        override fun write(b: Int) = delegate.write(b)
+        override fun flush() = delegate.flush()
+        override fun close() {
+        }
     }
 
     /**
