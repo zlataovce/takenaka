@@ -32,7 +32,7 @@ import me.kcra.takenaka.generator.accessor.model.ClassAccessor
  * @author Matouš Kučera
  */
 data class AccessorConfiguration(
-    val accessors: List<ClassAccessor>,
+    val accessors: List<ClassAccessor>, // TODO: move to AccessorGenerator constructor
     val basePackage: String,
     val codeLanguage: CodeLanguage = CodeLanguage.JAVA,
     val accessorType: AccessorType = AccessorType.NONE,

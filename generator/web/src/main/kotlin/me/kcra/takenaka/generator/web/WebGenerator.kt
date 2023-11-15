@@ -54,9 +54,9 @@ import kotlin.io.path.writeText
  * @property config the website generation configuration
  * @author Matouš Kučera
  */
-class WebGenerator(override val workspace: Workspace, val config: WebConfiguration) : Generator, Transformer {
-    private val namespaceFriendlyNames = config.namespaces.mapValues { it.value.friendlyName }
-    private val currentComposite by workspace
+open class WebGenerator(override val workspace: Workspace, val config: WebConfiguration) : Generator, Transformer {
+    protected val namespaceFriendlyNames = config.namespaces.mapValues { it.value.friendlyName }
+    protected val currentComposite by workspace
 
     internal val hasMinifier = config.transformers.any { it is MinifyingTransformer }
 
@@ -310,7 +310,7 @@ class WebGenerator(override val workspace: Workspace, val config: WebConfigurati
             appendLine("};")
         }
 
-        appendLine("window.addEventListener(\"DOMContentLoaded\", () => {")
+        appendLine("scheduleOnDOMLoad(() => {")
 
         components.forEach { (tag, _, _) ->
             appendLine("    replaceComponent(\"$tag\", ${tag}Component, ${tag}ComponentCallback);")

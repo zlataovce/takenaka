@@ -24,15 +24,17 @@ import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.CodeLanguage
 import me.kcra.takenaka.generator.accessor.context.impl.JavaGenerationContext
 import me.kcra.takenaka.generator.accessor.context.impl.KotlinGenerationContext
+import me.kcra.takenaka.generator.accessor.context.impl.TracingGenerationContext
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
+import java.io.PrintStream
 
 /**
  * A base generation context.
  *
  * @author Matouš Kučera
  */
-interface GenerationContext : CoroutineScope {
+interface GenerationContext : CoroutineScope { // TODO: remove CoroutineScope
     /**
      * The generator.
      */
@@ -44,12 +46,14 @@ interface GenerationContext : CoroutineScope {
      * @param model the accessor model
      * @param tree the class ancestry tree
      */
-    fun generateClass(model: ClassAccessor, tree: ClassAncestryTree)
+    fun generateClass(model: ClassAccessor, tree: ClassAncestryTree) {
+    }
 
     /**
      * Generates a mapping lookup class with accessors that have been generated in this context.
      */
-    fun generateLookupClass()
+    fun generateLookupClass() {
+    }
 
     /**
      * Generates extra resources needed for the function of the generated output.
@@ -76,4 +80,19 @@ suspend inline fun <R> AccessorGenerator.generationContext(
             CodeLanguage.KOTLIN -> KotlinGenerationContext(this@generationContext, ancestryProvider, this)
         }
     )
+}
+
+/**
+ * Opens a tracing generation context.
+ *
+ * @param out the tracing output stream
+ * @param ancestryProvider the ancestry provider of the context
+ * @param block the context user
+ */
+suspend inline fun <R> AccessorGenerator.tracingContext(
+    out: PrintStream,
+    ancestryProvider: AncestryProvider,
+    crossinline block: suspend GenerationContext.() -> R
+): R = coroutineScope {
+    block(TracingGenerationContext(out, this@tracingContext, ancestryProvider, this))
 }
