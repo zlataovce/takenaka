@@ -81,7 +81,9 @@ open class TracingGenerationContext(
      */
     @Synchronized
     override fun generateClass(resolvedAccessor: ResolvedClassAccessor) {
-        output.println("CLASS: ${resolvedAccessor.model.name}")
+        val classHeader = "CLASS: ${resolvedAccessor.model.name}"
+
+        output.println(classHeader)
         output.printNodeHistory(resolvedAccessor.node)
 
         groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
@@ -90,10 +92,12 @@ open class TracingGenerationContext(
             output.println("namespace: $ns, mapping: $name, versions: [${versions.joinToString(transform = Version::id)}]")
         }
 
-        output.println("-".repeat(10))
+        output.println("-".repeat(classHeader.length))
 
         resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
-            output.println("FIELD: ${resolvedAccessor.model.name}.${fieldAccessor.name}")
+            val header = "FIELD: ${resolvedAccessor.model.name}.${fieldAccessor.name}"
+
+            output.println(header)
             output.printNodeHistory(fieldNode)
 
             groupFieldNames(fieldNode).forEach { (fieldKey, versions) ->
@@ -102,11 +106,13 @@ open class TracingGenerationContext(
                 output.println("namespace: $ns, mapping: $name, versions: [${versions.joinToString(transform = Version::id)}]")
             }
 
-            output.println("-".repeat(10))
+            output.println("-".repeat(header.length))
         }
 
         resolvedAccessor.constructors.forEach { (ctorAccessor, ctorNode) ->
-            output.println("CONSTRUCTOR: ${resolvedAccessor.model.name}.<init>${ctorAccessor.type}")
+            val header = "CONSTRUCTOR: ${resolvedAccessor.model.name}.<init>${ctorAccessor.type}"
+
+            output.println(header)
             output.printNodeHistory(ctorNode)
 
             groupConstructorNames(ctorNode).forEach { (ctorKey, versions) ->
@@ -115,11 +121,13 @@ open class TracingGenerationContext(
                 output.println("namespace: $ns, descriptor: $desc, versions: [${versions.joinToString(transform = Version::id)}]")
             }
 
-            output.println("-".repeat(10))
+            output.println("-".repeat(header.length))
         }
 
         resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
-            output.println("METHOD: ${resolvedAccessor.model.name}.${methodAccessor.name}${methodAccessor.type}")
+            val header = "METHOD: ${resolvedAccessor.model.name}.${methodAccessor.name}${methodAccessor.type}"
+
+            output.println(header)
             output.printNodeHistory(methodNode)
 
             groupMethodNames(methodNode).forEach { (methodKey, versions) ->
@@ -128,7 +136,7 @@ open class TracingGenerationContext(
                 output.println("namespace: $ns, mapping: $name, descriptor: $desc, versions: [${versions.joinToString(transform = Version::id)}]")
             }
 
-            output.println("-".repeat(10))
+            output.println("-".repeat(header.length))
         }
     }
 
