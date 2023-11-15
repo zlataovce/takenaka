@@ -27,7 +27,7 @@ import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
 import me.kcra.takenaka.generator.common.provider.MappingProvider
 import mu.KotlinLogging
-import net.fabricmc.mappingio.format.Tiny2Reader
+import net.fabricmc.mappingio.format.tiny.Tiny2FileReader
 import net.fabricmc.mappingio.tree.MemoryMappingTree
 import java.nio.file.Path
 import java.util.zip.ZipFile
@@ -79,7 +79,7 @@ class BundledMappingProvider(val file: Path, val versions: List<String>, val man
                         }
 
                         return@mapNotNull version to MemoryMappingTree().apply {
-                            zf.getInputStream(entry).reader().use { r -> Tiny2Reader.read(r, this) }
+                            zf.getInputStream(entry).reader().use { r -> Tiny2FileReader.read(r, this) }
                             logger.info { "read ${version.id} mapping file from ${entry.name}" }
 
                             if (analyzer != null) {

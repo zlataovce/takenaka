@@ -350,7 +350,10 @@ abstract class AbstractGenerationContext(
         generator.config.namespaceFriendlinessIndex.forEach { ns ->
             member.getDesc(ns)?.let { return it }
         }
-        return member.tree.dstNamespaceIds.firstNotNullOfOrNull(member::getDstDesc) ?: member.srcDesc
+
+        return member.tree.dstNamespaceIds.firstNotNullOfOrNull(member::getDstDesc)
+            ?: member.srcDesc
+            ?: error("No descriptor available for member $member")
     }
 
     /**

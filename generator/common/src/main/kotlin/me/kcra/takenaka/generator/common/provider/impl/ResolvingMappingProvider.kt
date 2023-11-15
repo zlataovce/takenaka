@@ -31,8 +31,8 @@ import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
 import me.kcra.takenaka.generator.common.provider.MappingProvider
 import mu.KotlinLogging
-import net.fabricmc.mappingio.format.Tiny2Reader
-import net.fabricmc.mappingio.format.Tiny2Writer
+import net.fabricmc.mappingio.format.tiny.Tiny2FileReader
+import net.fabricmc.mappingio.format.tiny.Tiny2FileWriter
 import net.fabricmc.mappingio.tree.MemoryMappingTree
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -85,7 +85,7 @@ class ResolvingMappingProvider(
                     // load mapping tree from file
                     try {
                         return@parallelMap workspace.version to MemoryMappingTree().apply {
-                            outputFile.reader().use { r -> Tiny2Reader.read(r, this) }
+                            outputFile.reader().use { r -> Tiny2FileReader.read(r, this) }
                             logger.info { "read ${workspace.version.id} joined mapping file from ${outputFile.pathString}" }
 
                             if (analyzer != null) {
@@ -128,7 +128,7 @@ class ResolvingMappingProvider(
                 }
 
                 if (outputFile != null && !outputFile.isDirectory()) {
-                    Tiny2Writer(outputFile.writer(), false).use { w -> tree.accept(MissingDescriptorFilter(w)) }
+                    Tiny2FileWriter(outputFile.writer(), false).use { w -> tree.accept(MissingDescriptorFilter(w)) }
                     logger.info { "wrote ${workspace.version.id} joined mapping file to ${outputFile.pathString}" }
                 }
 

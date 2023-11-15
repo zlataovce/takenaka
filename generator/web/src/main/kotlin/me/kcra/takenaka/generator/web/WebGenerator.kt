@@ -27,6 +27,7 @@ import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.util.allNamespaceIds
+import me.kcra.takenaka.core.mapping.util.getSingleMetadata
 import me.kcra.takenaka.core.mapping.util.hash
 import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
@@ -175,8 +176,8 @@ open class WebGenerator(override val workspace: Workspace, val config: WebConfig
                         .mapNotNull { (ns, nsDesc) ->
                             if (nsDesc.license == null) return@mapNotNull null
 
-                            val content = nsDesc.license.content.let(tree::getMetadata) ?: return@mapNotNull null
-                            val source = nsDesc.license.source.let(tree::getMetadata) ?: return@mapNotNull null
+                            val content = nsDesc.license.content.let(tree::getSingleMetadata) ?: return@mapNotNull null
+                            val source = nsDesc.license.source.let(tree::getSingleMetadata) ?: return@mapNotNull null
 
                             return@mapNotNull ns to License(content, source)
                         }
