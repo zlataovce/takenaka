@@ -92,6 +92,7 @@ nav {
     display: flex;
     position: sticky;
     top: 0;
+    z-index: 9999;
     flex-direction: column;
     justify-content: space-between;
     background-color: var(--nav);
