@@ -33,6 +33,7 @@ import org.w3c.dom.Document
  * @return the generated document
  */
 fun GenerationContext.overviewPage(workspace: VersionedWorkspace, packages: Set<String>): Document = createHTMLDocument().html {
+    lang = "en"
     head {
         versionRootComponent()
         defaultResourcesComponent(rootPath = "../")

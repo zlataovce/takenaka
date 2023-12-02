@@ -181,6 +181,7 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
         }
     }
 
+    lang = "en"
     head {
         defaultResourcesComponent(rootPath = "../")
         if (generator.config.emitMetaTags) {

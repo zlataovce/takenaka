@@ -55,19 +55,19 @@
     --bg: white;
     --nav: #f2f3f5;
     --nav-item: black;
-    --nav-item-muted: #6c757d;
-    --search: #dbdcde;
+    --nav-item-muted: #44494e;
+    --search: #e2e2e4;
     --search-results: #f2f3f5;
     --search-hover: #d1d2d4;
     --search-results-hover: #dbdcde;
-    --button: #dbdcde;
+    --button: #e2e2e4;
     --button-hover: #d1d2d4;
     --link: #0c65f6;
     --link-hover: #004ac2;
     --search-title: #222325;
     --search-subtitle: #51555e;
     --code-block: #f2f3f5;
-    --input-placeholder: #71717a;
+    --input-placeholder: #44494e;
 }
 
 * {

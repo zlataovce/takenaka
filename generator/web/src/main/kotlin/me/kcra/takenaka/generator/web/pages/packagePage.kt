@@ -37,6 +37,7 @@ import org.w3c.dom.Document
 fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: String, classes: Map<ClassType, Set<String>>): Document = createHTMLDocument().html {
     val packageName0 = packageName.fromInternalName()
 
+    lang = "en"
     head {
         val versionRootPath = getPackageRelativeVersionRoot(packageName0)
 

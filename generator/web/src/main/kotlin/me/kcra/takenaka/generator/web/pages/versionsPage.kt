@@ -32,6 +32,7 @@ import org.w3c.dom.Document
  * @return the generated document
  */
 fun GenerationContext.versionsPage(welcomeMessage: String?, versions: Map<Version, List<String>>): Document = createHTMLDocument().html {
+    lang = "en"
     head {
         defaultResourcesComponent(rootPath = "")
         title(content = "mappings")
