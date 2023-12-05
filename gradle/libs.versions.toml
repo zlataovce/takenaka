@@ -14,7 +14,7 @@ asm-commons = { group = "org.ow2.asm", name = "asm-commons", version.ref = "asm"
 jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin", version.ref = "jackson" }
 jackson-datatype-jsr310 = { group = "com.fasterxml.jackson.datatype", name = "jackson-datatype-jsr310", version.ref = "jackson" }
 jackson-dataformat-xml = { group = "com.fasterxml.jackson.dataformat", name = "jackson-dataformat-xml", version.ref = "jackson" }
-mapping-io = { group = "net.fabricmc", name = "mapping-io", version = "0.5.0" }
+mapping-io = { group = "net.fabricmc", name = "mapping-io", version = "0.4.2" }
 kotlin-logging-jvm = { group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.5" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version = "2.0.9" }
 kotlinx-coroutines-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core-jvm", version = "1.7.3" }

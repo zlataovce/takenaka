@@ -46,14 +46,6 @@ inline val MappingTreeView.dstNamespaceIds: IntRange
 operator fun MappingTreeView.contains(ns: String): Boolean = getNamespaceId(ns) != MappingTreeView.NULL_NAMESPACE_ID
 
 /**
- * Returns a single metadata value under [key], null if not found or value was a null literal.
- *
- * @param key the metadata key
- * @return the metadata value
- */
-fun MappingTreeView.getSingleMetadata(key: String): String? = getMetadata(key)?.firstOrNull()?.value
-
-/**
  * Computes a hash of all destination mappings of this element.
  *
  * The resulting hash is stable, meaning the order of namespaces won't affect it.

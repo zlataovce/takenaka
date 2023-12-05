@@ -53,10 +53,10 @@ inline val MappingTreeView.MethodMappingView.isHashCode: Boolean
  * Is this method a `valueOf` method of an enum?
  */
 inline val MappingTreeView.MethodMappingView.isEnumValueOf: Boolean
-    get() = srcName == "valueOf" && srcDesc?.startsWith("(Ljava/lang/String;)") == true
+    get() = srcName == "valueOf" && srcDesc.startsWith("(Ljava/lang/String;)")
 
 /**
  * Is this method a `values` method of an enum?
  */
 inline val MappingTreeView.MethodMappingView.isEnumValues: Boolean
-    get() = srcName == "values" && srcDesc?.startsWith("()[") == true
+    get() = srcName == "values" && srcDesc.startsWith("()[")

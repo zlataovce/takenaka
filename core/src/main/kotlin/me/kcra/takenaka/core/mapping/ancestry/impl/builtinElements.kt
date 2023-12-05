@@ -393,7 +393,7 @@ fun <T : MappingTreeView, M : MappingTreeView.MemberMappingView> AncestryTree<T,
         val namespaces = node.tree.allowedNamespaces[version] ?: return@stdFind false
 
         namespaces.any { (_, id) ->
-            member.getDstName(id) == name && (descriptor == null || member.getDstDesc(id)?.startsWith(descriptor) == true)
+            member.getDstName(id) == name && (descriptor == null || member.getDstDesc(id).startsWith(descriptor))
         }
     }
 }

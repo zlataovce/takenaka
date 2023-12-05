@@ -20,19 +20,13 @@ package me.kcra.takenaka.core.mapping.resolve.impl
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.mapping.resolve.AbstractMappingResolver
-import me.kcra.takenaka.core.mapping.resolve.LicenseResolver
-import me.kcra.takenaka.core.mapping.resolve.Output
-import me.kcra.takenaka.core.mapping.resolve.lazyOutput
-import me.kcra.takenaka.core.util.contentLength
-import me.kcra.takenaka.core.util.copyTo
-import me.kcra.takenaka.core.util.httpRequest
-import me.kcra.takenaka.core.util.ok
+import me.kcra.takenaka.core.mapping.resolve.*
+import me.kcra.takenaka.core.util.*
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
-import net.fabricmc.mappingio.format.tiny.Tiny1FileReader
+import net.fabricmc.mappingio.format.Tiny1Reader
 import java.net.URL
 import java.nio.file.Path
 import kotlin.io.path.bufferedReader
@@ -127,7 +121,7 @@ class IntermediaryMappingResolver(
         mappingPath?.reader()?.use { reader ->
             // Intermediary has official and intermediary namespaces
             // official is the obfuscated one
-            Tiny1FileReader.read(reader, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK)))
+            Tiny1Reader.read(reader, MappingNsRenamer(visitor, mapOf("official" to MappingUtil.NS_SOURCE_FALLBACK)))
 
             val licensePath by licenseOutput
 

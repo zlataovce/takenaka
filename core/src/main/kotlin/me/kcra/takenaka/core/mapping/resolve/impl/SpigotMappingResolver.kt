@@ -25,7 +25,6 @@ import me.kcra.takenaka.core.mapping.resolve.LicenseResolver
 import me.kcra.takenaka.core.mapping.resolve.Output
 import me.kcra.takenaka.core.mapping.resolve.lazyOutput
 import me.kcra.takenaka.core.mapping.toInternalName
-import me.kcra.takenaka.core.mapping.util.getSingleMetadata
 import me.kcra.takenaka.core.mapping.util.unwrap
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.httpRequest
@@ -35,7 +34,7 @@ import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
-import net.fabricmc.mappingio.format.srg.TsrgFileReader
+import net.fabricmc.mappingio.format.TsrgReader
 import net.fabricmc.mappingio.tree.MappingTree
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.commons.Remapper
@@ -180,7 +179,13 @@ abstract class AbstractSpigotMappingResolver(
         val mappingPath by mappingOutput
         
         mappingPath?.bufferedReader()?.use { reader ->
-            TsrgFileReader.read(reader, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor)
+            // skip license comment, mapping-io doesn't remove comments (it will parse them)
+            if (reader.readLine().startsWith('#')) {
+                TsrgReader.read(reader, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor)
+            } else {
+                // we can't seek to the beginning, so we have to make a new reader altogether
+                mappingPath?.bufferedReader()?.use { TsrgReader.read(it, MappingUtil.NS_SOURCE_FALLBACK, targetNamespace, visitor) }
+            }
         }
         
         val licensePath by licenseOutput
@@ -242,7 +247,7 @@ abstract class AbstractSpigotMappingResolver(
  * Returns the CraftBukkit NMS version string from the [AbstractSpigotMappingResolver.META_CB_NMS_VERSION] metadata.
  */
 inline val MappingTreeView.craftBukkitNmsVersion: String?
-    get() = getSingleMetadata(AbstractSpigotMappingResolver.META_CB_NMS_VERSION)
+    get() = getMetadata(AbstractSpigotMappingResolver.META_CB_NMS_VERSION)
 
 /**
  * A resolver for Spigot class mapping files.

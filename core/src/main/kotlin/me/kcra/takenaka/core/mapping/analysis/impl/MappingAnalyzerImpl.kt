@@ -180,13 +180,13 @@ open class MappingAnalyzerImpl(val options: AnalysisOptions = AnalysisOptions())
                 namespaceIdsToCorrect.remove(MappingTree.NULL_NAMESPACE_ID) // pop null id, if it's present
 
                 if (namespaceIdsToCorrect.isNotEmpty()) {
-                    val srcMethodDesc = method.srcDesc?.withoutReturnTypeIfClass
+                    val srcMethodDesc = method.srcDesc.withoutReturnTypeIfClass
                     val additionalMappings by lazy(LazyThreadSafetyMode.NONE, method::getAdditionalMappingSet)
 
                     superTypes.forEach { superType ->
                         superType.methods.forEach superEach@ { superMethod ->
                             // don't match against private methods, they can't technically be overridden
-                            if (superMethod.srcDesc?.withoutReturnTypeIfClass != srcMethodDesc || (superMethod.modifiers and Opcodes.ACC_PRIVATE) != 0) return@superEach
+                            if (superMethod.srcDesc.withoutReturnTypeIfClass != srcMethodDesc || (superMethod.modifiers and Opcodes.ACC_PRIVATE) != 0) return@superEach
 
                             val rejectedByName = superMethod.srcName != method.srcName
                             if (rejectedByName && additionalMappings.none(superMethod.getAdditionalMappingSet()::contains)) return@superEach
