@@ -32,6 +32,16 @@ import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
 
 /**
+ * A mask for access modifiers making methods ineligible for inheritance checks.
+ */
+const val INHERITANCE_MASK = Opcodes.ACC_PRIVATE or Opcodes.ACC_STATIC
+
+/**
+ * A mask for access modifiers making super type methods ineligible as inheritance correction candidates.
+ */
+const val SUPER_INHERITANCE_MASK = INHERITANCE_MASK or Opcodes.ACC_FINAL
+
+/**
  * A base implementation of [me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer] that corrects problems defined in [StandardProblemKinds].
  *
  * This analyzer expects [AbstractVanillaMappingContributor.NS_SUPER], [AbstractVanillaMappingContributor.NS_INTERFACES] and [AbstractVanillaMappingContributor.NS_MODIFIERS] namespaces to be present.
@@ -168,7 +178,7 @@ open class MappingAnalyzerImpl(val options: AnalysisOptions = AnalysisOptions())
                         method.setDstName(method.srcName, nsId)
                     }
                 }
-            } else if (!skipInheritanceChecks && (method.modifiers and Opcodes.ACC_PRIVATE) == 0) { // don't check inheritance for private methods, they can't technically be overridden, see: https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-8.4.8.3
+            } else if (!skipInheritanceChecks && (method.modifiers and INHERITANCE_MASK) == 0) { // skip static or private members, impossible to override those
                 // correct inheritance errors
 
                 // Intermediary & possibly more: overridden methods are not mapped, those are completed
@@ -185,8 +195,8 @@ open class MappingAnalyzerImpl(val options: AnalysisOptions = AnalysisOptions())
 
                     superTypes.forEach { superType ->
                         superType.methods.forEach superEach@ { superMethod ->
-                            // don't match against private methods, they can't technically be overridden
-                            if (superMethod.srcDesc.withoutReturnTypeIfClass != srcMethodDesc || (superMethod.modifiers and Opcodes.ACC_PRIVATE) != 0) return@superEach
+                            // don't match against static, final or private methods, impossible for those to be overridden
+                            if ((superMethod.modifiers and SUPER_INHERITANCE_MASK) != 0 || superMethod.srcDesc.withoutReturnTypeIfClass != srcMethodDesc) return@superEach
 
                             val rejectedByName = superMethod.srcName != method.srcName
                             if (rejectedByName && additionalMappings.none(superMethod.getAdditionalMappingSet()::contains)) return@superEach
