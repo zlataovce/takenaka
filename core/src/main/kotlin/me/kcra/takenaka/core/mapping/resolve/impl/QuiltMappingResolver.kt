@@ -141,9 +141,9 @@ class QuiltMappingResolver(
                     logger.info { "fetched ${version.id} Quilt license file" }
                     return@resolver file
                 } else if (it.responseCode == 404) {
-                    logger.info { "did not find ${version.id} Quilt license file" }
+                    logger.info { "did not find ${version.id} Quilt Mappings license file" }
                 } else {
-                    logger.warn { "failed to fetch Quilt license file, received ${it.responseCode}" }
+                    logger.warn { "failed to fetch Quilt Mappings license file, received ${it.responseCode}" }
                 }
             }
 
