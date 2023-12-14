@@ -25,7 +25,7 @@ The goal of this project is to improve the maintainability and performance of th
 - [x] Spigot mappings
 - [x] Yarn (FabricMC) mappings
 - [ ] Hashed (QuiltMC) mappings (PRs welcome!)
-- [ ] QuiltMC mappings (PRs welcome!)
+- [x] QuiltMC mappings
 
 ## Usage
 
