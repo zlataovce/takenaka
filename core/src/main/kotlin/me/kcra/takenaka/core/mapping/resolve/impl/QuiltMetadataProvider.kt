@@ -58,16 +58,15 @@ class QuiltMetadataProvider(val workspace: Workspace, private val xmlMapper: Obj
     private fun parseVersions(): Map<String, List<QuiltBuild>> = buildMap<String, MutableList<QuiltBuild>> {
         metadata["versioning"]["versions"]["version"].forEach { versionNode ->
             val buildString = versionNode.asText()
-            val isNewFormat = "+build" in buildString
 
             val lastDotIndex = buildString.lastIndexOf('.')
 
             var version = buildString.substring(0, lastDotIndex)
-            if (isNewFormat) version = version.removeSuffix("+build")
+            version = version.removeSuffix("+build")
 
             val buildNumber = buildString.substring(lastDotIndex + 1, buildString.length).toInt()
 
-            getOrPut(version, ::mutableListOf) += QuiltBuild(version, buildNumber, isNewFormat)
+            getOrPut(version, ::mutableListOf) += QuiltBuild(version, buildNumber)
         }
     }
 
@@ -108,13 +107,9 @@ class QuiltMetadataProvider(val workspace: Workspace, private val xmlMapper: Obj
  *
  * @property version the Minecraft version that this build is for
  * @property buildNumber the Quilt build number, higher is newer
- * @property isNewFormat whether this build is named via the new format ("version+build.build_number" as opposed to "version.build_number")
  */
-data class QuiltBuild(val version: String, val buildNumber: Int, val isNewFormat: Boolean) {
+data class QuiltBuild(val version: String, val buildNumber: Int) {
     override fun toString(): String {
-        if (isNewFormat) {
-            return "$version+build.$buildNumber"
-        }
-        return "$version.$buildNumber"
+        return "$version+build.$buildNumber"
     }
 }
