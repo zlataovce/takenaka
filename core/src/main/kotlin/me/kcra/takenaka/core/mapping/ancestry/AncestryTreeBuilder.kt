@@ -67,7 +67,7 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
     /**
      * Collection that new nodes should be appended to.
      */
-    private val currentNodes: MutableCollection<MutableNode<E>>
+    private inline val currentNodes: MutableCollection<MutableNode<E>>
         get() = if (buffering) nodeBuffer else nodes
 
     /**
@@ -214,7 +214,7 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
             // replaced the putAll implementation here to route everything through the put method
             // makes dealing with the first and last items easier
             from.forEach { (key, value) ->
-                delegate[key] = value
+                put(key, value)
             }
         }
     }
