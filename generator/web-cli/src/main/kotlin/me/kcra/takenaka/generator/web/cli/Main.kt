@@ -23,6 +23,7 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.cli.*
 import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.compositeWorkspace
+import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
@@ -42,6 +43,17 @@ import kotlin.system.exitProcess
 import kotlin.system.measureTimeMillis
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ * Available namespaces.
+ */
+val NAMESPACES = mapOf(
+    "mojang" to NamespaceDescription("Mojang", "#4D7C0F", AbstractMojangMappingResolver.META_LICENSE),
+    "spigot" to NamespaceDescription("Spigot", "#CA8A04", AbstractSpigotMappingResolver.META_LICENSE),
+    "yarn" to NamespaceDescription("Yarn", "#626262", YarnMappingResolver.META_LICENSE),
+    "searge" to NamespaceDescription("Searge", "#B91C1C", SeargeMappingResolver.META_LICENSE),
+    "intermediary" to NamespaceDescription("Intermediary", "#0369A1", IntermediaryMappingResolver.META_LICENSE),
+)
 
 /**
  * Minification options.
@@ -70,6 +82,8 @@ fun main(args: Array<String>) {
     val parser = ArgParser("web-cli")
     val output by parser.option(ArgType.String, shortName = "o", description = "Output directory").default("output")
     val version by parser.option(ArgType.String, shortName = "v", description = "Target Minecraft version, can be specified multiple times").multiple().required()
+    val namespace by parser.option(ArgType.String, shortName = "n", description = "Target namespace, can be specified multiple times, order matters").multiple()
+    val ancestryNamespace by parser.option(ArgType.String, shortName = "a", description = "Target ancestry namespace, can be specified multiple times, has to be a subset of --namespace").multiple()
     val cache by parser.option(ArgType.String, shortName = "c", description = "Caching directory for mappings and other resources").default("cache")
     val server by parser.option(ArgType.Boolean, description = "Include server mappings in the documentation").default(false)
     val client by parser.option(ArgType.Boolean, description = "Include client mappings in the documentation").default(false)
@@ -91,6 +105,28 @@ fun main(args: Array<String>) {
         logger.error { "no mappings were specified, add --server and/or --client" }
         exitProcess(-1)
     }
+
+    val namespaceKeys = namespace.distinct().ifEmpty { NAMESPACES.keys }
+    fun <T : MappingContributor> MutableCollection<T>.addIfSupported(c: T): Boolean {
+        return c.takeIf { it.targetNamespace in namespaceKeys }?.let(::add) ?: false
+    }
+
+    val resolvedNamespaces = namespaceKeys.map { m ->
+        val ns = NAMESPACES[m]
+        if (ns == null) {
+            logger.error { "namespace $m not found, has to be one of [${NAMESPACES.keys.joinToString()}]" }
+            exitProcess(-1)
+        }
+
+        m to ns
+    }
+
+    val ancestryNamespaces = namespaceKeys
+        .filter(ancestryNamespace::contains)
+        .ifEmpty {
+            listOf("mojang", "spigot", "searge", "intermediary")
+                .filter(namespaceKeys::contains)
+        }
 
     val workspace = workspace {
         rootDirectory(output)
@@ -139,30 +175,44 @@ fun main(args: Array<String>) {
             buildList {
                 if (server) {
                     add(VanillaServerMappingContributor(versionWorkspace, mojangProvider, relaxedCache = !strictCache))
-                    add(MojangServerMappingResolver(versionWorkspace, mojangProvider))
+                    addIfSupported(MojangServerMappingResolver(versionWorkspace, mojangProvider))
                 }
                 if (client) {
                     add(VanillaClientMappingContributor(versionWorkspace, mojangProvider, relaxedCache = !strictCache))
-                    add(MojangClientMappingResolver(versionWorkspace, mojangProvider))
+                    addIfSupported(MojangClientMappingResolver(versionWorkspace, mojangProvider))
                 }
 
-                add(IntermediaryMappingResolver(versionWorkspace, sharedCache))
-                add(YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache = !strictCache))
-                add(SeargeMappingResolver(versionWorkspace, sharedCache, relaxedCache = !strictCache))
+                addIfSupported(IntermediaryMappingResolver(versionWorkspace, sharedCache))
+                addIfSupported(YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache = !strictCache))
+                addIfSupported(SeargeMappingResolver(versionWorkspace, sharedCache, relaxedCache = !strictCache))
 
                 // Spigot resolvers have to be last
                 if (server) {
                     val link = LegacySpigotMappingPrepender.Link()
 
-                    add(
-                        // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
-                        // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
+                    addIfSupported(
                         link.createPrependingContributor(
-                            SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache = !strictCache),
+                            SpigotClassMappingResolver(
+                                versionWorkspace,
+                                xmlMapper,
+                                spigotProvider,
+                                relaxedCache = !strictCache
+                            ),
+                            // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
+                            // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
                             prependEverything = versionWorkspace.version.id == "1.16.5"
                         )
                     )
-                    add(link.createPrependingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache = !strictCache)))
+                    addIfSupported(
+                        link.createPrependingContributor(
+                            SpigotMemberMappingResolver(
+                                versionWorkspace,
+                                xmlMapper,
+                                spigotProvider,
+                                relaxedCache = !strictCache
+                            )
+                        )
+                    )
                 }
             }
         }
@@ -181,6 +231,7 @@ fun main(args: Array<String>) {
 
     val mappingProvider = ResolvingMappingProvider(mappingConfig, objectMapper, xmlMapper)
     val analyzer = MappingAnalyzerImpl(
+        // if the namespaces are missing, nothing happens anyway - no need to configure based on resolvedNamespaces
         AnalysisOptions(
             innerClassNameCompletionCandidates = setOf("spigot"),
             inheritanceAdditionalNamespaces = setOf("searge") // mojang could be here too for maximal parity, but that's in exchange for a little bit of performance
@@ -232,18 +283,18 @@ fun main(args: Array<String>) {
             }
         }
 
+        index(indexers)
         logger.info { "using ${indexers.size} javadoc indexer(s)" }
 
-        index(indexers)
+        namespaces += resolvedNamespaces
+        friendlyNamespaces(resolvedNamespaces.map { (name, _) -> name })
 
-        replaceCraftBukkitVersions("spigot")
-        friendlyNamespaces("mojang", "spigot", "yarn", "searge", "intermediary", "source")
-        namespace("mojang", "Mojang", "#4D7C0F", AbstractMojangMappingResolver.META_LICENSE)
-        namespace("spigot", "Spigot", "#CA8A04", AbstractSpigotMappingResolver.META_LICENSE)
-        namespace("yarn", "Yarn", "#626262", YarnMappingResolver.META_LICENSE)
-        namespace("searge", "Searge", "#B91C1C", SeargeMappingResolver.META_LICENSE)
-        namespace("intermediary", "Intermediary", "#0369A1", IntermediaryMappingResolver.META_LICENSE)
+        // source/Obfuscated is always present
+        friendlyNamespaces("source")
         namespace("source", "Obfuscated", "#581C87")
+
+        logger.info { "using [${namespaceFriendlinessIndex.joinToString()}] namespaces" }
+        logger.info { "using [${ancestryNamespaces.joinToString()}] ancestry namespaces" }
     }
 
     val generator = WebGenerator(workspace, webConfig)
@@ -260,7 +311,7 @@ fun main(args: Array<String>) {
 
             generator.generate(
                 SimpleMappingProvider(mappings),
-                SimpleAncestryProvider(null, listOf("mojang", "spigot", "searge", "intermediary"))
+                SimpleAncestryProvider(null, ancestryNamespaces)
             )
         }
     }

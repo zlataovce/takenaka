@@ -126,6 +126,8 @@ Usage: web-cli options_list
 Options: 
     --output, -o [output] -> Output directory { String }
     --version, -v -> Target Minecraft version, can be specified multiple times (always required) { String }
+    --namespace, -n -> Target namespace, can be specified multiple times, order matters { String }
+    --ancestryNamespace, -a -> Target ancestry namespace, can be specified multiple times, has to be a subset of --namespace { String }
     --cache, -c [cache] -> Caching directory for mappings and other resources { String }
     --server [false] -> Include server mappings in the documentation 
     --client [false] -> Include client mappings in the documentation 
@@ -142,6 +144,27 @@ Options:
 
 The command-line to build a [mappings.cephx.dev](https://mappings.cephx.dev) clone would look something like this:
 `java -jar generator-web-cli-<latest version here>.jar --server -v 1.20.2 -v 1.20.1 ... (more versions follow)`
+
+#### `--namespace` option
+
+This option allows you to specify a custom namespace subset and preference ordering.
+Useful if you want to build an instance for only modding mappings for example.
+
+For the Fabric toolchain, you would specify something along the lines of `-n yarn -n intermediary`,
+that resolves only the Yarn and Intermediary mappings, with Yarn names used for the links/overview pages/...
+and Intermediary being a fallback that is used if a Yarn name is not present.
+Both namespaces will still be shown as usual on class detail pages.
+
+*The `source` (obfuscated) namespace is always implicitly appended last.*
+
+By default, all available namespaces are used (`mojang, spigot, yarn, searge, intermediary`).
+
+#### `--ancestryNamespace` option
+
+This option allows you to select a subset of defined namespaces (`--namespace` choices or its default), which will be
+used for ancestry computation. This option is more advanced and most users won't need to use it, the default suffices for most cases.
+
+By default, the `mojang, spigot, searge, intermediary` namespaces are used, minus ones that haven't been defined (`--namespace` choices or its default).
 
 #### `--javadoc` option
 
