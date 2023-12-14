@@ -135,7 +135,7 @@ abstract class GenerationTask : DefaultTask() {
 
     init {
         outputDir.convention(project.layout.buildDirectory.dir("takenaka/output"))
-        namespaceFriendlinessIndex.convention(listOf("mojang", "spigot", "yarn", "searge", "intermediary", "source"))
+        namespaceFriendlinessIndex.convention(listOf("mojang", "spigot", "yarn", "quilt", "searge", "intermediary", "source"))
         codeLanguage.convention(CodeLanguage.JAVA)
         accessorType.convention(AccessorType.NONE)
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
