@@ -167,6 +167,8 @@ fun main(args: Array<String>) {
         intercept(::ObjectOverrideFilter)
         // remove obfuscated method parameter names, they are a filler from Searge
         intercept(::MethodArgSourceFilter)
+        // intern names to save memory
+        intercept(::StringInterningAdapter)
 
         contributors { versionWorkspace ->
             val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper, relaxedCache = !strictCache)
