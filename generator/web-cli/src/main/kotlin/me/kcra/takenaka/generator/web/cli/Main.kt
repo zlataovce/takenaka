@@ -291,6 +291,9 @@ fun main(args: Array<String>) {
         namespaces += resolvedNamespaces
         friendlyNamespaces(resolvedNamespaces.map { (name, _) -> name })
 
+        // replace CraftBukkit version strings if a Spigot namespace is requested
+        if ("spigot" in namespaces) replaceCraftBukkitVersions("spigot")
+
         // source/Obfuscated is always present
         friendlyNamespaces("source")
         namespace("source", "Obfuscated", "#581C87")
