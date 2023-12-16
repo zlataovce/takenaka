@@ -126,7 +126,7 @@ fun main(args: Array<String>) {
     val ancestryNamespaces = namespaceKeys
         .filter(ancestryNamespace::contains)
         .ifEmpty {
-            listOf("mojang", "spigot", "searge", "hashed", "intermediary")
+            listOf("mojang", "spigot", "searge", "intermediary")
                 .filter(namespaceKeys::contains)
         }
 

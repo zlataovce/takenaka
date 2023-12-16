@@ -164,7 +164,7 @@ By default, all available namespaces are used (`mojang, spigot, yarn, searge, in
 This option allows you to select a subset of defined namespaces (`--namespace` choices or its default), which will be
 used for ancestry computation. This option is more advanced and most users won't need to use it, the default suffices for most cases.
 
-By default, the `mojang, spigot, searge, intermediary, hashed` namespaces are used, minus ones that haven't been defined (`--namespace` choices or its default).
+By default, the `mojang, spigot, searge, intermediary` namespaces are used, minus ones that haven't been defined (`--namespace` choices or its default).
 
 #### `--javadoc` option
 
