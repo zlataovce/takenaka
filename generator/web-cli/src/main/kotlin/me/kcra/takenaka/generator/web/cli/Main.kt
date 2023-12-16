@@ -54,6 +54,7 @@ val NAMESPACES = mapOf(
     "quilt" to NamespaceDescription("Quilt", "#9722ff", QuiltMappingResolver.META_LICENSE),
     "searge" to NamespaceDescription("Searge", "#B91C1C", SeargeMappingResolver.META_LICENSE),
     "intermediary" to NamespaceDescription("Intermediary", "#0369A1", IntermediaryMappingResolver.META_LICENSE),
+    "hashed" to NamespaceDescription("Hashed", "#3344ff", null),
 )
 
 /**
@@ -125,7 +126,7 @@ fun main(args: Array<String>) {
     val ancestryNamespaces = namespaceKeys
         .filter(ancestryNamespace::contains)
         .ifEmpty {
-            listOf("mojang", "spigot", "searge", "intermediary")
+            listOf("mojang", "spigot", "searge", "hashed", "intermediary")
                 .filter(namespaceKeys::contains)
         }
 
@@ -187,6 +188,7 @@ fun main(args: Array<String>) {
                 }
 
                 addIfSupported(IntermediaryMappingResolver(versionWorkspace, sharedCache))
+                addIfSupported(HashedMappingResolver(versionWorkspace))
                 addIfSupported(YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache = !strictCache))
                 addIfSupported(QuiltMappingResolver(versionWorkspace, quiltProvider, relaxedCache = !strictCache))
                 addIfSupported(SeargeMappingResolver(versionWorkspace, sharedCache, relaxedCache = !strictCache))

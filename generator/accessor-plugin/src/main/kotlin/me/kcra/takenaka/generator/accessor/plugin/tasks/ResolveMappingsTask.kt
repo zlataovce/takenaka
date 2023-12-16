@@ -226,6 +226,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
                             }
 
                             add(IntermediaryMappingResolver(versionWorkspace, sharedCacheWorkspace))
+                            add(HashedMappingResolver(versionWorkspace))
                             add(YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache.get()))
                             add(QuiltMappingResolver(versionWorkspace, quiltProvider, relaxedCache.get()))
                             add(SeargeMappingResolver(versionWorkspace, sharedCacheWorkspace, relaxedCache = relaxedCache.get()))
