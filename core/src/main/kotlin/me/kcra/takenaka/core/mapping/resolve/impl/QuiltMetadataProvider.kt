@@ -57,16 +57,8 @@ class QuiltMetadataProvider(val workspace: Workspace, private val xmlMapper: Obj
      */
     private fun parseVersions(): Map<String, List<QuiltBuild>> = buildMap<String, MutableList<QuiltBuild>> {
         metadata["versioning"]["versions"]["version"].forEach { versionNode ->
-            val buildString = versionNode.asText()
-
-            val lastDotIndex = buildString.lastIndexOf('.')
-
-            var version = buildString.substring(0, lastDotIndex)
-            version = version.removeSuffix("+build")
-
-            val buildNumber = buildString.substring(lastDotIndex + 1, buildString.length).toInt()
-
-            getOrPut(version, ::mutableListOf) += QuiltBuild(version, buildNumber)
+            val (version, buildNumber) = versionNode.asText().split("+build.", limit = 2)
+            getOrPut(version, ::mutableListOf) += QuiltBuild(version, buildNumber.toInt())
         }
     }
 
@@ -81,10 +73,10 @@ class QuiltMetadataProvider(val workspace: Workspace, private val xmlMapper: Obj
         if (relaxedCache && METADATA in workspace) {
             try {
                 return xmlMapper.readTree(file).apply {
-                    logger.info { "read cached Quilt Mappings metadata" }
+                    logger.info { "read cached Quilt mappings metadata" }
                 }
             } catch (e: JacksonException) {
-                logger.warn(e) { "failed to read cached Quilt Mappings metadata, fetching it again" }
+                logger.warn(e) { "failed to read cached Quilt mappings metadata, fetching it again" }
             }
         }
 

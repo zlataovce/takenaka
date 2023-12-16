@@ -46,7 +46,7 @@ import kotlin.io.path.reader
 private val logger = KotlinLogging.logger {}
 
 /**
- * A resolver for the Quilt Mappings from QuiltMC.
+ * A resolver for the Quilt mappings from QuiltMC.
  *
  * @property workspace the workspace
  * @property quiltProvider the Quilt metadata provider
@@ -81,26 +81,18 @@ class QuiltMappingResolver(
 
             val builds = quiltProvider.versions[version.id]
             if (builds == null) {
-                logger.info { "did not find Quilt Mappings mappings for ${version.id}" }
+                logger.info { "did not find Quilt mappings for ${version.id}" }
                 return@resolver null
             }
 
             val targetBuild = builds.maxBy(QuiltBuild::buildNumber)
 
-            var urlString = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/$targetBuild/quilt-mappings-$targetBuild-intermediary-mergedv2.jar"
+            var urlString = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/$targetBuild/quilt-mappings-$targetBuild-mergedv2.jar"
             URL(urlString).httpRequest(method = "HEAD") { mergedv2 ->
                 if (!mergedv2.ok) {
-                    logger.info { "mergedv2 Quilt Mappings JAR for ${version.id} failed to fetch, falling back to v2" }
+                    logger.info { "mergedv2 Quilt mappings JAR for ${version.id} failed to fetch, falling back to no classifier" }
 
-                    urlString = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/$targetBuild/quilt-mappings-$targetBuild-intermediary-v2.jar"
-                    URL(urlString).httpRequest(method = "HEAD") { v2 ->
-                        if (!v2.ok) {
-                            logger.info { "v2 Quilt Mappings JAR for ${version.id} failed to fetch, falling back to no classifier" }
-
-                            urlString =
-                                "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/$targetBuild/quilt-mappings-$targetBuild.jar"
-                        }
-                    }
+                    urlString = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/$targetBuild/quilt-mappings-$targetBuild.jar"
                 }
             }
 
@@ -113,27 +105,27 @@ class QuiltMappingResolver(
                         val checksum = file.getChecksum(sha1Digest)
 
                         if (it.readText() == checksum) {
-                            logger.info { "matched checksum for cached ${version.id} Quilt Mappings" }
+                            logger.info { "matched checksum for cached ${version.id} Quilt mappings" }
                             return@resolver findMappingFile(file)
                         }
                     } else if (file.fileSize() == url.contentLength) {
-                        logger.info { "matched same length for cached ${version.id} Quilt Mappings" }
+                        logger.info { "matched same length for cached ${version.id} Quilt mappings" }
                         return@resolver findMappingFile(file)
                     }
                 }
 
-                logger.warn { "checksum/length mismatch for ${version.id} Quilt Mappings cache, fetching them again" }
+                logger.warn { "checksum/length mismatch for ${version.id} Quilt mappings cache, fetching them again" }
             }
 
             url.httpRequest {
                 if (it.ok) {
                     it.copyTo(file)
 
-                    logger.info { "fetched ${version.id} Quilt Mappings" }
+                    logger.info { "fetched ${version.id} Quilt mappings" }
                     return@resolver findMappingFile(file)
                 }
 
-                logger.warn { "failed to fetch ${version.id} Quilt Mappings, received ${it.responseCode}" }
+                logger.warn { "failed to fetch ${version.id} Quilt mappings, received ${it.responseCode}" }
             }
 
             return@resolver null
@@ -158,9 +150,9 @@ class QuiltMappingResolver(
                     logger.info { "fetched ${version.id} Quilt license file" }
                     return@resolver file
                 } else if (it.responseCode == 404) {
-                    logger.info { "did not find ${version.id} Quilt Mappings license file" }
+                    logger.info { "did not find ${version.id} Quilt mappings license file" }
                 } else {
-                    logger.warn { "failed to fetch Quilt Mappings license file, received ${it.responseCode}" }
+                    logger.warn { "failed to fetch Quilt mappings license file, received ${it.responseCode}" }
                 }
             }
 
@@ -179,24 +171,7 @@ class QuiltMappingResolver(
         val mappingPath by mappingOutput
 
         mappingPath?.reader()?.use { reader ->
-            val visitor0 = visitor.unwrap()
-
-            // FIXME: this shouldn't be here, but it's necessary for mapping-io to map Quilt parameter names
-            // add missing intermediary mappings for constructors, an equivalent of StandardProblemKinds#SPECIAL_METHOD_NOT_MAPPED
-            if (visitor0 is MappingTree) {
-                val nsId = visitor0.getNamespaceId("intermediary")
-                if (nsId != MappingTree.NULL_NAMESPACE_ID) {
-                    visitor0.classes.forEach { klass ->
-                        klass.methods.forEach { method ->
-                            if (method.isConstructor) {
-                                method.setDstName(method.srcName, nsId)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Quilt has official, named and intermediary namespaces
+            // Quilt has official, named and hashed namespaces
             // official is the obfuscated one
             MappingReader.read(
                 reader, MappingNsRenamer(
@@ -231,7 +206,7 @@ class QuiltMappingResolver(
                 val entry = it.stream()
                     .filter { e -> e.name == "mappings/mappings.tiny" }
                     .findFirst()
-                    .orElseThrow { RuntimeException("Could not find mapping file in zip file (Quilt Mappings, ${version.id})") }
+                    .orElseThrow { RuntimeException("Could not find mapping file in zip file (Quilt mappings, ${version.id})") }
 
                 Files.copy(it.getInputStream(entry), mappingFile, StandardCopyOption.REPLACE_EXISTING)
             }
