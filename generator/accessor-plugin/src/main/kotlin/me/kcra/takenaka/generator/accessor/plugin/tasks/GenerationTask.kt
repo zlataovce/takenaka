@@ -73,7 +73,7 @@ abstract class GenerationTask : DefaultTask() {
 
     /**
      * An ordered list of namespaces that will be considered when selecting a "friendly" name,
-     * defaults to "mojang", "spigot", "yarn", "searge", "intermediary" and "source".
+     * defaults to "mojang", "spigot", "yarn", "quilt", "searge", "intermediary", "hashed" and "source".
      */
     @get:Input
     abstract val namespaceFriendlinessIndex: ListProperty<String>
@@ -135,7 +135,7 @@ abstract class GenerationTask : DefaultTask() {
 
     init {
         outputDir.convention(project.layout.buildDirectory.dir("takenaka/output"))
-        namespaceFriendlinessIndex.convention(listOf("mojang", "spigot", "yarn", "searge", "intermediary", "source"))
+        namespaceFriendlinessIndex.convention(listOf("mojang", "spigot", "yarn", "quilt", "searge", "intermediary", "hashed", "source"))
         codeLanguage.convention(CodeLanguage.JAVA)
         accessorType.convention(AccessorType.NONE)
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))

@@ -193,6 +193,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
                 val xmlMapper = XmlMapper()
 
                 val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, xmlMapper, relaxedCache.get())
+                val quiltProvider = QuiltMetadataProvider(sharedCacheWorkspace, xmlMapper, relaxedCache.get())
                 val mappingConfig = buildMappingConfig {
                     version(requiredVersions)
                     workspace(mappingCacheWorkspace)
@@ -225,7 +226,9 @@ abstract class ResolveMappingsTask : DefaultTask() {
                             }
 
                             add(IntermediaryMappingResolver(versionWorkspace, sharedCacheWorkspace))
+                            add(HashedMappingResolver(versionWorkspace))
                             add(YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache.get()))
+                            add(QuiltMappingResolver(versionWorkspace, quiltProvider, relaxedCache.get()))
                             add(SeargeMappingResolver(versionWorkspace, sharedCacheWorkspace, relaxedCache = relaxedCache.get()))
 
                             // Spigot resolvers have to be last

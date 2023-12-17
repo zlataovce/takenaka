@@ -51,8 +51,10 @@ val NAMESPACES = mapOf(
     "mojang" to NamespaceDescription("Mojang", "#4D7C0F", AbstractMojangMappingResolver.META_LICENSE),
     "spigot" to NamespaceDescription("Spigot", "#CA8A04", AbstractSpigotMappingResolver.META_LICENSE),
     "yarn" to NamespaceDescription("Yarn", "#626262", YarnMappingResolver.META_LICENSE),
+    "quilt" to NamespaceDescription("Quilt", "#9722ff", QuiltMappingResolver.META_LICENSE),
     "searge" to NamespaceDescription("Searge", "#B91C1C", SeargeMappingResolver.META_LICENSE),
     "intermediary" to NamespaceDescription("Intermediary", "#0369A1", IntermediaryMappingResolver.META_LICENSE),
+    "hashed" to NamespaceDescription("Hashed", "#3344ff", null),
 )
 
 /**
@@ -153,6 +155,7 @@ fun main(args: Array<String>) {
     }
 
     val yarnProvider = YarnMetadataProvider(sharedCache, xmlMapper, relaxedCache = !strictCache)
+    val quiltProvider = QuiltMetadataProvider(sharedCache, xmlMapper, relaxedCache = !strictCache)
     val mappingConfig = buildMappingConfig {
         version(version)
         workspace(mappingsCache)
@@ -185,7 +188,9 @@ fun main(args: Array<String>) {
                 }
 
                 addIfSupported(IntermediaryMappingResolver(versionWorkspace, sharedCache))
+                addIfSupported(HashedMappingResolver(versionWorkspace))
                 addIfSupported(YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache = !strictCache))
+                addIfSupported(QuiltMappingResolver(versionWorkspace, quiltProvider, relaxedCache = !strictCache))
                 addIfSupported(SeargeMappingResolver(versionWorkspace, sharedCache, relaxedCache = !strictCache))
 
                 // Spigot resolvers have to be last
