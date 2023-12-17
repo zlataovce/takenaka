@@ -97,7 +97,7 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
     abstract val accessedNamespaces: ListProperty<String>
 
     /**
-     * Namespaces that should be used for computing history, defaults to "mojang", "spigot", "searge", "intermediary" and "hashed".
+     * Namespaces that should be used for computing history, defaults to "mojang", "spigot", "searge" and "intermediary".
      */
     abstract val historyNamespaces: ListProperty<String>
 
