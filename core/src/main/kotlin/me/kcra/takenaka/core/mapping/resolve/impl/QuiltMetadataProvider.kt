@@ -21,8 +21,7 @@ import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.util.copyTo
-import me.kcra.takenaka.core.util.readTree
+import me.kcra.takenaka.core.util.*
 import mu.KotlinLogging
 import java.net.URL
 
@@ -70,17 +69,25 @@ class QuiltMetadataProvider(val workspace: Workspace, private val xmlMapper: Obj
     private fun readMetadata(): JsonNode {
         val file = workspace[METADATA]
 
+        val metadataLocation = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/maven-metadata.xml"
+
         if (relaxedCache && METADATA in workspace) {
-            try {
-                return xmlMapper.readTree(file).apply {
-                    logger.info { "read cached Quilt mappings metadata" }
+            URL("$metadataLocation.sha1").httpRequest {
+                if (it.readText() == file.getChecksum(sha1Digest)) {
+                    try {
+                        return xmlMapper.readTree(file).apply {
+                            logger.info { "read cached Quilt mappings metadata" }
+                        }
+                    } catch (e: JacksonException) {
+                        logger.warn(e) { "failed to read cached Quilt mappings metadata, fetching it again" }
+                    }
+                } else {
+                    logger.warn { "cached Quilt mappings metadata is outdated or corrupt, fetching it again" }
                 }
-            } catch (e: JacksonException) {
-                logger.warn(e) { "failed to read cached Quilt mappings metadata, fetching it again" }
             }
         }
 
-        URL("https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/maven-metadata.xml").copyTo(file)
+        URL(metadataLocation).copyTo(file)
 
         logger.info { "fetched Quilt metadata" }
         return xmlMapper.readTree(file)

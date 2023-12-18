@@ -21,8 +21,7 @@ import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.Workspace
-import me.kcra.takenaka.core.util.copyTo
-import me.kcra.takenaka.core.util.readTree
+import me.kcra.takenaka.core.util.*
 import mu.KotlinLogging
 import java.net.URL
 
@@ -78,17 +77,25 @@ class YarnMetadataProvider(val workspace: Workspace, private val xmlMapper: Obje
     private fun readMetadata(): JsonNode {
         val file = workspace[METADATA]
 
+        val metadataLocation = "https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml"
+
         if (relaxedCache && METADATA in workspace) {
-            try {
-                return xmlMapper.readTree(file).apply {
-                    logger.info { "read cached Yarn metadata" }
+            URL("$metadataLocation.sha1").httpRequest {
+                if (it.readText() == file.getChecksum(sha1Digest)) {
+                    try {
+                        return xmlMapper.readTree(file).apply {
+                            logger.info { "read cached Yarn mappings metadata" }
+                        }
+                    } catch (e: JacksonException) {
+                        logger.warn(e) { "failed to read cached Yarn mappings metadata, fetching it again" }
+                    }
+                } else {
+                    logger.warn { "cached Yarn mappings metadata is outdated or corrupt, fetching it again" }
                 }
-            } catch (e: JacksonException) {
-                logger.warn(e) { "failed to read cached Yarn metadata, fetching it again" }
             }
         }
 
-        URL("https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml").copyTo(file)
+        URL(metadataLocation).copyTo(file)
 
         logger.info { "fetched Yarn metadata" }
         return xmlMapper.readTree(file)
