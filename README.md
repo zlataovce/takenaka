@@ -143,7 +143,7 @@ Options:
 ```
 
 The command-line to build a [mappings.cephx.dev](https://mappings.cephx.dev) clone would look something like this:
-`java -jar generator-web-cli-<latest version here>.jar --server -v 1.20.2 -v 1.20.1 ... (more versions follow)`
+`java -jar generator-web-cli-<latest version here>.jar --server -n mojang -n spigot -n yarn -n searge -n intermediary -v 1.20.2 -v 1.20.1 ... (more versions follow)`
 
 #### `--namespace` option
 
@@ -157,7 +157,7 @@ Both namespaces will still be shown as usual on class detail pages.
 
 *The `source` (obfuscated) namespace is always implicitly appended last.*
 
-By default, all available namespaces are used (`mojang, spigot, yarn, searge, intermediary, hashed`).
+By default, all available namespaces are used (`mojang, spigot, yarn, quilt, searge, intermediary, hashed`).
 
 #### `--ancestryNamespace` option
 

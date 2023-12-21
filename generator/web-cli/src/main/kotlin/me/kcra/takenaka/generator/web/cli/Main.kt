@@ -29,7 +29,9 @@ import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.analysis.impl.StandardProblemKinds
 import me.kcra.takenaka.core.mapping.resolve.impl.*
+import me.kcra.takenaka.core.util.md5Digest
 import me.kcra.takenaka.core.util.objectMapper
+import me.kcra.takenaka.core.util.updateAndHex
 import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.common.provider.impl.ResolvingMappingProvider
 import me.kcra.takenaka.generator.common.provider.impl.SimpleAncestryProvider
@@ -226,13 +228,13 @@ fun main(args: Array<String>) {
 
         joinedOutputPath { workspace ->
             if (noJoined) return@joinedOutputPath null
-            val fileName = when {
-                client && server -> "client+server.tiny"
-                client -> "client.tiny"
-                else -> "server.tiny"
+            val platform = when {
+                client && server -> "client+server"
+                client -> "client"
+                else -> "server"
             }
 
-            workspace[fileName]
+            workspace["${md5Digest.updateAndHex(namespaceKeys.sorted().joinToString(","))}.$platform.tiny"]
         }
     }
 
