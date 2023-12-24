@@ -70,7 +70,6 @@ class QuiltMetadataProvider(val workspace: Workspace, private val xmlMapper: Obj
         val file = workspace[METADATA]
 
         val metadataLocation = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/maven-metadata.xml"
-
         if (relaxedCache && METADATA in workspace) {
             URL("$metadataLocation.sha1").httpRequest {
                 if (it.readText() == file.getChecksum(sha1Digest)) {

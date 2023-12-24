@@ -18,6 +18,9 @@
 package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.matchers.isConstructor
@@ -55,8 +58,7 @@ class YarnMappingResolver(
     val yarnProvider: YarnMetadataProvider,
     val relaxedCache: Boolean = true
 ) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
-    override val licenseSource: String
-        get() = "https://raw.githubusercontent.com/FabricMC/yarn/${version.id}/LICENSE"
+    override val licenseSource: String = "https://raw.githubusercontent.com/FabricMC/yarn/${version.id}/LICENSE"
     override val targetNamespace: String = "yarn"
     override val outputs: List<Output<out Path?>>
         get() = listOf(mappingOutput, licenseOutput)
@@ -82,56 +84,56 @@ class YarnMappingResolver(
             }
 
             val targetBuild = builds.maxBy(YarnBuild::buildNumber)
+            withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                var urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild-mergedv2.jar"
+                URL(urlString).httpRequest(method = "HEAD") { mergedv2 ->
+                    if (!mergedv2.ok) {
+                        logger.info { "mergedv2 Yarn JAR for ${version.id} failed to fetch, falling back to v2" }
 
-            var urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild-mergedv2.jar"
-            URL(urlString).httpRequest(method = "HEAD") { mergedv2 ->
-                if (!mergedv2.ok) {
-                    logger.info { "mergedv2 Yarn JAR for ${version.id} failed to fetch, falling back to v2" }
+                        urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild-v2.jar"
+                        URL(urlString).httpRequest(method = "HEAD") { v2 ->
+                            if (!v2.ok) {
+                                logger.info { "v2 Yarn JAR for ${version.id} failed to fetch, falling back to no classifier" }
 
-                    urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild-v2.jar"
-                    URL(urlString).httpRequest(method = "HEAD") { v2 ->
-                        if (!v2.ok) {
-                            logger.info { "v2 Yarn JAR for ${version.id} failed to fetch, falling back to no classifier" }
-
-                            urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild.jar"
+                                urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild.jar"
+                            }
                         }
                     }
                 }
-            }
 
-            val url = URL(urlString)
-            val checksumUrl = URL("$urlString.sha1")
+                val url = URL(urlString)
+                val checksumUrl = URL("$urlString.sha1")
 
-            if (MAPPING_JAR in workspace) {
-                checksumUrl.httpRequest {
+                if (MAPPING_JAR in workspace) {
+                    checksumUrl.httpRequest {
+                        if (it.ok) {
+                            val checksum = file.getChecksum(sha1Digest)
+
+                            if (it.readText() == checksum) {
+                                logger.info { "matched checksum for cached ${version.id} Yarn mappings" }
+                                return@withContext findMappingFile(file)
+                            }
+                        } else if (file.fileSize() == url.contentLength) {
+                            logger.info { "matched same length for cached ${version.id} Yarn mappings" }
+                            return@withContext findMappingFile(file)
+                        }
+                    }
+
+                    logger.warn { "checksum/length mismatch for ${version.id} Yarn mapping cache, fetching them again" }
+                }
+
+                url.httpRequest {
                     if (it.ok) {
-                        val checksum = file.getChecksum(sha1Digest)
+                        it.copyTo(file)
 
-                        if (it.readText() == checksum) {
-                            logger.info { "matched checksum for cached ${version.id} Yarn mappings" }
-                            return@resolver findMappingFile(file)
-                        }
-                    } else if (file.fileSize() == url.contentLength) {
-                        logger.info { "matched same length for cached ${version.id} Yarn mappings" }
-                        return@resolver findMappingFile(file)
+                        logger.info { "fetched ${version.id} Yarn mappings" }
+                        return@httpRequest findMappingFile(file)
                     }
+
+                    logger.warn { "failed to fetch ${version.id} Yarn mappings, received ${it.responseCode}" }
+                    return@httpRequest null
                 }
-
-                logger.warn { "checksum/length mismatch for ${version.id} Yarn mapping cache, fetching them again" }
             }
-
-            url.httpRequest {
-                if (it.ok) {
-                    it.copyTo(file)
-
-                    logger.info { "fetched ${version.id} Yarn mappings" }
-                    return@resolver findMappingFile(file)
-                }
-
-                logger.warn { "failed to fetch ${version.id} Yarn mappings, received ${it.responseCode}" }
-            }
-
-            return@resolver null
         }
         
         upToDateWhen { it == null || it.isRegularFile() }
@@ -146,20 +148,22 @@ class YarnMappingResolver(
                 return@resolver file
             }
 
-            URL(licenseSource).httpRequest {
-                if (it.ok) {
-                    it.copyTo(file)
+            withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                URL(licenseSource).httpRequest {
+                    if (it.ok) {
+                        it.copyTo(file)
 
-                    logger.info { "fetched ${version.id} Yarn license file" }
-                    return@resolver file
-                } else if (it.responseCode == 404) {
-                    logger.info { "did not find ${version.id} Yarn license file" }
-                } else {
-                    logger.warn { "failed to fetch Yarn license file, received ${it.responseCode}" }
+                        logger.info { "fetched ${version.id} Yarn license file" }
+                        return@httpRequest file
+                    } else if (it.responseCode == 404) {
+                        logger.info { "did not find ${version.id} Yarn license file" }
+                    } else {
+                        logger.warn { "failed to fetch Yarn license file, received ${it.responseCode}" }
+                    }
+
+                    return@httpRequest null
                 }
             }
-
-            return@resolver null
         }
         
         upToDateWhen { it == null || it.isRegularFile() }

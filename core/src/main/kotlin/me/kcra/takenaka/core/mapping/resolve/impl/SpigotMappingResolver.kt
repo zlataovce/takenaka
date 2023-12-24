@@ -18,6 +18,9 @@
 package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.resolve.AbstractMappingResolver
@@ -93,19 +96,20 @@ abstract class AbstractSpigotMappingResolver(
                 return@resolver file
             }
 
-            // manifest is going to be non-null, since it's used to fetch mappingAttribute
-            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/${mappingAttribute.value}?at=${spigotProvider.manifest!!.refs["BuildData"]}").httpRequest {
-                if (it.ok) {
-                    it.copyTo(file)
+            withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                // manifest is going to be non-null, since it's used to fetch mappingAttribute
+                URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/mappings/${mappingAttribute.value}?at=${spigotProvider.manifest!!.refs["BuildData"]}").httpRequest {
+                    if (it.ok) {
+                        it.copyTo(file)
 
-                    logger.info { "fetched ${version.id} Spigot mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value})" }
-                    return@resolver file
+                        logger.info { "fetched ${version.id} Spigot mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value})" }
+                        return@httpRequest file
+                    }
+
+                    logger.warn { "failed to fetch ${version.id} Spigot mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value}), received ${it.responseCode}" }
+                    return@httpRequest null
                 }
-
-                logger.warn { "failed to fetch ${version.id} Spigot mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value}), received ${it.responseCode}" }
             }
-
-            return@resolver null
         }
 
         upToDateWhen { it == null || it.isRegularFile() }
@@ -116,16 +120,18 @@ abstract class AbstractSpigotMappingResolver(
             val file = workspace[LICENSE]
             val mappingPath by mappingOutput
 
-            mappingPath?.bufferedReader()?.use {
-                val line = it.readLine()
+            withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                mappingPath?.bufferedReader()?.use {
+                    val line = it.readLine()
 
-                if (line.startsWith("# ")) {
-                    file.writeText(line.drop(2))
-                    return@resolver file
+                    if (line.startsWith("# ")) {
+                        file.writeText(line.drop(2))
+                        return@withContext file
+                    }
                 }
-            }
 
-            return@resolver null
+                return@withContext null
+            }
         }
 
         upToDateWhen { it == null || it.isRegularFile() }
@@ -146,18 +152,19 @@ abstract class AbstractSpigotMappingResolver(
                 return@resolver file
             }
 
-            URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/raw/pom.xml?at=${manifest.refs["CraftBukkit"]}").httpRequest {
-                if (it.ok) {
-                    it.copyTo(file)
+            withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/raw/pom.xml?at=${manifest.refs["CraftBukkit"]}").httpRequest {
+                    if (it.ok) {
+                        it.copyTo(file)
 
-                    logger.info { "fetched ${version.id} CraftBukkit pom.xml" }
-                    return@resolver file
+                        logger.info { "fetched ${version.id} CraftBukkit pom.xml" }
+                        return@httpRequest file
+                    }
+
+                    logger.warn { "failed to fetch ${version.id} CraftBukkit pom.xml, received ${it.responseCode}" }
+                    return@httpRequest null
                 }
-
-                logger.warn { "failed to fetch ${version.id} CraftBukkit pom.xml, received ${it.responseCode}" }
             }
-
-            return@resolver null
         }
 
         upToDateWhen { it == null || it.isRegularFile() }
@@ -189,7 +196,6 @@ abstract class AbstractSpigotMappingResolver(
         }
         
         val licensePath by licenseOutput
-        
         licensePath?.reader()?.use {
             visitor.visitMetadata(META_LICENSE, it.readText())
             visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)

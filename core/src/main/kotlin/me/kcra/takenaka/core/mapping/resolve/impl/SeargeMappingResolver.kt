@@ -17,6 +17,9 @@
 
 package me.kcra.takenaka.core.mapping.resolve.impl
 
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MappingContributor
@@ -61,7 +64,7 @@ class SeargeMappingResolver(
             val file = workspace[MCP_CONFIG]
             var url = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp_config/${version.id}/mcp_config-${version.id}.zip.sha1")
 
-            fun readMcpConfig(checksum: String): Path {
+            suspend fun readMcpConfig(checksum: String): Path {
                 if (MCP_CONFIG in workspace) {
                     val fileChecksum = file.getChecksum(sha1Digest)
 
@@ -73,29 +76,33 @@ class SeargeMappingResolver(
                     logger.warn { "checksum mismatch for ${version.id} Searge mapping cache, fetching them again" }
                 }
 
-                URL(url.toString().removeSuffix(".sha1")).copyTo(file)
+                return withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                    URL(url.toString().removeSuffix(".sha1")).copyTo(file)
 
-                logger.info { "fetched ${version.id} Searge mappings" }
-                return findMappingFile(file)
-            }
-
-            url.httpRequest {
-                if (it.ok) {
-                    return@resolver readMcpConfig(it.inputStream.reader().use(Reader::readText))
+                    logger.info { "fetched ${version.id} Searge mappings" }
+                    return@withContext findMappingFile(file)
                 }
             }
 
-            // let's try the second URL
-
-            url = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp/${version.id}/mcp-${version.id}-srg.zip.sha1")
-            url.httpRequest {
-                if (it.ok) {
-                    return@resolver readMcpConfig(it.inputStream.reader().use(Reader::readText))
+            withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                url.httpRequest {
+                    if (it.ok) {
+                        return@withContext readMcpConfig(it.inputStream.reader().use(Reader::readText))
+                    }
                 }
-            }
 
-            logger.warn { "failed to fetch ${version.id} Searge mappings, didn't find a valid URL" }
-            return@resolver null
+                // let's try the second URL
+
+                url = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp/${version.id}/mcp-${version.id}-srg.zip.sha1")
+                url.httpRequest {
+                    if (it.ok) {
+                        return@withContext readMcpConfig(it.inputStream.reader().use(Reader::readText))
+                    }
+                }
+
+                logger.warn { "failed to fetch ${version.id} Searge mappings, didn't find a valid URL" }
+                return@withContext null
+            }
         }
 
         upToDateWhen { it == null || it.isRegularFile() }
@@ -111,7 +118,7 @@ class SeargeMappingResolver(
                     return@withLock file
                 }
 
-                URL(licenseSource).copyTo(file)
+                URL(licenseSource).copyTo(file) // TODO: use IO context
 
                 logger.info { "fetched Searge license file" }
                 return@withLock file
@@ -133,14 +140,13 @@ class SeargeMappingResolver(
             // Searge has obf, srg and id namespaces; obf is the obfuscated one
             MappingReader.read(reader, MappingNsRenamer(visitor, mapOf(
                 "obf" to MappingUtil.NS_SOURCE_FALLBACK,
-                "srg" to "searge",
-                "id" to "searge_id",
+                "srg" to targetNamespace,
+                "id" to "${targetNamespace}_id",
                 // in older versions, there weren't any namespaces, so make sure to rename the fallback too
-                MappingUtil.NS_TARGET_FALLBACK to "searge"
+                MappingUtil.NS_TARGET_FALLBACK to targetNamespace
             )))
 
             val licensePath by licenseOutput
-
             licensePath.reader().use {
                 visitor.visitMetadata(META_LICENSE, it.readLines().joinToString("\\n").replace("\t", "    "))
                 visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)

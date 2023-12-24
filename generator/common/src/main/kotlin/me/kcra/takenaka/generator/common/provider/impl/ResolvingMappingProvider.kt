@@ -79,17 +79,19 @@ class ResolvingMappingProvider(
                     }
                 }
             }
-            .parallelMap(Dispatchers.Default + CoroutineName("mapping-coro")) { workspace ->
+            .parallelMap(Dispatchers.Default + CoroutineName("resolve-coro")) { workspace ->
                 val outputFile = mappingConfig.joinedOutputProvider(workspace)
                 if (outputFile != null && outputFile.isRegularFile()) {
                     // load mapping tree from file
                     try {
-                        return@parallelMap workspace.version to MemoryMappingTree().apply {
-                            outputFile.reader().use { r -> Tiny2Reader.read(r, this) }
-                            logger.info { "read ${workspace.version.id} joined mapping file from ${outputFile.pathString}" }
+                        return@parallelMap workspace.version to MemoryMappingTree().also { tree ->
+                            withContext(Dispatchers.IO + CoroutineName("io-coro")) {
+                                outputFile.reader().use { r -> Tiny2Reader.read(r, tree) }
+                                logger.info { "read ${workspace.version.id} joined mapping file from ${outputFile.pathString}" }
+                            }
 
                             if (analyzer != null) {
-                                val time = measureTimeMillis { analyzer.accept(this) }
+                                val time = measureTimeMillis { analyzer.accept(tree) }
                                 logger.info { "analyzed ${workspace.version.id} mappings in ${time}ms" }
                             }
                         }
@@ -128,8 +130,10 @@ class ResolvingMappingProvider(
                 }
 
                 if (outputFile != null && !outputFile.isDirectory()) {
-                    Tiny2Writer(outputFile.writer(), false).use { w -> tree.accept(MissingDescriptorFilter(w)) }
-                    logger.info { "wrote ${workspace.version.id} joined mapping file to ${outputFile.pathString}" }
+                    withContext(Dispatchers.IO + CoroutineName("io-coro")) {
+                        Tiny2Writer(outputFile.writer(), false).use { w -> tree.accept(MissingDescriptorFilter(w)) }
+                        logger.info { "wrote ${workspace.version.id} joined mapping file to ${outputFile.pathString}" }
+                    }
                 }
 
                 workspace.version to tree

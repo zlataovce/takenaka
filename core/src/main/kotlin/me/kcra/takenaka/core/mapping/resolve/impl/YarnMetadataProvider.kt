@@ -78,7 +78,6 @@ class YarnMetadataProvider(val workspace: Workspace, private val xmlMapper: Obje
         val file = workspace[METADATA]
 
         val metadataLocation = "https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml"
-
         if (relaxedCache && METADATA in workspace) {
             URL("$metadataLocation.sha1").httpRequest {
                 if (it.readText() == file.getChecksum(sha1Digest)) {

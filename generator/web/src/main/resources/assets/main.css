@@ -98,7 +98,7 @@ nav {
     background-color: var(--nav);
 }
 
-nav[data-collapsed="yes"] {
+nav[data-collapsed="true"] {
     flex-direction: row;
 }
 

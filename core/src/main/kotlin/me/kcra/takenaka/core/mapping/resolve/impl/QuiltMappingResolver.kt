@@ -18,21 +18,21 @@
 package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.mapping.matchers.isConstructor
 import me.kcra.takenaka.core.mapping.resolve.AbstractMappingResolver
 import me.kcra.takenaka.core.mapping.resolve.LicenseResolver
 import me.kcra.takenaka.core.mapping.resolve.Output
 import me.kcra.takenaka.core.mapping.resolve.lazyOutput
-import me.kcra.takenaka.core.mapping.util.unwrap
 import me.kcra.takenaka.core.util.*
 import mu.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
-import net.fabricmc.mappingio.tree.MappingTree
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
@@ -59,8 +59,7 @@ class QuiltMappingResolver(
     val quiltProvider: QuiltMetadataProvider,
     val relaxedCache: Boolean = true
 ) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
-    override val licenseSource: String
-        get() = "https://raw.githubusercontent.com/QuiltMC/quilt-mappings/${version.id}/LICENSE"
+    override val licenseSource: String = "https://raw.githubusercontent.com/QuiltMC/quilt-mappings/${version.id}/LICENSE"
     override val targetNamespace: String = "quilt"
     override val outputs: List<Output<out Path?>>
         get() = listOf(mappingOutput, licenseOutput)
@@ -86,49 +85,49 @@ class QuiltMappingResolver(
             }
 
             val targetBuild = builds.maxBy(QuiltBuild::buildNumber)
+            withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                var urlString = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/$targetBuild/quilt-mappings-$targetBuild-mergedv2.jar"
+                URL(urlString).httpRequest(method = "HEAD") { mergedv2 ->
+                    if (!mergedv2.ok) {
+                        logger.info { "mergedv2 Quilt mappings JAR for ${version.id} failed to fetch, falling back to no classifier" }
 
-            var urlString = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/$targetBuild/quilt-mappings-$targetBuild-mergedv2.jar"
-            URL(urlString).httpRequest(method = "HEAD") { mergedv2 ->
-                if (!mergedv2.ok) {
-                    logger.info { "mergedv2 Quilt mappings JAR for ${version.id} failed to fetch, falling back to no classifier" }
-
-                    urlString = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/$targetBuild/quilt-mappings-$targetBuild.jar"
-                }
-            }
-
-            val url = URL(urlString)
-            val checksumUrl = URL("$urlString.sha1")
-
-            if (MAPPING_JAR in workspace) {
-                checksumUrl.httpRequest {
-                    if (it.ok) {
-                        val checksum = file.getChecksum(sha1Digest)
-
-                        if (it.readText() == checksum) {
-                            logger.info { "matched checksum for cached ${version.id} Quilt mappings" }
-                            return@resolver findMappingFile(file)
-                        }
-                    } else if (file.fileSize() == url.contentLength) {
-                        logger.info { "matched same length for cached ${version.id} Quilt mappings" }
-                        return@resolver findMappingFile(file)
+                        urlString = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/$targetBuild/quilt-mappings-$targetBuild.jar"
                     }
                 }
 
-                logger.warn { "checksum/length mismatch for ${version.id} Quilt mappings cache, fetching them again" }
-            }
+                val url = URL(urlString)
+                val checksumUrl = URL("$urlString.sha1")
 
-            url.httpRequest {
-                if (it.ok) {
-                    it.copyTo(file)
+                if (MAPPING_JAR in workspace) {
+                    checksumUrl.httpRequest {
+                        if (it.ok) {
+                            val checksum = file.getChecksum(sha1Digest)
 
-                    logger.info { "fetched ${version.id} Quilt mappings" }
-                    return@resolver findMappingFile(file)
+                            if (it.readText() == checksum) {
+                                logger.info { "matched checksum for cached ${version.id} Quilt mappings" }
+                                return@withContext findMappingFile(file)
+                            }
+                        } else if (file.fileSize() == url.contentLength) {
+                            logger.info { "matched same length for cached ${version.id} Quilt mappings" }
+                            return@withContext findMappingFile(file)
+                        }
+                    }
+
+                    logger.warn { "checksum/length mismatch for ${version.id} Quilt mappings cache, fetching them again" }
                 }
 
-                logger.warn { "failed to fetch ${version.id} Quilt mappings, received ${it.responseCode}" }
-            }
+                url.httpRequest {
+                    if (it.ok) {
+                        it.copyTo(file)
 
-            return@resolver null
+                        logger.info { "fetched ${version.id} Quilt mappings" }
+                        return@httpRequest findMappingFile(file)
+                    }
+
+                    logger.warn { "failed to fetch ${version.id} Quilt mappings, received ${it.responseCode}" }
+                    return@httpRequest null
+                }
+            }
         }
 
         upToDateWhen { it == null || it.isRegularFile() }
@@ -137,26 +136,27 @@ class QuiltMappingResolver(
     override val licenseOutput = lazyOutput<Path?> {
         resolver {
             val file = workspace[LICENSE]
-
             if (LICENSE in workspace) {
                 logger.info { "found cached ${version.id} Quilt license file" }
                 return@resolver file
             }
 
-            URL(licenseSource).httpRequest {
-                if (it.ok) {
-                    it.copyTo(file)
+            withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                URL(licenseSource).httpRequest {
+                    if (it.ok) {
+                        it.copyTo(file)
 
-                    logger.info { "fetched ${version.id} Quilt license file" }
-                    return@resolver file
-                } else if (it.responseCode == 404) {
-                    logger.info { "did not find ${version.id} Quilt mappings license file" }
-                } else {
-                    logger.warn { "failed to fetch Quilt mappings license file, received ${it.responseCode}" }
+                        logger.info { "fetched ${version.id} Quilt license file" }
+                        return@httpRequest file
+                    } else if (it.responseCode == 404) {
+                        logger.info { "did not find ${version.id} Quilt mappings license file" }
+                    } else {
+                        logger.warn { "failed to fetch Quilt mappings license file, received ${it.responseCode}" }
+                    }
+
+                    return@httpRequest null
                 }
             }
-
-            return@resolver null
         }
 
         upToDateWhen { it == null || it.isRegularFile() }
@@ -173,14 +173,10 @@ class QuiltMappingResolver(
         mappingPath?.reader()?.use { reader ->
             // Quilt has official, named and hashed namespaces
             // official is the obfuscated one
-            MappingReader.read(
-                reader, MappingNsRenamer(
-                    visitor, mapOf(
-                        "official" to MappingUtil.NS_SOURCE_FALLBACK,
-                        "named" to targetNamespace
-                    )
-                )
-            )
+            MappingReader.read(reader, MappingNsRenamer(visitor, mapOf(
+                "official" to MappingUtil.NS_SOURCE_FALLBACK,
+                "named" to targetNamespace
+            )))
 
             val licensePath by licenseOutput
 
