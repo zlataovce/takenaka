@@ -29,8 +29,8 @@ import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
-import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
+import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -57,10 +57,10 @@ open class JavaGenerationContext(
      */
     override fun generateClass(resolvedAccessor: ResolvedClassAccessor) {
         val accessedQualifiedName = resolvedAccessor.model.name.fromInternalName()
-        val accessedSimpleName = resolvedAccessor.model.internalName.substringAfterLast('/')
+        val accessorSimpleName = generateNonConflictingName(resolvedAccessor.model.internalName)
 
-        val mappingClassName = JClassName.get(generator.config.basePackage, "${accessedSimpleName}Mapping")
-        val accessorClassName = JClassName.get(generator.config.basePackage, "${accessedSimpleName}Accessor")
+        val mappingClassName = JClassName.get(generator.config.basePackage, "${accessorSimpleName}Mapping")
+        val accessorClassName = JClassName.get(generator.config.basePackage, "${accessorSimpleName}Accessor")
         val accessorBuilder = JTypeSpec.interfaceBuilder(accessorClassName)
             .addModifiers(Modifier.PUBLIC)
             .addJavadoc(

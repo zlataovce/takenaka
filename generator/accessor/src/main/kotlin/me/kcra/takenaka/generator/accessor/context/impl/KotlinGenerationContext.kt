@@ -55,11 +55,11 @@ open class KotlinGenerationContext(
      */
     override fun generateClass(resolvedAccessor: ResolvedClassAccessor) {
         val accessedQualifiedName = resolvedAccessor.model.name.fromInternalName()
-        val accessedSimpleName = resolvedAccessor.model.internalName.substringAfterLast('/')
+        val accessorSimpleName = generateNonConflictingName(resolvedAccessor.model.internalName).escapeKotlinName()
 
         val typeSpecs = buildList<Any> {
-            val mappingClassName = KClassName(generator.config.basePackage, "${accessedSimpleName.escapeKotlinName()}Mapping")
-            val accessorClassName = KClassName(generator.config.basePackage, "${accessedSimpleName.escapeKotlinName()}Accessor")
+            val mappingClassName = KClassName(generator.config.basePackage, "${accessorSimpleName}Mapping")
+            val accessorClassName = KClassName(generator.config.basePackage, "${accessorSimpleName}Accessor")
             val accessorBuilder = KTypeSpec.objectBuilder(accessorClassName)
                 .addKdoc(
                     """
@@ -382,7 +382,7 @@ open class KotlinGenerationContext(
 
         typeSpecs.writeTo(
             generator.workspace,
-            accessedSimpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) },
+            accessorSimpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) },
             // import LazySupplier delegate for accessors
             includeMappingDsl = generator.config.accessorType != AccessorType.NONE
         )
