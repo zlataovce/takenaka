@@ -18,7 +18,10 @@
 package me.kcra.takenaka.generator.accessor
 
 import me.kcra.takenaka.core.Workspace
+import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryTree
+import me.kcra.takenaka.generator.accessor.context.GenerationContext
 import me.kcra.takenaka.generator.accessor.context.tracingContext
+import me.kcra.takenaka.generator.accessor.util.isGlob
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import me.kcra.takenaka.generator.common.provider.MappingProvider
 import java.io.PrintStream
@@ -45,10 +48,24 @@ open class TracingAccessorGenerator(
      * @param ancestryProvider the ancestry provider
      */
     override suspend fun generate(mappingProvider: MappingProvider, ancestryProvider: AncestryProvider) {
-        val mappings = mappingProvider.get()
+        generateAccessors(
+            tracingContext(out, ancestryProvider),
+            ancestryProvider.klass(mappingProvider.get())
+        )
+    }
 
-        tracingContext(out, ancestryProvider) {
-            generateAccessors(this, ancestryProvider.klass(mappings))
-        }
+    /**
+     * Generates the configured accessors in the supplied context.
+     *
+     * @param context the generation context
+     * @param tree the ancestry tree
+     */
+    override suspend fun generateAccessors(context: GenerationContext, tree: ClassAncestryTree) { // no parallelization - deterministic
+        // generate non-glob accessors before glob ones to ensure that an explicit accessor doesn't get ignored
+        config.accessors.sortedBy { it.internalName.isGlob }
+            .forEach { accessor -> context.generateClass(accessor, tree) }
+
+        context.generateLookupClass()
+        context.generateExtras()
     }
 }
