@@ -53,6 +53,11 @@ public class FieldMapping {
     private final String name;
 
     /**
+     * The overload index of the declaration (i.e. 0 is the first defined field, 1 is the second overload, ...).
+     */
+    private final int index;
+
+    /**
      * The mappings, a map of namespace-mapping maps keyed by version.
      */
     private final Map<String, Map<String, String>> mappings;
@@ -73,7 +78,7 @@ public class FieldMapping {
     }
 
     /**
-     * Constructs a new {@link FieldMapping} with pre-defined mappings.
+     * Constructs a new {@link FieldMapping} with pre-defined mappings and a zero overload index.
      *
      * @param parent the parent class mapping
      * @param name the field name declared in the accessor model
@@ -84,8 +89,41 @@ public class FieldMapping {
             @NotNull String name,
             @NotNull Map<String, Map<String, String>> mappings
     ) {
+        this(parent, name, 0, mappings);
+    }
+
+    /**
+     * Constructs a new {@link FieldMapping} without any initial mappings.
+     *
+     * @param parent the parent class mapping
+     * @param name the field name declared in the accessor model
+     * @param index the overload index of the declaration
+     */
+    public FieldMapping(
+            @NotNull ClassMapping parent,
+            @NotNull String name,
+            int index
+    ) {
+        this(parent, name, index, new HashMap<>());
+    }
+
+    /**
+     * Constructs a new {@link FieldMapping} with pre-defined mappings.
+     *
+     * @param parent the parent class mapping
+     * @param name the field name declared in the accessor model
+     * @param index the overload index of the declaration
+     * @param mappings the mappings, a map of namespace-mapping maps keyed by version
+     */
+    public FieldMapping(
+            @NotNull ClassMapping parent,
+            @NotNull String name,
+            int index,
+            @NotNull Map<String, Map<String, String>> mappings
+    ) {
         this.parent = parent;
         this.name = name;
+        this.index = index;
         this.mappings = mappings;
     }
 
@@ -126,7 +164,7 @@ public class FieldMapping {
     /**
      * Creates a new {@link FieldMapping} that combines mappings of this mapping and {@code other}.
      * <p>
-     * This mapping is given precedence over the other mapping when combining (if versions overlap).
+     * This mapping is given precedence over the other mapping when combining (if versions overlap), overload index is set to -1.
      *
      * @param other the other field mapping
      * @return the new {@link FieldMapping}
@@ -153,7 +191,7 @@ public class FieldMapping {
             newMappings.computeIfAbsent(entry.getKey(), (k) -> new HashMap<>(entry.getValue().size())).putAll(entry.getValue());
         }
 
-        return new FieldMapping(this.parent, this.name, newMappings);
+        return new FieldMapping(this.parent, this.name, -1, newMappings);
     }
 
     /**
@@ -429,6 +467,15 @@ public class FieldMapping {
      */
     public @NotNull String getName() {
         return this.name;
+    }
+
+    /**
+     * Gets the index of the declaration in the accessor model.
+     *
+     * @return the index
+     */
+    public int getIndex() {
+        return this.index;
     }
 
     /**

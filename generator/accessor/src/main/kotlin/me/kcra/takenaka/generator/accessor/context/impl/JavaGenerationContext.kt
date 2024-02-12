@@ -168,7 +168,8 @@ open class JavaGenerationContext(
             )
             .addFields(
                 resolvedAccessor.fields.map { (fieldAccessor, fieldNode) ->
-                    val accessorName = "FIELD_${fieldAccessor.upperName}${resolvedAccessor.fieldOverloads[fieldAccessor]?.let { if (it != 0) "_$it" else "" } ?: ""}"
+                    val overloadIndex = resolvedAccessor.fieldOverloads[fieldAccessor]
+                    val accessorName = "FIELD_${fieldAccessor.upperName}${overloadIndex?.let { if (it != 0) "_$it" else "" } ?: ""}"
                     val fieldType = fieldAccessor.type?.let(Type::getType)
                         ?: getFriendlyType(fieldNode.last.value)
 
@@ -243,7 +244,7 @@ open class JavaGenerationContext(
                             fieldNode.last.key.id
                         )
                         .initializer {
-                            add("MAPPING.getField(\$S)", fieldAccessor.name)
+                            add("MAPPING.getField(\$S, \$L)", fieldAccessor.name, overloadIndex)
                             if (fieldAccessor.chain != null) {
                                 add(
                                     ".chain(FIELD_\$L\$L)",

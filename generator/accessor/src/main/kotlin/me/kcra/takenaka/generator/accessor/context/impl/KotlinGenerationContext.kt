@@ -160,7 +160,8 @@ open class KotlinGenerationContext(
                     )
                     .addProperties(
                         resolvedAccessor.fields.map { (fieldAccessor, fieldNode) ->
-                            val accessorName = "FIELD_${fieldAccessor.upperName.escapeKotlinName()}${resolvedAccessor.fieldOverloads[fieldAccessor]?.let { if (it != 0) "_$it" else "" } ?: ""}"
+                            val overloadIndex = resolvedAccessor.fieldOverloads[fieldAccessor]
+                            val accessorName = "FIELD_${fieldAccessor.upperName.escapeKotlinName()}${overloadIndex?.let { if (it != 0) "_$it" else "" } ?: ""}"
                             val fieldType = fieldAccessor.type?.let(Type::getType)
                                 ?: getFriendlyType(fieldNode.last.value)
 
@@ -232,7 +233,7 @@ open class KotlinGenerationContext(
                                     fieldNode.last.key.id
                                 )
                                 .initializer {
-                                    add("getField(%S)!!", fieldAccessor.name)
+                                    add("getField(%S, %L)!!", fieldAccessor.name, overloadIndex)
                                     if (fieldAccessor.chain != null) {
                                         add(
                                             ".chain(FIELD_%L%L)",
