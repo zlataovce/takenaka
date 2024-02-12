@@ -40,6 +40,10 @@ buildConfig {
     buildConfigField("String", "BUILD_MAVEN_GROUP", "\"$group\"")
 }
 
+license {
+    exclude("**/BuildConfig.kt") // generated file
+}
+
 // needed for com.gradle.plugin-publish to detect the shaded JAR
 tasks.withType<ShadowJar> {
     archiveClassifier.set("")

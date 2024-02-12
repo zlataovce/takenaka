@@ -12,6 +12,10 @@ dependencies {
     testRuntimeOnly(libs.slf4j.simple)
 }
 
+license {
+    exclude("me/kcra/takenaka/generator/web/SignatureFormatter.kt") // third party license
+}
+
 tasks.withType<Test> {
     maxHeapSize = "2048m"
 }
