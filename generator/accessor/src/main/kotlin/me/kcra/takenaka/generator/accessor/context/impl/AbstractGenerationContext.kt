@@ -1,7 +1,7 @@
 /*
  * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
  *
- * Copyright (c) 2023 Matous Kucera
+ * Copyright (c) 2023-2024 Matous Kucera
  *
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -68,9 +68,14 @@ abstract class AbstractGenerationContext(
     contextScope: CoroutineScope
 ) : GenerationContext, CoroutineScope by contextScope {
     /**
-     * Names of classes that were generated.
+     * Names of accessor models that had accessor classes generated.
      */
-    private val generatedClasses = Collections.synchronizedSet(sortedSetOf<String>())
+    private val generatedClasses = Collections.synchronizedSet(mutableSetOf<String>())
+
+    /**
+     * Accessor model simple class names and their renamed variants, used for detecting naming conflicts.
+     */
+    private val accessedSimpleNames = mutableMapOf<String, MutableMap<String, Int>>() // {simple name: {fq name: occurrence index}}
 
     /**
      * The generation timestamp of this context's output.
@@ -437,6 +442,27 @@ abstract class AbstractGenerationContext(
                     getOrPut(MethodKey(ns, name, desc.replaceCraftBukkitNMSVersion(nmsVersion)), ::mutableListOf) += version
                 }
             }
+        }
+    }
+
+    /**
+     * Sanitizes an accessor model name for generating an accessor class in this context.
+     *
+     * @param name a fully qualified name
+     * @return a non-conflicting simple name
+     */
+    protected open fun generateNonConflictingName(name: String): String {
+        val simpleName = name.substringAfterLast('/')
+
+        synchronized(accessedSimpleNames) {
+            val names = accessedSimpleNames.getOrPut(simpleName, ::mutableMapOf)
+
+            val index = names.getOrPut(name) { names.size }
+            if (index > 0) {
+                return simpleName + index
+            }
+
+            return simpleName // don't add a zero
         }
     }
 

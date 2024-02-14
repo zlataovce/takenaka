@@ -1,7 +1,7 @@
 /*
  * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
  *
- * Copyright (c) 2023 Matous Kucera
+ * Copyright (c) 2023-2024 Matous Kucera
  *
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -67,23 +67,43 @@ interface GenerationContext : CoroutineScope { // TODO: remove CoroutineScope
  *
  * @param ancestryProvider the ancestry provider of the context
  * @param flavor the accessor flavor of the context
+ * @return the context
+ */
+suspend inline fun AccessorGenerator.generationContext(ancestryProvider: AncestryProvider, flavor: CodeLanguage): GenerationContext = coroutineScope {
+    when (flavor) {
+        CodeLanguage.JAVA -> JavaGenerationContext(this@generationContext, ancestryProvider, this)
+        CodeLanguage.KOTLIN -> KotlinGenerationContext(this@generationContext, ancestryProvider, this)
+    }
+}
+
+/**
+ * Opens a generation context of the specified flavor and operates on it.
+ *
+ * @param ancestryProvider the ancestry provider of the context
+ * @param flavor the accessor flavor of the context
  * @param block the context user
  */
 suspend inline fun <R> AccessorGenerator.generationContext(
     ancestryProvider: AncestryProvider,
     flavor: CodeLanguage,
     crossinline block: suspend GenerationContext.() -> R
-): R = coroutineScope {
-    block(
-        when (flavor) {
-            CodeLanguage.JAVA -> JavaGenerationContext(this@generationContext, ancestryProvider, this)
-            CodeLanguage.KOTLIN -> KotlinGenerationContext(this@generationContext, ancestryProvider, this)
-        }
-    )
+): R {
+    return block(generationContext(ancestryProvider, flavor))
 }
 
 /**
  * Opens a tracing generation context.
+ *
+ * @param out the tracing output stream
+ * @param ancestryProvider the ancestry provider of the context
+ * @return the context
+ */
+suspend inline fun AccessorGenerator.tracingContext(out: PrintStream, ancestryProvider: AncestryProvider): GenerationContext = coroutineScope {
+    TracingGenerationContext(out, this@tracingContext, ancestryProvider, this)
+}
+
+/**
+ * Opens a tracing generation context and operates on it.
  *
  * @param out the tracing output stream
  * @param ancestryProvider the ancestry provider of the context
@@ -93,6 +113,6 @@ suspend inline fun <R> AccessorGenerator.tracingContext(
     out: PrintStream,
     ancestryProvider: AncestryProvider,
     crossinline block: suspend GenerationContext.() -> R
-): R = coroutineScope {
-    block(TracingGenerationContext(out, this@tracingContext, ancestryProvider, this))
+): R {
+    return block(tracingContext(out, ancestryProvider))
 }

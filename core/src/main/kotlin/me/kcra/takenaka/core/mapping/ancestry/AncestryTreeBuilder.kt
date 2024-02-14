@@ -1,7 +1,7 @@
 /*
  * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
  *
- * Copyright (c) 2023 Matous Kucera
+ * Copyright (c) 2023-2024 Matous Kucera
  *
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -67,7 +67,7 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
     /**
      * Collection that new nodes should be appended to.
      */
-    private val currentNodes: MutableCollection<MutableNode<E>>
+    private inline val currentNodes: MutableCollection<MutableNode<E>>
         get() = if (buffering) nodeBuffer else nodes
 
     /**
@@ -214,7 +214,7 @@ class AncestryTreeBuilder<T : MappingTreeView, E : MappingTreeView.ElementMappin
             // replaced the putAll implementation here to route everything through the put method
             // makes dealing with the first and last items easier
             from.forEach { (key, value) ->
-                delegate[key] = value
+                put(key, value)
             }
         }
     }

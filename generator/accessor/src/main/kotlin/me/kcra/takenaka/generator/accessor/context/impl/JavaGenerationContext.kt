@@ -1,7 +1,7 @@
 /*
  * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
  *
- * Copyright (c) 2023 Matous Kucera
+ * Copyright (c) 2023-2024 Matous Kucera
  *
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -29,8 +29,8 @@ import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
-import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
+import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -57,10 +57,10 @@ open class JavaGenerationContext(
      */
     override fun generateClass(resolvedAccessor: ResolvedClassAccessor) {
         val accessedQualifiedName = resolvedAccessor.model.name.fromInternalName()
-        val accessedSimpleName = resolvedAccessor.model.internalName.substringAfterLast('/')
+        val accessorSimpleName = generateNonConflictingName(resolvedAccessor.model.internalName)
 
-        val mappingClassName = JClassName.get(generator.config.basePackage, "${accessedSimpleName}Mapping")
-        val accessorClassName = JClassName.get(generator.config.basePackage, "${accessedSimpleName}Accessor")
+        val mappingClassName = JClassName.get(generator.config.basePackage, "${accessorSimpleName}Mapping")
+        val accessorClassName = JClassName.get(generator.config.basePackage, "${accessorSimpleName}Accessor")
         val accessorBuilder = JTypeSpec.interfaceBuilder(accessorClassName)
             .addModifiers(Modifier.PUBLIC)
             .addJavadoc(
@@ -168,7 +168,8 @@ open class JavaGenerationContext(
             )
             .addFields(
                 resolvedAccessor.fields.map { (fieldAccessor, fieldNode) ->
-                    val accessorName = "FIELD_${fieldAccessor.upperName}${resolvedAccessor.fieldOverloads[fieldAccessor]?.let { if (it != 0) "_$it" else "" } ?: ""}"
+                    val overloadIndex = resolvedAccessor.fieldOverloads[fieldAccessor]
+                    val accessorName = "FIELD_${fieldAccessor.upperName}${overloadIndex?.let { if (it != 0) "_$it" else "" } ?: ""}"
                     val fieldType = fieldAccessor.type?.let(Type::getType)
                         ?: getFriendlyType(fieldNode.last.value)
 
@@ -243,7 +244,7 @@ open class JavaGenerationContext(
                             fieldNode.last.key.id
                         )
                         .initializer {
-                            add("MAPPING.getField(\$S)", fieldAccessor.name)
+                            add("MAPPING.getField(\$S, \$L)", fieldAccessor.name, overloadIndex)
                             if (fieldAccessor.chain != null) {
                                 add(
                                     ".chain(FIELD_\$L\$L)",

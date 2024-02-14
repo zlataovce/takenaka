@@ -1,7 +1,7 @@
 /*
  * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
  *
- * Copyright (c) 2023 Matous Kucera
+ * Copyright (c) 2023-2024 Matous Kucera
  *
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -55,11 +55,11 @@ open class KotlinGenerationContext(
      */
     override fun generateClass(resolvedAccessor: ResolvedClassAccessor) {
         val accessedQualifiedName = resolvedAccessor.model.name.fromInternalName()
-        val accessedSimpleName = resolvedAccessor.model.internalName.substringAfterLast('/')
+        val accessorSimpleName = generateNonConflictingName(resolvedAccessor.model.internalName).escapeKotlinName()
 
         val typeSpecs = buildList<Any> {
-            val mappingClassName = KClassName(generator.config.basePackage, "${accessedSimpleName.escapeKotlinName()}Mapping")
-            val accessorClassName = KClassName(generator.config.basePackage, "${accessedSimpleName.escapeKotlinName()}Accessor")
+            val mappingClassName = KClassName(generator.config.basePackage, "${accessorSimpleName}Mapping")
+            val accessorClassName = KClassName(generator.config.basePackage, "${accessorSimpleName}Accessor")
             val accessorBuilder = KTypeSpec.objectBuilder(accessorClassName)
                 .addKdoc(
                     """
@@ -160,7 +160,8 @@ open class KotlinGenerationContext(
                     )
                     .addProperties(
                         resolvedAccessor.fields.map { (fieldAccessor, fieldNode) ->
-                            val accessorName = "FIELD_${fieldAccessor.upperName.escapeKotlinName()}${resolvedAccessor.fieldOverloads[fieldAccessor]?.let { if (it != 0) "_$it" else "" } ?: ""}"
+                            val overloadIndex = resolvedAccessor.fieldOverloads[fieldAccessor]
+                            val accessorName = "FIELD_${fieldAccessor.upperName.escapeKotlinName()}${overloadIndex?.let { if (it != 0) "_$it" else "" } ?: ""}"
                             val fieldType = fieldAccessor.type?.let(Type::getType)
                                 ?: getFriendlyType(fieldNode.last.value)
 
@@ -232,7 +233,7 @@ open class KotlinGenerationContext(
                                     fieldNode.last.key.id
                                 )
                                 .initializer {
-                                    add("getField(%S)!!", fieldAccessor.name)
+                                    add("getField(%S, %L)!!", fieldAccessor.name, overloadIndex)
                                     if (fieldAccessor.chain != null) {
                                         add(
                                             ".chain(FIELD_%L%L)",
@@ -382,7 +383,7 @@ open class KotlinGenerationContext(
 
         typeSpecs.writeTo(
             generator.workspace,
-            accessedSimpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) },
+            accessorSimpleName.replaceFirstChar { it.lowercase(Locale.getDefault()) },
             // import LazySupplier delegate for accessors
             includeMappingDsl = generator.config.accessorType != AccessorType.NONE
         )

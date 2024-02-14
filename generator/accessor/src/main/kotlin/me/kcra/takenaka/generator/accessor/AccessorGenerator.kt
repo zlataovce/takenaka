@@ -1,7 +1,7 @@
 /*
  * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
  *
- * Copyright (c) 2023 Matous Kucera
+ * Copyright (c) 2023-2024 Matous Kucera
  *
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,12 +17,14 @@
 
 package me.kcra.takenaka.generator.accessor
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryTree
 import me.kcra.takenaka.generator.accessor.context.GenerationContext
 import me.kcra.takenaka.generator.accessor.context.generationContext
-import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.accessor.util.isGlob
 import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
@@ -47,11 +49,10 @@ open class AccessorGenerator(override val workspace: Workspace, val config: Acce
      * @param ancestryProvider the ancestry provider
      */
     override suspend fun generate(mappingProvider: MappingProvider, ancestryProvider: AncestryProvider) {
-        val mappings = mappingProvider.get()
-
-        generationContext(ancestryProvider, config.codeLanguage) {
-            generateAccessors(this, ancestryProvider.klass(mappings))
-        }
+        generateAccessors(
+            generationContext(ancestryProvider, config.codeLanguage),
+            ancestryProvider.klass(mappingProvider.get())
+        )
     }
 
     /**
@@ -60,17 +61,18 @@ open class AccessorGenerator(override val workspace: Workspace, val config: Acce
      * @param context the generation context
      * @param tree the ancestry tree
      */
-    protected suspend fun generateAccessors(context: GenerationContext, tree: ClassAncestryTree) {
-        fun CoroutineScope.generateAccessor(classAccessor: ClassAccessor) {
-            launch(Dispatchers.Default + CoroutineName("generate-coro")) {
-                context.generateClass(classAccessor, tree)
-            }
-        }
-
+    protected open suspend fun generateAccessors(context: GenerationContext, tree: ClassAncestryTree) {
         // generate non-glob accessors before glob ones to ensure that an explicit accessor doesn't get ignored
-        val (glob, nonGlob) = config.accessors.partition { it.internalName.isGlob }
-        coroutineScope { nonGlob.forEach(::generateAccessor) }
-        coroutineScope { glob.forEach(::generateAccessor) }
+        config.accessors.partition { !it.internalName.isGlob }.toList()
+            .forEach { group ->
+                coroutineScope {
+                    group.forEach { accessor ->
+                        launch(Dispatchers.Default + CoroutineName("generate-coro")) {
+                            context.generateClass(accessor, tree)
+                        }
+                    }
+                }
+            }
 
         context.generateLookupClass()
         context.generateExtras()

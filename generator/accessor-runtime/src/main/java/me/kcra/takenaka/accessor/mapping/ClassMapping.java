@@ -1,7 +1,7 @@
 /*
  * This file is part of takenaka, licensed under the Apache License, Version 2.0 (the "License").
  *
- * Copyright (c) 2023 Matous Kucera
+ * Copyright (c) 2023-2024 Matous Kucera
  *
  * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -26,6 +26,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * A multi-version multi-namespace class mapping.
@@ -48,7 +49,7 @@ public class ClassMapping {
     /**
      * Field mappings of this class keyed by the name declared in the accessor model.
      */
-    private final Map<String, FieldMapping> fields;
+    private final Map<String, List<FieldMapping>> fields;
 
     /**
      * Constructor mappings of this class indexed as declared in the accessor model.
@@ -62,6 +63,11 @@ public class ClassMapping {
 
     /**
      * Constructs a new {@link ClassMapping} with pre-defined mappings.
+     * <p>
+     * <i>
+     *     Passing in a {@code Map<String, FieldMapping>} instead of a {@code Map<String, List<FieldMapping>>} for the
+     *     {@link #fields} parameter is <strong>deprecated and will break in a future major release</strong>.
+     * </i>
      *
      * @param name the accessed class name declared in the accessor model
      * @param mappings the mappings, a map of namespace-mapping maps keyed by version
@@ -69,18 +75,31 @@ public class ClassMapping {
      * @param constructors constructor mappings of this class indexed as declared in the accessor model
      * @param methods method mappings of this class keyed by the name declared in the accessor model
      */
+    @SuppressWarnings("unchecked")
     public ClassMapping(
             @NotNull String name,
             @NotNull Map<String, Map<String, String>> mappings,
-            @NotNull Map<String, FieldMapping> fields,
+            @NotNull Map<String, ? /* List<FieldMapping> */> fields,
             @NotNull List<ConstructorMapping> constructors,
             @NotNull Map<String, List<MethodMapping>> methods
     ) {
         this.name = name;
         this.mappings = mappings;
-        this.fields = fields;
         this.constructors = constructors;
         this.methods = methods;
+
+        // compatibility hack: Map<String, FieldMapping> -> Map<String, List<FieldMapping>>
+        // TODO: remove this
+        for (final Map.Entry<String, Object> entry : ((Map<String, Object>) fields).entrySet()) {
+            final Object value = entry.getValue();
+            if (value instanceof FieldMapping) {
+                final List<FieldMapping> mappings1 = new ArrayList<>();
+                mappings1.add((FieldMapping) value);
+
+                entry.setValue(mappings1);
+            }
+        }
+        this.fields = (Map<String, List<FieldMapping>>) fields;
     }
 
     /**
@@ -184,13 +203,33 @@ public class ClassMapping {
     }
 
     /**
-     * Gets a field mapping by its name ({@link FieldMapping#getName()}).
+     * Gets a field mapping with a zero overload index by its name ({@link FieldMapping#getName()}).
      *
      * @param name the field name
      * @return the field mapping, null if not found
      */
     public @Nullable FieldMapping getField(@NotNull String name) {
-        return fields.get(name);
+        return getField(name, 0);
+    }
+
+    /**
+     * Gets a field mapping by its name ({@link FieldMapping#getName()}) and index ({@link FieldMapping#getIndex()}).
+     *
+     * @param name the field name
+     * @param index the field overload index
+     * @return the field mapping, null if not found
+     */
+    public @Nullable FieldMapping getField(@NotNull String name, int index) {
+        final List<FieldMapping> overloads = fields.get(name);
+        if (overloads == null) {
+            return null;
+        }
+
+        if (index < 0 || index >= overloads.size()) {
+            return null;
+        }
+
+        return overloads.get(index);
     }
 
     /**
@@ -202,9 +241,11 @@ public class ClassMapping {
      * @return the field mapping, null if not found
      */
     public @Nullable FieldMapping remapField(@NotNull String version, @NotNull String namespace, @NotNull String name) {
-        for (final FieldMapping field : fields.values()) {
-            if (name.equals(field.getName(version, namespace))) {
-                return field;
+        for (final List<FieldMapping> overloads : fields.values()) {
+            for (final FieldMapping field : overloads) {
+                if (name.equals(field.getName(version, namespace))) {
+                    return field;
+                }
             }
         }
 
@@ -316,9 +357,10 @@ public class ClassMapping {
      */
     @ApiStatus.Internal
     public @NotNull FieldMapping putField(@NotNull String name) {
-        final FieldMapping mapping = new FieldMapping(this, name);
+        final List<FieldMapping> overloads = fields.computeIfAbsent(name, (k) -> new ArrayList<>());
+        final FieldMapping mapping = new FieldMapping(this, name, overloads.size());
 
-        fields.put(name, mapping);
+        overloads.add(mapping);
         return mapping;
     }
 
@@ -373,11 +415,24 @@ public class ClassMapping {
     }
 
     /**
+     * Gets the field mappings with a zero overload index of this class keyed by the name declared in the accessor model.
+     *
+     * @return the field mappings
+     * @deprecated this method has been originally designed with a flawed assumption, its behavior will be replaced with {@link #getOverloadedFields()} in a future major release
+     */
+    @Deprecated
+    public @NotNull Map<String, FieldMapping> getFields() {
+        return this.fields.entrySet().stream()
+                .filter(e -> !e.getValue().isEmpty())
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0)));
+    }
+
+    /**
      * Gets the field mappings of this class keyed by the name declared in the accessor model.
      *
      * @return the field mappings
      */
-    public @NotNull Map<String, FieldMapping> getFields() {
+    public @NotNull Map<String, List<FieldMapping>> getOverloadedFields() {
         return this.fields;
     }
 
