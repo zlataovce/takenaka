@@ -111,18 +111,18 @@ fun main(args: Array<String>) {
     }
 
     val namespaceKeys = namespace.distinct().ifEmpty { NAMESPACES.keys }
-    fun <T : MappingContributor> MutableCollection<T>.addIfSupported(c: T): Boolean {
-        return c.takeIf { it.targetNamespace in namespaceKeys }?.let(::add) ?: false
+    fun <T : MappingContributor> MutableCollection<T>.addIfSupported(contributor: T) {
+        if (contributor.targetNamespace in namespaceKeys) add(contributor)
     }
 
-    val resolvedNamespaces = namespaceKeys.map { m ->
-        val ns = NAMESPACES[m]
+    val resolvedNamespaces = namespaceKeys.map { nsKey ->
+        val ns = NAMESPACES[nsKey]
         if (ns == null) {
-            logger.error { "namespace $m not found, has to be one of [${NAMESPACES.keys.joinToString()}]" }
+            logger.error { "namespace $nsKey not found, has to be one of [${NAMESPACES.keys.joinToString()}]" }
             exitProcess(-1)
         }
 
-        m to ns
+        nsKey to ns
     }
 
     val ancestryNamespaces = namespaceKeys
@@ -173,7 +173,7 @@ fun main(args: Array<String>) {
         // remove obfuscated method parameter names, they are a filler from Searge
         intercept(::MethodArgSourceFilter)
         // intern names to save memory
-        intercept(::StringInterningAdapter)
+        intercept(::StringPoolingAdapter)
 
         contributors { versionWorkspace ->
             val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper, relaxedCache = !strictCache)

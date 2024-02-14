@@ -21,15 +21,13 @@ import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
 
-// doing this is really weird, but it saves a lot of memory
-
 /**
- * Interns (pools) element name and descriptor strings ([String.intern]).
+ * Pools element name and descriptor strings (using [String.intern]).
  *
  * @param next the visitor to delegate to
  * @author Matouš Kučera
  */
-class StringInterningAdapter(next: MappingVisitor) : ForwardingMappingVisitor(next) {
+class StringPoolingAdapter(next: MappingVisitor) : ForwardingMappingVisitor(next) {
     override fun visitClass(srcName: String?): Boolean {
         return super.visitClass(srcName?.intern())
     }
