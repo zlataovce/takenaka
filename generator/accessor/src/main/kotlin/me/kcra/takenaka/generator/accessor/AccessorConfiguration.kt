@@ -18,6 +18,8 @@
 package me.kcra.takenaka.generator.accessor
 
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
+import me.kcra.takenaka.generator.accessor.naming.StandardNamingStrategies
 
 /**
  * Configuration for [AccessorGenerator].
@@ -29,6 +31,7 @@ import me.kcra.takenaka.generator.accessor.model.ClassAccessor
  * @property namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @property accessedNamespaces the namespaces that should be used in accessors
  * @property craftBukkitVersionReplaceCandidates namespaces that should have [me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion] applied (most likely Spigot mappings or a flavor of them)
+ * @property namingStrategy strategy used to name generated mapping classes, accessor classes and their fields
  * @author Matouš Kučera
  */
 data class AccessorConfiguration(
@@ -38,5 +41,6 @@ data class AccessorConfiguration(
     val accessorType: AccessorType = AccessorType.NONE,
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val accessedNamespaces: List<String> = namespaceFriendlinessIndex,
-    val craftBukkitVersionReplaceCandidates: List<String> = emptyList()
+    val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
+    val namingStrategy: NamingStrategy = StandardNamingStrategies.SIMPLE
 )

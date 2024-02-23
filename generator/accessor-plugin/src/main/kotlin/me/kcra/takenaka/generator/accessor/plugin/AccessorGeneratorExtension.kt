@@ -24,6 +24,8 @@ import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.CodeLanguage
 import me.kcra.takenaka.generator.accessor.model.*
+import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
+import me.kcra.takenaka.generator.accessor.naming.StandardNamingStrategies
 import me.kcra.takenaka.generator.accessor.plugin.tasks.DEFAULT_INDEX_NS
 import org.gradle.api.Action
 import org.gradle.api.Project
@@ -106,6 +108,11 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      */
     abstract val historyIndexNamespace: Property<String?>
 
+    /**
+     * Strategy used to name generated mapping classes, accessor classes and their fields, defaults to [StandardNamingStrategies.SIMPLE].
+     */
+    abstract val namingStrategy: Property<NamingStrategy>
+
     init {
         outputDirectory.convention(project.layout.buildDirectory.dir("takenaka/output"))
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
@@ -115,6 +122,7 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         relaxedCache.convention(true)
         platform.convention(PlatformTristate.SERVER)
+        namingStrategy.convention(StandardNamingStrategies.SIMPLE)
     }
 
     /**
@@ -265,6 +273,15 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      */
     fun historyIndexNamespace(historyIndexNamespace: String?) {
         this.historyIndexNamespace.set(historyIndexNamespace)
+    }
+
+    /**
+     * Sets the [namingStrategy] property.
+     *
+     * @param namingStrategy the naming strategy
+     */
+    fun namingStrategy(namingStrategy: NamingStrategy) {
+        this.namingStrategy.set(namingStrategy)
     }
 
     /**

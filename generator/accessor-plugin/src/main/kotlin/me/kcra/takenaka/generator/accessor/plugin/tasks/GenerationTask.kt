@@ -21,6 +21,8 @@ import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.CodeLanguage
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
+import me.kcra.takenaka.generator.accessor.naming.StandardNamingStrategies
 import me.kcra.takenaka.generator.common.provider.MappingProvider
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -124,6 +126,14 @@ abstract class GenerationTask : DefaultTask() {
     abstract val historyIndexNamespace: Property<String?>
 
     /**
+     * Strategy used to name generated mapping classes, accessor classes and their fields, defaults to [StandardNamingStrategies.SIMPLE].
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.namingStrategy
+     */
+    @get:Input
+    abstract val namingStrategy: Property<NamingStrategy>
+
+    /**
      * The output workspace ([outputDir]).
      */
     @get:Internal
@@ -141,5 +151,6 @@ abstract class GenerationTask : DefaultTask() {
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
+        namingStrategy.convention(StandardNamingStrategies.SIMPLE)
     }
 }

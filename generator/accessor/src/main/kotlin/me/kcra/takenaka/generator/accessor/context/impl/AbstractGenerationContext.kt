@@ -30,6 +30,7 @@ import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.context.GenerationContext
 import me.kcra.takenaka.generator.accessor.model.*
+import me.kcra.takenaka.generator.accessor.naming.GeneratedClassType
 import me.kcra.takenaka.generator.accessor.util.globAsRegex
 import me.kcra.takenaka.generator.accessor.util.isGlob
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
@@ -73,9 +74,9 @@ abstract class AbstractGenerationContext(
     private val generatedClasses = Collections.synchronizedSet(mutableSetOf<String>())
 
     /**
-     * Accessor model simple class names and their renamed variants, used for detecting naming conflicts.
+     * Resolved class accessors with generated class type and their final partially qualified name
      */
-    private val accessedSimpleNames = mutableMapOf<String, MutableMap<String, Int>>() // {simple name: {fq name: occurrence index}}
+    private val generatedClassNames = mutableMapOf<Pair<ResolvedClassAccessor, GeneratedClassType>, String>() // {(fq name, class type): pq name of the generated class}
 
     /**
      * The generation timestamp of this context's output.
@@ -178,7 +179,7 @@ abstract class AbstractGenerationContext(
      * that have been generated in this context.
      */
     override fun generateLookupClass() {
-        generateLookupClass(generatedClasses.toList())
+        generateLookupClass(generatedClassNames.filter { it.key.second === GeneratedClassType.MAPPING }.map { it.value })
     }
 
     /**
@@ -448,21 +449,48 @@ abstract class AbstractGenerationContext(
     /**
      * Sanitizes an accessor model name for generating an accessor class in this context.
      *
-     * @param name a fully qualified name
-     * @return a non-conflicting simple name
+     * Is it safe to call this function multiple times for the same inputs.
+     *
+     * @param resolvedAccessor an accessor
+     * @param classType a class type
+     * @return a non-conflicting partially qualified name returned by current naming strategy
      */
-    protected open fun generateNonConflictingName(name: String): String {
-        val simpleName = name.substringAfterLast('/')
+    protected open fun generateNonConflictingName(resolvedAccessor: ResolvedClassAccessor, classType: GeneratedClassType): String {
+        val namingStrategy = generator.config.namingStrategy
+        val pair = Pair(resolvedAccessor, classType)
 
-        synchronized(accessedSimpleNames) {
-            val names = accessedSimpleNames.getOrPut(simpleName, ::mutableMapOf)
-
-            val index = names.getOrPut(name) { names.size }
-            if (index > 0) {
-                return simpleName + index
+        synchronized(generatedClassNames) {
+            generatedClassNames[pair]?.let {
+                return it
             }
 
-            return simpleName // don't add a zero
+            val name = resolvedAccessor.model.name.fromInternalName()
+
+            var index = 0
+            var modifiedName = name
+            var returnedName = ""
+
+            while (true) {
+                val indexedName = namingStrategy.klass(modifiedName, classType)
+                if (!generatedClassNames.containsValue(indexedName)) {
+                    returnedName = indexedName
+                    break
+                }
+                modifiedName = name + (index++)
+                if (index != 0 && indexedName == returnedName) {
+                    // Our naming strategy is stupid and somehow changing the input does not change the output
+                    index = 0
+                    do {
+                        returnedName = indexedName + (++index)
+                    } while (generatedClassNames.containsValue(returnedName))
+                    break
+                }
+                returnedName = indexedName
+            }
+
+            generatedClassNames[pair] = returnedName
+
+            return returnedName
         }
     }
 

@@ -43,7 +43,8 @@ abstract class GenerateAccessorsTask : GenerationTask() {
                 accessorType = accessorType.get(),
                 namespaceFriendlinessIndex = namespaceFriendlinessIndex.get(),
                 accessedNamespaces = accessedNamespaces.get(),
-                craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get()
+                craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get(),
+                namingStrategy = namingStrategy.get()
             )
         )
 

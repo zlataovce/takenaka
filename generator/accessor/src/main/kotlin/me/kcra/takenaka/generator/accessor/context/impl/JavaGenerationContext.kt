@@ -31,6 +31,7 @@ import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.AccessorType
+import me.kcra.takenaka.generator.accessor.naming.GeneratedClassType
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -57,10 +58,9 @@ open class JavaGenerationContext(
      */
     override fun generateClass(resolvedAccessor: ResolvedClassAccessor) {
         val accessedQualifiedName = resolvedAccessor.model.name.fromInternalName()
-        val accessorSimpleName = generateNonConflictingName(resolvedAccessor.model.internalName)
 
-        val mappingClassName = JClassName.get(generator.config.basePackage, "${accessorSimpleName}Mapping")
-        val accessorClassName = JClassName.get(generator.config.basePackage, "${accessorSimpleName}Accessor")
+        val mappingClassName = generateNonConflictingName(resolvedAccessor, GeneratedClassType.MAPPING).toClassName(generator.config.basePackage)
+        val accessorClassName = generateNonConflictingName(resolvedAccessor, GeneratedClassType.ACCESSOR).toClassName(generator.config.basePackage)
         val accessorBuilder = JTypeSpec.interfaceBuilder(accessorClassName)
             .addModifiers(Modifier.PUBLIC)
             .addJavadoc(
@@ -173,7 +173,7 @@ open class JavaGenerationContext(
             .addFields(
                 resolvedAccessor.fields.map { (fieldAccessor, fieldNode) ->
                     val overloadIndex = resolvedAccessor.fieldOverloads[fieldAccessor]
-                    val accessorName = "FIELD_${fieldAccessor.upperName}${overloadIndex?.let { if (it != 0) "_$it" else "" } ?: ""}"
+                    val accessorName = generator.config.namingStrategy.field(fieldAccessor.name, overloadIndex ?: 0, false)
                     val fieldType = fieldAccessor.type?.let(Type::getType)
                         ?: getFriendlyType(fieldNode.last.value)
 
@@ -204,7 +204,13 @@ open class JavaGenerationContext(
                     val mod = fieldNode.last.value.modifiers
                     if ((mod and Opcodes.ACC_STATIC) != 0 && (mod and Opcodes.ACC_FINAL) != 0) { // constant
                         accessorBuilder.addField(
-                            FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, JClassName.OBJECT), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                            FieldSpec.builder(
+                                JParameterizedTypeName.get(SourceTypes.SUPPLIER, JClassName.OBJECT),
+                                generator.config.namingStrategy.field(fieldAccessor.name, overloadIndex ?: 0, true),
+                                Modifier.PUBLIC,
+                                Modifier.STATIC,
+                                Modifier.FINAL
+                            )
                                 .addMeta(constant = true)
                                 .initializer("\$T.of(\$T.$accessorName::getConstantValue)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
                                 .build()
@@ -255,11 +261,10 @@ open class JavaGenerationContext(
                             add("MAPPING.getField(\$S, \$L)", fieldAccessor.name, overloadIndex)
                             if (fieldAccessor.chain != null) {
                                 add(
-                                    ".chain(FIELD_\$L\$L)",
-                                    fieldAccessor.chain.upperName,
-                                    resolvedAccessor.fieldOverloads[fieldAccessor.chain]
-                                        ?.let { if (it != 0) "_$it" else "" }
-                                        ?: ""
+                                    ".chain(\$L)",
+                                    fieldAccessor.chain.let {
+                                        generator.config.namingStrategy.field(it.name, resolvedAccessor.fieldOverloads[it] ?: 0, false)
+                                    }
                                 )
                             }
                         }
@@ -268,7 +273,7 @@ open class JavaGenerationContext(
             )
             .addFields(
                 resolvedAccessor.constructors.mapIndexed { i, (ctorAccessor, ctorNode) ->
-                    val accessorName = "CONSTRUCTOR_$i"
+                    val accessorName = generator.config.namingStrategy.constructor(i)
                     val ctorArgs = Type.getArgumentTypes(ctorAccessor.type)
 
                     fun FieldSpec.Builder.addMeta(): FieldSpec.Builder = apply {
@@ -329,7 +334,7 @@ open class JavaGenerationContext(
             .addFields(
                 resolvedAccessor.methods.map { (methodAccessor, methodNode) ->
                     val overloadIndex = resolvedAccessor.methodOverloads[methodAccessor]
-                    val accessorName = "METHOD_${methodAccessor.upperName}${overloadIndex?.let { if (it != 0) "_$it" else "" } ?: ""}"
+                    val accessorName = generator.config.namingStrategy.method(methodAccessor.name, overloadIndex ?: 0)
                     val methodType = if (methodAccessor.isIncomplete) {
                         getFriendlyType(methodNode.last.value)
                     } else {
@@ -395,11 +400,10 @@ open class JavaGenerationContext(
                             add("MAPPING.getMethod(\$S, \$L)", methodAccessor.name, overloadIndex)
                             if (methodAccessor.chain != null) {
                                 add(
-                                    ".chain(METHOD_\$L\$L)",
-                                    methodAccessor.chain.upperName,
-                                    resolvedAccessor.methodOverloads[methodAccessor.chain]
-                                        ?.let { if (it != 0) "_$it" else "" }
-                                        ?: ""
+                                    ".chain(\$L)",
+                                    methodAccessor.chain.let {
+                                        generator.config.namingStrategy.method(it.name, resolvedAccessor.methodOverloads[it] ?: 0)
+                                    }
                                 )
                             }
                         }
@@ -407,10 +411,10 @@ open class JavaGenerationContext(
                 }
             )
             .build()
-            .writeTo(generator.workspace)
+            .writeTo(generator.workspace, mappingClassName)
 
         if (generator.config.accessorType != AccessorType.NONE) {
-            accessorBuilder.build().writeTo(generator.workspace)
+            accessorBuilder.build().writeTo(generator.workspace, accessorClassName)
         }
     }
 
@@ -420,7 +424,7 @@ open class JavaGenerationContext(
      * @param names internal names of classes declared in accessor models
      */
     override fun generateLookupClass(names: List<String>) {
-        val poolClassName = JClassName.get(generator.config.basePackage, "Mappings")
+        val poolClassName = generator.config.namingStrategy.klass("Mappings", GeneratedClassType.EXTRA).toClassName(generator.config.basePackage)
 
         JTypeSpec.interfaceBuilder(poolClassName)
             .addModifiers(Modifier.PUBLIC)
@@ -431,35 +435,40 @@ open class JavaGenerationContext(
                     .initializer {
                         add("new \$T()", SourceTypes.MAPPING_LOOKUP)
                         withIndent {
-                            names.forEach { name ->
-                                val mappingClassName = JClassName.get(
-                                    generator.config.basePackage,
-                                    "${name.substringAfterLast('/')}Mapping"
-                                )
-
-                                add("\n.put(\$T.MAPPING)", mappingClassName)
+                            names.forEach {
+                                add("\n.put(\$T.MAPPING)", it)
                             }
                         }
                     }
                     .build()
             )
             .build()
-            .writeTo(generator.workspace)
+            .writeTo(generator.workspace, poolClassName)
     }
 
     /**
      * Writes a [JTypeSpec] to a workspace with default settings.
      *
      * @param workspace the workspace
+     * @param className fully qualified class name
      * @return the file where the source was actually written
      */
-    fun JTypeSpec.writeTo(workspace: Workspace): Path =
-        JavaFile.builder(generator.config.basePackage, this)
+    fun JTypeSpec.writeTo(workspace: Workspace, className: JClassName): Path =
+        JavaFile.builder(className.packageName(), this)
             .skipJavaLangImports(true)
             .addFileComment("This file was generated by takenaka on ${DATE_FORMAT.format(generationTime)}. Do not edit, changes will be overwritten!")
             .indent(" ".repeat(4)) // 4 spaces
             .build()
             .writeTo(workspace)
+
+    private fun String.toClassName(basePackage: String): JClassName {
+        val index = this.lastIndexOf('.')
+        return if (index == -1) {
+            JClassName.get(basePackage, this)
+        } else {
+            JClassName.get("$basePackage.${this.substring(0, index)}", this.substring(index + 1))
+        }
+    }
 }
 
 /**

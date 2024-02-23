@@ -77,6 +77,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.accessedNamespaces.set(config.accessedNamespaces)
             this.historyNamespaces.set(config.historyNamespaces)
             this.historyIndexNamespace.set(config.historyIndexNamespace)
+            this.namingStrategy.set(config.namingStrategy)
         }
         val traceAccessors by target.tasks.creating(TraceAccessorsTask::class) {
             group = "takenaka"
@@ -92,6 +93,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.accessedNamespaces.set(config.accessedNamespaces)
             this.historyNamespaces.set(config.historyNamespaces)
             this.historyIndexNamespace.set(config.historyIndexNamespace)
+            this.namingStrategy.set(config.namingStrategy)
         }
 
         target.tasks.withType<JavaCompile> {
