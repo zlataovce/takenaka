@@ -52,8 +52,8 @@ class GenerationContext(
      * @param workspace the workspace
      * @param path the path, relative in the workspace
      */
-    fun Document.serialize(workspace: Workspace, path: String) {
-        launch(Dispatchers.IO + CoroutineName("save-coro")) {
+    suspend fun Document.serialize(workspace: Workspace, path: String) {
+        withContext(Dispatchers.IO + CoroutineName("io-coro")) {
             val file = workspace[path]
             file.parent.createDirectories()
 

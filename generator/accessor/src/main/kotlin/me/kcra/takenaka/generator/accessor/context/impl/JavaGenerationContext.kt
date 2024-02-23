@@ -67,9 +67,13 @@ open class JavaGenerationContext(
                 """
                     Accessors for the {@code ${'$'}L} class.
                     
+                    @since ${'$'}L
+                    @version ${'$'}L
                     @see ${'$'}L
                 """.trimIndent(),
                 accessedQualifiedName,
+                resolvedAccessor.node.first.key.id,
+                resolvedAccessor.node.last.key.id,
                 mappingClassName.canonicalName()
             )
             .addField(
@@ -179,6 +183,8 @@ open class JavaGenerationContext(
                             """
                                 Accessor for the {@code ${'$'}L ${'$'}L} ${'$'}L.
                                 
+                                @since ${'$'}L
+                                @version ${'$'}L
                                 @see ${'$'}L#${'$'}L
                             """.trimIndent(),
                             fieldType.className,
@@ -188,6 +194,8 @@ open class JavaGenerationContext(
                             } else {
                                 "field"
                             },
+                            fieldNode.first.key.id,
+                            fieldNode.last.key.id,
                             mappingClassName.canonicalName(),
                             accessorName
                         )
@@ -269,9 +277,13 @@ open class JavaGenerationContext(
                             """
                                 Accessor for the {@code (${'$'}L)} constructor.
                                 
+                                @since ${'$'}L
+                                @version ${'$'}L
                                 @see ${'$'}L#${'$'}L
                             """.trimIndent(),
                             ctorArgs.joinToString(transform = Type::getClassName),
+                            ctorNode.first.key.id,
+                            ctorNode.last.key.id,
                             mappingClassName.canonicalName(),
                             accessorName
                         )
@@ -330,11 +342,15 @@ open class JavaGenerationContext(
                             """
                                 Accessor for the {@code ${'$'}L ${'$'}L(${'$'}L)} method.
                                 
+                                @since ${'$'}L
+                                @version ${'$'}L
                                 @see ${'$'}L#${'$'}L
                             """.trimIndent(),
                             methodType.returnType.className,
                             methodAccessor.name,
                             methodType.argumentTypes.joinToString(transform = Type::getClassName),
+                            methodNode.first.key.id,
+                            methodNode.last.key.id,
                             mappingClassName.canonicalName(),
                             accessorName
                         )

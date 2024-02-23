@@ -18,6 +18,7 @@
 package me.kcra.takenaka.generator.common.provider.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kcra.takenaka.core.VersionManifest
@@ -46,7 +47,8 @@ private val logger = KotlinLogging.logger {}
  * @property manifest the Mojang version manifest
  * @author Matouš Kučera
  */
-class BundledMappingProvider(val file: Path, val versions: List<String>, val manifest: VersionManifest) : MappingProvider {
+class BundledMappingProvider(val file: Path, val versions: List<String>, val manifest: VersionManifest) :
+    MappingProvider {
     /**
      * Constructs this provider with a new manifest.
      *
@@ -63,38 +65,39 @@ class BundledMappingProvider(val file: Path, val versions: List<String>, val man
      * @param analyzer an analyzer which the mappings should be visited to as they are resolved
      * @return the mappings
      */
-    override suspend fun get(analyzer: MappingAnalyzer?): MutableMappingsMap {
-        return withContext(Dispatchers.IO) {
+    override suspend fun get(analyzer: MappingAnalyzer?): MutableMappingsMap =
+        withContext(Dispatchers.IO + CoroutineName("io-coro")) {
             ZipFile(file.toFile()).use { zf ->
-                zf.entries().asSequence().mapNotNull { entry ->
-                    if (entry.isDirectory || !entry.name.endsWith(".tiny")) return@mapNotNull null
+                zf.entries()
+                    .asSequence()
+                    .mapNotNull { entry ->
+                        if (entry.isDirectory || !entry.name.endsWith(".tiny")) return@mapNotNull null
 
-                    val versionString = entry.name.substringAfterLast('/').removeSuffix(".tiny")
+                        val versionString = entry.name.substringAfterLast('/').removeSuffix(".tiny")
 
-                    // skip this version, it's not in the targeted subset
-                    if (versions.isNotEmpty() && versionString !in versions) return@mapNotNull null
-                    try {
-                        val version = checkNotNull(manifest[versionString]) {
-                            "Version $versionString was not found in manifest"
-                        }
-
-                        return@mapNotNull version to MemoryMappingTree().apply {
-                            zf.getInputStream(entry).reader().use { r -> Tiny2Reader.read(r, this) }
-                            logger.info { "read ${version.id} mapping file from ${entry.name}" }
-
-                            if (analyzer != null) {
-                                val time = measureTimeMillis { analyzer.accept(this) }
-                                logger.info { "analyzed ${version.id} mappings in ${time}ms" }
+                        // skip this version, it's not in the targeted subset
+                        if (versions.isNotEmpty() && versionString !in versions) return@mapNotNull null
+                        try {
+                            val version = checkNotNull(manifest[versionString]) {
+                                "Version $versionString was not found in manifest"
                             }
-                        }
-                    } catch (e: Exception) {
-                        logger.error(e) { "failed to read mapping file from ${entry.name}" }
-                    }
 
-                    return@mapNotNull null
-                }
-                .toMap()
+                            return@mapNotNull version to MemoryMappingTree().apply {
+                                zf.getInputStream(entry).reader().use { r -> Tiny2Reader.read(r, this) }
+                                logger.info { "read ${version.id} mapping file from ${entry.name}" }
+
+                                if (analyzer != null) {
+                                    val time = measureTimeMillis { analyzer.accept(this) }
+                                    logger.info { "analyzed ${version.id} mappings in ${time}ms" }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            logger.error(e) { "failed to read mapping file from ${entry.name}" }
+                        }
+
+                        return@mapNotNull null
+                    }
+                    .toMap()
             }
         }
-    }
 }

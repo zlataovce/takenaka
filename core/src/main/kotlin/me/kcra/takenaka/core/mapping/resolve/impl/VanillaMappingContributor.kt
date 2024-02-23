@@ -18,6 +18,9 @@
 package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.resolve.AbstractOutputContainer
@@ -74,29 +77,30 @@ abstract class AbstractVanillaMappingContributor(
             val fileName = "${jarAttribute.name}.jar"
             val file = workspace[fileName]
 
-            if (fileName in workspace) {
-                val checksum = file.getChecksum(sha1Digest)
+            withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                if (fileName in workspace) {
+                    val checksum = file.getChecksum(sha1Digest)
 
-                if (jarAttribute.checksum == checksum) {
-                    logger.info { "matched checksum for cached ${workspace.version.id} vanilla JAR (name: ${jarAttribute.name}, value: ${jarAttribute.value})" }
-                    return@resolver file
+                    if (jarAttribute.checksum == checksum) {
+                        logger.info { "matched checksum for cached ${workspace.version.id} vanilla JAR (name: ${jarAttribute.name}, value: ${jarAttribute.value})" }
+                        return@withContext file
+                    }
+
+                    logger.warn { "checksum mismatch for ${workspace.version.id} vanilla JAR cache, fetching it again (name: ${jarAttribute.name}, value: ${jarAttribute.value})" }
                 }
 
-                logger.warn { "checksum mismatch for ${workspace.version.id} vanilla JAR cache, fetching it again (name: ${jarAttribute.name}, value: ${jarAttribute.value})" }
-            }
+                URL(jarAttribute.value!!).httpRequest {
+                    if (it.ok) {
+                        it.copyTo(file)
 
-            URL(jarAttribute.value!!).httpRequest {
-                if (it.ok) {
-                    it.copyTo(file)
+                        logger.info { "fetched ${workspace.version.id} vanilla JAR (name: ${jarAttribute.name}, value: ${jarAttribute.value})" }
+                        return@httpRequest file
+                    }
 
-                    logger.info { "fetched ${workspace.version.id} vanilla JAR (name: ${jarAttribute.name}, value: ${jarAttribute.value})" }
-                    return@resolver file
+                    logger.info { "failed to fetch ${workspace.version.id} vanilla JAR (name: ${jarAttribute.name}, value: ${jarAttribute.value}), received ${it.responseCode}" }
+                    return@httpRequest null
                 }
-
-                logger.info { "failed to fetch ${workspace.version.id} vanilla JAR (name: ${jarAttribute.name}, value: ${jarAttribute.value}), received ${it.responseCode}" }
             }
-
-            return@resolver null
         }
 
         upToDateWhen { it == null || it.isRegularFile() }
