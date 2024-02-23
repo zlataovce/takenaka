@@ -7,7 +7,6 @@ enum class StandardNamingStrategies: NamingStrategy {
     SIMPLE {
         override fun klass(className: String, classType: GeneratedClassType): String {
             val index = className.lastIndexOf('.')
-            // TODO: fix collisions
             return if (index != -1) {
                 className.substring(index + 1)
             } else {
