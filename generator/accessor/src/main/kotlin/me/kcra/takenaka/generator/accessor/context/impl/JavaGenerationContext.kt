@@ -448,7 +448,7 @@ open class JavaGenerationContext(
                         add("new \$T()", SourceTypes.MAPPING_LOOKUP)
                         withIndent {
                             names.forEach {
-                                add("\n.put(\$T.MAPPING)", it)
+                                add("\n.put(\$T.MAPPING)", it.toClassName(generator.config.basePackage))
                             }
                         }
                     }

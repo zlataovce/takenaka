@@ -401,7 +401,7 @@ open class KotlinGenerationContext(
                 beginControlFlow("%M", SourceTypes.KT_MAPPING_LOOKUP_DSL)
 
                 names.forEach {
-                    addStatement("put(%T)", it)
+                    addStatement("put(%T)", it.toClassName(generator.config.basePackage))
                 }
 
                 endControlFlow()

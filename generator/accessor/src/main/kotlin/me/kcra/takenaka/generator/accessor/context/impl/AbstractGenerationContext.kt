@@ -179,7 +179,7 @@ abstract class AbstractGenerationContext(
      * that have been generated in this context.
      */
     override fun generateLookupClass() {
-        generateLookupClass(generatedClassNames.filter { it.key.second === GeneratedClassType.MAPPING }.map { it.value })
+        generateLookupClass(generatedClassNames.filter { it.key.second === GeneratedClassType.MAPPING }.map { it.value }.sorted())
     }
 
     /**
@@ -476,7 +476,7 @@ abstract class AbstractGenerationContext(
                     returnedName = indexedName
                     break
                 }
-                modifiedName = name + (index++)
+                modifiedName = name + (++index)
                 if (index != 0 && indexedName == returnedName) {
                     // Our naming strategy is stupid and somehow changing the input does not change the output
                     index = 0
