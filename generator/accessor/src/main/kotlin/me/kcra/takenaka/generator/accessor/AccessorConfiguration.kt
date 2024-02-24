@@ -21,6 +21,8 @@ import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
 import me.kcra.takenaka.generator.accessor.naming.StandardNamingStrategies
 
+const val ACCESSOR_RUNTIME_PACKAGE = "me.kcra.takenaka.accessor"
+
 /**
  * Configuration for [AccessorGenerator].
  *
@@ -42,5 +44,6 @@ data class AccessorConfiguration(
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val accessedNamespaces: List<String> = namespaceFriendlinessIndex,
     val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
-    val namingStrategy: NamingStrategy = StandardNamingStrategies.SIMPLE
+    val namingStrategy: NamingStrategy = StandardNamingStrategies.SIMPLE,
+    val accessorRuntimePackage: String = ACCESSOR_RUNTIME_PACKAGE
 )

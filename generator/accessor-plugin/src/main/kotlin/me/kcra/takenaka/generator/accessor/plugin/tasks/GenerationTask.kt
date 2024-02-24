@@ -18,6 +18,7 @@
 package me.kcra.takenaka.generator.accessor.plugin.tasks
 
 import me.kcra.takenaka.core.workspace
+import me.kcra.takenaka.generator.accessor.ACCESSOR_RUNTIME_PACKAGE
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.CodeLanguage
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
@@ -134,6 +135,14 @@ abstract class GenerationTask : DefaultTask() {
     abstract val namingStrategy: Property<NamingStrategy>
 
     /**
+     * Package containing the accessor-runtime module. Defaults to [ACCESSOR_RUNTIME_PACKAGE]
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.accessorRuntimePackage
+     */
+    @get:Input
+    abstract val accessorRuntimePackage: Property<String>
+
+    /**
      * The output workspace ([outputDir]).
      */
     @get:Internal
@@ -152,5 +161,6 @@ abstract class GenerationTask : DefaultTask() {
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         namingStrategy.convention(StandardNamingStrategies.SIMPLE)
+        accessorRuntimePackage.convention(ACCESSOR_RUNTIME_PACKAGE)
     }
 }

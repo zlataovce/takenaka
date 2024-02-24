@@ -51,6 +51,14 @@ open class JavaGenerationContext(
     ancestryProvider: AncestryProvider,
     contextScope: CoroutineScope
 ) : AbstractGenerationContext(generator, ancestryProvider, contextScope) {
+
+    // These values should not be changed during compilation, let's create all these JClassName objects only once
+    private val classLazySupplier by lazy { SourceTypes.LAZY_SUPPLIER.resolve(generator.config.accessorRuntimePackage) }
+    private val classClassMapping by lazy { SourceTypes.CLASS_MAPPING.resolve(generator.config.accessorRuntimePackage) }
+    private val classFieldMapping by lazy { SourceTypes.FIELD_MAPPING.resolve(generator.config.accessorRuntimePackage) }
+    private val classConstructorMapping by lazy { SourceTypes.CONSTRUCTOR_MAPPING.resolve(generator.config.accessorRuntimePackage) }
+    private val classMethodMapping by lazy { SourceTypes.METHOD_MAPPING.resolve(generator.config.accessorRuntimePackage) }
+
     /**
      * Generates an accessor class from a model in Java.
      *
@@ -79,7 +87,7 @@ open class JavaGenerationContext(
             .addField(
                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.CLASS_WILDCARD), "TYPE", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                     .addAnnotation(SourceTypes.NOT_NULL)
-                    .initializer("\$T.of(\$T.MAPPING::getClazz)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
+                    .initializer("\$T.of(\$T.MAPPING::getClazz)", classLazySupplier, mappingClassName)
                     .build()
             )
 
@@ -97,10 +105,10 @@ open class JavaGenerationContext(
                 resolvedAccessor.node.last.key.id
             )
             .addField(
-                FieldSpec.builder(SourceTypes.CLASS_MAPPING, "MAPPING", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                FieldSpec.builder(classClassMapping, "MAPPING", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                     .addAnnotation(SourceTypes.NOT_NULL)
                     .initializer {
-                        add("new \$T(\$S)", SourceTypes.CLASS_MAPPING, accessedQualifiedName)
+                        add("new \$T(\$S)", classClassMapping, accessedQualifiedName)
                         withIndent {
                             groupClassNames(resolvedAccessor.node).forEach { (classKey, versions) ->
                                 val (ns, name) = classKey
@@ -212,7 +220,7 @@ open class JavaGenerationContext(
                                 Modifier.FINAL
                             )
                                 .addMeta(constant = true)
-                                .initializer("\$T.of(\$T.$accessorName::getConstantValue)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
+                                .initializer("\$T.of(\$T.$accessorName::getConstantValue)", classLazySupplier, mappingClassName)
                                 .build()
                         )
                     } else {
@@ -221,7 +229,7 @@ open class JavaGenerationContext(
                                 accessorBuilder.addField(
                                     FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.FIELD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                         .addMeta()
-                                        .initializer("\$T.of(\$T.$accessorName::getField)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
+                                        .initializer("\$T.of(\$T.$accessorName::getField)", classLazySupplier, mappingClassName)
                                         .build()
                                 )
                             }
@@ -235,7 +243,7 @@ open class JavaGenerationContext(
                                         Modifier.FINAL
                                     )
                                         .addMeta()
-                                        .initializer("\$T.of(\$T.$accessorName::getFieldGetter)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
+                                        .initializer("\$T.of(\$T.$accessorName::getFieldGetter)", classLazySupplier, mappingClassName)
                                         .build()
                                 )
                                 accessorBuilder.addField(
@@ -247,7 +255,7 @@ open class JavaGenerationContext(
                                         Modifier.FINAL
                                     )
                                         .addMeta()
-                                        .initializer("\$T.of(\$T.$accessorName::getFieldSetter)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
+                                        .initializer("\$T.of(\$T.$accessorName::getFieldSetter)", classLazySupplier, mappingClassName)
                                         .build()
                                 )
                             }
@@ -255,7 +263,7 @@ open class JavaGenerationContext(
                         }
                     }
 
-                    FieldSpec.builder(SourceTypes.FIELD_MAPPING, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                    FieldSpec.builder(classFieldMapping, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                         .addAnnotation(SourceTypes.NOT_NULL)
                         .addJavadoc(
                             """
@@ -311,7 +319,7 @@ open class JavaGenerationContext(
                             accessorBuilder.addField(
                                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.CONSTRUCTOR_WILDCARD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                     .addMeta()
-                                    .initializer("\$T.of(\$T.$accessorName::getConstructor)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
+                                    .initializer("\$T.of(\$T.$accessorName::getConstructor)", classLazySupplier, mappingClassName)
                                     .build()
                             )
                         }
@@ -319,14 +327,14 @@ open class JavaGenerationContext(
                             accessorBuilder.addField(
                                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                     .addMeta()
-                                    .initializer("\$T.of(\$T.$accessorName::getConstructorHandle)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
+                                    .initializer("\$T.of(\$T.$accessorName::getConstructorHandle)", classLazySupplier, mappingClassName)
                                     .build()
                             )
                         }
                         AccessorType.NONE -> {}
                     }
 
-                    FieldSpec.builder(SourceTypes.CONSTRUCTOR_MAPPING, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                    FieldSpec.builder(classConstructorMapping, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                         .addAnnotation(SourceTypes.NOT_NULL)
                         .addJavadoc(
                             """
@@ -378,7 +386,7 @@ open class JavaGenerationContext(
                             accessorBuilder.addField(
                                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                     .addMeta()
-                                    .initializer("\$T.of(\$T.$accessorName::getMethod)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
+                                    .initializer("\$T.of(\$T.$accessorName::getMethod)", classLazySupplier, mappingClassName)
                                     .build()
                             )
                         }
@@ -386,14 +394,14 @@ open class JavaGenerationContext(
                             accessorBuilder.addField(
                                 FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                                     .addMeta()
-                                    .initializer("\$T.of(\$T.$accessorName::getMethodHandle)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
+                                    .initializer("\$T.of(\$T.$accessorName::getMethodHandle)", classLazySupplier, mappingClassName)
                                     .build()
                             )
                         }
                         AccessorType.NONE -> {}
                     }
 
-                    FieldSpec.builder(SourceTypes.METHOD_MAPPING, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                    FieldSpec.builder(classMethodMapping, accessorName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                         .addAnnotation(SourceTypes.NOT_NULL)
                         .addJavadoc(
                             """
@@ -437,15 +445,16 @@ open class JavaGenerationContext(
      */
     override fun generateLookupClass(names: List<String>) {
         val poolClassName = generator.config.namingStrategy.klass("Mappings", GeneratedClassType.EXTRA).toClassName(generator.config.basePackage)
+        val classMappingLookup = SourceTypes.MAPPING_LOOKUP.resolve(generator.config.accessorRuntimePackage)
 
         JTypeSpec.interfaceBuilder(poolClassName)
             .addModifiers(Modifier.PUBLIC)
             .addField(
-                FieldSpec.builder(SourceTypes.MAPPING_LOOKUP, "LOOKUP", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                FieldSpec.builder(classMappingLookup, "LOOKUP", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                     .addAnnotation(SourceTypes.NOT_NULL)
                     .addJavadoc("Mapping lookup index generated on {@code \$L}.", DATE_FORMAT.format(generationTime))
                     .initializer {
-                        add("new \$T()", SourceTypes.MAPPING_LOOKUP)
+                        add("new \$T()", classMappingLookup)
                         withIndent {
                             names.forEach {
                                 add("\n.put(\$T.MAPPING)", it.toClassName(generator.config.basePackage))

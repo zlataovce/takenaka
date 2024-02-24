@@ -48,6 +48,18 @@ open class KotlinGenerationContext(
     ancestryProvider: AncestryProvider,
     contextScope: CoroutineScope
 ) : AbstractGenerationContext(generator, ancestryProvider, contextScope) {
+
+    // These values should not be changed during compilation, let's create all these KSomething objects only once
+    private val classClassMapping by lazy { SourceTypes.KT_CLASS_MAPPING.resolve(generator.config.accessorRuntimePackage) }
+    private val classFieldMapping by lazy { SourceTypes.KT_FIELD_MAPPING.resolve(generator.config.accessorRuntimePackage) }
+    private val classConstructorMapping by lazy { SourceTypes.KT_CONSTRUCTOR_MAPPING.resolve(generator.config.accessorRuntimePackage) }
+    private val classMethodMapping by lazy { SourceTypes.KT_METHOD_MAPPING.resolve(generator.config.accessorRuntimePackage) }
+
+    private val dslLazy by lazy { SourceTypes.KT_LAZY_DSL.resolve(generator.config.accessorRuntimePackage) }
+    private val dslLazyDelegate by lazy { SourceTypes.KT_LAZY_DELEGATE_DSL.resolve(generator.config.accessorRuntimePackage) }
+    private val dslFieldMapping by lazy { SourceTypes.KT_CLASS_MAPPING_FIELD_DSL.resolve(generator.config.accessorRuntimePackage) }
+    private val dslConstructorMapping by lazy { SourceTypes.KT_CLASS_MAPPING_CTOR_DSL.resolve(generator.config.accessorRuntimePackage) }
+    private val dslMethodMapping by lazy { SourceTypes.KT_CLASS_MAPPING_METHOD_DSL.resolve(generator.config.accessorRuntimePackage) }
     /**
      * Generates an accessor class from a model in Kotlin.
      *
@@ -73,7 +85,7 @@ open class KotlinGenerationContext(
             )
             .addProperty(
                 PropertySpec.builder("TYPE", SourceTypes.KT_NULLABLE_CLASS_WILDCARD)
-                    .delegate("%M(%T::getClazz)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                    .delegate("%M(%T::getClazz)", dslLazy, mappingClassName)
                     .build()
             )
 
@@ -88,7 +100,7 @@ open class KotlinGenerationContext(
                 resolvedAccessor.node.last.key.id,
                 resolvedAccessor.node.first.key.id
             )
-            .superclass(SourceTypes.KT_CLASS_MAPPING)
+            .superclass(classClassMapping)
             .addSuperclassConstructorParameter("%S", accessedQualifiedName)
             .addInitializerBlock(
                 buildCodeBlock {
@@ -104,7 +116,7 @@ open class KotlinGenerationContext(
                     }
 
                     resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
-                        beginControlFlow("%M(%S)", SourceTypes.KT_CLASS_MAPPING_FIELD_DSL, fieldAccessor.name)
+                        beginControlFlow("%M(%S)", dslFieldMapping, fieldAccessor.name)
 
                         groupFieldNames(fieldNode).forEach { (fieldKey, versions) ->
                             val (ns, name) = fieldKey
@@ -121,7 +133,7 @@ open class KotlinGenerationContext(
                     }
 
                     resolvedAccessor.constructors.forEach { (_, ctorNode) ->
-                        beginControlFlow("%M", SourceTypes.KT_CLASS_MAPPING_CTOR_DSL)
+                        beginControlFlow("%M", dslConstructorMapping)
 
                         groupConstructorNames(ctorNode).forEach { (ctorKey, versions) ->
                             val (ns, desc) = ctorKey
@@ -139,7 +151,7 @@ open class KotlinGenerationContext(
                     }
 
                     resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
-                        beginControlFlow("%M(%S)", SourceTypes.KT_CLASS_MAPPING_METHOD_DSL, methodAccessor.name)
+                        beginControlFlow("%M(%S)", dslMethodMapping, methodAccessor.name)
 
                         groupMethodNames(methodNode).forEach { (methodKey, versions) ->
                             val (ns, name, desc) = methodKey
@@ -192,7 +204,7 @@ open class KotlinGenerationContext(
                         accessorBuilder.addProperty(
                             PropertySpec.builder(generator.config.namingStrategy.field(fieldAccessor.name, overloadIndex ?: 0, true), SourceTypes.KT_NULLABLE_ANY)
                                 .addMeta(constant = true)
-                                .delegate("%M(%T.$accessorName::getConstantValue)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                .delegate("%M(%T.$accessorName::getConstantValue)", dslLazy, mappingClassName)
                                 .build()
                         )
                     } else {
@@ -201,7 +213,7 @@ open class KotlinGenerationContext(
                                 accessorBuilder.addProperty(
                                     PropertySpec.builder(accessorName, SourceTypes.KT_NULLABLE_FIELD)
                                         .addMeta()
-                                        .delegate("%M(%T.$accessorName::getField)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                        .delegate("%M(%T.$accessorName::getField)", dslLazy, mappingClassName)
                                         .build()
                                 )
                             }
@@ -209,13 +221,13 @@ open class KotlinGenerationContext(
                                 accessorBuilder.addProperty(
                                     PropertySpec.builder(generator.config.namingStrategy.fieldGetter(accessorName), SourceTypes.KT_NULLABLE_METHOD_HANDLE)
                                         .addMeta()
-                                        .delegate("%M(%T.$accessorName::getFieldGetter)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                        .delegate("%M(%T.$accessorName::getFieldGetter)", dslLazy, mappingClassName)
                                         .build()
                                 )
                                 accessorBuilder.addProperty(
                                     PropertySpec.builder(generator.config.namingStrategy.fieldSetter(accessorName), SourceTypes.KT_NULLABLE_METHOD_HANDLE)
                                         .addMeta()
-                                        .delegate("%M(%T.$accessorName::getFieldSetter)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                        .delegate("%M(%T.$accessorName::getFieldSetter)", dslLazy, mappingClassName)
                                         .build()
                                 )
                             }
@@ -223,7 +235,7 @@ open class KotlinGenerationContext(
                         }
                     }
 
-                    PropertySpec.builder(accessorName, SourceTypes.KT_FIELD_MAPPING)
+                    PropertySpec.builder(accessorName, classFieldMapping)
                         .addKdoc(
                             """
                                 Mapping for the `%L %L` field.
@@ -275,7 +287,7 @@ open class KotlinGenerationContext(
                             accessorBuilder.addProperty(
                                 PropertySpec.builder(accessorName, SourceTypes.KT_NULLABLE_CONSTRUCTOR_WILDCARD)
                                     .addMeta()
-                                    .delegate("%M(%T.$accessorName::getConstructor)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                    .delegate("%M(%T.$accessorName::getConstructor)", dslLazy, mappingClassName)
                                     .build()
                             )
                         }
@@ -283,14 +295,14 @@ open class KotlinGenerationContext(
                             accessorBuilder.addProperty(
                                 PropertySpec.builder(accessorName, SourceTypes.KT_NULLABLE_METHOD_HANDLE)
                                     .addMeta()
-                                    .delegate("%M(%T.$accessorName::getConstructorHandle)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                    .delegate("%M(%T.$accessorName::getConstructorHandle)", dslLazy, mappingClassName)
                                     .build()
                             )
                         }
                         AccessorType.NONE -> {}
                     }
 
-                    PropertySpec.builder(accessorName, SourceTypes.KT_CONSTRUCTOR_MAPPING)
+                    PropertySpec.builder(accessorName, classConstructorMapping)
                         .addKdoc(
                             """
                                 Mapping for the `(%L)` constructor.
@@ -338,7 +350,7 @@ open class KotlinGenerationContext(
                             accessorBuilder.addProperty(
                                 PropertySpec.builder(accessorName, SourceTypes.KT_NULLABLE_METHOD)
                                     .addMeta()
-                                    .delegate("%M(%T.$accessorName::getMethod)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                    .delegate("%M(%T.$accessorName::getMethod)", dslLazy, mappingClassName)
                                     .build()
                             )
                         }
@@ -346,14 +358,14 @@ open class KotlinGenerationContext(
                             accessorBuilder.addProperty(
                                 PropertySpec.builder(accessorName, SourceTypes.KT_NULLABLE_METHOD_HANDLE)
                                     .addMeta()
-                                    .delegate("%M(%T.$accessorName::getMethodHandle)", SourceTypes.KT_LAZY_DSL, mappingClassName)
+                                    .delegate("%M(%T.$accessorName::getMethodHandle)", dslLazy, mappingClassName)
                                     .build()
                             )
                         }
                         AccessorType.NONE -> {}
                     }
 
-                    PropertySpec.builder(accessorName, SourceTypes.KT_METHOD_MAPPING)
+                    PropertySpec.builder(accessorName, classMethodMapping)
                         .addKdoc(
                             """
                                 Mapping for the `%L %L(%L)` method.
@@ -395,10 +407,12 @@ open class KotlinGenerationContext(
      * @param names internal names of classes declared in accessor models
      */
     override fun generateLookupClass(names: List<String>) {
-        PropertySpec.builder("LOOKUP", SourceTypes.KT_MAPPING_LOOKUP)
+        val ktMappingLookup = SourceTypes.KT_MAPPING_LOOKUP.resolve(generator.config.accessorRuntimePackage)
+
+        PropertySpec.builder("LOOKUP", ktMappingLookup)
             .addKdoc("Mapping lookup index.")
             .initializer {
-                beginControlFlow("%M", SourceTypes.KT_MAPPING_LOOKUP_DSL)
+                beginControlFlow("%M", ktMappingLookup)
 
                 names.forEach {
                     addStatement("put(%T)", it.toClassName(generator.config.basePackage))
@@ -454,7 +468,7 @@ open class KotlinGenerationContext(
             .indent(" ".repeat(4)) // 4 spaces
             .apply {
                 if (includeMappingDsl) {
-                    addImport(SourceTypes.KT_LAZY_DELEGATE_DSL)
+                    addImport(dslLazyDelegate)
                 }
 
                 forEach { elem ->

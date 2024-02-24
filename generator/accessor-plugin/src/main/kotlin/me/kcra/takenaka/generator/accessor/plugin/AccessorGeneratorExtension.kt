@@ -20,6 +20,7 @@ package me.kcra.takenaka.generator.accessor.plugin
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.VersionRangeBuilder
+import me.kcra.takenaka.generator.accessor.ACCESSOR_RUNTIME_PACKAGE
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.CodeLanguage
@@ -113,6 +114,11 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      */
     abstract val namingStrategy: Property<NamingStrategy>
 
+    /**
+     * Package containing the accessor-runtime module. Defaults to [ACCESSOR_RUNTIME_PACKAGE]
+     */
+    abstract val accessorRuntimePackage: Property<String>
+
     init {
         outputDirectory.convention(project.layout.buildDirectory.dir("takenaka/output"))
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
@@ -123,6 +129,7 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
         relaxedCache.convention(true)
         platform.convention(PlatformTristate.SERVER)
         namingStrategy.convention(StandardNamingStrategies.SIMPLE)
+        accessorRuntimePackage.convention(ACCESSOR_RUNTIME_PACKAGE)
     }
 
     /**
@@ -282,6 +289,15 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      */
     fun namingStrategy(namingStrategy: NamingStrategy) {
         this.namingStrategy.set(namingStrategy)
+    }
+
+    /**
+     * Sets the [accessorRuntimePackage] property.
+     *
+     * @param accessorRuntimePackage the package with accessor-runtime module
+     */
+    fun accessorRuntimePackage(accessorRuntimePackage: String) {
+        this.accessorRuntimePackage.set(accessorRuntimePackage)
     }
 
     /**
