@@ -25,32 +25,33 @@ enum class StandardNamingStrategies: MemberPrefixedNamingStrategy {
     /**
      * Uses simple names to name accessors and mapping classes.
      */
-    SIMPLE {
-        override fun klass(className: String, classType: GeneratedClassType): String {
-            val index = className.lastIndexOf('.')
-            return if (index != -1) {
-                className.substring(index + 1)
-            } else {
-                className
-            } + classType.asSuffix()
-        }
-    },
+    SIMPLE,
 
     /**
      * Uses fully qualified names to name accessors and mapping classes.
      */
-    FULLY_QUALIFIED {
-        override fun klass(className: String, classType: GeneratedClassType): String =
-            className + classType.asSuffix()
-    },
+    FULLY_QUALIFIED,
 
     /**
      * Uses fully qualified names without the `net.minecraft.` part to name accessors and mapping classes.
      */
-    QUALIFIED_WITHOUT_NET_MINECRAFT {
-        override fun klass(className: String, classType: GeneratedClassType): String =
-            className.substringAfter("net.minecraft.") + classType.asSuffix()
-    };
+    QUALIFIED_WITHOUT_NET_MINECRAFT;
+
+    // Having this enum as an abstract class causes incompatibility with Groovy DSL
+    // (Specific inner class name clashes with constant name and Groovy cannot solve that)
+    override fun klass(className: String, classType: GeneratedClassType): String =
+        when(this) {
+            SIMPLE -> {
+                val index = className.lastIndexOf('.')
+                if (index != -1) {
+                    className.substring(index + 1)
+                } else {
+                    className
+                } + classType.asSuffix()
+            }
+            FULLY_QUALIFIED -> className + classType.asSuffix()
+            QUALIFIED_WITHOUT_NET_MINECRAFT -> className.substringAfter("net.minecraft.") + classType.asSuffix()
+        }
 
     protected fun GeneratedClassType.asSuffix() = when(this) {
         GeneratedClassType.MAPPING -> "Mapping"
