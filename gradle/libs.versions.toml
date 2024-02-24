@@ -27,6 +27,7 @@ kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotli
 kotlinpoet-javapoet = { group = "com.squareup", name = "kotlinpoet-javapoet", version.ref = "kotlinpoet" }
 build-licenser = { group = "org.cadixdev.licenser", name = "org.cadixdev.licenser.gradle.plugin", version = "0.6.1" }
 build-gradle-versions = { group = "com.github.ben-manes", name = "gradle-versions-plugin", version = "0.46.0" }
+build-kotlin-jvm = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 
 [bundles]
 kotlin = ["kotlin-stdlib-jdk8", "kotlin-reflect"]

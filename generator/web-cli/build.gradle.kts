@@ -1,11 +1,10 @@
 plugins {
     id("takenaka.base-conventions")
+    id("takenaka.kotlin-conventions")
     id("takenaka.publish-conventions")
     alias(libs.plugins.shadow)
     application
 }
-
-apply(plugin = "org.jetbrains.kotlin.jvm")
 
 dependencies {
     implementation(project(":generator-web"))
