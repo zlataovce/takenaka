@@ -63,9 +63,12 @@ open class KotlinGenerationContext(
                 """
                     Accessors for the `%L` class.
                     
+                    `%L` - `%L`
                     @see %L
                 """.trimIndent(),
                 accessedQualifiedName,
+                resolvedAccessor.node.last.key.id,
+                resolvedAccessor.node.first.key.id,
                 mappingClassName.canonicalName
             )
             .addProperty(
@@ -167,6 +170,7 @@ open class KotlinGenerationContext(
                             """
                                 Accessor for the `%L %L` %L.
                                 
+                                `%L` - `%L`
                                 @see %L.%L
                             """.trimIndent(),
                             fieldType.className,
@@ -176,6 +180,8 @@ open class KotlinGenerationContext(
                             } else {
                                 "field"
                             },
+                            fieldNode.first.key.id,
+                            fieldNode.last.key.id,
                             mappingClassName.canonicalName,
                             accessorName
                         )
@@ -201,13 +207,13 @@ open class KotlinGenerationContext(
                             }
                             AccessorType.METHOD_HANDLES -> {
                                 accessorBuilder.addProperty(
-                                    PropertySpec.builder("${accessorName}_GETTER", SourceTypes.KT_NULLABLE_METHOD_HANDLE)
+                                    PropertySpec.builder(generator.config.namingStrategy.fieldGetter(accessorName), SourceTypes.KT_NULLABLE_METHOD_HANDLE)
                                         .addMeta()
                                         .delegate("%M(%T.$accessorName::getFieldGetter)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                         .build()
                                 )
                                 accessorBuilder.addProperty(
-                                    PropertySpec.builder("${accessorName}_SETTER", SourceTypes.KT_NULLABLE_METHOD_HANDLE)
+                                    PropertySpec.builder(generator.config.namingStrategy.fieldSetter(accessorName), SourceTypes.KT_NULLABLE_METHOD_HANDLE)
                                         .addMeta()
                                         .delegate("%M(%T.$accessorName::getFieldSetter)", SourceTypes.KT_LAZY_DSL, mappingClassName)
                                         .build()
@@ -253,9 +259,12 @@ open class KotlinGenerationContext(
                             """
                                 Accessor for the `(%L)` constructor.
                                 
+                                `%L` - `%L`
                                 @see %L.%L
                             """.trimIndent(),
                             ctorArgs.joinToString(transform = Type::getClassName),
+                            ctorNode.first.key.id,
+                            ctorNode.last.key.id,
                             mappingClassName.canonicalName,
                             accessorName
                         )
@@ -311,11 +320,14 @@ open class KotlinGenerationContext(
                             """
                                 Accessor for the `%L %L(%L)` method.
                                 
+                                `%L` - `%L`
                                 @see %L.%L
                             """.trimIndent(),
                             methodType.returnType.className,
                             methodAccessor.name,
                             methodType.argumentTypes.joinToString(transform = Type::getClassName),
+                            methodNode.first.key.id,
+                            methodNode.last.key.id,
                             mappingClassName.canonicalName,
                             accessorName
                         )

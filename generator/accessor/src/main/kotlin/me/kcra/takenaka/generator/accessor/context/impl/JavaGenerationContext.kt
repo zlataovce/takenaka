@@ -227,13 +227,25 @@ open class JavaGenerationContext(
                             }
                             AccessorType.METHOD_HANDLES -> {
                                 accessorBuilder.addField(
-                                    FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), "${accessorName}_GETTER", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                    FieldSpec.builder(
+                                        JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE),
+                                        generator.config.namingStrategy.fieldGetter(accessorName),
+                                        Modifier.PUBLIC,
+                                        Modifier.STATIC,
+                                        Modifier.FINAL
+                                    )
                                         .addMeta()
                                         .initializer("\$T.of(\$T.$accessorName::getFieldGetter)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
                                         .build()
                                 )
                                 accessorBuilder.addField(
-                                    FieldSpec.builder(JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE), "${accessorName}_SETTER", Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                    FieldSpec.builder(
+                                        JParameterizedTypeName.get(SourceTypes.SUPPLIER, SourceTypes.METHOD_HANDLE),
+                                        generator.config.namingStrategy.fieldSetter(accessorName),
+                                        Modifier.PUBLIC,
+                                        Modifier.STATIC,
+                                        Modifier.FINAL
+                                    )
                                         .addMeta()
                                         .initializer("\$T.of(\$T.$accessorName::getFieldSetter)", SourceTypes.LAZY_SUPPLIER, mappingClassName)
                                         .build()
