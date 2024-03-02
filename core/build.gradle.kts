@@ -2,12 +2,11 @@ import kotlinx.benchmark.gradle.JvmBenchmarkTarget
 
 plugins {
     id("takenaka.base-conventions")
+    id("takenaka.kotlin-conventions")
     id("takenaka.publish-conventions")
     alias(libs.plugins.kotlinx.benchmark)
     alias(libs.plugins.kotlin.plugin.allopen)
 }
-
-apply(plugin = "org.jetbrains.kotlin.jvm")
 
 sourceSets {
     create("benchmark") {

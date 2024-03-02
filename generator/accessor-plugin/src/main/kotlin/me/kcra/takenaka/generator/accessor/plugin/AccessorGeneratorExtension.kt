@@ -20,10 +20,15 @@ package me.kcra.takenaka.generator.accessor.plugin
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.VersionRangeBuilder
+import me.kcra.takenaka.generator.accessor.DEFAULT_RUNTIME_PACKAGE
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.CodeLanguage
 import me.kcra.takenaka.generator.accessor.model.*
+import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
+import me.kcra.takenaka.generator.accessor.naming.StandardNamingStrategies
+import me.kcra.takenaka.generator.accessor.naming.prefixed
+import me.kcra.takenaka.generator.accessor.naming.resolveSimpleConflicts
 import me.kcra.takenaka.generator.accessor.plugin.tasks.DEFAULT_INDEX_NS
 import org.gradle.api.Action
 import org.gradle.api.Project
@@ -77,8 +82,9 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
     abstract val accessors: ListProperty<ClassAccessor>
 
     /**
-     * Base package of the generated accessors, required.
+     * Base package of the generated accessors.
      */
+    @Deprecated("The base package concept was superseded by naming strategies.")
     abstract val basePackage: Property<String>
 
     /**
@@ -106,6 +112,16 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      */
     abstract val historyIndexNamespace: Property<String?>
 
+    /**
+     * Strategy used to name generated classes and their members, defaults to a conflict-resolving variant of [StandardNamingStrategies.SIMPLE].
+     */
+    abstract val namingStrategy: Property<NamingStrategy>
+
+    /**
+     * Package containing the accessor runtime, defaults to [DEFAULT_RUNTIME_PACKAGE].
+     */
+    abstract val runtimePackage: Property<String>
+
     init {
         outputDirectory.convention(project.layout.buildDirectory.dir("takenaka/output"))
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
@@ -115,6 +131,9 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         relaxedCache.convention(true)
         platform.convention(PlatformTristate.SERVER)
+        @Suppress("DEPRECATION")
+        namingStrategy.convention(basePackage.map { pack -> StandardNamingStrategies.SIMPLE.prefixed(pack).resolveSimpleConflicts() })
+        runtimePackage.convention(DEFAULT_RUNTIME_PACKAGE)
     }
 
     /**
@@ -200,8 +219,9 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      *
      * @param basePackage the base package
      */
+    @Suppress("DEPRECATION")
     fun basePackage(basePackage: String) {
-        this.basePackage.set(basePackage)
+        this.basePackage.set(basePackage) // TODO: immediately wrap the strategy instead
     }
 
     /**
@@ -265,6 +285,24 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      */
     fun historyIndexNamespace(historyIndexNamespace: String?) {
         this.historyIndexNamespace.set(historyIndexNamespace)
+    }
+
+    /**
+     * Sets the [namingStrategy] property.
+     *
+     * @param strategy the naming strategy
+     */
+    fun namingStrategy(strategy: NamingStrategy) {
+        this.namingStrategy.set(strategy)
+    }
+
+    /**
+     * Sets the [runtimePackage] property.
+     *
+     * @param runtimePackage the package
+     */
+    fun runtimePackage(runtimePackage: String) {
+        this.runtimePackage.set(runtimePackage)
     }
 
     /**

@@ -1,9 +1,8 @@
 plugins {
     id("takenaka.base-conventions")
+    id("takenaka.kotlin-conventions")
     id("takenaka.publish-conventions")
 }
-
-apply(plugin = "org.jetbrains.kotlin.jvm")
 
 dependencies {
     api(project(":core"))

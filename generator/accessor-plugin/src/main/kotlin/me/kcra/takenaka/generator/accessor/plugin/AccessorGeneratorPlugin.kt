@@ -53,8 +53,8 @@ class AccessorGeneratorPlugin : Plugin<Project> {
         val config = target.extensions.create<AccessorGeneratorExtension>("accessors", target, manifest)
 
         // automatically adds tasks for basic Mojang-based accessor generation
-        val mappingBundle by target.configurations.creating
-        val resolveMappings by target.tasks.creating(ResolveMappingsTask::class) {
+        val mappingBundle by target.configurations.registering
+        val resolveMappings by target.tasks.registering(ResolveMappingsTask::class) {
             group = "takenaka"
             description = "Resolves a basic set of mappings for development on Mojang-based software."
 
@@ -62,21 +62,33 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.versions.set(config.versions)
             this.relaxedCache.set(config.relaxedCache)
             this.manifest.set(manifest)
+            this.mappingBundle.fileProvider(mappingBundle.flatMap { mb ->
+                project.provider { // Kotlin doesn't like returning null from Provider#map
+                    if (!mb.isEmpty) {
+                        return@provider requireNotNull(mb.singleOrNull()) {
+                            "mappingBundle configuration may only have a single file"
+                        }
+                    }
+
+                    return@provider null
+                }
+            })
         }
-        val generateAccessors by target.tasks.creating(GenerateAccessorsTask::class) {
+        val generateAccessors by target.tasks.registering(GenerateAccessorsTask::class) {
             group = "takenaka"
             description = "Generates reflective accessors."
             dependsOn(resolveMappings)
 
             this.outputDir.set(config.outputDirectory)
-            this.mappingProvider.set(resolveMappings.mappings.map(::SimpleMappingProvider))
+            this.mappingProvider.set(resolveMappings.flatMap { rm -> rm.mappings.map(::SimpleMappingProvider) })
             this.accessors.set(config.accessors)
-            this.basePackage.set(config.basePackage)
             this.codeLanguage.set(config.codeLanguage)
             this.accessorType.set(config.accessorType)
             this.accessedNamespaces.set(config.accessedNamespaces)
             this.historyNamespaces.set(config.historyNamespaces)
             this.historyIndexNamespace.set(config.historyIndexNamespace)
+            this.namingStrategy.set(config.namingStrategy)
+            this.runtimePackage.set(config.runtimePackage)
         }
         val traceAccessors by target.tasks.creating(TraceAccessorsTask::class) {
             group = "takenaka"
@@ -84,14 +96,15 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             dependsOn(resolveMappings)
 
             this.outputDir.set(config.outputDirectory)
-            this.mappingProvider.set(resolveMappings.mappings.map(::SimpleMappingProvider))
+            this.mappingProvider.set(resolveMappings.flatMap { rm -> rm.mappings.map(::SimpleMappingProvider) })
             this.accessors.set(config.accessors)
-            this.basePackage.set(config.basePackage)
             this.codeLanguage.set(config.codeLanguage)
             this.accessorType.set(config.accessorType)
             this.accessedNamespaces.set(config.accessedNamespaces)
             this.historyNamespaces.set(config.historyNamespaces)
             this.historyIndexNamespace.set(config.historyIndexNamespace)
+            this.namingStrategy.set(config.namingStrategy)
+            this.runtimePackage.set(config.runtimePackage)
         }
 
         target.tasks.withType<JavaCompile> {
@@ -113,11 +126,6 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             if (config.outputDirectory.get().asFile == defaultLocation) {
                 extensions.getByType<JavaPluginExtension>().sourceSets["main"].java.srcDir(defaultLocation)
             }
-
-            // set the task bundle file, if the mappingBundle configuration is not empty
-            if (!mappingBundle.isEmpty) {
-                resolveMappings.mappingBundle.set(mappingBundle.singleFile)
-            }
         }
     }
 }
@@ -129,5 +137,6 @@ class AccessorGeneratorPlugin : Plugin<Project> {
  * @param version the dependency version, defaults to the version of this Gradle plugin
  * @return the dependency
  */
+@Suppress("UnusedReceiverParameter") // scope restriction
 fun DependencyHandler.accessorRuntime(group: String = BuildConfig.BUILD_MAVEN_GROUP, version: String = BuildConfig.BUILD_VERSION): Any =
     "$group:generator-accessor-runtime:$version"

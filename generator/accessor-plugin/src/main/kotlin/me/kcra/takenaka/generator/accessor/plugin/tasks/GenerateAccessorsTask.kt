@@ -38,12 +38,13 @@ abstract class GenerateAccessorsTask : GenerationTask() {
             outputWorkspace,
             AccessorConfiguration(
                 accessors = accessors.get(),
-                basePackage = basePackage.get(),
                 codeLanguage = codeLanguage.get(),
                 accessorType = accessorType.get(),
                 namespaceFriendlinessIndex = namespaceFriendlinessIndex.get(),
                 accessedNamespaces = accessedNamespaces.get(),
-                craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get()
+                craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get(),
+                namingStrategy = namingStrategy.get(),
+                runtimePackage = runtimePackage.get()
             )
         )
 
