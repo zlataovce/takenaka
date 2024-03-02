@@ -15,22 +15,26 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.generator.accessor.naming
+package me.kcra.takenaka.generator.accessor
 
 /**
- * Generated class type.
+ * Generated class member types.
+ *
+ * @author Matouš Kučera
  */
-enum class GeneratedClassType {
+enum class GeneratedMemberType {
     /**
-     * Mapping class
+     * Type field ([java.lang.Class]).
+     */
+    TYPE,
+
+    /**
+     * Mapping field (`me.kcra.takenaka.accessor.ClassMapping`).
      */
     MAPPING,
+
     /**
-     * Accessor class
+     * Lookup field (`me.kcra.takenaka.accessor.MappingLookup`).
      */
-    ACCESSOR,
-    /**
-     * Additional class (e.g. Mappings)
-     */
-    EXTRA
+    LOOKUP
 }

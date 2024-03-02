@@ -18,12 +18,14 @@
 package me.kcra.takenaka.generator.accessor.plugin.tasks
 
 import me.kcra.takenaka.core.workspace
-import me.kcra.takenaka.generator.accessor.ACCESSOR_RUNTIME_PACKAGE
+import me.kcra.takenaka.generator.accessor.DEFAULT_RUNTIME_PACKAGE
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.CodeLanguage
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
 import me.kcra.takenaka.generator.accessor.naming.StandardNamingStrategies
+import me.kcra.takenaka.generator.accessor.naming.prefixed
+import me.kcra.takenaka.generator.accessor.naming.resolveSimpleConflicts
 import me.kcra.takenaka.generator.common.provider.MappingProvider
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -31,6 +33,7 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 
 /**
@@ -67,10 +70,12 @@ abstract class GenerationTask : DefaultTask() {
     abstract val accessors: ListProperty<ClassAccessor>
 
     /**
-     * Base package of the generated accessors, required.
+     * Base package of the generated accessors.
      *
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.basePackage
      */
+    @Deprecated("The base package concept was superseded by naming strategies.")
+    @get:Optional
     @get:Input
     abstract val basePackage: Property<String>
 
@@ -127,7 +132,7 @@ abstract class GenerationTask : DefaultTask() {
     abstract val historyIndexNamespace: Property<String?>
 
     /**
-     * Strategy used to name generated mapping classes, accessor classes and their fields, defaults to [StandardNamingStrategies.SIMPLE].
+     * Strategy used to name generated classes and their members.
      *
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.namingStrategy
      */
@@ -135,12 +140,12 @@ abstract class GenerationTask : DefaultTask() {
     abstract val namingStrategy: Property<NamingStrategy>
 
     /**
-     * Package containing the accessor-runtime module. Defaults to [ACCESSOR_RUNTIME_PACKAGE]
+     * Package containing the accessor runtime, defaults to [DEFAULT_RUNTIME_PACKAGE].
      *
-     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.accessorRuntimePackage
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.runtimePackage
      */
     @get:Input
-    abstract val accessorRuntimePackage: Property<String>
+    abstract val runtimePackage: Property<String>
 
     /**
      * The output workspace ([outputDir]).
@@ -160,7 +165,8 @@ abstract class GenerationTask : DefaultTask() {
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
-        namingStrategy.convention(StandardNamingStrategies.SIMPLE)
-        accessorRuntimePackage.convention(ACCESSOR_RUNTIME_PACKAGE)
+        @Suppress("DEPRECATION")
+        namingStrategy.convention(basePackage.map { pack -> StandardNamingStrategies.SIMPLE.prefixed(pack).resolveSimpleConflicts() })
+        runtimePackage.convention(DEFAULT_RUNTIME_PACKAGE)
     }
 }

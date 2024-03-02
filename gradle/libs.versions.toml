@@ -35,7 +35,6 @@ asm = ["asm", "asm-commons"]
 jackson = ["jackson-module-kotlin", "jackson-datatype-jsr310", "jackson-dataformat-xml"]
 
 [plugins]
-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 shadow = { id = "com.github.johnrengelman.shadow", version = "8.1.1" }
 kotlinx-benchmark = { id = "org.jetbrains.kotlinx.benchmark", version.ref = "kotlinx-benchmark" }
 kotlin-plugin-allopen = { id = "org.jetbrains.kotlin.plugin.allopen", version.ref = "kotlin" }

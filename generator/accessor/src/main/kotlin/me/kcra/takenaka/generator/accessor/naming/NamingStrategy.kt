@@ -17,60 +17,90 @@
 
 package me.kcra.takenaka.generator.accessor.naming
 
+import me.kcra.takenaka.generator.accessor.GeneratedClassType
+import me.kcra.takenaka.generator.accessor.GeneratedMemberType
+import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.accessor.model.ConstructorAccessor
+import me.kcra.takenaka.generator.accessor.model.FieldAccessor
+import me.kcra.takenaka.generator.accessor.model.MethodAccessor
+
 /**
  * A strategy for naming generated classes and its members.
+ *
+ * @author Michal Turek
+ * @author Matouš Kučera
  */
 interface NamingStrategy {
     /**
-     * Creates a new name for the specified class and the generated class type.
+     * Creates a new class name for the class type in the context of the specified class model.
      *
-     * @param className fully qualified name of the mapped class
-     * @param classType type of the class being generated (Mapping, Accessor, ...).
-     *          The naming strategy has to count with this information to not create conflicting names.
-     * @return A partially qualified name of the resulting class to which a user-specified base-package will be prepended.
+     * @param model the accessor model
+     * @param type the type of the class being generated
+     * @return the class name
      */
-    fun klass(className: String, classType: GeneratedClassType): String
+    fun klass(model: ClassAccessor, type: GeneratedClassType): String
 
     /**
-     * Creates a new name for a field representing constructor accessor.
+     * Creates a new field name for the specified field model.
      *
-     * @param index index of the constructor
-     * @return name for a field representing the indexed constructor
+     * @param model the accessor model
+     * @param index the overload index of the model declaration
+     * @return the field name
      */
-    fun constructor(index: Int): String
+    fun field(model: FieldAccessor, index: Int): String
 
     /**
-     * Creates a new name for a field representing field accessor.
+     * Creates a new field name for the specified field model ([java.lang.invoke.MethodHandle] variant).
      *
-     * @param fieldName name of the requested field
-     * @param index index of the requested field among fields with the same name (starts at 0)
-     * @param constantAccessor whether a constant accessor (object supplier) is being generated for the field
-     * @return name for a field representing the field
+     * @param model the accessor model
+     * @param index the overload index of the model declaration
+     * @param mutating whether a setter handle name should be generated
+     * @return the field name
      */
-    fun field(fieldName: String, index: Int, constantAccessor: Boolean): String
+    fun fieldHandle(model: FieldAccessor, index: Int, mutating: Boolean): String
 
     /**
-     * Modifies the accessor name for use as a MethodHandle field getter.
+     * Creates a new field name for the specified constant field model.
      *
-     * @param fieldAccessor accessor field name resolved earlier by this naming strategy
-     * @return a modified name for getter accessor
+     * @param model the accessor model
+     * @param index the overload index of the model declaration
+     * @return the field name
      */
-    fun fieldGetter(fieldAccessor: String): String = fieldAccessor + "_GETTER"
+    fun constant(model: FieldAccessor, index: Int): String
 
     /**
-     * Modifies the accessor name for use as a MethodHandle field setter.
+     * Creates a new field name for the specified constructor model.
      *
-     * @param fieldAccessor accessor field name resolved earlier by this naming strategy
-     * @return a modified name for setter accessor
+     * @param model the accessor model
+     * @param index the index of the model declaration
+     * @return the field name
      */
-    fun fieldSetter(fieldAccessor: String): String = fieldAccessor + "_SETTER"
+    fun constructor(model: ConstructorAccessor, index: Int): String
 
     /**
-     * Creates a new name for a field representing method accessor.
+     * Creates a new field name for the specified method model.
      *
-     * @param methodName name of the requested method
-     * @param index index of the requested method among methods with the same name (starts at 0)
-     * @return name for a field representing the method
+     * @param model the accessor model
+     * @param index the overload index of the model declaration
+     * @return the field name
      */
-    fun method(methodName: String, index: Int): String
+    fun method(model: MethodAccessor, index: Int): String
+
+    // context-free cases
+
+    /**
+     * Creates a new class name for the specified type.
+     *
+     * @param type the type of the class being generated
+     * @return the class name
+     */
+    fun klass(type: GeneratedClassType): String
+
+    /**
+     * Creates a new member name for the specified type.
+     *
+     * @param type the type of the member being generated
+     * @return the member name
+     */
+    fun member(type: GeneratedMemberType): String
 }
