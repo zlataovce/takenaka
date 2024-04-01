@@ -39,4 +39,8 @@ abstract class ForwardingNamingStrategy(private val next: NamingStrategy) : Nami
     override fun method(model: MethodAccessor, index: Int): String = next.method(model, index)
     override fun klass(type: GeneratedClassType): String = next.klass(type)
     override fun member(type: GeneratedMemberType): String = next.member(type)
+
+    companion object {
+        private const val serialVersionUID = 1L
+    }
 }

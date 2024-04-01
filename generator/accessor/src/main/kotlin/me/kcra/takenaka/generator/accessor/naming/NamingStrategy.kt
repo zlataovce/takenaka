@@ -23,6 +23,7 @@ import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.accessor.model.ConstructorAccessor
 import me.kcra.takenaka.generator.accessor.model.FieldAccessor
 import me.kcra.takenaka.generator.accessor.model.MethodAccessor
+import java.io.Serializable
 
 /**
  * A strategy for naming generated classes and its members.
@@ -30,7 +31,7 @@ import me.kcra.takenaka.generator.accessor.model.MethodAccessor
  * @author Michal Turek
  * @author Matouš Kučera
  */
-interface NamingStrategy {
+interface NamingStrategy : Serializable {
     /**
      * Creates a new class name for the class type in the context of the specified class model.
      *
