@@ -28,6 +28,7 @@ import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
+import me.kcra.takenaka.generator.accessor.GeneratedClassType
 import me.kcra.takenaka.generator.accessor.context.GenerationContext
 import me.kcra.takenaka.generator.accessor.model.*
 import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
@@ -185,13 +186,14 @@ abstract class AbstractGenerationContext(
      * that have been generated in this context.
      */
     override fun generateLookupClass() {
-        generateLookupClass(generatedClasses.toList())
+        // try reconstructing necessary information for name generation
+        generateLookupClass(generatedClasses.map { cl -> namingStrategy.klass(ClassAccessor(cl), GeneratedClassType.MAPPING) })
     }
 
     /**
      * Generates a mapping lookup class from class names.
      *
-     * @param names internal names of classes declared in accessor models
+     * @param names fully qualified names of generated mapping classes
      */
     protected open fun generateLookupClass(names: List<String>) {
     }

@@ -385,7 +385,7 @@ open class KotlinGenerationContext(
     /**
      * Generates a Kotlin mapping lookup class from class names.
      *
-     * @param names internal names of classes declared in accessor models
+     * @param names fully qualified names of generated mapping classes
      */
     override fun generateLookupClass(names: List<String>) {
         PropertySpec.builder(namingStrategy.member(GeneratedMemberType.LOOKUP), types.KT_MAPPING_LOOKUP)

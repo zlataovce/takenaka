@@ -105,7 +105,7 @@ private class SimpleConflictResolvingNamingStrategy(next: NamingStrategy) : Forw
         }
 
         if (index > 0) { // copy accessor with a unique name
-            return super.klass(ClassAccessor(model.name + index, model.fields, model.constructors, model.methods, model.requiredTypes), type)
+            return super.klass(model.withName(model.name + index), type)
         }
         return super.klass(model, type)
     }
