@@ -379,4 +379,58 @@ class GradleFlavoredClassAccessorBuilder(name: String) : AbstractClassAccessorBu
     fun methodChain(block: Action<MethodChainBuilder>) {
         methodChain0(block::execute)
     }
+
+    // naming strategy shortcuts
+
+    /**
+     * Shortcut for [me.kcra.takenaka.generator.accessor.naming.prefixed].
+     */
+    fun prefixed(strategy: NamingStrategy, basePackage: String): NamingStrategy {
+        return strategy.prefixed(basePackage)
+    }
+
+    /**
+     * Shortcut for [StandardNamingStrategies.SIMPLE].
+     */
+    fun simple(): NamingStrategy {
+        return StandardNamingStrategies.SIMPLE
+    }
+
+    /**
+     * Shortcut for [me.kcra.takenaka.generator.accessor.naming.prefixed] and
+     * [me.kcra.takenaka.generator.accessor.naming.resolveSimpleConflicts] called on [StandardNamingStrategies.SIMPLE].
+     */
+    fun prefixedSimple(basePackage: String): NamingStrategy {
+        return StandardNamingStrategies.SIMPLE.prefixed(basePackage).resolveSimpleConflicts()
+    }
+
+    /**
+     * Shortcut for [StandardNamingStrategies.SEMI_QUALIFIED].
+     */
+    fun semiQualified(): NamingStrategy {
+        return StandardNamingStrategies.SEMI_QUALIFIED
+    }
+
+    /**
+     * Shortcut for [me.kcra.takenaka.generator.accessor.naming.prefixed]
+     * called on [StandardNamingStrategies.SEMI_QUALIFIED].
+     */
+    fun prefixedSemiQualified(basePackage: String): NamingStrategy {
+        return StandardNamingStrategies.SEMI_QUALIFIED.prefixed(basePackage)
+    }
+
+    /**
+     * Shortcut for [StandardNamingStrategies.FULLY_QUALIFIED].
+     */
+    fun fullyQualified(): NamingStrategy {
+        return StandardNamingStrategies.FULLY_QUALIFIED
+    }
+
+    /**
+     * Shortcut for [me.kcra.takenaka.generator.accessor.naming.prefixed]
+     * called on [StandardNamingStrategies.FULLY_QUALIFIED].
+     */
+    fun prefixedFullyQualified(basePackage: String): NamingStrategy {
+        return StandardNamingStrategies.FULLY_QUALIFIED.prefixed(basePackage)
+    }
 }
