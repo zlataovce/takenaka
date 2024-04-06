@@ -17,10 +17,6 @@
 
 package me.kcra.takenaka.generator.accessor
 
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryTree
 import me.kcra.takenaka.generator.accessor.context.GenerationContext
@@ -63,16 +59,8 @@ open class AccessorGenerator(override val workspace: Workspace, val config: Acce
      */
     protected open suspend fun generateAccessors(context: GenerationContext, tree: ClassAncestryTree) {
         // generate non-glob accessors before glob ones to ensure that an explicit accessor doesn't get ignored
-        config.accessors.partition { !it.internalName.isGlob }.toList()
-            .forEach { group ->
-                coroutineScope {
-                    group.forEach { accessor ->
-                        launch(Dispatchers.Default + CoroutineName("generate-coro")) {
-                            context.generateClass(accessor, tree)
-                        }
-                    }
-                }
-            }
+        config.accessors.sortedBy { it.internalName.isGlob }
+            .forEach { accessor -> context.generateClass(accessor, tree) }
 
         context.generateLookupClass()
         context.generateExtras()

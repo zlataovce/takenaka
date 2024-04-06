@@ -74,21 +74,51 @@ fun com.squareup.kotlinpoet.FileSpec.Builder.addImport(memberName: MemberName): 
     memberName.run { addImport("$packageName${enclosingClassName?.let { ".$it" } ?: ""}", simpleName) }
 
 /**
- * JavaPoet/KotlinPoet types.
+ * Creates a [JClassName] of a fully qualified top-level class name.
+ *
+ * @return the [JClassName]
  */
-object SourceTypes {
-    val MAPPING_LOOKUP: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "MappingLookup")
+fun String.toJClassName(): JClassName {
+    val dotIndex = lastIndexOf('.')
+    if (dotIndex == -1) {
+        return JClassName.get("", this)
+    }
+
+    return JClassName.get(substring(0, dotIndex), substring(dotIndex + 1))
+}
+
+/**
+ * Creates a [KClassName] of a fully qualified top-level class name.
+ *
+ * @return the [KClassName]
+ */
+fun String.toKClassName(): KClassName {
+    val dotIndex = lastIndexOf('.')
+    if (dotIndex == -1) {
+        return KClassName("", this)
+    }
+
+    return KClassName(substring(0, dotIndex), substring(dotIndex + 1))
+}
+
+/**
+ * JavaPoet/KotlinPoet types.
+ *
+ * @property runtimePackage the package of the accessor runtime
+ */
+class SourceTypes(val runtimePackage: String) {
+    val MAPPING_LOOKUP: JClassName = JClassName.get("$runtimePackage.mapping", "MappingLookup")
     val KT_MAPPING_LOOKUP = MAPPING_LOOKUP.toKClassName()
-    val CLASS_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "ClassMapping")
+    val CLASS_MAPPING: JClassName = JClassName.get("$runtimePackage.mapping", "ClassMapping")
     val KT_CLASS_MAPPING = CLASS_MAPPING.toKClassName()
-    val FIELD_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "FieldMapping")
+    val FIELD_MAPPING: JClassName = JClassName.get("$runtimePackage.mapping", "FieldMapping")
     val KT_FIELD_MAPPING = FIELD_MAPPING.toKClassName()
-    val CONSTRUCTOR_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "ConstructorMapping")
+    val CONSTRUCTOR_MAPPING: JClassName = JClassName.get("$runtimePackage.mapping", "ConstructorMapping")
     val KT_CONSTRUCTOR_MAPPING = CONSTRUCTOR_MAPPING.toKClassName()
-    val METHOD_MAPPING: JClassName = JClassName.get("me.kcra.takenaka.accessor.mapping", "MethodMapping")
+    val METHOD_MAPPING: JClassName = JClassName.get("$runtimePackage.mapping", "MethodMapping")
     val KT_METHOD_MAPPING = METHOD_MAPPING.toKClassName()
     val SUPPLIER: JClassName = JClassName.get(java.util.function.Supplier::class.java)
-    val LAZY_SUPPLIER: JClassName = JClassName.get("me.kcra.takenaka.accessor.util", "LazySupplier")
+    val LAZY_SUPPLIER: JClassName = JClassName.get("$runtimePackage.util", "LazySupplier")
     val KT_LAZY_SUPPLIER = LAZY_SUPPLIER.toKClassName()
     val NOT_NULL: JClassName = JClassName.get("org.jetbrains.annotations", "NotNull")
     val NULLABLE: JClassName = JClassName.get("org.jetbrains.annotations", "Nullable")
@@ -112,11 +142,11 @@ object SourceTypes {
     val STRING: JClassName = JClassName.get(java.lang.String::class.java)
     val KT_NULLABLE_ANY = com.squareup.kotlinpoet.ANY.copy(nullable = true)
 
-    val KT_MAPPING_LOOKUP_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "mappingLookup")
-    val KT_CLASS_MAPPING_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "classMapping")
-    val KT_CLASS_MAPPING_FIELD_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "field", isExtension = true)
-    val KT_CLASS_MAPPING_CTOR_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "constructor", isExtension = true)
-    val KT_CLASS_MAPPING_METHOD_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "method", isExtension = true)
-    val KT_LAZY_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "lazy")
-    val KT_LAZY_DELEGATE_DSL = MemberName("me.kcra.takenaka.accessor.util.kotlin", "getValue", isExtension = true)
+    val KT_MAPPING_LOOKUP_DSL = MemberName("$runtimePackage.util.kotlin", "mappingLookup")
+    val KT_CLASS_MAPPING_DSL = MemberName("$runtimePackage.util.kotlin", "classMapping")
+    val KT_CLASS_MAPPING_FIELD_DSL = MemberName("$runtimePackage.util.kotlin", "field", isExtension = true)
+    val KT_CLASS_MAPPING_CTOR_DSL = MemberName("$runtimePackage.util.kotlin", "constructor", isExtension = true)
+    val KT_CLASS_MAPPING_METHOD_DSL = MemberName("$runtimePackage.util.kotlin", "method", isExtension = true)
+    val KT_LAZY_DSL = MemberName("$runtimePackage.util.kotlin", "lazy")
+    val KT_LAZY_DELEGATE_DSL = MemberName("$runtimePackage.util.kotlin", "getValue", isExtension = true)
 }

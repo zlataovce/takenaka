@@ -28,8 +28,10 @@ import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
+import me.kcra.takenaka.generator.accessor.GeneratedClassType
 import me.kcra.takenaka.generator.accessor.context.GenerationContext
 import me.kcra.takenaka.generator.accessor.model.*
+import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
 import me.kcra.takenaka.generator.accessor.util.globAsRegex
 import me.kcra.takenaka.generator.accessor.util.isGlob
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
@@ -63,7 +65,7 @@ typealias ResolvedMethodPair = Pair<MethodAccessor, MethodAncestryNode>
  * @author Matouš Kučera
  */
 abstract class AbstractGenerationContext(
-    override val generator: AccessorGenerator,
+    final override val generator: AccessorGenerator,
     val ancestryProvider: AncestryProvider,
     contextScope: CoroutineScope
 ) : GenerationContext, CoroutineScope by contextScope {
@@ -73,9 +75,15 @@ abstract class AbstractGenerationContext(
     private val generatedClasses = Collections.synchronizedSet(mutableSetOf<String>())
 
     /**
-     * Accessor model simple class names and their renamed variants, used for detecting naming conflicts.
+     * The generator's naming strategy.
      */
-    private val accessedSimpleNames = mutableMapOf<String, MutableMap<String, Int>>() // {simple name: {fq name: occurrence index}}
+    protected val namingStrategy: NamingStrategy /*by generator.config::namingStrategy - KT-53799, can't use delegation */
+        get() = generator.config.namingStrategy
+
+    /**
+     * The source code types.
+     */
+    protected val types = SourceTypes(generator.config.runtimePackage)
 
     /**
      * The generation timestamp of this context's output.
@@ -178,13 +186,14 @@ abstract class AbstractGenerationContext(
      * that have been generated in this context.
      */
     override fun generateLookupClass() {
-        generateLookupClass(generatedClasses.toList())
+        // try reconstructing necessary information for name generation
+        generateLookupClass(generatedClasses.map { cl -> namingStrategy.klass(ClassAccessor(cl), GeneratedClassType.MAPPING) })
     }
 
     /**
      * Generates a mapping lookup class from class names.
      *
-     * @param names internal names of classes declared in accessor models
+     * @param names fully qualified names of generated mapping classes
      */
     protected open fun generateLookupClass(names: List<String>) {
     }
@@ -442,27 +451,6 @@ abstract class AbstractGenerationContext(
                     getOrPut(MethodKey(ns, name, desc.replaceCraftBukkitNMSVersion(nmsVersion)), ::mutableListOf) += version
                 }
             }
-        }
-    }
-
-    /**
-     * Sanitizes an accessor model name for generating an accessor class in this context.
-     *
-     * @param name a fully qualified name
-     * @return a non-conflicting simple name
-     */
-    protected open fun generateNonConflictingName(name: String): String {
-        val simpleName = name.substringAfterLast('/')
-
-        synchronized(accessedSimpleNames) {
-            val names = accessedSimpleNames.getOrPut(simpleName, ::mutableMapOf)
-
-            val index = names.getOrPut(name) { names.size }
-            if (index > 0) {
-                return simpleName + index
-            }
-
-            return simpleName // don't add a zero
         }
     }
 
