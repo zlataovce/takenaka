@@ -98,9 +98,16 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
     abstract val accessorType: Property<AccessorType>
 
     /**
-     * Namespaces that should be used in accessors, empty if all namespaces should be used.
+     * Namespaces that should be used in accessors, defaults to all supported namespaces ("mojang", "spigot", "yarn", "quilt", "searge", "intermediary" and "hashed").
      */
-    abstract val accessedNamespaces: ListProperty<String>
+    abstract val namespaces: ListProperty<String>
+
+    /**
+     * Alias for [namespaces].
+     */
+    @Deprecated("Use namespaces.", ReplaceWith("namespaces"))
+    val accessedNamespaces: ListProperty<String>
+        get() = namespaces
 
     /**
      * Namespaces that should be used for computing history, defaults to "mojang", "spigot", "searge" and "intermediary".
@@ -127,6 +134,7 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
         codeLanguage.convention(CodeLanguage.JAVA)
         accessorType.convention(AccessorType.NONE)
+        namespaces.convention(listOf("mojang", "spigot", "yarn", "quilt", "searge", "intermediary", "hashed"))
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         relaxedCache.convention(true)
@@ -261,12 +269,20 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
     }
 
     /**
-     * Adds new namespaces to the [accessedNamespaces] property.
+     * Adds new namespaces to the [namespaces] property.
      *
-     * @param accessedNamespaces the namespaces
+     * @param namespaces the namespaces
      */
+    fun namespaces(vararg namespaces: String) {
+        this.namespaces.addAll(*namespaces)
+    }
+
+    /**
+     * Alias for [namespaces].
+     */
+    @Deprecated("Use namespaces(vararg String).", ReplaceWith("namespaces(*accessedNamespaces)"))
     fun accessedNamespaces(vararg accessedNamespaces: String) {
-        this.accessedNamespaces.addAll(*accessedNamespaces)
+        this.namespaces(*accessedNamespaces)
     }
 
     /**

@@ -103,12 +103,20 @@ abstract class GenerationTask : DefaultTask() {
     abstract val accessorType: Property<AccessorType>
 
     /**
-     * Namespaces that should be used in accessors, empty if all namespaces should be used.
+     * Namespaces that should be used in accessors, defaults to all supported namespaces ("mojang", "spigot", "yarn", "quilt", "searge", "intermediary" and "hashed").
      *
-     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.accessedNamespaces
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.namespaces
      */
     @get:Input
-    abstract val accessedNamespaces: ListProperty<String>
+    abstract val namespaces: ListProperty<String>
+
+    /**
+     * Alias for [namespaces].
+     */
+    @get:Internal
+    @Deprecated("Use namespaces.", ReplaceWith("namespaces"))
+    val accessedNamespaces: ListProperty<String>
+        get() = namespaces
 
     /**
      * Namespaces that should have [me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion] applied
@@ -163,6 +171,7 @@ abstract class GenerationTask : DefaultTask() {
         codeLanguage.convention(CodeLanguage.JAVA)
         accessorType.convention(AccessorType.NONE)
         craftBukkitVersionReplaceCandidates.convention(listOf("spigot"))
+        namespaces.convention(listOf("mojang", "spigot", "yarn", "quilt", "searge", "intermediary", "hashed"))
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         @Suppress("DEPRECATION")

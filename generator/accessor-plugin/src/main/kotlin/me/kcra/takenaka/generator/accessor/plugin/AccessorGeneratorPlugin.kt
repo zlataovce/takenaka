@@ -60,6 +60,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
 
             this.cacheDir.set(config.cacheDirectory)
             this.versions.set(config.versions)
+            this.namespaces.set(project.provider { config.namespaces.get() + config.historyNamespaces.get() })
             this.relaxedCache.set(config.relaxedCache)
             this.manifest.set(manifest)
             this.mappingBundle.fileProvider(mappingBundle.flatMap { mb ->
@@ -84,7 +85,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.accessors.set(config.accessors)
             this.codeLanguage.set(config.codeLanguage)
             this.accessorType.set(config.accessorType)
-            this.accessedNamespaces.set(config.accessedNamespaces)
+            this.namespaces.set(config.namespaces)
             this.historyNamespaces.set(config.historyNamespaces)
             this.historyIndexNamespace.set(config.historyIndexNamespace)
             this.namingStrategy.set(config.namingStrategy)
@@ -100,7 +101,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.accessors.set(config.accessors)
             this.codeLanguage.set(config.codeLanguage)
             this.accessorType.set(config.accessorType)
-            this.accessedNamespaces.set(config.accessedNamespaces)
+            this.namespaces.set(config.namespaces)
             this.historyNamespaces.set(config.historyNamespaces)
             this.historyIndexNamespace.set(config.historyIndexNamespace)
             this.namingStrategy.set(config.namingStrategy)
