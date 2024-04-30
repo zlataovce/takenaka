@@ -51,6 +51,12 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
     val attributes by lazy(::readAttributes)
 
     /**
+     * Whether the resolved manifest is of a different version than requested.
+     */
+    val isAliased: Boolean
+        get() = attributes?.let { workspace.version.id != it.minecraftVersion } ?: false
+
+    /**
      * Reads the manifest of the targeted version from cache, fetching it if the cache missed.
      *
      * @return the manifest
