@@ -92,7 +92,7 @@ class IntermediaryMappingResolver(
 
     override val licenseOutput = lazyOutput {
         resolver {
-            licenseWorkspace.withLock("intermediary-license") {
+            licenseWorkspace.withLock(WORKSPACE_LOCK) {
                 val file = licenseWorkspace[LICENSE]
 
                 if (LICENSE in licenseWorkspace) {
@@ -134,6 +134,8 @@ class IntermediaryMappingResolver(
     }
 
     companion object {
+        private val WORKSPACE_LOCK = object {}
+
         /**
          * The file name of the cached mappings.
          */
