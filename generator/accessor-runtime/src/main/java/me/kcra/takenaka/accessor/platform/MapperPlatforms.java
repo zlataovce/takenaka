@@ -17,6 +17,7 @@
 
 package me.kcra.takenaka.accessor.platform;
 
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.InvocationTargetException;
@@ -33,6 +34,43 @@ import java.util.stream.StreamSupport;
  * @author Matouš Kučera
  */
 public enum MapperPlatforms implements MapperPlatform {
+    /**
+     * A generic abstraction for Mojang software derivatives (Mojang mappings).
+     */
+    MOJANG {
+        private String minecraftVersion = null;
+
+        {
+            try {
+                final Class<?> constClass = Class.forName("net.minecraft.SharedConstants", true, getClassLoader());
+                final Object gameVersion = constClass.getMethod("getCurrentVersion").invoke(null);
+
+                minecraftVersion = (String) gameVersion.getClass().getMethod("getName").invoke(gameVersion);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                throw new RuntimeException("Failed to get Minecraft version", e);
+            } catch (ClassNotFoundException | NoSuchMethodException ignored) {
+            }
+        }
+
+        @Override
+        public boolean isSupported() {
+            return minecraftVersion != null;
+        }
+
+        @Override
+        public @NotNull String getVersion() {
+            if (!isSupported()) {
+                throw new UnsupportedOperationException("Mojang is not supported by this environment");
+            }
+            return minecraftVersion;
+        }
+
+        @Override
+        public @NotNull String[] getMappingNamespaces() {
+            return new String[] { "mojang" };
+        }
+    },
+
     /**
      * An abstraction for platforms that implement the Bukkit API (Spigot mappings).
      */
@@ -84,39 +122,25 @@ public enum MapperPlatforms implements MapperPlatform {
 
     /**
      * An abstraction for NeoForge-based platforms (Mojang mappings).
+     *
+     * @deprecated use {@link #MOJANG}
      */
+    @Deprecated
+    @ApiStatus.ScheduledForRemoval(inVersion = "2.0.0")
     NEOFORGE {
-        private String minecraftVersion = null;
-
-        {
-            try {
-                final Class<?> neoFormVersionClass = Class.forName(
-                        "net.neoforged.neoforge.internal.versions.neoform.NeoFormVersion",
-                        true, getClassLoader()
-                );
-                minecraftVersion = (String) neoFormVersionClass.getMethod("getMCVersion").invoke(null);
-            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                throw new RuntimeException("Failed to get Minecraft version", e);
-            } catch (ClassNotFoundException ignored) {
-            }
-        }
-
         @Override
         public boolean isSupported() {
-            return minecraftVersion != null;
+            return MOJANG.isSupported();
         }
 
         @Override
         public @NotNull String getVersion() {
-            if (!isSupported()) {
-                throw new UnsupportedOperationException("NeoForge is not supported by this environment");
-            }
-            return minecraftVersion;
+            return MOJANG.getVersion();
         }
 
         @Override
         public @NotNull String[] getMappingNamespaces() {
-            return new String[] { "mojang" };
+            return MOJANG.getMappingNamespaces();
         }
     },
 
