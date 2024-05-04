@@ -50,7 +50,7 @@ class MojangManifestAttributeProvider(val workspace: VersionedWorkspace, private
      * @return the attributes
      */
     private fun readAttributes(): VersionAttributes {
-        return workspace.withLock("mojang-manifest") {
+        return workspace.withLock(WORKSPACE_LOCK) {
             val file = workspace[ATTRIBUTES]
 
             if (relaxedCache && ATTRIBUTES in workspace) {
@@ -71,6 +71,8 @@ class MojangManifestAttributeProvider(val workspace: VersionedWorkspace, private
     }
 
     companion object {
+        private val WORKSPACE_LOCK = object {}
+
         /**
          * The file name of the cached attributes.
          */

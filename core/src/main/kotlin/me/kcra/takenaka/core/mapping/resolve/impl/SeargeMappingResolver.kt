@@ -110,7 +110,7 @@ class SeargeMappingResolver(
 
     override val licenseOutput = lazyOutput {
         resolver {
-            licenseWorkspace.withLock("searge-license") {
+            licenseWorkspace.withLock(WORKSPACE_LOCK) {
                 val file = licenseWorkspace[LICENSE]
 
                 if (LICENSE in licenseWorkspace) {
@@ -178,6 +178,8 @@ class SeargeMappingResolver(
     }
 
     companion object {
+        private val WORKSPACE_LOCK = object {}
+
         /**
          * The file name of the cached zip file.
          */

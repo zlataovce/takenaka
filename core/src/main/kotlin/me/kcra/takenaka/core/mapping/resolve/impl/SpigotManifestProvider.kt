@@ -51,12 +51,18 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
     val attributes by lazy(::readAttributes)
 
     /**
+     * Whether the resolved manifest is of a different version than requested.
+     */
+    val isAliased: Boolean
+        get() = attributes?.let { workspace.version.id != it.minecraftVersion } ?: false
+
+    /**
      * Reads the manifest of the targeted version from cache, fetching it if the cache missed.
      *
      * @return the manifest
      */
     private fun readManifest(): SpigotVersionManifest? {
-        return workspace.withLock("spigot-manifest") {
+        return workspace.withLock(WORKSPACE_LOCK) {
             val file = workspace[MANIFEST]
 
             if (relaxedCache && MANIFEST in workspace) {
@@ -92,7 +98,7 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
     private fun readAttributes(): SpigotVersionAttributes? {
         if (manifest == null) return null
 
-        return workspace.withLock("spigot-manifest") {
+        return workspace.withLock(WORKSPACE_LOCK) {
             val file = workspace[BUILDDATA_INFO]
 
             if (relaxedCache && BUILDDATA_INFO in workspace) {
@@ -113,6 +119,8 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
     }
 
     companion object {
+        private val WORKSPACE_LOCK = object {}
+
         /**
          * The file name of the cached version manifest.
          */

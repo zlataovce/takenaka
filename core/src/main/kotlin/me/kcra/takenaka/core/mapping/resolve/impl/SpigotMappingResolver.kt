@@ -287,6 +287,10 @@ class SpigotClassMappingResolver(
      * @return the mapping attribute
      */
     override fun resolveMappingAttribute(): MappingAttribute {
+        if (spigotProvider.isAliased) {
+            logger.warn { "expected ${workspace.version.id}, got ${spigotProvider.attributes?.minecraftVersion}; aliased manifest?" }
+        }
+
         return MappingAttribute("classMappings", spigotProvider.attributes?.classMappings)
     }
 
