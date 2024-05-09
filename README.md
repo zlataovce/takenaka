@@ -83,7 +83,7 @@ accessors {
     // if you don't, you will get accessors mapped for 1.8.8 to 1.20.2 - everything that the bundle offers
     
     basePackage("org.example.myplugin.accessors") // this is the base package of the generated output, probably somewhere in your plugin/library's namespace
-    accessedNamespaces("spigot") // these are the "namespaces" that can be queried on runtime, i.e. "spigot" (for Bukkit), "searge" (for Forge), "mojang" (not useful on runtime), "yarn" (not useful on runtime), "intermediary" (for Fabric), "quilt" or "hashed" (for Quilt)
+    namespaces("spigot") // these are the "namespaces" that can be queried on runtime, i.e. "spigot" (for Bukkit), "searge" (for Forge), "mojang" (not useful on runtime), "yarn" (not useful on runtime), "intermediary" (for Fabric), "quilt" or "hashed" (for Quilt)
     accessorType("reflection") // this is the generated accessor type, can be "none" (no accessor breakout classes are generated, only a mapping class that can be queried), "reflection" or "method_handles" (self-explanatory, java.lang.reflect or java.lang.invoke accessors)
     
     // there are many more options, like mapping for clients, IntelliJ's source JAR view and auto-complete are your friends (Ctrl+Click)
