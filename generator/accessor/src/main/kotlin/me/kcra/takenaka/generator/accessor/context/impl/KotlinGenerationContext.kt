@@ -169,7 +169,7 @@ open class KotlinGenerationContext(
                     fun PropertySpec.Builder.addMeta(constant: Boolean = false): PropertySpec.Builder = apply {
                         addKdoc(
                             """
-                                Accessor for the `%L·%L` %L.
+                                Accessor for the `%L %L` %L.
                                 
                                 `%L` - `%L`
                                 @see·%L.%L
@@ -227,7 +227,7 @@ open class KotlinGenerationContext(
                     PropertySpec.builder(mappingName, types.KT_FIELD_MAPPING)
                         .addKdoc(
                             """
-                                Mapping for the `%L·%L` field.
+                                Mapping for the `%L %L` field.
                                 
                                 `%L` - `%L`
                             """.trimIndent(),
@@ -259,7 +259,7 @@ open class KotlinGenerationContext(
                                 Accessor for the `(%L)` constructor.
                                 
                                 `%L` - `%L`
-                                @see %L.%L
+                                @see·%L.%L
                             """.trimIndent(),
                             ctorArgs.joinToString(transform = Type::getClassName),
                             ctorNode.first.key.id,
@@ -296,7 +296,7 @@ open class KotlinGenerationContext(
                                 
                                 `%L` - `%L`
                             """.trimIndent(),
-                            ctorArgs.joinToString(separator = ",·", transform = Type::getClassName),
+                            ctorArgs.joinToString(transform = Type::getClassName),
                             ctorNode.first.key.id,
                             ctorNode.last.key.id
                         )
@@ -313,14 +313,14 @@ open class KotlinGenerationContext(
                     fun PropertySpec.Builder.addMeta(): PropertySpec.Builder = apply {
                         addKdoc(
                             """
-                                Accessor for the `%L·%L(%L)` method.
+                                Accessor for the `%L %L(%L)` method.
                                 
                                 `%L` - `%L`
                                 @see·%L.%L
                             """.trimIndent(),
                             methodType.returnType.className,
                             methodAccessor.name,
-                            methodType.argumentTypes.joinToString(separator = ",·", transform = Type::getClassName),
+                            methodType.argumentTypes.joinToString(transform = Type::getClassName),
                             methodNode.first.key.id,
                             methodNode.last.key.id,
                             mappingClassName.canonicalName,
@@ -351,13 +351,13 @@ open class KotlinGenerationContext(
                     PropertySpec.builder(mappingName, types.KT_METHOD_MAPPING)
                         .addKdoc(
                             """
-                                Mapping for the `%L·%L(%L)` method.
+                                Mapping for the `%L %L(%L)` method.
                                 
                                 `%L` - `%L`
                             """.trimIndent(),
                             methodType.returnType.className,
                             methodAccessor.name,
-                            methodType.argumentTypes.joinToString(separator = ",·", transform = Type::getClassName),
+                            methodType.argumentTypes.joinToString(transform = Type::getClassName),
                             methodNode.first.key.id,
                             methodNode.last.key.id
                         )
