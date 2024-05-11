@@ -391,7 +391,7 @@ open class KotlinGenerationContext(
         PropertySpec.builder(namingStrategy.member(GeneratedMemberType.LOOKUP), types.KT_MAPPING_LOOKUP)
             .addKdoc("Mapping lookup index.")
             .initializer {
-                beginControlFlow("%M", types.KT_MAPPING_LOOKUP)
+                beginControlFlow("%M", types.KT_MAPPING_LOOKUP_DSL)
 
                 names.forEach { name ->
                     addStatement("put(%T)", name.toKClassName())
