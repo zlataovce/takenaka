@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.gradle.plugin.publish)
     alias(libs.plugins.shadow)
     alias(libs.plugins.build.config)
+    `kotlin-dsl`
 }
 
 // https://imperceptiblethoughts.com/shadow/plugins/#special-handling-of-the-java-gradle-plugin-development-plugin
