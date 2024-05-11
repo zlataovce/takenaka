@@ -7,11 +7,15 @@ plugins {
     alias(libs.plugins.gradle.plugin.publish)
     alias(libs.plugins.shadow)
     alias(libs.plugins.build.config)
-    `java-gradle-plugin`
-    `kotlin-dsl`
+}
+
+// https://imperceptiblethoughts.com/shadow/plugins/#special-handling-of-the-java-gradle-plugin-development-plugin
+configurations.api.configure {
+    dependencies.remove(project.dependencies.gradleApi())
 }
 
 dependencies {
+    compileOnlyApi(gradleApi())
     implementation(project(":generator-accessor")) {
         exclude(group = "org.jetbrains.kotlin") // handled by gradle
     }

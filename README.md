@@ -70,25 +70,25 @@ repositories {
 }
 
 dependencies {
-    mappingBundle("me.kcra.takenaka:mappings:1.8.8+1.20.2") // the mapping bundle, published by the project at github.com/zlataovce/mappings
+    mappingBundle("me.kcra.takenaka:mappings:1.8.8+1.20.6") // the mapping bundle, published by the project at github.com/zlataovce/mappings
     implementation(accessorRuntime()) // the small library needed for the accessors to function
 }
 
 accessors {
     // you can select a version subset with versions or versionRange, i.e.:
     
-    // versions("1.20", "1.20.1", "1.20.2")
-    // versionRange("1.20", "1.20.2")
+    // versions("1.20.1", "1.20.2", "1.20.3", "1.20.4", "1.20.6")
+    // versionRange("1.20.1", "1.20.6")
     
-    // if you don't, you will get accessors mapped for 1.8.8 to 1.20.2 - everything that the bundle offers
+    // if you don't, you will get accessors mapped for everything that the bundle offers, i.e. 1.8.8 to 1.20.6
     
     basePackage("org.example.myplugin.accessors") // this is the base package of the generated output, probably somewhere in your plugin/library's namespace
-    namespaces("spigot") // these are the "namespaces" that can be queried on runtime, i.e. "spigot" (for Bukkit), "searge" (for Forge), "mojang" (not useful on runtime), "yarn" (not useful on runtime), "intermediary" (for Fabric), "quilt" or "hashed" (for Quilt)
+    namespaces("spigot", "mojang") // these are the "namespaces" that can be queried on runtime, i.e. "spigot" (for Spigot/CraftBukkit/Paper), "searge" (for Forge), "mojang" (for Mojang-mapped Paper - >1.20.4), "yarn" (not useful on runtime), "intermediary" (for Fabric), "quilt" or "hashed" (for Quilt)
     accessorType("reflection") // this is the generated accessor type, can be "none" (no accessor breakout classes are generated, only a mapping class that can be queried), "reflection" or "method_handles" (self-explanatory, java.lang.reflect or java.lang.invoke accessors)
     
     // there are many more options, like mapping for clients, IntelliJ's source JAR view and auto-complete are your friends (Ctrl+Click)
     
-    // now let's define what we want to access
+    // now, let's define what we want to access
     mapClass("net.minecraft.network.Connection") { // basically any name on mappings.cephx.dev apart from the obfuscated one, applies to other definitions as well
         // NOTE: in one member declaration, the field type, method or constructor argument types and the method return type MUST all be from the same namespace (you CAN'T mix e.g. Mojang and Searge names in one declaration)
         // the generation WILL fail if you do this!
@@ -143,7 +143,7 @@ Options:
 ```
 
 The command-line to build a [mappings.cephx.dev](https://mappings.cephx.dev) clone would look something like this:
-`java -jar generator-web-cli-<latest version here>.jar --server -n mojang -n spigot -n yarn -n searge -n intermediary -v 1.20.2 -v 1.20.1 ... (more versions follow)`
+`java -jar generator-web-cli-<latest version here>.jar --client --server -n mojang -n spigot -n yarn -n searge -n intermediary -v 1.20.2 -v 1.20.1 ... (more versions follow)`
 
 #### `--namespace` option
 
