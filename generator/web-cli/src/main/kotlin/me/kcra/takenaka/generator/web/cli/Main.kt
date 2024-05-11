@@ -282,7 +282,7 @@ fun main(args: Array<String>) {
             transformer(MinifyingTransformer(isDeterministic = minifier == MinifierImpls.DETERMINISTIC))
         }
 
-        val indexers = mutableListOf<ClassSearchIndex>(objectMapper.modularClassSearchIndexOf(JDK_17_BASE_URL))
+        val indexers = mutableListOf<ClassSearchIndex>(objectMapper.modularClassSearchIndexOf(JDK_21_BASE_URL))
         javadoc.mapTo(indexers) { javadocDef ->
             val javadocParams = javadocDef.split('+', limit = 2)
 

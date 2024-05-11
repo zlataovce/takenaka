@@ -172,7 +172,7 @@ The expected value can be:
 - a plus-sign delimited pair of a supported package and a link to the Javadoc root (Javadoc sites _with no modules_): `org.slf4j+https://www.slf4j.org/api`
 - a link to the Javadoc root (Javadoc sites _with modules_): `https://docs.oracle.com/en/java/javase/17/docs/api`
 
-**Java 17 API is included automatically for indexing.**
+**Java 21 API is included automatically for indexing.**
 
 ## Acknowledgements
 
