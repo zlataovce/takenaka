@@ -145,11 +145,19 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
     }
 
     /**
+     * Alias for [version].
+     */
+    @Deprecated("Use version(vararg String).", ReplaceWith("version(*versions)"))
+    fun versions(vararg versions: String) {
+        this.version(*versions)
+    }
+
+    /**
      * Adds new versions to the [versions] property.
      *
      * @param versions the versions
      */
-    fun versions(vararg versions: String) {
+    fun version(vararg versions: String) {
         this.versions.addAll(*versions)
     }
 
