@@ -65,7 +65,7 @@ open class KotlinGenerationContext(
                     """
                         Accessors for the `%L` class.
                         
-                        @see %L
+                        @see·%L
                     """.trimIndent(),
                     accessedQualifiedName,
                     mappingClassName.canonicalName
@@ -170,7 +170,7 @@ open class KotlinGenerationContext(
                                     """
                                         Accessor for the `%L %L` %L.
                                         
-                                        @see %L.%L
+                                        @see·%L.%L
                                     """.trimIndent(),
                                     fieldType.className,
                                     fieldAccessor.name,
@@ -257,7 +257,7 @@ open class KotlinGenerationContext(
                                     """
                                         Accessor for the `(%L)` constructor.
                                         
-                                        @see %L.%L
+                                        @see·%L.%L
                                     """.trimIndent(),
                                     ctorArgs.joinToString(transform = Type::getClassName),
                                     mappingClassName.canonicalName,
@@ -315,7 +315,7 @@ open class KotlinGenerationContext(
                                     """
                                         Accessor for the `%L %L(%L)` method.
                                         
-                                        @see %L.%L
+                                        @see·%L.%L
                                     """.trimIndent(),
                                     methodType.returnType.className,
                                     methodAccessor.name,
