@@ -20,7 +20,7 @@ package me.kcra.takenaka.generator.accessor.util
 /**
  * A regular expression for matching lowerCamelCases and UpperCamelCases.
  */
-private val CAMEL_REGEX = "(?<=[a-zA-Z])[A-Z]".toRegex()
+private val CAMEL_REGEX = "(?<=[a-zA-Z])[A-Z]+".toRegex()
 
 /**
  * Converts a camelCase string (of any kind) to a UPPER_SNAKE_CASE variant.
