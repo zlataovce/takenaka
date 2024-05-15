@@ -191,8 +191,10 @@ open class JavaGenerationContext(
                             var highestVersion = fieldNode.last.key
 
                             if (fieldAccessor.chain != null) {
-                                addJavadoc("""
-                                         Accessor for the following ${'$'}L:
+                                addJavadoc(
+                                    """
+                                    Accessor for the following ${'$'}L:
+                                    <ul>
                                          
                                     """.trimIndent(),
                                     if (constant) {
@@ -208,7 +210,7 @@ open class JavaGenerationContext(
                                     val chainedType = chainedAccessor.type?.let(Type::getType) ?: chainedFieldNode?.let { getFriendlyType(it.last.value) }
                                     addJavadoc(
                                         """
-                                        - {@code ${'$'}L ${'$'}L} (${'$'}L-${'$'}L)
+                                        <li>{@code ${'$'}L ${'$'}L} (${'$'}L-${'$'}L)</li>
                                         
                                         """.trimIndent(),
                                         chainedType?.className ?: "unknown",
@@ -226,6 +228,13 @@ open class JavaGenerationContext(
                                     }
                                     chainedAccessor = chainedAccessor.chain
                                 }
+
+                                addJavadoc(
+                                    """
+                                    </ul>
+                                    
+                                    """.trimIndent()
+                                )
                             } else {
                                 addJavadoc(
                                     """
@@ -392,10 +401,13 @@ open class JavaGenerationContext(
                             var highestVersion = methodNode.last.key
 
                             if (methodAccessor.chain != null) {
-                                addJavadoc("""
-                                         Accessor for the following methods:
-                                         
-                                    """.trimIndent())
+                                addJavadoc(
+                                    """
+                                    Accessor for the following methods:
+                                    <ul>
+                                    
+                                    """.trimIndent()
+                                )
 
                                 var chainedAccessor: MethodAccessor? = methodAccessor
                                 while (chainedAccessor != null) {
@@ -405,7 +417,7 @@ open class JavaGenerationContext(
                                             if (accessor.isIncomplete && chainedMethodNode != null) getFriendlyType(chainedMethodNode.last.value) else Type.getType(accessor.type)
                                         addJavadoc(
                                             """
-                                            - {@code ${'$'}L ${'$'}L(${'$'}L)} (${'$'}L-${'$'}L)
+                                            <li>{@code ${'$'}L ${'$'}L(${'$'}L)} (${'$'}L-${'$'}L)</li>
                                             
                                             """.trimIndent(),
                                             chainedType.returnType.className,
@@ -425,6 +437,13 @@ open class JavaGenerationContext(
                                         chainedAccessor = accessor.chain
                                     }
                                 }
+
+                                addJavadoc(
+                                    """
+                                    </ul>
+                                    
+                                    """.trimIndent()
+                                )
                             } else {
                                 addJavadoc(
                                     """
