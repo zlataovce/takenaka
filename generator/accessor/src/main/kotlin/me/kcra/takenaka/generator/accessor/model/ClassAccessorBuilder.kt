@@ -316,7 +316,7 @@ inline fun buildClassAccessor(name: String, block: ClassAccessorBuilder.() -> Un
 /**
  * A single chain step.
  */
-typealias ChainStep<T> = (T?) -> T
+typealias ChainStep<T> = (last: T?, isFinal: Boolean) -> T
 
 /**
  * A builder for field mapping chains.
@@ -336,7 +336,7 @@ open class FieldChainBuilder {
      * @param type the mapped field type, converted with [Any.asDescriptor]
      */
     fun item(type: Any, name: String) {
-        steps += { last -> FieldAccessor(name, type.asDescriptor(), chain = last) }
+        steps += { last, isFinal -> FieldAccessor(name, type.asDescriptor(), chain = last, skipAccessorGeneration = !isFinal) }
     }
 
     /**
@@ -347,7 +347,7 @@ open class FieldChainBuilder {
      */
     @JvmOverloads
     fun itemInferred(name: String, version: String? = null) {
-        steps += { last -> FieldAccessor(name, null, version, chain = last) }
+        steps += { last, isFinal -> FieldAccessor(name, null, version, chain = last, skipAccessorGeneration = !isFinal) }
     }
 
     /**
@@ -358,8 +358,8 @@ open class FieldChainBuilder {
     fun toFieldAccessor(): FieldAccessor {
         var currentAccessor: FieldAccessor? = null
 
-        for (step in steps.reversed()) {
-            currentAccessor = step(currentAccessor)
+        for ((i, step) in steps.reversed().withIndex()) {
+            currentAccessor = step(currentAccessor, i == steps.lastIndex)
         }
 
         return requireNotNull(currentAccessor) {
@@ -395,11 +395,12 @@ open class MethodChainBuilder {
      * @param parameters the mapped method parameters, converted with [Any.asDescriptor]
      */
     fun item(returnType: Any, name: String, vararg parameters: Any) {
-        steps += { last ->
+        steps += { last, isFinal ->
             MethodAccessor(
                 name,
                 "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})${returnType.asDescriptor()}",
-                chain = last
+                chain = last,
+                skipAccessorGeneration = !isFinal
             )
         }
     }
@@ -413,12 +414,13 @@ open class MethodChainBuilder {
      */
     @JvmOverloads
     fun itemInferred(name: String, version: String? = null, vararg parameters: Any) {
-        steps += { last ->
+        steps += { last, isFinal ->
             MethodAccessor(
                 name,
                 "(${parameters.joinToString(separator = "", transform = Any::asDescriptor)})",
                 version,
-                chain = last
+                chain = last,
+                skipAccessorGeneration = !isFinal
             )
         }
     }
@@ -431,8 +433,8 @@ open class MethodChainBuilder {
     fun toMethodAccessor(): MethodAccessor {
         var currentAccessor: MethodAccessor? = null
 
-        for (step in steps.reversed()) {
-            currentAccessor = step(currentAccessor)
+        for ((i, step) in steps.reversed().withIndex()) {
+            currentAccessor = step(currentAccessor, i == steps.lastIndex)
         }
 
         return requireNotNull(currentAccessor) {
