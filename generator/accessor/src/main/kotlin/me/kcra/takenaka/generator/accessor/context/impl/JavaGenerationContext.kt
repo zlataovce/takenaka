@@ -441,7 +441,7 @@ open class JavaGenerationContext(
                     fun FieldSpec.Builder.addMeta(mapping: Boolean = false): FieldSpec.Builder = apply {
                         addAnnotation(types.NOT_NULL)
 
-                        if (methodAccessor.chain != null) {
+                        if (chain.isNotEmpty()) {
                             addJavadoc(
                                 """
                                 ${'$'}L for the following methods:
