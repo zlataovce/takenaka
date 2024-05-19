@@ -45,5 +45,7 @@ data class ResolvedClassAccessor(
     val constructors: List<ResolvedConstructorPair>,
     val methods: List<ResolvedMethodPair>,
     val fieldOverloads: NameOverloads<FieldAccessor>,
-    val methodOverloads: NameOverloads<MethodAccessor>
+    val fieldAccessorOverloads: NameOverloads<FieldAccessor>,
+    val methodOverloads: NameOverloads<MethodAccessor>,
+    val methodAccessorOverloads: NameOverloads<MethodAccessor>
 )

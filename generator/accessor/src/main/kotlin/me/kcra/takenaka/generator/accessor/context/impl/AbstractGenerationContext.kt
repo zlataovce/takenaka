@@ -152,6 +152,10 @@ abstract class AbstractGenerationContext(
         val fieldOverloads = fieldAccessors.associate { (fieldAccessor, _) ->
             fieldAccessor to fieldOverloadCount.compute(fieldAccessor.upperName) { _, i -> i?.inc() ?: 0 }!!
         }
+        fieldOverloadCount.clear()
+        val fieldAccessorOverloads = fieldAccessors.filter { !it.first.skipAccessorGeneration }.associate { (fieldAccessor, _) ->
+            fieldAccessor to fieldOverloadCount.compute(fieldAccessor.upperName) { _, i -> i?.inc() ?: 0 }!!
+        }
 
         val ctorTree = ancestryProvider.method<_, _, MethodMappingView>(node, constructorMode = ConstructorComputationMode.ONLY)
         val ctorAccessors = model.constructors.map { ResolvedConstructorPair(it, resolveConstructor(ctorTree, it)) } +
@@ -169,8 +173,12 @@ abstract class AbstractGenerationContext(
         val methodOverloads = methodAccessors.associate { (methodAccessor, _) ->
             methodAccessor to methodOverloadCount.compute(methodAccessor.upperName) { _, i -> i?.inc() ?: 0 }!!
         }
+        methodOverloadCount.clear()
+        val methodAccessorOverloads = methodAccessors.filter { !it.first.skipAccessorGeneration }.associate { (methodAccessor, _) ->
+            methodAccessor to methodOverloadCount.compute(methodAccessor.upperName) { _, i -> i?.inc() ?: 0 }!!
+        }
 
-        generateClass(ResolvedClassAccessor(model, node, fieldAccessors, ctorAccessors, methodAccessors, fieldOverloads, methodOverloads))
+        generateClass(ResolvedClassAccessor(model, node, fieldAccessors, ctorAccessors, methodAccessors, fieldOverloads, fieldAccessorOverloads, methodOverloads, methodAccessorOverloads))
     }
 
     /**

@@ -26,6 +26,7 @@ import com.squareup.kotlinpoet.javapoet.JParameterizedTypeName
 import com.squareup.kotlinpoet.javapoet.JTypeSpec
 import com.squareup.kotlinpoet.javapoet.KotlinPoetJavaPoetPreview
 import kotlinx.coroutines.CoroutineScope
+import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
@@ -177,155 +178,175 @@ open class JavaGenerationContext(
             )
             .addFields(
                 resolvedAccessor.fields.map { (fieldAccessor, fieldNode) ->
-                    val overloadIndex = resolvedAccessor.fieldOverloads[fieldAccessor] ?: 0
+                    if (fieldAccessor.skipAccessorGeneration) {
+                        return@map null
+                    }
+
+                    val overloadIndex = resolvedAccessor.fieldAccessorOverloads[fieldAccessor] ?: 0
                     val fieldType = fieldAccessor.type?.let(Type::getType)
                         ?: getFriendlyType(fieldNode.last.value)
 
                     val mappingName = namingStrategy.field(fieldAccessor, overloadIndex)
 
-                    if (!fieldAccessor.skipAccessorGeneration) {
-                        fun FieldSpec.Builder.addMeta(constant: Boolean = false): FieldSpec.Builder = apply {
-                            addAnnotation(types.NOT_NULL)
+                    val chain = ArrayList<ResolvedFieldPair>()
 
-                            var lowestVersion = fieldNode.first.key
-                            var highestVersion = fieldNode.last.key
+                    val lowestVersion: Version
+                    val highestVersion: Version
 
-                            if (fieldAccessor.chain != null) {
-                                addJavadoc(
-                                    """
-                                    Accessor for the following ${'$'}L:
-                                    <ul>
-                                         
-                                    """.trimIndent(),
-                                    if (constant) {
-                                        "constant field values"
-                                    } else {
-                                        "fields"
-                                    }
-                                )
+                    if (fieldAccessor.chain != null) {
+                        var chainedAccessor: FieldAccessor? = fieldAccessor
+                        while (chainedAccessor != null) {
+                            val chainedFieldNode = resolvedAccessor.fields.find { it.first == chainedAccessor }?.second
+                                ?: throw RuntimeException("Chained field node should not be null at this point")
+                            chain += ResolvedFieldPair(chainedAccessor, chainedFieldNode)
+                            chainedAccessor = chainedAccessor.chain
+                        }
 
-                                var chainedAccessor: FieldAccessor? = fieldAccessor
-                                while (chainedAccessor != null) {
-                                    val chainedFieldNode = resolvedAccessor.fields.find { it.first == chainedAccessor }?.second
-                                    val chainedType = chainedAccessor.type?.let(Type::getType) ?: chainedFieldNode?.let { getFriendlyType(it.last.value) }
-                                    addJavadoc(
-                                        """
-                                        <li>{@code ${'$'}L ${'$'}L} (${'$'}L-${'$'}L)</li>
-                                        
-                                        """.trimIndent(),
-                                        chainedType?.className ?: "unknown",
-                                        chainedAccessor.name,
-                                        chainedFieldNode?.first?.key?.id,
-                                        chainedFieldNode?.last?.key?.id,
-                                    )
-                                    if (chainedFieldNode != null) {
-                                        if (lowestVersion > chainedFieldNode.first.key) {
-                                            lowestVersion = chainedFieldNode.first.key
-                                        }
-                                        if (highestVersion < chainedFieldNode.last.key) {
-                                            highestVersion = chainedFieldNode.last.key
-                                        }
-                                    }
-                                    chainedAccessor = chainedAccessor.chain
-                                }
+                        lowestVersion = chain.minOf { it.second.first.key }
+                        highestVersion = chain.maxOf { it.second.last.key }
+                    } else {
+                        lowestVersion = fieldNode.first.key
+                        highestVersion = fieldNode.last.key
+                    }
 
-                                addJavadoc(
-                                    """
-                                    </ul>
-                                    
-                                    """.trimIndent()
-                                )
-                            } else {
-                                addJavadoc(
-                                    """
-                                    Accessor for the {@code ${'$'}L ${'$'}L} ${'$'}L.
-                                    
-                                    """.trimIndent(),
-                                    fieldType.className,
-                                    fieldAccessor.name,
-                                    if (constant) {
-                                        "constant field value"
-                                    } else {
-                                        "field"
-                                    }
-                                )
-                            }
+                    fun FieldSpec.Builder.addMeta(constant: Boolean = false, mapping: Boolean = false): FieldSpec.Builder = apply {
+                        addAnnotation(types.NOT_NULL)
+
+                        if (chain.isNotEmpty()) {
                             addJavadoc(
                                 """
+                                ${'$'}L for the following ${'$'}L:
+                                <ul>
+                                     
+                                """.trimIndent(),
+                                if (mapping) {
+                                    "Mapping"
+                                } else {
+                                    "Accessor"
+                                },
+                                if (constant) {
+                                    "constant field values"
+                                } else {
+                                    "fields"
+                                }
+                            )
+
+                            for ((chainedAccessor, chainedFieldNode) in chain) {
+                                val chainedType = chainedAccessor.type?.let(Type::getType) ?: getFriendlyType(chainedFieldNode.last.value)
+                                addJavadoc(
+                                    """
+                                    <li>{@code ${'$'}L ${'$'}L} (${'$'}L-${'$'}L)</li>
+                                    
+                                    """.trimIndent(),
+                                    chainedType.className,
+                                    chainedAccessor.name,
+                                    chainedFieldNode.first.key.id,
+                                    chainedFieldNode.last.key.id,
+                                )
+                            }
+
+                            addJavadoc(
+                                """
+                                </ul>
                                 
-                                @since ${'$'}L
-                                @version ${'$'}L
+                                """.trimIndent()
+                            )
+                        } else {
+                            addJavadoc(
+                                """
+                                ${'$'}L for the {@code ${'$'}L ${'$'}L} ${'$'}L.
+                                
+                                """.trimIndent(),
+                                if (mapping) {
+                                    "Mapping"
+                                } else {
+                                    "Accessor"
+                                },
+                                fieldType.className,
+                                fieldAccessor.name,
+                                if (constant) {
+                                    "constant field value"
+                                } else {
+                                    "field"
+                                }
+                            )
+                        }
+                        addJavadoc(
+                            """
+                            
+                            @since ${'$'}L
+                            @version ${'$'}L
+                            
+                        """.trimIndent(),
+                            lowestVersion.id,
+                            highestVersion.id
+                        )
+                        if (!mapping) {
+                            addJavadoc(
+                                """
                                 @see ${'$'}L#${'$'}L
-                            """.trimIndent(),
-                                lowestVersion.id,
-                                highestVersion.id,
+                                """.trimIndent(),
                                 mappingClassName.canonicalName(),
                                 mappingName
                             )
                         }
+                    }
 
-                        val mod = fieldNode.last.value.modifiers
-                        if ((mod and Opcodes.ACC_STATIC) != 0 && (mod and Opcodes.ACC_FINAL) != 0) { // constant
-                            accessorBuilder.addField(
-                                FieldSpec.builder(JParameterizedTypeName.get(types.SUPPLIER, JClassName.OBJECT), namingStrategy.constant(fieldAccessor, overloadIndex), Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                    .addMeta(constant = true)
-                                    .initializer("\$T.of(\$T.\$L::getConstantValue)", types.LAZY_SUPPLIER, mappingClassName, mappingName)
-                                    .build()
-                            )
-                        } else {
-                            when (generator.config.accessorType) {
-                                AccessorType.REFLECTION -> {
-                                    accessorBuilder.addField(
-                                        FieldSpec.builder(JParameterizedTypeName.get(types.SUPPLIER, types.FIELD), mappingName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                            .addMeta()
-                                            .initializer("\$T.of(\$T.\$L::getField)", types.LAZY_SUPPLIER, mappingClassName, mappingName)
-                                            .build()
-                                    )
-                                }
-                                AccessorType.METHOD_HANDLES -> {
-                                    accessorBuilder.addField(
-                                        FieldSpec.builder(JParameterizedTypeName.get(types.SUPPLIER, types.METHOD_HANDLE), namingStrategy.fieldHandle(fieldAccessor, overloadIndex, false), Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                            .addMeta()
-                                            .initializer("\$T.of(\$T.\$L::getFieldGetter)", types.LAZY_SUPPLIER, mappingClassName, mappingName)
-                                            .build()
-                                    )
-                                    accessorBuilder.addField(
-                                        FieldSpec.builder(JParameterizedTypeName.get(types.SUPPLIER, types.METHOD_HANDLE), namingStrategy.fieldHandle(fieldAccessor, overloadIndex, true), Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                            .addMeta()
-                                            .initializer("\$T.of(\$T.\$L::getFieldSetter)", types.LAZY_SUPPLIER, mappingClassName, mappingName)
-                                            .build()
-                                    )
-                                }
-                                AccessorType.NONE -> {}
+                    val mod = fieldNode.last.value.modifiers
+                    if ((mod and Opcodes.ACC_STATIC) != 0 && (mod and Opcodes.ACC_FINAL) != 0) { // constant
+                        accessorBuilder.addField(
+                            FieldSpec.builder(JParameterizedTypeName.get(types.SUPPLIER, JClassName.OBJECT), namingStrategy.constant(fieldAccessor, overloadIndex), Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                .addMeta(constant = true)
+                                .initializer("\$T.of(\$T.\$L::getConstantValue)", types.LAZY_SUPPLIER, mappingClassName, mappingName)
+                                .build()
+                        )
+                    } else {
+                        when (generator.config.accessorType) {
+                            AccessorType.REFLECTION -> {
+                                accessorBuilder.addField(
+                                    FieldSpec.builder(JParameterizedTypeName.get(types.SUPPLIER, types.FIELD), mappingName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                        .addMeta()
+                                        .initializer("\$T.of(\$T.\$L::getField)", types.LAZY_SUPPLIER, mappingClassName, mappingName)
+                                        .build()
+                                )
                             }
+                            AccessorType.METHOD_HANDLES -> {
+                                accessorBuilder.addField(
+                                    FieldSpec.builder(JParameterizedTypeName.get(types.SUPPLIER, types.METHOD_HANDLE), namingStrategy.fieldHandle(fieldAccessor, overloadIndex, false), Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                        .addMeta()
+                                        .initializer("\$T.of(\$T.\$L::getFieldGetter)", types.LAZY_SUPPLIER, mappingClassName, mappingName)
+                                        .build()
+                                )
+                                accessorBuilder.addField(
+                                    FieldSpec.builder(JParameterizedTypeName.get(types.SUPPLIER, types.METHOD_HANDLE), namingStrategy.fieldHandle(fieldAccessor, overloadIndex, true), Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                        .addMeta()
+                                        .initializer("\$T.of(\$T.\$L::getFieldSetter)", types.LAZY_SUPPLIER, mappingClassName, mappingName)
+                                        .build()
+                                )
+                            }
+                            AccessorType.NONE -> {}
                         }
                     }
 
                     FieldSpec.builder(types.FIELD_MAPPING, mappingName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                        .addAnnotation(types.NOT_NULL)
-                        .addJavadoc(
-                            """
-                                Mapping for the {@code ${'$'}L ${'$'}L} field.
-                                
-                                @since ${'$'}L
-                                @version ${'$'}L
-                            """.trimIndent(),
-                            fieldType.className,
-                            fieldAccessor.name,
-                            fieldNode.first.key.id,
-                            fieldNode.last.key.id
-                        )
+                        .addMeta(mapping = true)
                         .initializer {
-                            add("\$L.getField(\$S, \$L)", mappingFieldName, fieldAccessor.name, overloadIndex)
-                            if (fieldAccessor.chain != null) {
-                                add(
-                                    ".chain(\$L)",
-                                    fieldAccessor.chain.let { acc -> namingStrategy.field(acc, resolvedAccessor.fieldOverloads[acc] ?: 0) }
-                                )
+                            add("\$L.getField(\$S, \$L)", mappingFieldName, fieldAccessor.name, resolvedAccessor.fieldOverloads[fieldAccessor] ?: 0)
+                            if (chain.isNotEmpty()) {
+                                for ((chainedAccessor, _) in chain) {
+                                    if (chainedAccessor === fieldAccessor) continue
+
+                                    add(
+                                        ".chain(\$L.getField(\$S, \$L))",
+                                        mappingFieldName,
+                                        chainedAccessor.name,
+                                        resolvedAccessor.fieldOverloads[chainedAccessor] ?: 0
+                                    )
+                                }
                             }
                         }
                         .build()
-                }
+                }.filterNotNull()
             )
             .addFields(
                 resolvedAccessor.constructors.mapIndexed { i, (ctorAccessor, ctorNode) ->
@@ -389,133 +410,149 @@ open class JavaGenerationContext(
             )
             .addFields(
                 resolvedAccessor.methods.map { (methodAccessor, methodNode) ->
+                    if (methodAccessor.skipAccessorGeneration) {
+                        return@map null
+                    }
+
                     val methodType = if (methodAccessor.isIncomplete) getFriendlyType(methodNode.last.value) else Type.getType(methodAccessor.type)
-                    val overloadIndex = resolvedAccessor.methodOverloads[methodAccessor] ?: 0
-                    val mappingName = namingStrategy.method(methodAccessor, overloadIndex)
+                    val mappingName = namingStrategy.method(methodAccessor, resolvedAccessor.methodAccessorOverloads[methodAccessor] ?: 0)
 
-                    if (!methodAccessor.skipAccessorGeneration) {
-                        fun FieldSpec.Builder.addMeta(): FieldSpec.Builder = apply {
-                            addAnnotation(types.NOT_NULL)
+                    val chain = ArrayList<ResolvedMethodPair>()
 
-                            var lowestVersion = methodNode.first.key
-                            var highestVersion = methodNode.last.key
+                    val lowestVersion: Version
+                    val highestVersion: Version
 
-                            if (methodAccessor.chain != null) {
-                                addJavadoc(
-                                    """
-                                    Accessor for the following methods:
-                                    <ul>
-                                    
-                                    """.trimIndent()
-                                )
+                    if (methodAccessor.chain != null) {
+                        var chainedAccessor: MethodAccessor? = methodAccessor
+                        while (chainedAccessor != null) {
+                            val chainedMethodNode = resolvedAccessor.methods.find { it.first == chainedAccessor }?.second
+                                ?: throw RuntimeException("Chained method node should not be null at this point")
+                            chain += ResolvedMethodPair(chainedAccessor!!, chainedMethodNode)
+                            chainedAccessor = chainedAccessor!!.chain
+                        }
 
-                                var chainedAccessor: MethodAccessor? = methodAccessor
-                                while (chainedAccessor != null) {
-                                    chainedAccessor?.let { accessor ->
-                                        val chainedMethodNode = resolvedAccessor.methods.find { it.first == accessor }?.second
-                                        val chainedType =
-                                            if (accessor.isIncomplete && chainedMethodNode != null) getFriendlyType(chainedMethodNode.last.value) else Type.getType(accessor.type)
-                                        addJavadoc(
-                                            """
-                                            <li>{@code ${'$'}L ${'$'}L(${'$'}L)} (${'$'}L-${'$'}L)</li>
-                                            
-                                            """.trimIndent(),
-                                            chainedType.returnType.className,
-                                            accessor.name,
-                                            chainedType.argumentTypes.joinToString(transform = Type::getClassName),
-                                            chainedMethodNode?.first?.key?.id,
-                                            chainedMethodNode?.last?.key?.id,
-                                        )
-                                        if (chainedMethodNode != null) {
-                                            if (lowestVersion > chainedMethodNode.first.key) {
-                                                lowestVersion = chainedMethodNode.first.key
-                                            }
-                                            if (highestVersion < chainedMethodNode.last.key) {
-                                                highestVersion = chainedMethodNode.last.key
-                                            }
-                                        }
-                                        chainedAccessor = accessor.chain
-                                    }
-                                }
+                        lowestVersion = chain.minOf { it.second.first.key }
+                        highestVersion = chain.maxOf { it.second.last.key }
+                    } else {
+                        lowestVersion = methodNode.first.key
+                        highestVersion = methodNode.last.key
+                    }
 
-                                addJavadoc(
-                                    """
-                                    </ul>
-                                    
-                                    """.trimIndent()
-                                )
-                            } else {
-                                addJavadoc(
-                                    """
-                                    Accessor for the {@code ${'$'}L ${'$'}L(${'$'}L)} method.
-                                    
-                                    """.trimIndent(),
-                                    methodType.returnType.className,
-                                    methodAccessor.name,
-                                    methodType.argumentTypes.joinToString(transform = Type::getClassName)
-                                )
-                            }
+                    fun FieldSpec.Builder.addMeta(mapping: Boolean = false): FieldSpec.Builder = apply {
+                        addAnnotation(types.NOT_NULL)
+
+                        if (methodAccessor.chain != null) {
                             addJavadoc(
                                 """
+                                ${'$'}L for the following methods:
+                                <ul>
+                                
+                                """.trimIndent(),
+                                if (mapping) {
+                                    "Mapping"
+                                } else {
+                                    "Accessor"
+                                }
+                            )
+
+                            for ((chainedAccessor, chainedMethodNode) in chain) {
+                                val chainedType =
+                                    if (chainedAccessor.isIncomplete) getFriendlyType(chainedMethodNode.last.value) else Type.getType(chainedAccessor.type)
+                                addJavadoc(
+                                    """
+                                    <li>{@code ${'$'}L ${'$'}L(${'$'}L)} (${'$'}L-${'$'}L)</li>
                                     
-                                @since ${'$'}L
-                                @version ${'$'}L
+                                    """.trimIndent(),
+                                    chainedType.returnType.className,
+                                    chainedAccessor.name,
+                                    chainedType.argumentTypes.joinToString(transform = Type::getClassName),
+                                    chainedMethodNode.first.key.id,
+                                    chainedMethodNode.last.key.id,
+                                )
+                            }
+
+                            addJavadoc(
+                                """
+                                </ul>
+                                
+                                """.trimIndent()
+                            )
+                        } else {
+                            addJavadoc(
+                                """
+                                ${'$'}L for the {@code ${'$'}L ${'$'}L(${'$'}L)} method.
+                                
+                                """.trimIndent(),
+                                if (mapping) {
+                                    "Mapping"
+                                } else {
+                                    "Accessor"
+                                },
+                                methodType.returnType.className,
+                                methodAccessor.name,
+                                methodType.argumentTypes.joinToString(transform = Type::getClassName)
+                            )
+                        }
+                        addJavadoc(
+                            """
+                                
+                            @since ${'$'}L
+                            @version ${'$'}L
+                            
+                        """.trimIndent(),
+                            lowestVersion.id,
+                            highestVersion.id
+                        )
+                        if (!mapping) {
+                            addJavadoc(
+                                """
                                 @see ${'$'}L#${'$'}L
-                            """.trimIndent(),
-                                lowestVersion.id,
-                                highestVersion.id,
+                                """.trimIndent(),
                                 mappingClassName.canonicalName(),
                                 mappingName
                             )
                         }
+                    }
 
-                        when (generator.config.accessorType) {
-                            AccessorType.REFLECTION -> {
-                                accessorBuilder.addField(
-                                    FieldSpec.builder(JParameterizedTypeName.get(types.SUPPLIER, types.METHOD), mappingName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                        .addMeta()
-                                        .initializer("\$T.of(\$T.\$L::getMethod)", types.LAZY_SUPPLIER, mappingClassName, mappingName)
-                                        .build()
-                                )
-                            }
-                            AccessorType.METHOD_HANDLES -> {
-                                accessorBuilder.addField(
-                                    FieldSpec.builder(JParameterizedTypeName.get(types.SUPPLIER, types.METHOD_HANDLE), mappingName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                                        .addMeta()
-                                        .initializer("\$T.of(\$T.\$L::getMethodHandle)", types.LAZY_SUPPLIER, mappingClassName, mappingName)
-                                        .build()
-                                )
-                            }
-                            AccessorType.NONE -> {}
+                    when (generator.config.accessorType) {
+                        AccessorType.REFLECTION -> {
+                            accessorBuilder.addField(
+                                FieldSpec.builder(JParameterizedTypeName.get(types.SUPPLIER, types.METHOD), mappingName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                    .addMeta()
+                                    .initializer("\$T.of(\$T.\$L::getMethod)", types.LAZY_SUPPLIER, mappingClassName, mappingName)
+                                    .build()
+                            )
                         }
+                        AccessorType.METHOD_HANDLES -> {
+                            accessorBuilder.addField(
+                                FieldSpec.builder(JParameterizedTypeName.get(types.SUPPLIER, types.METHOD_HANDLE), mappingName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                    .addMeta()
+                                    .initializer("\$T.of(\$T.\$L::getMethodHandle)", types.LAZY_SUPPLIER, mappingClassName, mappingName)
+                                    .build()
+                            )
+                        }
+                        AccessorType.NONE -> {}
                     }
 
                     FieldSpec.builder(types.METHOD_MAPPING, mappingName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                        .addAnnotation(types.NOT_NULL)
-                        .addJavadoc(
-                            """
-                                Mapping for the {@code ${'$'}L ${'$'}L(${'$'}L)} method.
-                                
-                                @since ${'$'}L
-                                @version ${'$'}L
-                            """.trimIndent(),
-                            methodType.returnType.className,
-                            methodAccessor.name,
-                            methodType.argumentTypes.joinToString(transform = Type::getClassName),
-                            methodNode.first.key.id,
-                            methodNode.last.key.id
-                        )
+                        .addMeta(mapping = true)
                         .initializer {
-                            add("\$L.getMethod(\$S, \$L)", mappingFieldName, methodAccessor.name, overloadIndex)
-                            if (methodAccessor.chain != null) {
-                                add(
-                                    ".chain(\$L)",
-                                    methodAccessor.chain.let { acc -> namingStrategy.method(acc, resolvedAccessor.methodOverloads[acc] ?: 0) }
-                                )
+                            add("\$L.getMethod(\$S, \$L)", mappingFieldName, methodAccessor.name, resolvedAccessor.methodOverloads[methodAccessor] ?: 0)
+                            if (chain.isNotEmpty()) {
+                                for ((chainedAccessor, _) in chain) {
+                                    if (chainedAccessor === methodAccessor) continue
+
+                                    add(
+                                        ".chain(\$L.getMethod(\$S, \$L))",
+                                        mappingFieldName,
+                                        chainedAccessor.name,
+                                        resolvedAccessor.methodOverloads[chainedAccessor] ?: 0
+                                    )
+                                }
                             }
                         }
                         .build()
-                }
+                }.filterNotNull()
             )
             .build()
             .writeTo(mappingClassName, generator.workspace)
