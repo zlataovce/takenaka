@@ -177,18 +177,14 @@ open class JavaGenerationContext(
                     .build()
             )
             .addFields(
-                resolvedAccessor.fields.map { (fieldAccessor, fieldNode) ->
-                    if (fieldAccessor.skipAccessorGeneration) {
-                        return@map null
-                    }
-
+                resolvedAccessor.fields.filter { !it.first.skipAccessorGeneration }.map { (fieldAccessor, fieldNode) ->
                     val overloadIndex = resolvedAccessor.fieldAccessorOverloads[fieldAccessor] ?: 0
                     val fieldType = fieldAccessor.type?.let(Type::getType)
                         ?: getFriendlyType(fieldNode.last.value)
 
                     val mappingName = namingStrategy.field(fieldAccessor, overloadIndex)
 
-                    val chain = ArrayList<ResolvedFieldPair>()
+                    val chain = mutableListOf<ResolvedFieldPair>()
 
                     val lowestVersion: Version
                     val highestVersion: Version
@@ -346,7 +342,7 @@ open class JavaGenerationContext(
                             }
                         }
                         .build()
-                }.filterNotNull()
+                }
             )
             .addFields(
                 resolvedAccessor.constructors.mapIndexed { i, (ctorAccessor, ctorNode) ->
@@ -409,15 +405,11 @@ open class JavaGenerationContext(
                 }
             )
             .addFields(
-                resolvedAccessor.methods.map { (methodAccessor, methodNode) ->
-                    if (methodAccessor.skipAccessorGeneration) {
-                        return@map null
-                    }
-
+                resolvedAccessor.methods.filter { !it.first.skipAccessorGeneration }.map { (methodAccessor, methodNode) ->
                     val methodType = if (methodAccessor.isIncomplete) getFriendlyType(methodNode.last.value) else Type.getType(methodAccessor.type)
                     val mappingName = namingStrategy.method(methodAccessor, resolvedAccessor.methodAccessorOverloads[methodAccessor] ?: 0)
 
-                    val chain = ArrayList<ResolvedMethodPair>()
+                    val chain = mutableListOf<ResolvedMethodPair>()
 
                     val lowestVersion: Version
                     val highestVersion: Version
@@ -552,7 +544,7 @@ open class JavaGenerationContext(
                             }
                         }
                         .build()
-                }.filterNotNull()
+                }
             )
             .build()
             .writeTo(mappingClassName, generator.workspace)
