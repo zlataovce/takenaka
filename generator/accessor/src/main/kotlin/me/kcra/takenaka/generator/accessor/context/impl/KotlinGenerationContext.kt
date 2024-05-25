@@ -24,7 +24,6 @@ import com.squareup.kotlinpoet.javapoet.KClassName
 import com.squareup.kotlinpoet.javapoet.KTypeSpec
 import com.squareup.kotlinpoet.javapoet.KotlinPoetJavaPoetPreview
 import kotlinx.coroutines.CoroutineScope
-import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
@@ -32,8 +31,6 @@ import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.GeneratedClassType
 import me.kcra.takenaka.generator.accessor.GeneratedMemberType
-import me.kcra.takenaka.generator.accessor.model.FieldAccessor
-import me.kcra.takenaka.generator.accessor.model.MethodAccessor
 import me.kcra.takenaka.generator.accessor.util.escapeKotlinName
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import org.objectweb.asm.Opcodes
@@ -170,27 +167,7 @@ open class KotlinGenerationContext(
 
                     val mappingName = namingStrategy.field(fieldAccessor, overloadIndex)
 
-                    val chain = mutableListOf<ResolvedFieldPair>()
-
-                    val lowestVersion: Version
-                    val highestVersion: Version
-
-                    if (fieldAccessor.chain != null) {
-                        var chainedAccessor: FieldAccessor? = fieldAccessor
-                        while (chainedAccessor != null) {
-                            val chainedFieldNode = resolvedAccessor.fields.find { it.first == chainedAccessor }?.second
-                                ?: throw RuntimeException("Chained field node should not be null at this point")
-                            chain += ResolvedFieldPair(chainedAccessor, chainedFieldNode)
-                            chainedAccessor = chainedAccessor.chain
-                        }
-
-                        lowestVersion = chain.minOf { it.second.first.key }
-                        highestVersion = chain.maxOf { it.second.last.key }
-                    } else {
-                        lowestVersion = fieldNode.first.key
-                        highestVersion = fieldNode.last.key
-                    }
-
+                    val (chain, lowestVersion, highestVersion) = resolveFieldChain(resolvedAccessor, fieldAccessor, fieldNode)
 
                     fun PropertySpec.Builder.addMeta(constant: Boolean = false, mapping: Boolean = false): PropertySpec.Builder = apply {
                         if (chain.isNotEmpty()) {
@@ -384,26 +361,7 @@ open class KotlinGenerationContext(
                     val methodType = if (methodAccessor.isIncomplete) getFriendlyType(methodNode.last.value) else Type.getType(methodAccessor.type)
                     val mappingName = namingStrategy.method(methodAccessor, resolvedAccessor.methodAccessorOverloads[methodAccessor] ?: 0)
 
-                    val chain = mutableListOf<ResolvedMethodPair>()
-
-                    val lowestVersion: Version
-                    val highestVersion: Version
-
-                    if (methodAccessor.chain != null) {
-                        var chainedAccessor: MethodAccessor? = methodAccessor
-                        while (chainedAccessor != null) {
-                            val chainedMethodNode = resolvedAccessor.methods.find { it.first == chainedAccessor }?.second
-                                ?: throw RuntimeException("Chained method node should not be null at this point")
-                            chain += ResolvedMethodPair(chainedAccessor!!, chainedMethodNode)
-                            chainedAccessor = chainedAccessor!!.chain
-                        }
-
-                        lowestVersion = chain.minOf { it.second.first.key }
-                        highestVersion = chain.maxOf { it.second.last.key }
-                    } else {
-                        lowestVersion = methodNode.first.key
-                        highestVersion = methodNode.last.key
-                    }
+                    val (chain, lowestVersion, highestVersion) = resolveMethodChain(resolvedAccessor, methodAccessor, methodNode)
 
                     fun PropertySpec.Builder.addMeta(mapping: Boolean = false): PropertySpec.Builder = apply {
                         if (chain.isNotEmpty()) {

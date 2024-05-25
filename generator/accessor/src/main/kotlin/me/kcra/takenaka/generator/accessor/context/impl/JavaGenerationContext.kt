@@ -26,7 +26,6 @@ import com.squareup.kotlinpoet.javapoet.JParameterizedTypeName
 import com.squareup.kotlinpoet.javapoet.JTypeSpec
 import com.squareup.kotlinpoet.javapoet.KotlinPoetJavaPoetPreview
 import kotlinx.coroutines.CoroutineScope
-import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
@@ -34,8 +33,6 @@ import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.GeneratedClassType
 import me.kcra.takenaka.generator.accessor.GeneratedMemberType
-import me.kcra.takenaka.generator.accessor.model.FieldAccessor
-import me.kcra.takenaka.generator.accessor.model.MethodAccessor
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -184,56 +181,22 @@ open class JavaGenerationContext(
 
                     val mappingName = namingStrategy.field(fieldAccessor, overloadIndex)
 
-                    val chain = mutableListOf<ResolvedFieldPair>()
-
-                    val lowestVersion: Version
-                    val highestVersion: Version
-
-                    if (fieldAccessor.chain != null) {
-                        var chainedAccessor: FieldAccessor? = fieldAccessor
-                        while (chainedAccessor != null) {
-                            val chainedFieldNode = resolvedAccessor.fields.find { it.first == chainedAccessor }?.second
-                                ?: throw RuntimeException("Chained field node should not be null at this point")
-                            chain += ResolvedFieldPair(chainedAccessor, chainedFieldNode)
-                            chainedAccessor = chainedAccessor.chain
-                        }
-
-                        lowestVersion = chain.minOf { it.second.first.key }
-                        highestVersion = chain.maxOf { it.second.last.key }
-                    } else {
-                        lowestVersion = fieldNode.first.key
-                        highestVersion = fieldNode.last.key
-                    }
+                    val (chain, lowestVersion, highestVersion) = resolveFieldChain(resolvedAccessor, fieldAccessor, fieldNode)
 
                     fun FieldSpec.Builder.addMeta(constant: Boolean = false, mapping: Boolean = false): FieldSpec.Builder = apply {
                         addAnnotation(types.NOT_NULL)
 
                         if (chain.isNotEmpty()) {
                             addJavadoc(
-                                """
-                                ${'$'}L for the following ${'$'}L:
-                                <ul>
-                                     
-                                """.trimIndent(),
-                                if (mapping) {
-                                    "Mapping"
-                                } else {
-                                    "Accessor"
-                                },
-                                if (constant) {
-                                    "constant field values"
-                                } else {
-                                    "fields"
-                                }
+                                "\$L for the following \$L:\n<ul>\n",
+                                if (mapping) "Mapping" else "Accessor",
+                                if (constant) "constant field values" else "fields"
                             )
 
                             for ((chainedAccessor, chainedFieldNode) in chain) {
                                 val chainedType = chainedAccessor.type?.let(Type::getType) ?: getFriendlyType(chainedFieldNode.last.value)
                                 addJavadoc(
-                                    """
-                                    <li>{@code ${'$'}L ${'$'}L} (${'$'}L-${'$'}L)</li>
-                                    
-                                    """.trimIndent(),
+                                    "<li>{@code \$L \$L} (\$L-\$L)</li>\n",
                                     chainedType.className,
                                     chainedAccessor.name,
                                     chainedFieldNode.first.key.id,
@@ -241,30 +204,14 @@ open class JavaGenerationContext(
                                 )
                             }
 
-                            addJavadoc(
-                                """
-                                </ul>
-                                
-                                """.trimIndent()
-                            )
+                            addJavadoc("</ul>\n")
                         } else {
                             addJavadoc(
-                                """
-                                ${'$'}L for the {@code ${'$'}L ${'$'}L} ${'$'}L.
-                                
-                                """.trimIndent(),
-                                if (mapping) {
-                                    "Mapping"
-                                } else {
-                                    "Accessor"
-                                },
+                                "\$L for the {@code \$L \$L} \$L.\n",
+                                if (mapping) "Mapping" else "Accessor",
                                 fieldType.className,
                                 fieldAccessor.name,
-                                if (constant) {
-                                    "constant field value"
-                                } else {
-                                    "field"
-                                }
+                                if (constant) "constant field value" else "field"
                             )
                         }
                         addJavadoc(
@@ -279,9 +226,7 @@ open class JavaGenerationContext(
                         )
                         if (!mapping) {
                             addJavadoc(
-                                """
-                                @see ${'$'}L#${'$'}L
-                                """.trimIndent(),
+                                "@see \$L#\$L",
                                 mappingClassName.canonicalName(),
                                 mappingName
                             )
@@ -409,52 +354,22 @@ open class JavaGenerationContext(
                     val methodType = if (methodAccessor.isIncomplete) getFriendlyType(methodNode.last.value) else Type.getType(methodAccessor.type)
                     val mappingName = namingStrategy.method(methodAccessor, resolvedAccessor.methodAccessorOverloads[methodAccessor] ?: 0)
 
-                    val chain = mutableListOf<ResolvedMethodPair>()
-
-                    val lowestVersion: Version
-                    val highestVersion: Version
-
-                    if (methodAccessor.chain != null) {
-                        var chainedAccessor: MethodAccessor? = methodAccessor
-                        while (chainedAccessor != null) {
-                            val chainedMethodNode = resolvedAccessor.methods.find { it.first == chainedAccessor }?.second
-                                ?: throw RuntimeException("Chained method node should not be null at this point")
-                            chain += ResolvedMethodPair(chainedAccessor!!, chainedMethodNode)
-                            chainedAccessor = chainedAccessor!!.chain
-                        }
-
-                        lowestVersion = chain.minOf { it.second.first.key }
-                        highestVersion = chain.maxOf { it.second.last.key }
-                    } else {
-                        lowestVersion = methodNode.first.key
-                        highestVersion = methodNode.last.key
-                    }
+                    val (chain, lowestVersion, highestVersion) = resolveMethodChain(resolvedAccessor, methodAccessor, methodNode)
 
                     fun FieldSpec.Builder.addMeta(mapping: Boolean = false): FieldSpec.Builder = apply {
                         addAnnotation(types.NOT_NULL)
 
                         if (chain.isNotEmpty()) {
                             addJavadoc(
-                                """
-                                ${'$'}L for the following methods:
-                                <ul>
-                                
-                                """.trimIndent(),
-                                if (mapping) {
-                                    "Mapping"
-                                } else {
-                                    "Accessor"
-                                }
+                                "\$L for the following methods:\n<ul>\n",
+                                if (mapping) "Mapping" else "Accessor"
                             )
 
                             for ((chainedAccessor, chainedMethodNode) in chain) {
                                 val chainedType =
                                     if (chainedAccessor.isIncomplete) getFriendlyType(chainedMethodNode.last.value) else Type.getType(chainedAccessor.type)
                                 addJavadoc(
-                                    """
-                                    <li>{@code ${'$'}L ${'$'}L(${'$'}L)} (${'$'}L-${'$'}L)</li>
-                                    
-                                    """.trimIndent(),
+                                    "<li>{@code \$L \$L(\$L)} (\$L-\$L)</li>\n",
                                     chainedType.returnType.className,
                                     chainedAccessor.name,
                                     chainedType.argumentTypes.joinToString(transform = Type::getClassName),
@@ -463,23 +378,11 @@ open class JavaGenerationContext(
                                 )
                             }
 
-                            addJavadoc(
-                                """
-                                </ul>
-                                
-                                """.trimIndent()
-                            )
+                            addJavadoc("</ul>\n")
                         } else {
                             addJavadoc(
-                                """
-                                ${'$'}L for the {@code ${'$'}L ${'$'}L(${'$'}L)} method.
-                                
-                                """.trimIndent(),
-                                if (mapping) {
-                                    "Mapping"
-                                } else {
-                                    "Accessor"
-                                },
+                                "\$L for the {@code \$L \$L(\$L)} method.\n",
+                                if (mapping) "Mapping" else "Accessor",
                                 methodType.returnType.className,
                                 methodAccessor.name,
                                 methodType.argumentTypes.joinToString(transform = Type::getClassName)
@@ -497,9 +400,7 @@ open class JavaGenerationContext(
                         )
                         if (!mapping) {
                             addJavadoc(
-                                """
-                                @see ${'$'}L#${'$'}L
-                                """.trimIndent(),
+                                "@see \$L#\$L",
                                 mappingClassName.canonicalName(),
                                 mappingName
                             )
