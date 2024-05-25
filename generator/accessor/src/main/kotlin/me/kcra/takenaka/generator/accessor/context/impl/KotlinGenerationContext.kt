@@ -172,29 +172,15 @@ open class KotlinGenerationContext(
                     fun PropertySpec.Builder.addMeta(constant: Boolean = false, mapping: Boolean = false): PropertySpec.Builder = apply {
                         if (chain.isNotEmpty()) {
                             addKdoc(
-                                """
-                                %L for the following %L:
-                                
-                                """.trimIndent(),
-                                if (mapping) {
-                                    "Mapping"
-                                } else {
-                                    "Accessor"
-                                },
-                                if (constant) {
-                                    "constant field values"
-                                } else {
-                                    "fields"
-                                }
+                                "%L for the following %L:\n",
+                                if (mapping) "Mapping" else "Accessor",
+                                if (constant) "constant field values" else "fields"
                             )
 
                             for ((chainedAccessor, chainedFieldNode) in chain) {
                                 val chainedType = chainedAccessor.type?.let(Type::getType) ?: getFriendlyType(chainedFieldNode.last.value)
                                 addKdoc(
-                                    """
-                                    - `%L %L` (%L-%L)
-                                    
-                                    """.trimIndent(),
+                                    "- `%L %L` (%L-%L)\n",
                                     chainedType.className,
                                     chainedAccessor.name,
                                     chainedFieldNode.first.key.id,
@@ -205,40 +191,23 @@ open class KotlinGenerationContext(
                             addKdoc("\n")
                         } else {
                             addKdoc(
-                                """
-                                %L for the `%L %L` %L.
-                                
-                                """.trimIndent(),
-                                if (mapping) {
-                                    "Mapping"
-                                } else {
-                                    "Accessor"
-                                },
+                                "%L for the `%L %L` %L.\n",
+                                if (mapping) "Mapping" else "Accessor",
                                 fieldType.className,
                                 fieldAccessor.name,
-                                if (constant) {
-                                    "constant field value"
-                                } else {
-                                    "field"
-                                },
+                                if (constant) "constant field value" else "field"
                             )
                         }
 
                         addKdoc(
-                            """    
-                            
-                            `%L` - `%L`
-                            
-                            """.trimIndent(),
+                            "\n`%L` - `%L`\n",
                             lowestVersion.id,
                             highestVersion.id,
                         )
 
                         if (!mapping) {
                             addKdoc(
-                                """
-                                @see·%L.%L
-                                """.trimIndent(),
+                                "@see·%L.%L",
                                 mappingClassName.canonicalName,
                                 mappingName
                             )
@@ -366,25 +335,15 @@ open class KotlinGenerationContext(
                     fun PropertySpec.Builder.addMeta(mapping: Boolean = false): PropertySpec.Builder = apply {
                         if (chain.isNotEmpty()) {
                             addKdoc(
-                                """
-                                %L for the following methods:
-                                
-                                """.trimIndent(),
-                                if (mapping) {
-                                    "Mapping"
-                                } else {
-                                    "Accessor"
-                                }
+                                "%L for the following methods:\n",
+                                if (mapping) "Mapping" else "Accessor"
                             )
 
                             for ((chainedAccessor, chainedMethodNode) in chain) {
                                 val chainedType =
                                     if (chainedAccessor.isIncomplete) getFriendlyType(chainedMethodNode.last.value) else Type.getType(chainedAccessor.type)
                                 addKdoc(
-                                    """
-                                    - `%L %L(%L)` (%L-%L)
-                                    
-                                    """.trimIndent(),
+                                    "- `%L %L(%L)` (%L-%L)\n",
                                     chainedType.returnType.className,
                                     chainedAccessor.name,
                                     chainedType.argumentTypes.joinToString(transform = Type::getClassName),
@@ -396,15 +355,8 @@ open class KotlinGenerationContext(
                             addKdoc("\n")
                         } else {
                             addKdoc(
-                                """
-                                %L for the `%L %L(%L)` method.
-                                
-                                """.trimIndent(),
-                                if (mapping) {
-                                    "Mapping"
-                                } else {
-                                    "Accessor"
-                                },
+                                "%L for the `%L %L(%L)` method.\n",
+                                if (mapping) "Mapping" else "Accessor",
                                 methodType.returnType.className,
                                 methodAccessor.name,
                                 methodType.argumentTypes.joinToString(transform = Type::getClassName)
@@ -412,20 +364,14 @@ open class KotlinGenerationContext(
                         }
 
                         addKdoc(
-                            """
-                            
-                            `%L` - `%L`
-                            
-                            """.trimIndent(),
+                            "\n`%L` - `%L`\n",
                             lowestVersion.id,
                             highestVersion.id
                         )
 
                         if (!mapping) {
                             addKdoc(
-                                """
-                                @see·%L.%L
-                                """.trimIndent(),
+                                "@see·%L.%L",
                                 mappingClassName.canonicalName,
                                 mappingName
                             )
@@ -453,18 +399,7 @@ open class KotlinGenerationContext(
                     }
 
                     PropertySpec.builder(mappingName, types.KT_METHOD_MAPPING)
-                        .addKdoc(
-                            """
-                                Mapping for the `%L %L(%L)` method.
-                                
-                                `%L` - `%L`
-                            """.trimIndent(),
-                            methodType.returnType.className,
-                            methodAccessor.name,
-                            methodType.argumentTypes.joinToString(transform = Type::getClassName),
-                            methodNode.first.key.id,
-                            methodNode.last.key.id
-                        )
+                        .addMeta(mapping = true)
                         .initializer {
                             add("getMethod(%S, %L)!!", methodAccessor.name, resolvedAccessor.methodOverloads[methodAccessor] ?: 0)
                             if (chain.isNotEmpty()) {
