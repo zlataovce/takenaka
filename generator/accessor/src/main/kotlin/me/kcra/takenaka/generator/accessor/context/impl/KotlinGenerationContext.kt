@@ -160,17 +160,17 @@ open class KotlinGenerationContext(
                 }
             )
             .addProperties(
-                resolvedAccessor.fields.filter { !it.first.skipAccessorGeneration }.map { (fieldAccessor, fieldNode) ->
-                    val overloadIndex = resolvedAccessor.fieldAccessorOverloads[fieldAccessor] ?: 0
+                resolvedAccessor.fields.map { mergedAccessor ->
+                    val (fieldAccessor, fieldNode, overloadIndex) = mergedAccessor
                     val fieldType = fieldAccessor.type?.let(Type::getType)
                         ?: getFriendlyType(fieldNode.last.value)
 
                     val mappingName = namingStrategy.field(fieldAccessor, overloadIndex)
 
-                    val (chain, lowestVersion, highestVersion) = resolveFieldChain(resolvedAccessor, fieldAccessor, fieldNode)
+                    val (chain, lowestVersion, highestVersion) = resolveMemberChain(mergedAccessor)
 
                     fun PropertySpec.Builder.addMeta(constant: Boolean = false, mapping: Boolean = false): PropertySpec.Builder = apply {
-                        if (chain.isNotEmpty()) {
+                        if (chain.size > 1) {
                             addKdoc(
                                 "%L for the following %L:\n",
                                 if (mapping) "Mapping" else "Accessor",
@@ -187,8 +187,6 @@ open class KotlinGenerationContext(
                                     chainedFieldNode.last.key.id,
                                 )
                             }
-
-                            addKdoc("\n")
                         } else {
                             addKdoc(
                                 "%L for the `%L %L` %L.\n",
@@ -252,20 +250,7 @@ open class KotlinGenerationContext(
 
                     PropertySpec.builder(mappingName, types.KT_FIELD_MAPPING)
                         .addMeta(mapping = true)
-                        .initializer {
-                            add("getField(%S, %L)!!", fieldAccessor.name, resolvedAccessor.fieldOverloads[fieldAccessor] ?: 0)
-                            if (chain.isNotEmpty()) {
-                                for ((chainedAccessor, _) in chain) {
-                                    if (chainedAccessor === fieldAccessor) continue
-
-                                    add(
-                                        ".chain(getField(%S, %L)!!)",
-                                        chainedAccessor.name,
-                                        resolvedAccessor.fieldOverloads[chainedAccessor] ?: 0
-                                    )
-                                }
-                            }
-                        }
+                        .initializer("getField(%S, %L)!!", fieldAccessor.name, overloadIndex)
                         .build()
                 }
             )
@@ -326,14 +311,15 @@ open class KotlinGenerationContext(
                 }
             )
             .addProperties(
-                resolvedAccessor.methods.filter { !it.first.skipAccessorGeneration }.map { (methodAccessor, methodNode) ->
+                resolvedAccessor.methods.map { mergedAccessor ->
+                    val (methodAccessor, methodNode, overloadIndex) = mergedAccessor
                     val methodType = if (methodAccessor.isIncomplete) getFriendlyType(methodNode.last.value) else Type.getType(methodAccessor.type)
-                    val mappingName = namingStrategy.method(methodAccessor, resolvedAccessor.methodAccessorOverloads[methodAccessor] ?: 0)
+                    val mappingName = namingStrategy.method(methodAccessor, overloadIndex)
 
-                    val (chain, lowestVersion, highestVersion) = resolveMethodChain(resolvedAccessor, methodAccessor, methodNode)
+                    val (chain, lowestVersion, highestVersion) = resolveMemberChain(mergedAccessor)
 
                     fun PropertySpec.Builder.addMeta(mapping: Boolean = false): PropertySpec.Builder = apply {
-                        if (chain.isNotEmpty()) {
+                        if (chain.size > 1) {
                             addKdoc(
                                 "%L for the following methods:\n",
                                 if (mapping) "Mapping" else "Accessor"
@@ -351,8 +337,6 @@ open class KotlinGenerationContext(
                                     chainedMethodNode.last.key.id,
                                 )
                             }
-
-                            addKdoc("\n")
                         } else {
                             addKdoc(
                                 "%L for the `%L %L(%L)` method.\n",
@@ -400,20 +384,7 @@ open class KotlinGenerationContext(
 
                     PropertySpec.builder(mappingName, types.KT_METHOD_MAPPING)
                         .addMeta(mapping = true)
-                        .initializer {
-                            add("getMethod(%S, %L)!!", methodAccessor.name, resolvedAccessor.methodOverloads[methodAccessor] ?: 0)
-                            if (chain.isNotEmpty()) {
-                                for ((chainedAccessor, _) in chain) {
-                                    if (chainedAccessor === methodAccessor) continue
-
-                                    add(
-                                        ".chain(getMethod(%S, %L)!!)",
-                                        chainedAccessor.name,
-                                        resolvedAccessor.methodOverloads[chainedAccessor] ?: 0
-                                    )
-                                }
-                            }
-                        }
+                        .initializer("getMethod(%S, %L)!!", methodAccessor.name, overloadIndex)
                         .build()
                 }
             )

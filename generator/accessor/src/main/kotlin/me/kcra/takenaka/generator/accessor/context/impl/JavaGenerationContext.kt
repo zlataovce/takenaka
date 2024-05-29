@@ -174,33 +174,33 @@ open class JavaGenerationContext(
                     .build()
             )
             .addFields(
-                resolvedAccessor.fields.filter { !it.first.skipAccessorGeneration }.map { (fieldAccessor, fieldNode) ->
-                    val overloadIndex = resolvedAccessor.fieldAccessorOverloads[fieldAccessor] ?: 0
+                resolvedAccessor.fields.map { mergedAccessor ->
+                    val (fieldAccessor, fieldNode, overloadIndex) = mergedAccessor
                     val fieldType = fieldAccessor.type?.let(Type::getType)
                         ?: getFriendlyType(fieldNode.last.value)
 
                     val mappingName = namingStrategy.field(fieldAccessor, overloadIndex)
 
-                    val (chain, lowestVersion, highestVersion) = resolveFieldChain(resolvedAccessor, fieldAccessor, fieldNode)
+                    val (chain, lowestVersion, highestVersion) = resolveMemberChain(mergedAccessor)
 
                     fun FieldSpec.Builder.addMeta(constant: Boolean = false, mapping: Boolean = false): FieldSpec.Builder = apply {
                         addAnnotation(types.NOT_NULL)
 
-                        if (chain.isNotEmpty()) {
+                        if (chain.size > 1) {
                             addJavadoc(
                                 "\$L for the following \$L:\n<ul>\n",
                                 if (mapping) "Mapping" else "Accessor",
                                 if (constant) "constant field values" else "fields"
                             )
 
-                            for ((chainedAccessor, chainedFieldNode) in chain) {
-                                val chainedType = chainedAccessor.type?.let(Type::getType) ?: getFriendlyType(chainedFieldNode.last.value)
+                            for ((chainedAccessor, ancestryNode, lowVersion, highVersion) in chain) {
+                                val chainedType = chainedAccessor.type?.let(Type::getType) ?: getFriendlyType(ancestryNode.last.value)
                                 addJavadoc(
                                     "<li>{@code \$L \$L} (\$L-\$L)</li>\n",
                                     chainedType.className,
                                     chainedAccessor.name,
-                                    chainedFieldNode.first.key.id,
-                                    chainedFieldNode.last.key.id,
+                                    lowVersion.id,
+                                    highVersion.id,
                                 )
                             }
 
@@ -271,21 +271,7 @@ open class JavaGenerationContext(
 
                     FieldSpec.builder(types.FIELD_MAPPING, mappingName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                         .addMeta(mapping = true)
-                        .initializer {
-                            add("\$L.getField(\$S, \$L)", mappingFieldName, fieldAccessor.name, resolvedAccessor.fieldOverloads[fieldAccessor] ?: 0)
-                            if (chain.isNotEmpty()) {
-                                for ((chainedAccessor, _) in chain) {
-                                    if (chainedAccessor === fieldAccessor) continue
-
-                                    add(
-                                        ".chain(\$L.getField(\$S, \$L))",
-                                        mappingFieldName,
-                                        chainedAccessor.name,
-                                        resolvedAccessor.fieldOverloads[chainedAccessor] ?: 0
-                                    )
-                                }
-                            }
-                        }
+                        .initializer("\$L.getField(\$S, \$L)", mappingFieldName, fieldAccessor.name, overloadIndex)
                         .build()
                 }
             )
@@ -350,22 +336,23 @@ open class JavaGenerationContext(
                 }
             )
             .addFields(
-                resolvedAccessor.methods.filter { !it.first.skipAccessorGeneration }.map { (methodAccessor, methodNode) ->
+                resolvedAccessor.methods.map { mergedAccessor ->
+                    val (methodAccessor, methodNode, overloadIndex) = mergedAccessor
                     val methodType = if (methodAccessor.isIncomplete) getFriendlyType(methodNode.last.value) else Type.getType(methodAccessor.type)
-                    val mappingName = namingStrategy.method(methodAccessor, resolvedAccessor.methodAccessorOverloads[methodAccessor] ?: 0)
+                    val mappingName = namingStrategy.method(methodAccessor, overloadIndex)
 
-                    val (chain, lowestVersion, highestVersion) = resolveMethodChain(resolvedAccessor, methodAccessor, methodNode)
+                    val (chain, lowestVersion, highestVersion) = resolveMemberChain(mergedAccessor)
 
                     fun FieldSpec.Builder.addMeta(mapping: Boolean = false): FieldSpec.Builder = apply {
                         addAnnotation(types.NOT_NULL)
 
-                        if (chain.isNotEmpty()) {
+                        if (chain.size > 1) {
                             addJavadoc(
                                 "\$L for the following methods:\n<ul>\n",
                                 if (mapping) "Mapping" else "Accessor"
                             )
 
-                            for ((chainedAccessor, chainedMethodNode) in chain) {
+                            for ((chainedAccessor, chainedMethodNode, lowVersion, highVersion) in chain) {
                                 val chainedType =
                                     if (chainedAccessor.isIncomplete) getFriendlyType(chainedMethodNode.last.value) else Type.getType(chainedAccessor.type)
                                 addJavadoc(
@@ -373,8 +360,8 @@ open class JavaGenerationContext(
                                     chainedType.returnType.className,
                                     chainedAccessor.name,
                                     chainedType.argumentTypes.joinToString(transform = Type::getClassName),
-                                    chainedMethodNode.first.key.id,
-                                    chainedMethodNode.last.key.id,
+                                    lowVersion.id,
+                                    highVersion.id,
                                 )
                             }
 
@@ -429,21 +416,7 @@ open class JavaGenerationContext(
 
                     FieldSpec.builder(types.METHOD_MAPPING, mappingName, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
                         .addMeta(mapping = true)
-                        .initializer {
-                            add("\$L.getMethod(\$S, \$L)", mappingFieldName, methodAccessor.name, resolvedAccessor.methodOverloads[methodAccessor] ?: 0)
-                            if (chain.isNotEmpty()) {
-                                for ((chainedAccessor, _) in chain) {
-                                    if (chainedAccessor === methodAccessor) continue
-
-                                    add(
-                                        ".chain(\$L.getMethod(\$S, \$L))",
-                                        mappingFieldName,
-                                        chainedAccessor.name,
-                                        resolvedAccessor.methodOverloads[chainedAccessor] ?: 0
-                                    )
-                                }
-                            }
-                        }
+                        .initializer("\$L.getMethod(\$S, \$L)", mappingFieldName, methodAccessor.name, overloadIndex)
                         .build()
                 }
             )

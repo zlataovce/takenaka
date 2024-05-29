@@ -18,73 +18,28 @@
 package me.kcra.takenaka.generator.accessor.context.impl
 
 import me.kcra.takenaka.core.Version
-import me.kcra.takenaka.core.mapping.ancestry.impl.FieldAncestryNode
-import me.kcra.takenaka.core.mapping.ancestry.impl.MethodAncestryNode
-import me.kcra.takenaka.generator.accessor.model.FieldAccessor
-import me.kcra.takenaka.generator.accessor.model.MethodAccessor
+import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
+import net.fabricmc.mappingio.tree.MappingTreeView
+import net.fabricmc.mappingio.tree.MappingTreeView.ElementMappingView
 
 /**
- * Common function for reconstructing the field chain and finding the lowest/highest versions. Used by [JavaGenerationContext] and [KotlinGenerationContext].
+ * Common function for reconstructing the member chain and finding the lowest/highest versions of each item. Used by [JavaGenerationContext] and [KotlinGenerationContext].
  *
- * @param resolvedAccessor resolved class accessor
- * @param fieldAccessor the base field accessor used to obtain the chain
- * @param fieldNode ancestry node of the base field accessor
- * @return a triple consisting of all chained fields (including the fieldAccessor parameter), lowest version and highest version
+ * @param memberAccessor member accessor
+ * @return a triple consisting of all chained items (including their lowest/highest versions), lowest version and highest version
  */
-fun resolveFieldChain(resolvedAccessor: ResolvedClassAccessor, fieldAccessor: FieldAccessor, fieldNode: FieldAncestryNode): Triple<List<ResolvedFieldPair>, Version, Version> {
-    val chain = mutableListOf<ResolvedFieldPair>()
+fun <M, T: MappingTreeView, E: ElementMappingView> resolveMemberChain(memberAccessor: ResolvedMemberAccessor<M, T, E>): Triple<List<VersionedAccessor<M, T, E>>, Version, Version> {
+    val chain = memberAccessor.map { (member, ancestryNode) -> VersionedAccessor(member, ancestryNode) }
 
-    val lowestVersion: Version
-    val highestVersion: Version
-
-    if (fieldAccessor.chain != null) {
-        var chainedAccessor: FieldAccessor? = fieldAccessor
-        while (chainedAccessor != null) {
-            val chainedFieldNode = resolvedAccessor.fields.find { it.first == chainedAccessor }?.second
-                ?: throw RuntimeException("Chained field node should not be null at this point")
-            chain += ResolvedFieldPair(chainedAccessor, chainedFieldNode)
-            chainedAccessor = chainedAccessor.chain
-        }
-
-        lowestVersion = chain.minOf { it.second.first.key }
-        highestVersion = chain.maxOf { it.second.last.key }
-    } else {
-        lowestVersion = fieldNode.first.key
-        highestVersion = fieldNode.last.key
-    }
+    val lowestVersion = chain.minOf { it.lowestVersion }
+    val highestVersion = chain.maxOf { it.highestVersion }
 
     return Triple(chain, lowestVersion, highestVersion)
 }
 
-/**
- * Common function for reconstructing the method chain and finding the lowest/highest versions. Used by [JavaGenerationContext] and [KotlinGenerationContext].
- *
- * @param resolvedAccessor resolved class accessor
- * @param methodAccessor the base method accessor used to obtain the chain
- * @param methodNode ancestry node of the base method accessor
- * @return a triple consisting of all chained methods (including the methodAccessor parameter), lowest version and highest version
- */
-fun resolveMethodChain(resolvedAccessor: ResolvedClassAccessor, methodAccessor: MethodAccessor, methodNode: MethodAncestryNode): Triple<List<ResolvedMethodPair>, Version, Version> {
-    val chain = mutableListOf<ResolvedMethodPair>()
-
-    val lowestVersion: Version
-    val highestVersion: Version
-
-    if (methodAccessor.chain != null) {
-        var chainedAccessor: MethodAccessor? = methodAccessor
-        while (chainedAccessor != null) {
-            val chainedMethodNode = resolvedAccessor.methods.find { it.first == chainedAccessor }?.second
-                ?: throw RuntimeException("Chained method node should not be null at this point")
-            chain += ResolvedMethodPair(chainedAccessor, chainedMethodNode)
-            chainedAccessor = chainedAccessor.chain
-        }
-
-        lowestVersion = chain.minOf { it.second.first.key }
-        highestVersion = chain.maxOf { it.second.last.key }
-    } else {
-        lowestVersion = methodNode.first.key
-        highestVersion = methodNode.last.key
-    }
-
-    return Triple(chain, lowestVersion, highestVersion)
-}
+data class VersionedAccessor<M, T: MappingTreeView, E: ElementMappingView>(
+    val memberAccessor: M,
+    val ancestryNode: AncestryTree.Node<T, E>,
+    val lowestVersion: Version = ancestryNode.first.key,
+    val highestVersion: Version = ancestryNode.last.key
+)
