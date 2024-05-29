@@ -112,11 +112,36 @@ class AncestryTree<T : MappingTreeView, E : ElementMappingView>(
         if (keys.isEmpty()) return null // return early, we're not searching for anything
 
         return if (keys.size == 1) {
-            val key = keys[0]
+            val key = keys.first()
 
             find { key in it.lastNames }
         } else {
             find { keys.all(it.lastNames::contains) }
         }
     }
+}
+
+/**
+ * Creates a merged node.
+ *
+ * Respects existing ordering in case of conflicts - only latest entries are kept, older are discarded.
+ *
+ * @param nodes the nodes to merge
+ * @return the merged node
+ */
+fun <T : MappingTreeView, E : ElementMappingView> nodeOf(vararg nodes: AncestryTree.Node<T, E>): AncestryTree.Node<T, E> {
+    require(nodes.isNotEmpty()) {
+        "No nodes provided"
+    }
+
+    if (nodes.size == 1) return nodes.first()
+
+    // create merged node
+    val lastNode = nodes.last()
+    return AncestryTree.Node(
+        lastNode.tree,
+        nodes.flatMap { it.entries }
+            .associate { it.key to it.value },
+        last = lastNode.last
+    )
 }
