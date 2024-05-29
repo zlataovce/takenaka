@@ -33,8 +33,7 @@ data class MethodAccessor(
     val name: String,
     val type: String,
     val version: String? = null,
-    val chain: MethodAccessor? = null,
-    val skipAccessorGeneration: Boolean = false
+    val chain: MethodAccessor? = null
 ) : Serializable {
     /**
      * Upper-case variant of [name].

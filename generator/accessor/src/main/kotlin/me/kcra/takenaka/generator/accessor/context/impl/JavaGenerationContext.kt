@@ -176,36 +176,36 @@ open class JavaGenerationContext(
             .addFields(
                 resolvedAccessor.fields.map { mergedAccessor ->
                     val (fieldAccessor, fieldNode, overloadIndex) = mergedAccessor
-                    val fieldType = fieldAccessor.type?.let(Type::getType)
-                        ?: getFriendlyType(fieldNode.last.value)
 
                     val mappingName = namingStrategy.field(fieldAccessor, overloadIndex)
-
-                    val (chain, lowestVersion, highestVersion) = resolveMemberChain(mergedAccessor)
-
                     fun FieldSpec.Builder.addMeta(constant: Boolean = false, mapping: Boolean = false): FieldSpec.Builder = apply {
                         addAnnotation(types.NOT_NULL)
 
-                        if (chain.size > 1) {
+                        if (mergedAccessor.isChained) {
                             addJavadoc(
                                 "\$L for the following \$L:\n<ul>\n",
                                 if (mapping) "Mapping" else "Accessor",
                                 if (constant) "constant field values" else "fields"
                             )
 
-                            for ((chainedAccessor, ancestryNode, lowVersion, highVersion) in chain) {
-                                val chainedType = chainedAccessor.type?.let(Type::getType) ?: getFriendlyType(ancestryNode.last.value)
+                            mergedAccessor.forEach { chainedAccessor, chainedFieldNode ->
+                                val chainedType = chainedAccessor.type?.let(Type::getType)
+                                    ?: getFriendlyType(chainedFieldNode.last.value)
+
                                 addJavadoc(
-                                    "<li>{@code \$L \$L} (\$L-\$L)</li>\n",
+                                    "  <li>{@code \$L \$L} (\$L - \$L)</li>\n",
                                     chainedType.className,
                                     chainedAccessor.name,
-                                    lowVersion.id,
-                                    highVersion.id,
+                                    chainedFieldNode.first.key.id,
+                                    chainedFieldNode.last.key.id
                                 )
                             }
 
                             addJavadoc("</ul>\n")
                         } else {
+                            val fieldType = fieldAccessor.type?.let(Type::getType)
+                                ?: getFriendlyType(fieldNode.last.value)
+
                             addJavadoc(
                                 "\$L for the {@code \$L \$L} \$L.\n",
                                 if (mapping) "Mapping" else "Accessor",
@@ -214,22 +214,10 @@ open class JavaGenerationContext(
                                 if (constant) "constant field value" else "field"
                             )
                         }
-                        addJavadoc(
-                            """
-                            
-                            @since ${'$'}L
-                            @version ${'$'}L
-                            
-                        """.trimIndent(),
-                            lowestVersion.id,
-                            highestVersion.id
-                        )
+
+                        addJavadoc("\n@since ${'$'}L\n@version ${'$'}L", fieldNode.first.key.id, fieldNode.last.key.id)
                         if (!mapping) {
-                            addJavadoc(
-                                "@see \$L#\$L",
-                                mappingClassName.canonicalName(),
-                                mappingName
-                            )
+                            addJavadoc("\n@see \$L#\$L", mappingClassName.canonicalName(), mappingName)
                         }
                     }
 
@@ -276,8 +264,8 @@ open class JavaGenerationContext(
                 }
             )
             .addFields(
-                resolvedAccessor.constructors.mapIndexed { i, (ctorAccessor, ctorNode) ->
-                    val mappingName = namingStrategy.constructor(ctorAccessor, i)
+                resolvedAccessor.constructors.map { (ctorAccessor, ctorNode, overloadIndex) ->
+                    val mappingName = namingStrategy.constructor(ctorAccessor, overloadIndex)
                     val ctorArgs = Type.getArgumentTypes(ctorAccessor.type)
 
                     fun FieldSpec.Builder.addMeta(): FieldSpec.Builder = apply {
@@ -331,42 +319,41 @@ open class JavaGenerationContext(
                             ctorNode.first.key.id,
                             ctorNode.last.key.id
                         )
-                        .initializer("\$L.getConstructor(\$L)", mappingFieldName, i)
+                        .initializer("\$L.getConstructor(\$L)", mappingFieldName, overloadIndex)
                         .build()
                 }
             )
             .addFields(
                 resolvedAccessor.methods.map { mergedAccessor ->
                     val (methodAccessor, methodNode, overloadIndex) = mergedAccessor
-                    val methodType = if (methodAccessor.isIncomplete) getFriendlyType(methodNode.last.value) else Type.getType(methodAccessor.type)
+
                     val mappingName = namingStrategy.method(methodAccessor, overloadIndex)
-
-                    val (chain, lowestVersion, highestVersion) = resolveMemberChain(mergedAccessor)
-
                     fun FieldSpec.Builder.addMeta(mapping: Boolean = false): FieldSpec.Builder = apply {
                         addAnnotation(types.NOT_NULL)
 
-                        if (chain.size > 1) {
+                        if (mergedAccessor.isChained) {
                             addJavadoc(
                                 "\$L for the following methods:\n<ul>\n",
                                 if (mapping) "Mapping" else "Accessor"
                             )
 
-                            for ((chainedAccessor, chainedMethodNode, lowVersion, highVersion) in chain) {
-                                val chainedType =
-                                    if (chainedAccessor.isIncomplete) getFriendlyType(chainedMethodNode.last.value) else Type.getType(chainedAccessor.type)
+                            mergedAccessor.forEach { (chainedAccessor, chainedMethodNode) ->
+                                val chainedType = if (chainedAccessor.isIncomplete) getFriendlyType(chainedMethodNode.last.value) else Type.getType(chainedAccessor.type)
+
                                 addJavadoc(
-                                    "<li>{@code \$L \$L(\$L)} (\$L-\$L)</li>\n",
+                                    "  <li>{@code \$L \$L(\$L)} (\$L - \$L)</li>\n",
                                     chainedType.returnType.className,
                                     chainedAccessor.name,
                                     chainedType.argumentTypes.joinToString(transform = Type::getClassName),
-                                    lowVersion.id,
-                                    highVersion.id,
+                                    chainedMethodNode.first.key.id,
+                                    chainedMethodNode.last.key.id
                                 )
                             }
 
                             addJavadoc("</ul>\n")
                         } else {
+                            val methodType = if (methodAccessor.isIncomplete) getFriendlyType(methodNode.last.value) else Type.getType(methodAccessor.type)
+
                             addJavadoc(
                                 "\$L for the {@code \$L \$L(\$L)} method.\n",
                                 if (mapping) "Mapping" else "Accessor",
@@ -375,22 +362,10 @@ open class JavaGenerationContext(
                                 methodType.argumentTypes.joinToString(transform = Type::getClassName)
                             )
                         }
-                        addJavadoc(
-                            """
-                            
-                            @since ${'$'}L
-                            @version ${'$'}L
-                            
-                        """.trimIndent(),
-                            lowestVersion.id,
-                            highestVersion.id
-                        )
+
+                        addJavadoc("\n@since ${'$'}L\n@version ${'$'}L", methodNode.first.key.id, methodNode.last.key.id)
                         if (!mapping) {
-                            addJavadoc(
-                                "@see \$L#\$L",
-                                mappingClassName.canonicalName(),
-                                mappingName
-                            )
+                            addJavadoc("\n@see \$L#\$L", mappingClassName.canonicalName(), mappingName)
                         }
                     }
 

@@ -162,25 +162,22 @@ open class KotlinGenerationContext(
             .addProperties(
                 resolvedAccessor.fields.map { mergedAccessor ->
                     val (fieldAccessor, fieldNode, overloadIndex) = mergedAccessor
-                    val fieldType = fieldAccessor.type?.let(Type::getType)
-                        ?: getFriendlyType(fieldNode.last.value)
 
                     val mappingName = namingStrategy.field(fieldAccessor, overloadIndex)
-
-                    val (chain, lowestVersion, highestVersion) = resolveMemberChain(mergedAccessor)
-
                     fun PropertySpec.Builder.addMeta(constant: Boolean = false, mapping: Boolean = false): PropertySpec.Builder = apply {
-                        if (chain.size > 1) {
+                        if (mergedAccessor.isChained) {
                             addKdoc(
                                 "%L for the following %L:\n",
                                 if (mapping) "Mapping" else "Accessor",
                                 if (constant) "constant field values" else "fields"
                             )
 
-                            for ((chainedAccessor, chainedFieldNode) in chain) {
-                                val chainedType = chainedAccessor.type?.let(Type::getType) ?: getFriendlyType(chainedFieldNode.last.value)
+                            mergedAccessor.forEach { chainedAccessor, chainedFieldNode ->
+                                val chainedType = chainedAccessor.type?.let(Type::getType)
+                                    ?: getFriendlyType(chainedFieldNode.last.value)
+
                                 addKdoc(
-                                    "- `%L %L` (%L-%L)\n",
+                                    " - `%L %L` (`%L` - `%L`)\n",
                                     chainedType.className,
                                     chainedAccessor.name,
                                     chainedFieldNode.first.key.id,
@@ -188,6 +185,9 @@ open class KotlinGenerationContext(
                                 )
                             }
                         } else {
+                            val fieldType = fieldAccessor.type?.let(Type::getType)
+                                ?: getFriendlyType(fieldNode.last.value)
+
                             addKdoc(
                                 "%L for the `%L %L` %L.\n",
                                 if (mapping) "Mapping" else "Accessor",
@@ -197,18 +197,9 @@ open class KotlinGenerationContext(
                             )
                         }
 
-                        addKdoc(
-                            "\n`%L` - `%L`\n",
-                            lowestVersion.id,
-                            highestVersion.id,
-                        )
-
+                        addKdoc("\n`%L` - `%L`", fieldNode.first.key.id, fieldNode.last.key.id)
                         if (!mapping) {
-                            addKdoc(
-                                "@see·%L.%L",
-                                mappingClassName.canonicalName,
-                                mappingName
-                            )
+                            addKdoc("\n@see·%L.%L", mappingClassName.canonicalName, mappingName)
                         }
                     }
 
@@ -255,8 +246,8 @@ open class KotlinGenerationContext(
                 }
             )
             .addProperties(
-                resolvedAccessor.constructors.mapIndexed { i, (ctorAccessor, ctorNode) ->
-                    val mappingName = namingStrategy.constructor(ctorAccessor, i)
+                resolvedAccessor.constructors.map { (ctorAccessor, ctorNode, overloadIndex) ->
+                    val mappingName = namingStrategy.constructor(ctorAccessor, overloadIndex)
                     val ctorArgs = Type.getArgumentTypes(ctorAccessor.type)
 
                     fun PropertySpec.Builder.addMeta(): PropertySpec.Builder = apply {
@@ -306,38 +297,37 @@ open class KotlinGenerationContext(
                             ctorNode.first.key.id,
                             ctorNode.last.key.id
                         )
-                        .initializer("getConstructor(%L)!!", i)
+                        .initializer("getConstructor(%L)!!", overloadIndex)
                         .build()
                 }
             )
             .addProperties(
                 resolvedAccessor.methods.map { mergedAccessor ->
                     val (methodAccessor, methodNode, overloadIndex) = mergedAccessor
-                    val methodType = if (methodAccessor.isIncomplete) getFriendlyType(methodNode.last.value) else Type.getType(methodAccessor.type)
+
                     val mappingName = namingStrategy.method(methodAccessor, overloadIndex)
-
-                    val (chain, lowestVersion, highestVersion) = resolveMemberChain(mergedAccessor)
-
                     fun PropertySpec.Builder.addMeta(mapping: Boolean = false): PropertySpec.Builder = apply {
-                        if (chain.size > 1) {
+                        if (mergedAccessor.isChained) {
                             addKdoc(
                                 "%L for the following methods:\n",
                                 if (mapping) "Mapping" else "Accessor"
                             )
 
-                            for ((chainedAccessor, chainedMethodNode) in chain) {
-                                val chainedType =
-                                    if (chainedAccessor.isIncomplete) getFriendlyType(chainedMethodNode.last.value) else Type.getType(chainedAccessor.type)
+                            mergedAccessor.forEach { (chainedAccessor, chainedMethodNode) ->
+                                val chainedType = if (chainedAccessor.isIncomplete) getFriendlyType(chainedMethodNode.last.value) else Type.getType(chainedAccessor.type)
+
                                 addKdoc(
-                                    "- `%L %L(%L)` (%L-%L)\n",
+                                    " - `%L %L(%L)` (`%L` - `%L`)\n",
                                     chainedType.returnType.className,
                                     chainedAccessor.name,
                                     chainedType.argumentTypes.joinToString(transform = Type::getClassName),
                                     chainedMethodNode.first.key.id,
-                                    chainedMethodNode.last.key.id,
+                                    chainedMethodNode.last.key.id
                                 )
                             }
                         } else {
+                            val methodType = if (methodAccessor.isIncomplete) getFriendlyType(methodNode.last.value) else Type.getType(methodAccessor.type)
+
                             addKdoc(
                                 "%L for the `%L %L(%L)` method.\n",
                                 if (mapping) "Mapping" else "Accessor",
@@ -347,18 +337,9 @@ open class KotlinGenerationContext(
                             )
                         }
 
-                        addKdoc(
-                            "\n`%L` - `%L`\n",
-                            lowestVersion.id,
-                            highestVersion.id
-                        )
-
+                        addKdoc("\n`%L` - `%L`", methodNode.first.key.id, methodNode.last.key.id)
                         if (!mapping) {
-                            addKdoc(
-                                "@see·%L.%L",
-                                mappingClassName.canonicalName,
-                                mappingName
-                            )
+                            addKdoc("\n@see·%L.%L", mappingClassName.canonicalName, mappingName)
                         }
                     }
 

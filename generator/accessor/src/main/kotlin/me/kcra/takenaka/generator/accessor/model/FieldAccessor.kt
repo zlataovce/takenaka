@@ -34,8 +34,7 @@ data class FieldAccessor(
     val name: String,
     val type: String? = null,
     val version: String? = null,
-    val chain: FieldAccessor? = null,
-    val skipAccessorGeneration: Boolean = false
+    val chain: FieldAccessor? = null
 ) : Serializable {
     /**
      * Upper-case variant of [name].
