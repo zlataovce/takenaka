@@ -377,7 +377,7 @@ open class JavaGenerationContext(
                         }
                         addJavadoc(
                             """
-                                
+                            
                             @since ${'$'}L
                             @version ${'$'}L
                             
