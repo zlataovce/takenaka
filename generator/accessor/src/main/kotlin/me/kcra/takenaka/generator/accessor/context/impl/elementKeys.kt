@@ -63,8 +63,12 @@ data class MethodKey(override val namespace: String, val name: String, val descr
     /**
      * The descriptor used for matching.
      */
-    private val matchableDescriptor: String = descriptor.takeIf { exact }
-        ?: descriptor.substringBeforeLast(')')
+    private val matchableDescriptor: String
+
+    init {
+        val parenthesisIndex = descriptor.lastIndexOf(')')
+        this.matchableDescriptor = if (!exact && parenthesisIndex != -1) descriptor.substring(0, parenthesisIndex + 1) else descriptor
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
