@@ -94,13 +94,13 @@ open class TracingGenerationContext(
 
         output.println("-".repeat(classHeader.length))
 
-        resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
-            val header = "FIELD: ${resolvedAccessor.model.name}.${fieldAccessor.name}"
+        resolvedAccessor.fields.forEach { mergedAccessor ->
+            val header = "FIELD: ${resolvedAccessor.model.name}" + mergedAccessor.keys.joinToString(", ") { ".${it.name}" }
 
             output.println(header)
-            output.printNodeHistory(fieldNode)
+            output.printNodeHistory(mergedAccessor.mergedNode)
 
-            groupFieldNames(fieldNode).forEach { (fieldKey, versions) ->
+            groupFieldNames(mergedAccessor.mergedNode).forEach { (fieldKey, versions) ->
                 val (ns, name) = fieldKey
 
                 output.println("namespace: $ns, mapping: $name, versions: [${versions.joinToString(transform = Version::id)}]")
@@ -124,13 +124,13 @@ open class TracingGenerationContext(
             output.println("-".repeat(header.length))
         }
 
-        resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
-            val header = "METHOD: ${resolvedAccessor.model.name}.${methodAccessor.name}${methodAccessor.type}"
+        resolvedAccessor.methods.forEach { mergedAccessor ->
+            val header = "METHOD: ${resolvedAccessor.model.name}" + mergedAccessor.keys.joinToString(", ") { ".${it.name}${it.type}" }
 
             output.println(header)
-            output.printNodeHistory(methodNode)
+            output.printNodeHistory(mergedAccessor.mergedNode)
 
-            groupMethodNames(methodNode).forEach { (methodKey, versions) ->
+            groupMethodNames(mergedAccessor.mergedNode).forEach { (methodKey, versions) ->
                 val (ns, name, desc) = methodKey
 
                 output.println("namespace: $ns, mapping: $name, descriptor: $desc, versions: [${versions.joinToString(transform = Version::id)}]")
