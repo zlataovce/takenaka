@@ -19,7 +19,6 @@ package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.util.*
 import mu.KotlinLogging
@@ -33,12 +32,11 @@ private val logger = KotlinLogging.logger {}
  * This class is thread-safe, but presumes that only one instance will operate on a workspace at a time.
  *
  * @property workspace the workspace
- * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
  * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  * @author Florentin Schleuß
  */
-class QuiltMetadataProvider(val workspace: Workspace, private val xmlMapper: ObjectMapper, val relaxedCache: Boolean = true) {
+class QuiltMetadataProvider(val workspace: Workspace, val relaxedCache: Boolean = true) {
     /**
      * A map of versions and their builds.
      */
@@ -74,7 +72,7 @@ class QuiltMetadataProvider(val workspace: Workspace, private val xmlMapper: Obj
             URL("$metadataLocation.sha1").httpRequest {
                 if (it.readText() == file.getChecksum(sha1Digest)) {
                     try {
-                        return xmlMapper.readTree(file).apply {
+                        return XML_MAPPER.readTree(file).apply {
                             logger.info { "read cached Quilt mappings metadata" }
                         }
                     } catch (e: JacksonException) {
@@ -89,7 +87,7 @@ class QuiltMetadataProvider(val workspace: Workspace, private val xmlMapper: Obj
         URL(metadataLocation).copyTo(file)
 
         logger.info { "fetched Quilt metadata" }
-        return xmlMapper.readTree(file)
+        return XML_MAPPER.readTree(file)
     }
 
     companion object {

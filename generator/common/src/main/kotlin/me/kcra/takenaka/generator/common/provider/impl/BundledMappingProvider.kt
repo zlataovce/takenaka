@@ -26,6 +26,7 @@ import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
+import me.kcra.takenaka.core.versionManifestOf
 import me.kcra.takenaka.generator.common.provider.MappingProvider
 import mu.KotlinLogging
 import net.fabricmc.mappingio.format.Tiny2Reader
@@ -47,8 +48,7 @@ private val logger = KotlinLogging.logger {}
  * @property manifest the Mojang version manifest
  * @author Matouš Kučera
  */
-class BundledMappingProvider(val file: Path, val versions: List<String>, val manifest: VersionManifest) :
-    MappingProvider {
+class BundledMappingProvider(val file: Path, val versions: List<String>, val manifest: VersionManifest = versionManifestOf()) : MappingProvider {
     /**
      * Constructs this provider with a new manifest.
      *
@@ -56,6 +56,11 @@ class BundledMappingProvider(val file: Path, val versions: List<String>, val man
      * @param versions a version subset of the bundle to be loaded, everything is loaded if empty
      * @param objectMapper a JSON object mapper instance
      */
+    @Deprecated(
+        "Jackson will be an implementation detail in the future.",
+        ReplaceWith("BundledMappingProvider(file, versions)")
+    )
+    @Suppress("DEPRECATION")
     constructor(file: Path, versions: List<String>, objectMapper: ObjectMapper = objectMapper())
             : this(file, versions, objectMapper.versionManifest())
 

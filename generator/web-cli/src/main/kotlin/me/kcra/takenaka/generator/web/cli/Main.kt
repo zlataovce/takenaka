@@ -19,7 +19,6 @@
 
 package me.kcra.takenaka.generator.web.cli
 
-import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.cli.*
 import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.compositeWorkspace
@@ -30,7 +29,6 @@ import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.analysis.impl.StandardProblemKinds
 import me.kcra.takenaka.core.mapping.resolve.impl.*
 import me.kcra.takenaka.core.util.md5Digest
-import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.util.updateAndHex
 import me.kcra.takenaka.core.workspace
 import me.kcra.takenaka.generator.common.provider.impl.ResolvingMappingProvider
@@ -146,9 +144,6 @@ fun main(args: Array<String>) {
 
     // generator setup below
 
-    val objectMapper = objectMapper()
-    val xmlMapper = XmlMapper()
-
     val mappingsCache = cacheWorkspace.createCompositeWorkspace {
         name = "mappings"
     }
@@ -156,8 +151,8 @@ fun main(args: Array<String>) {
         name = "shared"
     }
 
-    val yarnProvider = YarnMetadataProvider(sharedCache, xmlMapper, relaxedCache = !strictCache)
-    val quiltProvider = QuiltMetadataProvider(sharedCache, xmlMapper, relaxedCache = !strictCache)
+    val yarnProvider = YarnMetadataProvider(sharedCache, relaxedCache = !strictCache)
+    val quiltProvider = QuiltMetadataProvider(sharedCache, relaxedCache = !strictCache)
     val mappingConfig = buildMappingConfig {
         version(version)
         workspace(mappingsCache)
@@ -176,8 +171,8 @@ fun main(args: Array<String>) {
         intercept(::StringPoolingAdapter)
 
         contributors { versionWorkspace ->
-            val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper, relaxedCache = !strictCache)
-            val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper, relaxedCache = !strictCache)
+            val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, relaxedCache = !strictCache)
+            val spigotProvider = SpigotManifestProvider(versionWorkspace, relaxedCache = !strictCache)
 
             buildList {
                 if (server) {
@@ -203,7 +198,6 @@ fun main(args: Array<String>) {
                         link.createPrependingContributor(
                             SpigotClassMappingResolver(
                                 versionWorkspace,
-                                xmlMapper,
                                 spigotProvider,
                                 relaxedCache = !strictCache
                             ),
@@ -216,7 +210,6 @@ fun main(args: Array<String>) {
                         link.createPrependingContributor(
                             SpigotMemberMappingResolver(
                                 versionWorkspace,
-                                xmlMapper,
                                 spigotProvider,
                                 relaxedCache = !strictCache
                             )
@@ -238,7 +231,7 @@ fun main(args: Array<String>) {
         }
     }
 
-    val mappingProvider = ResolvingMappingProvider(mappingConfig, objectMapper, xmlMapper)
+    val mappingProvider = ResolvingMappingProvider(mappingConfig)
     val analyzer = MappingAnalyzerImpl(
         // if the namespaces are missing, nothing happens anyway - no need to configure based on resolvedNamespaces
         AnalysisOptions(
@@ -282,13 +275,13 @@ fun main(args: Array<String>) {
             transformer(MinifyingTransformer(isDeterministic = minifier == MinifierImpls.DETERMINISTIC))
         }
 
-        val indexers = mutableListOf<ClassSearchIndex>(objectMapper.modularClassSearchIndexOf(JDK_21_BASE_URL))
+        val indexers = mutableListOf<ClassSearchIndex>(modularClassSearchIndexOf(JDK_21_BASE_URL))
         javadoc.mapTo(indexers) { javadocDef ->
             val javadocParams = javadocDef.split('+', limit = 2)
 
             when (javadocParams.size) {
                 2 -> classSearchIndexOf(javadocParams[1], javadocParams[0])
-                else -> objectMapper.modularClassSearchIndexOf(javadocParams[0])
+                else -> modularClassSearchIndexOf(javadocParams[0])
             }
         }
 

@@ -17,7 +17,6 @@
 
 package me.kcra.takenaka.core.mapping.resolve.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -68,11 +67,10 @@ class QuiltMappingResolver(
      * Creates a new resolver with a default metadata provider.
      *
      * @param workspace the workspace
-     * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
      * @param relaxedCache whether output cache verification constraints should be relaxed
      */
-    constructor(workspace: VersionedWorkspace, xmlMapper: ObjectMapper, relaxedCache: Boolean = true)
-            : this(workspace, QuiltMetadataProvider(workspace, xmlMapper), relaxedCache)
+    constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true)
+            : this(workspace, QuiltMetadataProvider(workspace, relaxedCache), relaxedCache)
 
     override val mappingOutput = lazyOutput<Path?> {
         resolver {

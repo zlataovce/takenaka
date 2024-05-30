@@ -20,6 +20,7 @@ package me.kcra.takenaka.generator.web
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.toInternalName
@@ -27,6 +28,11 @@ import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.readText
 import java.net.HttpURLConnection
 import java.net.URL
+
+/**
+ * An internal instance of an [ObjectMapper].
+ */
+private val MAPPER = jacksonObjectMapper()
 
 /**
  * A no-op implementation of a search index.
@@ -54,6 +60,10 @@ const val JDK_21_BASE_URL = "https://docs.oracle.com/en/java/javase/21/docs/api"
  * @param baseUrl the base URL of the Javadoc site
  * @return the index
  */
+@Deprecated(
+    "Jackson will be an implementation detail in the future.",
+    ReplaceWith("modularClassSearchIndexOf(baseUrl)", "me.kcra.takenaka.generator.web.modularClassSearchIndexOf")
+)
 fun ObjectMapper.modularClassSearchIndexOf(baseUrl: String): ModularClassSearchIndex {
     val content = URL("$baseUrl/package-search-index.js").httpRequest(action = HttpURLConnection::readText)
     val nodeArray = content.substring(
@@ -62,6 +72,17 @@ fun ObjectMapper.modularClassSearchIndexOf(baseUrl: String): ModularClassSearchI
     )
 
     return ModularClassSearchIndex(baseUrl, readValue(nodeArray))
+}
+
+/**
+ * Fetches and deserializes the package index on the base URL.
+ *
+ * @param baseUrl the base URL of the Javadoc site
+ * @return the index
+ */
+fun modularClassSearchIndexOf(baseUrl: String): ModularClassSearchIndex {
+    @Suppress("DEPRECATION")
+    return MAPPER.modularClassSearchIndexOf(baseUrl)
 }
 
 /**

@@ -20,10 +20,8 @@ package me.kcra.takenaka.core.mapping.resolve.impl
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.*
-import me.kcra.takenaka.core.util.copyTo
-import me.kcra.takenaka.core.util.httpRequest
-import me.kcra.takenaka.core.util.ok
-import me.kcra.takenaka.core.util.readValue
+import me.kcra.takenaka.core.util.*
+import me.kcra.takenaka.core.util.MAPPER
 import mu.KotlinLogging
 import java.net.URL
 
@@ -39,7 +37,10 @@ private val logger = KotlinLogging.logger {}
  * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-class SpigotManifestProvider(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper, val relaxedCache: Boolean = true) {
+class SpigotManifestProvider @Deprecated(
+    "Jackson will be an implementation detail in the future.",
+    ReplaceWith("SpigotManifestProvider(workspace, relaxedCache)")
+) constructor(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper, val relaxedCache: Boolean = true) {
     /**
      * The version manifest.
      */
@@ -55,6 +56,15 @@ class SpigotManifestProvider(val workspace: VersionedWorkspace, private val obje
      */
     val isAliased: Boolean
         get() = attributes?.let { workspace.version.id != it.minecraftVersion } ?: false
+
+    /**
+     * Creates a new manifest provider.
+     *
+     * @param workspace the workspace
+     * @param relaxedCache whether output cache verification constraints should be relaxed
+     */
+    @Suppress("DEPRECATION")
+    constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true) : this(workspace, MAPPER, relaxedCache)
 
     /**
      * Reads the manifest of the targeted version from cache, fetching it if the cache missed.

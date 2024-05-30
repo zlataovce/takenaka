@@ -37,7 +37,10 @@ private val logger = KotlinLogging.logger {}
  * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-class YarnMetadataProvider(val workspace: Workspace, private val xmlMapper: ObjectMapper, val relaxedCache: Boolean = true) {
+class YarnMetadataProvider @Deprecated(
+    "Jackson will be an implementation detail in the future.",
+    ReplaceWith("YarnMetadataProvider(workspace, relaxedCache)")
+) constructor(val workspace: Workspace, private val xmlMapper: ObjectMapper, val relaxedCache: Boolean = true) {
     /**
      * A map of versions and their builds.
      */
@@ -47,6 +50,15 @@ class YarnMetadataProvider(val workspace: Workspace, private val xmlMapper: Obje
      * The XML node of the maven-metadata file.
      */
     private val metadata by lazy(::readMetadata)
+
+    /**
+     * Creates a new metadata provider.
+     *
+     * @param workspace the workspace
+     * @param relaxedCache whether output cache verification constraints should be relaxed
+     */
+    @Suppress("DEPRECATION")
+    constructor(workspace: Workspace, relaxedCache: Boolean = true) : this(workspace, XML_MAPPER, relaxedCache)
 
     /**
      * Parses Yarn version strings in the metadata file.

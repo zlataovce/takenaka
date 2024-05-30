@@ -183,8 +183,22 @@ class MojangClientMappingResolver(
      * @param objectMapper an [ObjectMapper] that can deserialize JSON data
      * @param relaxedCache whether output cache verification constraints should be relaxed
      */
+    @Deprecated(
+        "Jackson will be an implementation detail in the future.",
+        ReplaceWith("MojangClientMappingResolver(workspace, relaxedCache)")
+    )
+    @Suppress("DEPRECATION")
     constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true) :
             this(workspace, MojangManifestAttributeProvider(workspace, objectMapper, relaxedCache))
+
+    /**
+     * Creates a new resolver with a default metadata provider.
+     *
+     * @param workspace the workspace
+     * @param relaxedCache whether output cache verification constraints should be relaxed
+     */
+    constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true) :
+            this(workspace, MojangManifestAttributeProvider(workspace, relaxedCache))
 
     /**
      * Resolves a Mojang manifest mapping attribute.
@@ -218,8 +232,22 @@ class MojangServerMappingResolver(
      * @param objectMapper an [ObjectMapper] that can deserialize JSON data
      * @param relaxedCache whether output cache verification constraints should be relaxed
      */
-    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true)
-            : this(workspace, MojangManifestAttributeProvider(workspace, objectMapper, relaxedCache))
+    @Deprecated(
+        "Jackson will be an implementation detail in the future.",
+        ReplaceWith("MojangClientMappingResolver(workspace, relaxedCache)")
+    )
+    @Suppress("DEPRECATION")
+    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true) :
+            this(workspace, MojangManifestAttributeProvider(workspace, objectMapper, relaxedCache))
+
+    /**
+     * Creates a new resolver with a default metadata provider.
+     *
+     * @param workspace the workspace
+     * @param relaxedCache whether output cache verification constraints should be relaxed
+     */
+    constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true) :
+            this(workspace, MojangManifestAttributeProvider(workspace, relaxedCache))
 
     /**
      * Resolves a Mojang manifest mapping attribute.

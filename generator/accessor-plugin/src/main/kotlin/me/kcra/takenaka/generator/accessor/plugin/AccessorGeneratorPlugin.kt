@@ -17,8 +17,7 @@
 
 package me.kcra.takenaka.generator.accessor.plugin
 
-import me.kcra.takenaka.core.cachedVersionManifest
-import me.kcra.takenaka.core.util.objectMapper
+import me.kcra.takenaka.core.versionManifestFrom
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.plugin.tasks.GenerateAccessorsTask
 import me.kcra.takenaka.generator.accessor.plugin.tasks.ResolveMappingsTask
@@ -49,7 +48,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         val manifestCacheFile = target.layout.buildDirectory.file(System.getProperty("me.kcra.takenaka.manifest.file", "takenaka/cache/manifest.json"))
 
-        val manifest = objectMapper().cachedVersionManifest(manifestCacheFile.get().asFile.toPath()) // please switch to NIO paths, gradle!!
+        val manifest = versionManifestFrom(manifestCacheFile.get().asFile.toPath()) // please switch to NIO paths, gradle!!
         val config = target.extensions.create<AccessorGeneratorExtension>("accessors", target, manifest)
 
         // automatically adds tasks for basic Mojang-based accessor generation

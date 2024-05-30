@@ -29,6 +29,7 @@ import me.kcra.takenaka.core.mapping.resolve.OutputContainer
 import me.kcra.takenaka.core.mapping.unwrap
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
+import me.kcra.takenaka.core.versionManifestOf
 import me.kcra.takenaka.generator.common.provider.MappingProvider
 import mu.KotlinLogging
 import net.fabricmc.mappingio.format.Tiny2Reader
@@ -49,20 +50,45 @@ private val logger = KotlinLogging.logger {}
  * @property xmlMapper an XML object mapper instance for this provider
  * @author Matouš Kučera
  */
-class ResolvingMappingProvider(
+class ResolvingMappingProvider @Deprecated(
+    "Jackson will be an implementation detail in the future.",
+    ReplaceWith("ResolvingMappingProvider(mappingConfig, manifest)")
+) constructor(
     val mappingConfig: MappingConfiguration,
     val manifest: VersionManifest,
-    val xmlMapper: ObjectMapper = XmlMapper()
+    @Deprecated("Jackson will be an implementation detail in the future.")
+    val xmlMapper: ObjectMapper
 ) : MappingProvider {
     /**
      * Constructs this provider with a new manifest.
      *
-     * @property mappingConfig configuration to alter the mapping fetching and correction process
-     * @property objectMapper a JSON object mapper instance
-     * @property xmlMapper an XML object mapper instance
+     * @param mappingConfig configuration to alter the mapping fetching and correction process
+     * @param objectMapper a JSON object mapper instance
+     * @param xmlMapper an XML object mapper instance
      */
+    @Deprecated(
+        "Jackson will be an implementation detail in the future.",
+        ReplaceWith("ResolvingMappingProvider(mappingConfig)")
+    )
+    @Suppress("DEPRECATION")
     constructor(mappingConfig: MappingConfiguration, objectMapper: ObjectMapper = objectMapper(), xmlMapper: ObjectMapper = XmlMapper())
             : this(mappingConfig, objectMapper.versionManifest(), xmlMapper)
+
+    /**
+     * Constructs this provider with a supplied manifest.
+     *
+     * @param mappingConfig configuration to alter the mapping fetching and correction process
+     * @param manifest the Mojang version manifest
+     */
+    @Suppress("DEPRECATION")
+    constructor(mappingConfig: MappingConfiguration, manifest: VersionManifest) : this(mappingConfig, manifest, XmlMapper())
+
+    /**
+     * Constructs this provider with a new manifest.
+     *
+     * @property mappingConfig configuration to alter the mapping fetching and correction process
+     */
+    constructor(mappingConfig: MappingConfiguration) : this(mappingConfig, versionManifestOf())
 
     /**
      * Resolves the mappings.

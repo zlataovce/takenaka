@@ -17,7 +17,6 @@
 
 package me.kcra.takenaka.generator.accessor.plugin.tasks
 
-import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionManifest
@@ -28,7 +27,6 @@ import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.resolve.impl.*
 import me.kcra.takenaka.core.util.md5Digest
-import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.util.updateAndHex
 import me.kcra.takenaka.generator.accessor.plugin.PlatformTristate
 import me.kcra.takenaka.generator.common.provider.impl.BundledMappingProvider
@@ -197,8 +195,6 @@ abstract class ResolveMappingsTask : DefaultTask() {
      */
     @TaskAction
     fun run() {
-        val objectMapper = objectMapper()
-
         val requiredPlatform = platform.get()
         val requiredVersions = versions.get().toList()
 
@@ -212,10 +208,8 @@ abstract class ResolveMappingsTask : DefaultTask() {
             if (mappingBundle.isPresent) {
                 BundledMappingProvider(mappingBundle.get().asFile.toPath(), requiredVersions, manifest.get()).get()
             } else {
-                val xmlMapper = XmlMapper()
-
-                val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, xmlMapper, relaxedCache.get())
-                val quiltProvider = QuiltMetadataProvider(sharedCacheWorkspace, xmlMapper, relaxedCache.get())
+                val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, relaxedCache.get())
+                val quiltProvider = QuiltMetadataProvider(sharedCacheWorkspace, relaxedCache.get())
                 val mappingConfig = buildMappingConfig {
                     version(requiredVersions)
                     workspace(mappingCacheWorkspace)
@@ -234,8 +228,8 @@ abstract class ResolveMappingsTask : DefaultTask() {
                     intercept(::StringPoolingAdapter)
 
                     contributors { versionWorkspace ->
-                        val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper, relaxedCache.get())
-                        val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper, relaxedCache.get())
+                        val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, relaxedCache.get())
+                        val spigotProvider = SpigotManifestProvider(versionWorkspace, relaxedCache.get())
 
                         buildList {
                             if (requiredPlatform.wantsServer) {
@@ -281,7 +275,6 @@ abstract class ResolveMappingsTask : DefaultTask() {
                                     link.createPrependingContributor(
                                         SpigotClassMappingResolver(
                                             versionWorkspace,
-                                            xmlMapper,
                                             spigotProvider,
                                             relaxedCache.get()
                                         ),
@@ -292,7 +285,6 @@ abstract class ResolveMappingsTask : DefaultTask() {
                                     link.createPrependingContributor(
                                         SpigotMemberMappingResolver(
                                             versionWorkspace,
-                                            xmlMapper,
                                             spigotProvider,
                                             relaxedCache.get()
                                         )
@@ -317,7 +309,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
                     )
                 )
 
-                ResolvingMappingProvider(mappingConfig, manifest.get(), xmlMapper).get(analyzer)
+                ResolvingMappingProvider(mappingConfig, manifest.get()).get(analyzer)
                     .apply { analyzer.acceptResolutions() }
             }
         }
