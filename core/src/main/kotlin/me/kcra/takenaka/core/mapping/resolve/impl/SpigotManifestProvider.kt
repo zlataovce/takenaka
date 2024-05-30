@@ -22,7 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.*
 import me.kcra.takenaka.core.util.*
 import me.kcra.takenaka.core.util.MAPPER
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.URL
 
 private val logger = KotlinLogging.logger {}

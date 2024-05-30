@@ -17,7 +17,7 @@
 
 package me.kcra.takenaka.core.mapping.adapter
 
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
 

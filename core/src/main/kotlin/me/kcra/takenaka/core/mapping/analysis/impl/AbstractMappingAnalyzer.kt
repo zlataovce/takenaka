@@ -21,7 +21,7 @@ import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
 import me.kcra.takenaka.core.mapping.analysis.Problem
 import me.kcra.takenaka.core.mapping.analysis.ProblemKind
 import me.kcra.takenaka.core.mapping.analysis.ProblemResolution
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTree
 import java.util.*
 import kotlin.system.measureTimeMillis

@@ -38,7 +38,7 @@ import me.kcra.takenaka.generator.common.provider.impl.buildMappingConfig
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.transformers.CSSInliningTransformer
 import me.kcra.takenaka.generator.web.transformers.MinifyingTransformer
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.system.exitProcess
 import kotlin.system.measureTimeMillis
 

@@ -39,7 +39,7 @@ import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
 import me.kcra.takenaka.generator.web.transformers.MinifyingTransformer
 import me.kcra.takenaka.generator.web.transformers.Transformer
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTreeView
 import java.io.BufferedReader
 import java.nio.file.Files

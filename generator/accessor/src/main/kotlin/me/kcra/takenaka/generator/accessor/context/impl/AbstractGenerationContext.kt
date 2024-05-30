@@ -36,7 +36,7 @@ import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
 import me.kcra.takenaka.generator.accessor.util.globAsRegex
 import me.kcra.takenaka.generator.accessor.util.isGlob
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type

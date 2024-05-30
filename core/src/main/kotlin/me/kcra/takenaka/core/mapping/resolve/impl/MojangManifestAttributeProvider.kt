@@ -24,7 +24,7 @@ import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.util.MAPPER
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.readValue
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.URL
 
 private val logger = KotlinLogging.logger {}
