@@ -234,7 +234,7 @@ class MojangServerMappingResolver(
      */
     @Deprecated(
         "Jackson will be an implementation detail in the future.",
-        ReplaceWith("MojangClientMappingResolver(workspace, relaxedCache)")
+        ReplaceWith("MojangServerMappingResolver(workspace, relaxedCache)")
     )
     @Suppress("DEPRECATION")
     constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true) :

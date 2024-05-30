@@ -97,7 +97,7 @@ open class WorkspaceBuilder {
     /**
      * The resolver options.
      */
-    @Deprecated("Unused")
+    @Deprecated("Unused.")
     var options = 0
 
     /**
