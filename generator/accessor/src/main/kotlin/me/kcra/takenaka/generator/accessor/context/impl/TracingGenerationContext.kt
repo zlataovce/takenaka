@@ -130,7 +130,7 @@ open class TracingGenerationContext(
             output.println(header)
             output.printNodeHistory(mergedAccessor.mergedNode)
 
-            groupMethodNames(mergedAccessor.mergedNode).forEach { (methodKey, versions) ->
+            groupMethodNames(mergedAccessor.mergedNode, exact = true).forEach { (methodKey, versions) ->
                 val (ns, name, desc) = methodKey
 
                 output.println("namespace: $ns, mapping: $name, descriptor: $desc, versions: [${versions.joinToString(transform = Version::id)}]")

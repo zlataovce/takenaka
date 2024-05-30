@@ -54,22 +54,17 @@ data class ConstructorKey(override val namespace: String, val descriptor: String
 /**
  * A method mapping key.
  *
- * *The method return type is not used when checking equality, mimicking reflective lookups.*
- *
  * @property namespace the mapping namespace
  * @property name the mapped method name
  * @property descriptor the mapped method descriptor
+ * @property exact whether descriptors should be matched exactly or without return types
  */
-data class MethodKey(override val namespace: String, val name: String, val descriptor: String) : NamespacedKey {
+data class MethodKey(override val namespace: String, val name: String, val descriptor: String, val exact: Boolean) : NamespacedKey {
     /**
-     * [descriptor], but with the return type removed.
+     * The descriptor used for matching.
      */
-    private val partialDescriptor: String
-
-    init {
-        val parenthesisIndex = descriptor.lastIndexOf(')')
-        this.partialDescriptor = if (parenthesisIndex != -1) descriptor.substring(0, parenthesisIndex + 1) else descriptor
-    }
+    private val matchableDescriptor: String = descriptor.takeIf { exact }
+        ?: descriptor.substringBeforeLast(')')
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -79,7 +74,7 @@ data class MethodKey(override val namespace: String, val name: String, val descr
 
         if (namespace != other.namespace) return false
         if (name != other.name) return false
-        if (partialDescriptor != other.partialDescriptor) return false
+        if (matchableDescriptor != other.matchableDescriptor) return false
 
         return true
     }
@@ -87,7 +82,7 @@ data class MethodKey(override val namespace: String, val name: String, val descr
     override fun hashCode(): Int {
         var result = namespace.hashCode()
         result = 31 * result + name.hashCode()
-        result = 31 * result + partialDescriptor.hashCode()
+        result = 31 * result + matchableDescriptor.hashCode()
         return result
     }
 }

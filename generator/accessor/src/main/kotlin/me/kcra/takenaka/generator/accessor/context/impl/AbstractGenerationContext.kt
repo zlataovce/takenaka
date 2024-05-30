@@ -443,9 +443,10 @@ abstract class AbstractGenerationContext(
      * Groups the generator's mappings by version.
      *
      * @param node the ancestry node
+     * @param exact whether descriptors should be matched exactly or without return types
      * @return the grouped method mappings
      */
-    protected open fun groupMethodNames(node: MethodAncestryNode): Map<MethodKey, List<Version>> = buildMap<MethodKey, MutableList<Version>> {
+    protected open fun groupMethodNames(node: MethodAncestryNode, exact: Boolean = false): Map<MethodKey, List<Version>> = buildMap<MethodKey, MutableList<Version>> {
         node.forEach { (version, method) ->
             val nmsVersion = method.tree.craftBukkitNmsVersion
 
@@ -453,7 +454,7 @@ abstract class AbstractGenerationContext(
                 method.getDesc(ns)?.let { desc ->
                     val name = method.getName(ns) ?: method.srcName
 
-                    getOrPut(MethodKey(ns, name, desc.replaceCraftBukkitNMSVersion(nmsVersion)), ::mutableListOf) += version
+                    getOrPut(MethodKey(ns, name, desc.replaceCraftBukkitNMSVersion(nmsVersion), exact), ::mutableListOf) += version
                 }
             }
         }
