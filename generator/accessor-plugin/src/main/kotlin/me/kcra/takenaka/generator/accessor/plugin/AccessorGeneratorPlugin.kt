@@ -61,6 +61,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.cacheDir.set(config.cacheDirectory)
             this.versions.set(config.versions)
             this.relaxedCache.set(config.relaxedCache)
+            this.platform.set(config.platform)
             this.manifest.set(manifest)
         }
         val generateAccessors by target.tasks.creating(GenerateAccessorsTask::class) {
