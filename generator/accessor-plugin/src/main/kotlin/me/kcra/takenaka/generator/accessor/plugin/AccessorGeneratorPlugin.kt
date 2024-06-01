@@ -61,6 +61,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.versions.set(config.versions)
             this.namespaces.set(project.provider { config.namespaces.get() + config.historyNamespaces.get() })
             this.relaxedCache.set(config.relaxedCache)
+            this.platform.set(config.platform)
             this.manifest.set(manifest)
             this.mappingBundle.fileProvider(mappingBundle.flatMap { mb ->
                 project.provider { // Kotlin doesn't like returning null from Provider#map
