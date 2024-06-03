@@ -26,6 +26,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -348,52 +349,61 @@ public class ClassMapping {
     }
 
     /**
-     * Puts a new field mapping into this {@link ClassMapping}.
+     * Puts a new field mapping into this {@link ClassMapping} and runs a builder action on it.
      * <p>
      * <strong>This is only for use in generated code.</strong>
      *
      * @param name the field name declared in the accessor model
-     * @return the new {@link FieldMapping}
+     * @param builder the builder action
+     * @return this {@link ClassMapping}
      */
     @ApiStatus.Internal
-    public @NotNull FieldMapping putField(@NotNull String name) {
+    @Contract("_, _ -> this")
+    public @NotNull ClassMapping putField(@NotNull String name, @NotNull Consumer<FieldMapping> builder) {
         final List<FieldMapping> overloads = fields.computeIfAbsent(name, (k) -> new ArrayList<>());
         final FieldMapping mapping = new FieldMapping(this, name, overloads.size());
+        builder.accept(mapping);
 
         overloads.add(mapping);
-        return mapping;
+        return this;
     }
 
     /**
-     * Puts a new constructor mapping into this {@link ClassMapping}.
+     * Puts a new constructor mapping into this {@link ClassMapping} and runs a builder action on it.
      * <p>
      * <strong>This is only for use in generated code.</strong>
      *
-     * @return the new {@link ConstructorMapping}
+     * @param builder the builder action
+     * @return this {@link ClassMapping}
      */
     @ApiStatus.Internal
-    public @NotNull ConstructorMapping putConstructor() {
+    @Contract("_ -> this")
+    public @NotNull ClassMapping putConstructor(@NotNull Consumer<ConstructorMapping> builder) {
         final ConstructorMapping mapping = new ConstructorMapping(this, constructors.size());
+        builder.accept(mapping);
 
         constructors.add(mapping);
-        return mapping;
+        return this;
     }
 
     /**
-     * Puts a new method mapping into this {@link ClassMapping}.
+     * Puts a new method mapping into this {@link ClassMapping} and runs a builder action on it.
      * <p>
      * <strong>This is only for use in generated code.</strong>
      *
      * @param name the method name declared in the accessor model
-     * @return the new {@link MethodMapping}
+     * @param builder the builder action
+     * @return this {@link ClassMapping}
      */
     @ApiStatus.Internal
-    public @NotNull MethodMapping putMethod(@NotNull String name) {
+    @Contract("_, _ -> this")
+    public @NotNull ClassMapping putMethod(@NotNull String name, @NotNull Consumer<MethodMapping> builder) {
         final List<MethodMapping> overloads = methods.computeIfAbsent(name, (k) -> new ArrayList<>());
         final MethodMapping mapping = new MethodMapping(this, name, overloads.size());
+        builder.accept(mapping);
 
         overloads.add(mapping);
-        return mapping;
+        return this;
     }
 
     /**

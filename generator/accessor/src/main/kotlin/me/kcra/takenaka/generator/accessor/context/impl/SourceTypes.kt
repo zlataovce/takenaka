@@ -74,6 +74,29 @@ fun com.squareup.kotlinpoet.FileSpec.Builder.addImport(memberName: MemberName): 
     memberName.run { addImport("$packageName${enclosingClassName?.let { ".$it" } ?: ""}", simpleName) }
 
 /**
+ * Builds a Java lambda block.
+ *
+ * @param parameters the lambda parameter names
+ * @param block the lambda code block builder action
+ * @return the built code block
+ */
+inline fun buildJLambdaBlock(vararg parameters: String, block: JCodeBlockBuilder.() -> Unit): JCodeBlock = buildJCodeBlock {
+    add(
+        parameters.joinToString(
+            prefix = "(".takeIf { parameters.size != 1 } ?: "",
+            postfix = ")".takeIf { parameters.size != 1 } ?: ""
+        )
+    )
+    add(" -> {\n")
+
+    indent()
+    block()
+    unindent()
+
+    add("}")
+}
+
+/**
  * JavaPoet/KotlinPoet types.
  */
 object SourceTypes {
