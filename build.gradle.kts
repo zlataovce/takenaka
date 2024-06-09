@@ -5,6 +5,6 @@ plugins {
 
 allprojects {
     group = "me.kcra.takenaka"
-    version = "1.1.4-SNAPSHOT"
+    version = "1.1.4"
     description = "A Kotlin library for reconciling multiple obfuscation mapping files from multiple versions of Minecraft: JE."
 }
