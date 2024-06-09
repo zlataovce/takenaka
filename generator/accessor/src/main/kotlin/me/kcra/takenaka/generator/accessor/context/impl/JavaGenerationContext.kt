@@ -63,7 +63,7 @@ open class JavaGenerationContext(
         val mappingClassName = namingStrategy.klass(resolvedAccessor.model, GeneratedClassType.MAPPING).toJClassName()
         val accessorClassName = namingStrategy.klass(resolvedAccessor.model, GeneratedClassType.ACCESSOR).toJClassName()
         val mappingFieldName = namingStrategy.member(GeneratedMemberType.MAPPING)
-        
+
         val accessorBuilder = JTypeSpec.interfaceBuilder(accessorClassName)
             .addModifiers(Modifier.PUBLIC)
             .addJavadoc(
@@ -112,62 +112,64 @@ open class JavaGenerationContext(
                             }
 
                             resolvedAccessor.fields.forEach { (fieldAccessor, fieldNode) ->
-                                add("\n.putField(\$S)", fieldAccessor.name)
-                                withIndent {
-                                    groupFieldNames(fieldNode).forEach { (fieldKey, versions) ->
-                                        val (ns, name) = fieldKey
+                                add(
+                                    "\n.putField(\$S, \$L)",
+                                    fieldAccessor.name,
+                                    buildJLambdaBlock("m") {
+                                        groupFieldNames(fieldNode).forEach { (fieldKey, versions) ->
+                                            val (ns, name) = fieldKey
 
-                                        add("\n.put(\$S, \$S, \$L)", ns, name, JCodeBlock.join(versions.map { JCodeBlock.of("\$S", it.id) }, ", "))
+                                            addStatement("m.put(\$S, \$S, \$L)", ns, name, JCodeBlock.join(versions.map { JCodeBlock.of("\$S", it.id) }, ", "))
+                                        }
                                     }
-
-                                    add("\n.getParent()")
-                                }
+                                )
                             }
 
                             resolvedAccessor.constructors.forEach { (_, ctorNode) ->
-                                add("\n.putConstructor()")
-                                withIndent {
-                                    groupConstructorNames(ctorNode).forEach { (ctorKey, versions) ->
-                                        val (ns, desc) = ctorKey
+                                add(
+                                    "\n.putConstructor(\$L)",
+                                    buildJLambdaBlock("m") {
+                                        groupConstructorNames(ctorNode).forEach { (ctorKey, versions) ->
+                                            val (ns, desc) = ctorKey
 
-                                        add("\n.put(\$S, new \$T[] { \$L }", ns, types.STRING, JCodeBlock.join(versions.map { JCodeBlock.of("\$S", it.id) }, ", "))
+                                            add("m.put(\$S, new \$T[] { \$L }", ns, types.STRING, JCodeBlock.join(versions.map { JCodeBlock.of("\$S", it.id) }, ", "))
 
-                                        val args = Type.getArgumentTypes(desc)
-                                            .map { JCodeBlock.of("\$S", it.className) }
+                                            val args = Type.getArgumentTypes(desc)
+                                                .map { JCodeBlock.of("\$S", it.className) }
 
-                                        if (args.isNotEmpty()) {
-                                            add(", ")
-                                            add(JCodeBlock.join(args, ", "))
+                                            if (args.isNotEmpty()) {
+                                                add(", ")
+                                                add(JCodeBlock.join(args, ", "))
+                                            }
+
+                                            add(");\n")
                                         }
-
-                                        add(")")
                                     }
-
-                                    add("\n.getParent()")
-                                }
+                                )
                             }
 
                             resolvedAccessor.methods.forEach { (methodAccessor, methodNode) ->
-                                add("\n.putMethod(\$S)", methodAccessor.name)
-                                withIndent {
-                                    groupMethodNames(methodNode).forEach { (methodKey, versions) ->
-                                        val (ns, name, desc) = methodKey
+                                add(
+                                    "\n.putMethod(\$S, \$L)",
+                                    methodAccessor.name,
+                                    buildJLambdaBlock("m") {
+                                        groupMethodNames(methodNode).forEach { (methodKey, versions) ->
+                                            val (ns, name, desc) = methodKey
 
-                                        add("\n.put(\$S, new \$T[] { \$L }, \$S", ns, types.STRING, JCodeBlock.join(versions.map { JCodeBlock.of("\$S", it.id) }, ", "), name)
+                                            add("m.put(\$S, new \$T[] { \$L }, \$S", ns, types.STRING, JCodeBlock.join(versions.map { JCodeBlock.of("\$S", it.id) }, ", "), name)
 
-                                        val args = Type.getArgumentTypes(desc)
-                                            .map { JCodeBlock.of("\$S", it.className) }
+                                            val args = Type.getArgumentTypes(desc)
+                                                .map { JCodeBlock.of("\$S", it.className) }
 
-                                        if (args.isNotEmpty()) {
-                                            add(", ")
-                                            add(JCodeBlock.join(args, ", "))
+                                            if (args.isNotEmpty()) {
+                                                add(", ")
+                                                add(JCodeBlock.join(args, ", "))
+                                            }
+
+                                            add(");\n")
                                         }
-
-                                        add(")")
                                     }
-
-                                    add("\n.getParent()")
-                                }
+                                )
                             }
                         }
                     }

@@ -44,23 +44,23 @@ inline fun classMapping(name: String, block: ClassMapping.() -> Unit): ClassMapp
  *
  * @param name the field name declared in the accessor model
  * @param block the builder action
- * @return the [FieldMapping]
+ * @return the [ClassMapping]
  */
-inline fun ClassMapping.field(name: String, block: FieldMapping.() -> Unit): FieldMapping = putField(name).apply(block)
+fun ClassMapping.field(name: String, block: FieldMapping.() -> Unit): ClassMapping = putField(name, block)
 
 /**
  * Builds a new [ConstructorMapping] and appends it to the [ClassMapping].
  *
  * @param block the builder action
- * @return the [ConstructorMapping]
+ * @return the [ClassMapping]
  */
-inline fun ClassMapping.constructor(block: ConstructorMapping.() -> Unit): ConstructorMapping = putConstructor().apply(block)
+fun ClassMapping.constructor(block: ConstructorMapping.() -> Unit): ClassMapping = putConstructor(block)
 
 /**
  * Builds a new [MethodMapping] and appends it to the [ClassMapping].
  *
  * @param name the method name declared in the accessor model
  * @param block the builder action
- * @return the [MethodMapping]
+ * @return the [ClassMapping]
  */
-inline fun ClassMapping.method(name: String, block: MethodMapping.() -> Unit): MethodMapping = putMethod(name).apply(block)
+fun ClassMapping.method(name: String, block: MethodMapping.() -> Unit): ClassMapping = putMethod(name, block)
