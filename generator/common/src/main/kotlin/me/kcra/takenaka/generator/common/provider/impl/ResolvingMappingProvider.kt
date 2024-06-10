@@ -29,8 +29,9 @@ import me.kcra.takenaka.core.mapping.resolve.OutputContainer
 import me.kcra.takenaka.core.mapping.unwrap
 import me.kcra.takenaka.core.util.objectMapper
 import me.kcra.takenaka.core.versionManifest
+import me.kcra.takenaka.core.versionManifestOf
 import me.kcra.takenaka.generator.common.provider.MappingProvider
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.format.Tiny2Reader
 import net.fabricmc.mappingio.format.Tiny2Writer
 import net.fabricmc.mappingio.tree.MemoryMappingTree
@@ -49,20 +50,45 @@ private val logger = KotlinLogging.logger {}
  * @property xmlMapper an XML object mapper instance for this provider
  * @author Matouš Kučera
  */
-class ResolvingMappingProvider(
+class ResolvingMappingProvider @Deprecated(
+    "Jackson will be an implementation detail in the future.",
+    ReplaceWith("ResolvingMappingProvider(mappingConfig, manifest)")
+) constructor(
     val mappingConfig: MappingConfiguration,
     val manifest: VersionManifest,
-    val xmlMapper: ObjectMapper = XmlMapper()
+    @Deprecated("Jackson will be an implementation detail in the future.")
+    val xmlMapper: ObjectMapper
 ) : MappingProvider {
     /**
      * Constructs this provider with a new manifest.
      *
-     * @property mappingConfig configuration to alter the mapping fetching and correction process
-     * @property objectMapper a JSON object mapper instance
-     * @property xmlMapper an XML object mapper instance
+     * @param mappingConfig configuration to alter the mapping fetching and correction process
+     * @param objectMapper a JSON object mapper instance
+     * @param xmlMapper an XML object mapper instance
      */
+    @Deprecated(
+        "Jackson will be an implementation detail in the future.",
+        ReplaceWith("ResolvingMappingProvider(mappingConfig)")
+    )
+    @Suppress("DEPRECATION")
     constructor(mappingConfig: MappingConfiguration, objectMapper: ObjectMapper = objectMapper(), xmlMapper: ObjectMapper = XmlMapper())
             : this(mappingConfig, objectMapper.versionManifest(), xmlMapper)
+
+    /**
+     * Constructs this provider with a supplied manifest.
+     *
+     * @param mappingConfig configuration to alter the mapping fetching and correction process
+     * @param manifest the Mojang version manifest
+     */
+    @Suppress("DEPRECATION")
+    constructor(mappingConfig: MappingConfiguration, manifest: VersionManifest) : this(mappingConfig, manifest, XmlMapper())
+
+    /**
+     * Constructs this provider with a new manifest.
+     *
+     * @property mappingConfig configuration to alter the mapping fetching and correction process
+     */
+    constructor(mappingConfig: MappingConfiguration) : this(mappingConfig, versionManifestOf())
 
     /**
      * Resolves the mappings.
@@ -79,17 +105,19 @@ class ResolvingMappingProvider(
                     }
                 }
             }
-            .parallelMap(Dispatchers.Default + CoroutineName("mapping-coro")) { workspace ->
+            .parallelMap(Dispatchers.Default + CoroutineName("resolve-coro")) { workspace ->
                 val outputFile = mappingConfig.joinedOutputProvider(workspace)
                 if (outputFile != null && outputFile.isRegularFile()) {
                     // load mapping tree from file
                     try {
-                        return@parallelMap workspace.version to MemoryMappingTree().apply {
-                            outputFile.reader().use { r -> Tiny2Reader.read(r, this) }
-                            logger.info { "read ${workspace.version.id} joined mapping file from ${outputFile.pathString}" }
+                        return@parallelMap workspace.version to MemoryMappingTree().also { tree ->
+                            withContext(Dispatchers.IO + CoroutineName("io-coro")) {
+                                outputFile.reader().use { r -> Tiny2Reader.read(r, tree) }
+                                logger.info { "read ${workspace.version.id} joined mapping file from ${outputFile.pathString}" }
+                            }
 
                             if (analyzer != null) {
-                                val time = measureTimeMillis { analyzer.accept(this) }
+                                val time = measureTimeMillis { analyzer.accept(tree) }
                                 logger.info { "analyzed ${workspace.version.id} mappings in ${time}ms" }
                             }
                         }
@@ -128,8 +156,10 @@ class ResolvingMappingProvider(
                 }
 
                 if (outputFile != null && !outputFile.isDirectory()) {
-                    Tiny2Writer(outputFile.writer(), false).use { w -> tree.accept(MissingDescriptorFilter(w)) }
-                    logger.info { "wrote ${workspace.version.id} joined mapping file to ${outputFile.pathString}" }
+                    withContext(Dispatchers.IO + CoroutineName("io-coro")) {
+                        Tiny2Writer(outputFile.writer(), false).use { w -> tree.accept(MissingDescriptorFilter(w)) }
+                        logger.info { "wrote ${workspace.version.id} joined mapping file to ${outputFile.pathString}" }
+                    }
                 }
 
                 workspace.version to tree

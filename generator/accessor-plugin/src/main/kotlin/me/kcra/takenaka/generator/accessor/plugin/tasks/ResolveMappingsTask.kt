@@ -17,16 +17,17 @@
 
 package me.kcra.takenaka.generator.accessor.plugin.tasks
 
-import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import kotlinx.coroutines.runBlocking
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.compositeWorkspace
+import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
 import me.kcra.takenaka.core.mapping.resolve.impl.*
-import me.kcra.takenaka.core.util.objectMapper
+import me.kcra.takenaka.core.util.md5Digest
+import me.kcra.takenaka.core.util.updateAndHex
 import me.kcra.takenaka.generator.accessor.plugin.PlatformTristate
 import me.kcra.takenaka.generator.common.provider.impl.BundledMappingProvider
 import me.kcra.takenaka.generator.common.provider.impl.ResolvingMappingProvider
@@ -35,6 +36,7 @@ import net.fabricmc.mappingio.tree.MappingTree
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
@@ -84,6 +86,17 @@ abstract class ResolveMappingsTask : DefaultTask() {
      */
     @get:Input
     abstract val versions: SetProperty<String>
+
+    /**
+     * Namespaces to be resolved, defaults to all supported namespaces ("mojang", "spigot", "yarn", "quilt", "searge", "intermediary" and "hashed").
+     *
+     * *This is ignored if a [mappingBundle] is specified.*
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.namespaces
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.historyNamespaces
+     */
+    @get:Input
+    abstract val namespaces: ListProperty<String>
 
     /**
      * Whether output cache verification constraints should be relaxed, defaults to true.
@@ -144,6 +157,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
     }
 
     init {
+        namespaces.convention(listOf("mojang", "spigot", "yarn", "quilt", "searge", "intermediary", "hashed"))
         cacheDir.convention(project.layout.buildDirectory.dir("takenaka/cache"))
         relaxedCache.convention(true)
         platform.convention(PlatformTristate.SERVER)
@@ -181,18 +195,21 @@ abstract class ResolveMappingsTask : DefaultTask() {
      */
     @TaskAction
     fun run() {
-        val objectMapper = objectMapper()
-
         val requiredPlatform = platform.get()
         val requiredVersions = versions.get().toList()
+
+        val requiredNamespaces = namespaces.get().toSet()
+        fun <T : MappingContributor> MutableCollection<T>.addIfSupported(contributor: T) {
+            if (contributor.targetNamespace in requiredNamespaces) add(contributor)
+        }
+
         val resolvedMappings = runBlocking {
             // resolve mappings on this system, if a bundle is not available
             if (mappingBundle.isPresent) {
                 BundledMappingProvider(mappingBundle.get().asFile.toPath(), requiredVersions, manifest.get()).get()
             } else {
-                val xmlMapper = XmlMapper()
-
-                val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, xmlMapper, relaxedCache.get())
+                val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace, relaxedCache.get())
+                val quiltProvider = QuiltMetadataProvider(sharedCacheWorkspace, relaxedCache.get())
                 val mappingConfig = buildMappingConfig {
                     version(requiredVersions)
                     workspace(mappingCacheWorkspace)
@@ -207,61 +224,92 @@ abstract class ResolveMappingsTask : DefaultTask() {
                     intercept(::ObjectOverrideFilter)
                     // remove obfuscated method parameter names, they are a filler from Searge
                     intercept(::MethodArgSourceFilter)
+                    // intern names to save memory
+                    intercept(::StringPoolingAdapter)
 
                     contributors { versionWorkspace ->
-                        val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, objectMapper, relaxedCache.get())
-                        val spigotProvider = SpigotManifestProvider(versionWorkspace, objectMapper, relaxedCache.get())
+                        val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, relaxedCache.get())
+                        val spigotProvider = SpigotManifestProvider(versionWorkspace, relaxedCache.get())
 
                         buildList {
                             if (requiredPlatform.wantsServer) {
-                                add(VanillaServerMappingContributor(versionWorkspace, mojangProvider, relaxedCache.get()))
-                                add(MojangServerMappingResolver(versionWorkspace, mojangProvider))
+                                add(
+                                    VanillaServerMappingContributor(
+                                        versionWorkspace,
+                                        mojangProvider,
+                                        relaxedCache.get()
+                                    )
+                                )
+                                addIfSupported(MojangServerMappingResolver(versionWorkspace, mojangProvider))
                             }
                             if (requiredPlatform.wantsClient) {
-                                add(VanillaClientMappingContributor(versionWorkspace, mojangProvider, relaxedCache.get()))
-                                add(MojangClientMappingResolver(versionWorkspace, mojangProvider))
+                                add(
+                                    VanillaClientMappingContributor(
+                                        versionWorkspace,
+                                        mojangProvider,
+                                        relaxedCache.get()
+                                    )
+                                )
+                                addIfSupported(MojangClientMappingResolver(versionWorkspace, mojangProvider))
                             }
 
-                            add(IntermediaryMappingResolver(versionWorkspace, sharedCacheWorkspace))
-                            add(YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache.get()))
-                            add(SeargeMappingResolver(versionWorkspace, sharedCacheWorkspace, relaxedCache = relaxedCache.get()))
+                            addIfSupported(IntermediaryMappingResolver(versionWorkspace, sharedCacheWorkspace))
+                            addIfSupported(HashedMappingResolver(versionWorkspace))
+                            addIfSupported(YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache.get()))
+                            addIfSupported(QuiltMappingResolver(versionWorkspace, quiltProvider, relaxedCache.get()))
+                            addIfSupported(
+                                SeargeMappingResolver(
+                                    versionWorkspace,
+                                    sharedCacheWorkspace,
+                                    relaxedCache = relaxedCache.get()
+                                )
+                            )
 
                             // Spigot resolvers have to be last
                             if (requiredPlatform.wantsServer) {
                                 val link = LegacySpigotMappingPrepender.Link()
 
-                                add(
+                                addIfSupported(
                                     // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
                                     // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
                                     link.createPrependingContributor(
-                                        SpigotClassMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get()),
+                                        SpigotClassMappingResolver(
+                                            versionWorkspace,
+                                            spigotProvider,
+                                            relaxedCache.get()
+                                        ),
                                         prependEverything = versionWorkspace.version.id == "1.16.5"
                                     )
                                 )
-                                add(link.createPrependingContributor(SpigotMemberMappingResolver(versionWorkspace, xmlMapper, spigotProvider, relaxedCache.get())))
+                                addIfSupported(
+                                    link.createPrependingContributor(
+                                        SpigotMemberMappingResolver(
+                                            versionWorkspace,
+                                            spigotProvider,
+                                            relaxedCache.get()
+                                        )
+                                    )
+                                )
                             }
                         }
                     }
 
                     joinedOutputPath { workspace ->
-                        val fileName = when (requiredPlatform) {
-                            PlatformTristate.CLIENT_SERVER -> "client+server.tiny"
-                            PlatformTristate.CLIENT -> "client.tiny"
-                            else -> "server.tiny"
-                        }
+                        val hash = md5Digest.updateAndHex(requiredNamespaces.sorted().joinToString(","))
 
-                        workspace[fileName]
+                        workspace["$hash.$requiredPlatform.tiny"]
                     }
                 }
 
                 val analyzer = MappingAnalyzerImpl(
+                    // if the namespaces are missing, nothing happens anyway - no need to configure based on resolvedNamespaces
                     AnalysisOptions(
                         innerClassNameCompletionCandidates = setOf("spigot"),
                         inheritanceAdditionalNamespaces = setOf("searge") // mojang could be here too for maximal parity, but that's in exchange for a little bit of performance
                     )
                 )
 
-                ResolvingMappingProvider(mappingConfig, manifest.get(), xmlMapper).get(analyzer)
+                ResolvingMappingProvider(mappingConfig, manifest.get()).get(analyzer)
                     .apply { analyzer.acceptResolutions() }
             }
         }

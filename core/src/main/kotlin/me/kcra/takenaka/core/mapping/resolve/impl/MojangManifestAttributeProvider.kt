@@ -21,9 +21,10 @@ import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.VersionAttributes
 import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.util.MAPPER
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.readValue
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.URL
 
 private val logger = KotlinLogging.logger {}
@@ -38,11 +39,23 @@ private val logger = KotlinLogging.logger {}
  * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-class MojangManifestAttributeProvider(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper, val relaxedCache: Boolean = true) {
+class MojangManifestAttributeProvider @Deprecated(
+    "Jackson will be an implementation detail in the future.",
+    ReplaceWith("MojangManifestAttributeProvider(workspace, relaxedCache)")
+) constructor(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper, val relaxedCache: Boolean = true) {
     /**
      * The version attributes.
      */
     val attributes: VersionAttributes by lazy(::readAttributes)
+
+    /**
+     * Creates a new attribute provider.
+     *
+     * @param workspace the workspace
+     * @param relaxedCache whether output cache verification constraints should be relaxed
+     */
+    @Suppress("DEPRECATION")
+    constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true) : this(workspace, MAPPER, relaxedCache)
 
     /**
      * Reads the attributes of the targeted version from cache, fetching it if the cache missed.

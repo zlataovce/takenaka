@@ -17,22 +17,21 @@
 
 package me.kcra.takenaka.core.mapping.resolve.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.mapping.matchers.isConstructor
-import me.kcra.takenaka.core.mapping.resolve.*
-import me.kcra.takenaka.core.mapping.util.unwrap
+import me.kcra.takenaka.core.mapping.resolve.AbstractMappingResolver
+import me.kcra.takenaka.core.mapping.resolve.LicenseResolver
+import me.kcra.takenaka.core.mapping.resolve.Output
+import me.kcra.takenaka.core.mapping.resolve.lazyOutput
 import me.kcra.takenaka.core.util.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.MappingReader
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
-import net.fabricmc.mappingio.tree.MappingTree
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
@@ -46,37 +45,23 @@ import kotlin.io.path.reader
 private val logger = KotlinLogging.logger {}
 
 /**
- * A resolver for the Yarn mappings from FabricMC.
+ * A resolver for the Quilt mappings from QuiltMC.
  *
  * @property workspace the workspace
- * @property yarnProvider the Yarn metadata provider
+ * @property quiltProvider the Quilt metadata provider
  * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
+ * @author Florentin Schleuß
  */
-class YarnMappingResolver(
+class QuiltMappingResolver(
     override val workspace: VersionedWorkspace,
-    val yarnProvider: YarnMetadataProvider,
+    val quiltProvider: QuiltMetadataProvider,
     val relaxedCache: Boolean = true
 ) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
-    override val licenseSource: String = "https://raw.githubusercontent.com/FabricMC/yarn/${version.id}/LICENSE"
-    override val targetNamespace: String = "yarn"
+    override val licenseSource: String = "https://raw.githubusercontent.com/QuiltMC/quilt-mappings/${version.id}/LICENSE"
+    override val targetNamespace: String = "quilt"
     override val outputs: List<Output<out Path?>>
         get() = listOf(mappingOutput, licenseOutput)
-
-    /**
-     * Creates a new resolver with a default metadata provider.
-     *
-     * @param workspace the workspace
-     * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    @Deprecated(
-        "Jackson will be an implementation detail in the future.",
-        ReplaceWith("YarnMappingResolver(workspace, relaxedCache)")
-    )
-    @Suppress("DEPRECATION")
-    constructor(workspace: VersionedWorkspace, xmlMapper: ObjectMapper, relaxedCache: Boolean = true)
-            : this(workspace, YarnMetadataProvider(workspace, xmlMapper), relaxedCache)
 
     /**
      * Creates a new resolver with a default metadata provider.
@@ -85,33 +70,26 @@ class YarnMappingResolver(
      * @param relaxedCache whether output cache verification constraints should be relaxed
      */
     constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true)
-            : this(workspace, YarnMetadataProvider(workspace), relaxedCache)
+            : this(workspace, QuiltMetadataProvider(workspace, relaxedCache), relaxedCache)
 
     override val mappingOutput = lazyOutput<Path?> {
         resolver {
             val file = workspace[MAPPING_JAR]
 
-            val builds = yarnProvider.versions[version.id]
+            val builds = quiltProvider.versions[version.id]
             if (builds == null) {
-                logger.info { "did not find Yarn mappings for ${version.id}" }
+                logger.info { "did not find Quilt mappings for ${version.id}" }
                 return@resolver null
             }
 
-            val targetBuild = builds.maxBy(YarnBuild::buildNumber)
+            val targetBuild = builds.maxBy(QuiltBuild::buildNumber)
             withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
-                var urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild-mergedv2.jar"
+                var urlString = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/$targetBuild/quilt-mappings-$targetBuild-mergedv2.jar"
                 URL(urlString).httpRequest(method = "HEAD") { mergedv2 ->
                     if (!mergedv2.ok) {
-                        logger.info { "mergedv2 Yarn JAR for ${version.id} failed to fetch, falling back to v2" }
+                        logger.info { "mergedv2 Quilt mappings JAR for ${version.id} failed to fetch, falling back to no classifier" }
 
-                        urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild-v2.jar"
-                        URL(urlString).httpRequest(method = "HEAD") { v2 ->
-                            if (!v2.ok) {
-                                logger.info { "v2 Yarn JAR for ${version.id} failed to fetch, falling back to no classifier" }
-
-                                urlString = "https://maven.fabricmc.net/net/fabricmc/yarn/$targetBuild/yarn-$targetBuild.jar"
-                            }
-                        }
+                        urlString = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/$targetBuild/quilt-mappings-$targetBuild.jar"
                     }
                 }
 
@@ -124,41 +102,40 @@ class YarnMappingResolver(
                             val checksum = file.getChecksum(sha1Digest)
 
                             if (it.readText() == checksum) {
-                                logger.info { "matched checksum for cached ${version.id} Yarn mappings" }
+                                logger.info { "matched checksum for cached ${version.id} Quilt mappings" }
                                 return@withContext findMappingFile(file)
                             }
                         } else if (file.fileSize() == url.contentLength) {
-                            logger.info { "matched same length for cached ${version.id} Yarn mappings" }
+                            logger.info { "matched same length for cached ${version.id} Quilt mappings" }
                             return@withContext findMappingFile(file)
                         }
                     }
 
-                    logger.warn { "checksum/length mismatch for ${version.id} Yarn mapping cache, fetching them again" }
+                    logger.warn { "checksum/length mismatch for ${version.id} Quilt mappings cache, fetching them again" }
                 }
 
                 url.httpRequest {
                     if (it.ok) {
                         it.copyTo(file)
 
-                        logger.info { "fetched ${version.id} Yarn mappings" }
+                        logger.info { "fetched ${version.id} Quilt mappings" }
                         return@httpRequest findMappingFile(file)
                     }
 
-                    logger.warn { "failed to fetch ${version.id} Yarn mappings, received ${it.responseCode}" }
+                    logger.warn { "failed to fetch ${version.id} Quilt mappings, received ${it.responseCode}" }
                     return@httpRequest null
                 }
             }
         }
-        
+
         upToDateWhen { it == null || it.isRegularFile() }
     }
 
     override val licenseOutput = lazyOutput<Path?> {
         resolver {
             val file = workspace[LICENSE]
-
             if (LICENSE in workspace) {
-                logger.info { "found cached ${version.id} Yarn license file" }
+                logger.info { "found cached ${version.id} Quilt license file" }
                 return@resolver file
             }
 
@@ -167,19 +144,19 @@ class YarnMappingResolver(
                     if (it.ok) {
                         it.copyTo(file)
 
-                        logger.info { "fetched ${version.id} Yarn license file" }
+                        logger.info { "fetched ${version.id} Quilt license file" }
                         return@httpRequest file
                     } else if (it.responseCode == 404) {
-                        logger.info { "did not find ${version.id} Yarn license file" }
+                        logger.info { "did not find ${version.id} Quilt mappings license file" }
                     } else {
-                        logger.warn { "failed to fetch Yarn license file, received ${it.responseCode}" }
+                        logger.warn { "failed to fetch Quilt mappings license file, received ${it.responseCode}" }
                     }
 
                     return@httpRequest null
                 }
             }
         }
-        
+
         upToDateWhen { it == null || it.isRegularFile() }
     }
 
@@ -192,24 +169,7 @@ class YarnMappingResolver(
         val mappingPath by mappingOutput
 
         mappingPath?.reader()?.use { reader ->
-            val visitor0 = visitor.unwrap()
-
-            // FIXME: this shouldn't be here, but it's necessary for mapping-io to map Yarn parameter names
-            // add missing intermediary mappings for constructors, an equivalent of StandardProblemKinds#SPECIAL_METHOD_NOT_MAPPED
-            if (visitor0 is MappingTree) {
-                val nsId = visitor0.getNamespaceId("intermediary")
-                if (nsId != MappingTree.NULL_NAMESPACE_ID) {
-                    visitor0.classes.forEach { klass ->
-                        klass.methods.forEach { method ->
-                            if (method.isConstructor) {
-                                method.setDstName(method.srcName, nsId)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Yarn has official, named and intermediary namespaces
+            // Quilt has official, named and hashed namespaces
             // official is the obfuscated one
             MappingReader.read(reader, MappingNsRenamer(visitor, mapOf(
                 "official" to MappingUtil.NS_SOURCE_FALLBACK,
@@ -240,7 +200,7 @@ class YarnMappingResolver(
                 val entry = it.stream()
                     .filter { e -> e.name == "mappings/mappings.tiny" }
                     .findFirst()
-                    .orElseThrow { RuntimeException("Could not find mapping file in zip file (Yarn, ${version.id})") }
+                    .orElseThrow { RuntimeException("Could not find mapping file in zip file (Quilt mappings, ${version.id})") }
 
                 Files.copy(it.getInputStream(entry), mappingFile, StandardCopyOption.REPLACE_EXISTING)
             }
@@ -253,26 +213,26 @@ class YarnMappingResolver(
         /**
          * The file name of the cached mapping JAR.
          */
-        const val MAPPING_JAR = "yarn_mappings.jar"
+        const val MAPPING_JAR = "quilt_mappings.jar"
 
         /**
          * The file name of the cached mappings.
          */
-        const val MAPPINGS = "yarn_mappings.tiny"
+        const val MAPPINGS = "quilt_mappings.tiny"
 
         /**
          * The file name of the cached license file.
          */
-        const val LICENSE = "yarn_license.txt"
+        const val LICENSE = "quilt_license.txt"
 
         /**
          * The license metadata key.
          */
-        const val META_LICENSE = "yarn_license"
+        const val META_LICENSE = "quilt_license"
 
         /**
          * The license source metadata key.
          */
-        const val META_LICENSE_SOURCE = "yarn_license_source"
+        const val META_LICENSE_SOURCE = "quilt_license_source"
     }
 }

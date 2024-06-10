@@ -66,6 +66,19 @@ inline val URL.contentLength: Long
     }
 
 /**
+ * Fetches the URL and returns the value of the Last-Modified header of the response, returning -1 if the status code is not in the 2xx range.
+ */
+inline val URL.lastModified: Long
+    get() {
+        httpRequest(method = "HEAD") {
+            if (!it.ok) {
+                return -1
+            }
+            return it.lastModified
+        }
+    }
+
+/**
  * Returns whether the request's status code is in the 2xx range.
  */
 inline val HttpURLConnection.ok: Boolean

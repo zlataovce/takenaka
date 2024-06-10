@@ -27,13 +27,16 @@ import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
 import me.kcra.takenaka.core.mapping.util.dstNamespaceIds
+import me.kcra.takenaka.core.util.buildOrderedMap
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
+import me.kcra.takenaka.generator.accessor.GeneratedClassType
 import me.kcra.takenaka.generator.accessor.context.GenerationContext
 import me.kcra.takenaka.generator.accessor.model.*
+import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
 import me.kcra.takenaka.generator.accessor.util.globAsRegex
 import me.kcra.takenaka.generator.accessor.util.isGlob
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -43,27 +46,12 @@ import java.util.*
 private val logger = KotlinLogging.logger {}
 
 /**
- * A field accessor and ancestry node pair.
- */
-typealias ResolvedFieldPair = Pair<FieldAccessor, FieldAncestryNode>
-
-/**
- * A constructor accessor and ancestry node pair.
- */
-typealias ResolvedConstructorPair = Pair<ConstructorAccessor, MethodAncestryNode>
-
-/**
- * A method accessor and ancestry node pair.
- */
-typealias ResolvedMethodPair = Pair<MethodAccessor, MethodAncestryNode>
-
-/**
  * An implementation base for [GenerationContext].
  *
  * @author Matouš Kučera
  */
 abstract class AbstractGenerationContext(
-    override val generator: AccessorGenerator,
+    final override val generator: AccessorGenerator,
     val ancestryProvider: AncestryProvider,
     contextScope: CoroutineScope
 ) : GenerationContext, CoroutineScope by contextScope {
@@ -73,9 +61,15 @@ abstract class AbstractGenerationContext(
     private val generatedClasses = Collections.synchronizedSet(mutableSetOf<String>())
 
     /**
-     * Accessor model simple class names and their renamed variants, used for detecting naming conflicts.
+     * The generator's naming strategy.
      */
-    private val accessedSimpleNames = mutableMapOf<String, MutableMap<String, Int>>() // {simple name: {fq name: occurrence index}}
+    protected val namingStrategy: NamingStrategy /*by generator.config::namingStrategy - KT-53799, can't use delegation */
+        get() = generator.config.namingStrategy
+
+    /**
+     * The source code types.
+     */
+    protected val types = SourceTypes(generator.config.runtimePackage)
 
     /**
      * The generation timestamp of this context's output.
@@ -134,35 +128,42 @@ abstract class AbstractGenerationContext(
         logger.info { "generating accessors for class '${model.internalName}'" }
 
         val fieldTree = ancestryProvider.field<_, _, FieldMappingView>(node)
-        val fieldAccessors = model.fields.flatMap { resolveFieldChain(fieldTree, it) } +
-                resolveRequiredFields(fieldTree, model.requiredTypes).map { fieldNode ->
-                    FieldAccessor(getFriendlyName(fieldNode.last.value), getFriendlyDesc(fieldNode.last.value)) to fieldNode
-                }
 
         // fields can't be overloaded, but capitalization matters, which is a problem when making uppercase names from everything
-        val fieldOverloadCount = mutableMapOf<String, Int>()
-        val fieldOverloads = fieldAccessors.associate { (fieldAccessor, _) ->
-            fieldAccessor to fieldOverloadCount.compute(fieldAccessor.upperName) { _, i -> i?.inc() ?: 0 }!!
-        }
+        val fieldOverloads = NameOverloads()
+        val fieldAccessors = model.fields
+            .map { resolveFieldChain(fieldTree, it, fieldOverloads.generate(it.upperName)) }
+            .plus(
+                resolveRequiredFields(fieldTree, model.requiredTypes).map { fieldNode ->
+                    val accessor = FieldAccessor(getFriendlyName(fieldNode.last.value), getFriendlyDesc(fieldNode.last.value))
+
+                    ResolvedFieldAccessor(accessor, fieldNode, fieldOverloads.generate(accessor.upperName))
+                }
+            )
 
         val ctorTree = ancestryProvider.method<_, _, MethodMappingView>(node, constructorMode = ConstructorComputationMode.ONLY)
-        val ctorAccessors = model.constructors.map { ResolvedConstructorPair(it, resolveConstructor(ctorTree, it)) } +
-                resolveRequiredConstructors(ctorTree, model.requiredTypes).map { ctorNode ->
-                    ConstructorAccessor(getFriendlyDesc(ctorNode.last.value)) to ctorNode
-                }
-
-        val methodTree = ancestryProvider.method<_, _, MethodMappingView>(node)
-        val methodAccessors = model.methods.flatMap { resolveMethodChain(methodTree, it) }  +
-                resolveRequiredMethods(methodTree, model.requiredTypes).map { methodNode ->
-                    MethodAccessor(getFriendlyName(methodNode.last.value), getFriendlyDesc(methodNode.last.value)) to methodNode
-                }
-
-        val methodOverloadCount = mutableMapOf<String, Int>()
-        val methodOverloads = methodAccessors.associate { (methodAccessor, _) ->
-            methodAccessor to methodOverloadCount.compute(methodAccessor.upperName) { _, i -> i?.inc() ?: 0 }!!
+        val ctorAccessors = model.constructors.mapIndexedTo(mutableListOf()) { i, accessor ->
+            ResolvedMemberAccessor(accessor, resolveConstructor(ctorTree, accessor), i)
         }
 
-        generateClass(ResolvedClassAccessor(model, node, fieldAccessors, ctorAccessors, methodAccessors, fieldOverloads, methodOverloads))
+        resolveRequiredConstructors(ctorTree, model.requiredTypes).mapTo(ctorAccessors) { ctorNode ->
+            ResolvedConstructorAccessor(ConstructorAccessor(getFriendlyDesc(ctorNode.last.value)), ctorNode, ctorAccessors.size)
+        }
+
+        val methodTree = ancestryProvider.method<_, _, MethodMappingView>(node)
+
+        val methodOverloads = NameOverloads()
+        val methodAccessors = model.methods
+            .map { resolveMethodChain(methodTree, it, methodOverloads.generate(it.upperName)) }
+            .plus(
+                resolveRequiredMethods(methodTree, model.requiredTypes).map { methodNode ->
+                    val accessor = MethodAccessor(getFriendlyName(methodNode.last.value), getFriendlyDesc(methodNode.last.value))
+
+                    ResolvedMethodAccessor(accessor, methodNode, methodOverloads.generate(accessor.upperName))
+                }
+            )
+
+        generateClass(ResolvedClassAccessor(model, node, fieldAccessors, ctorAccessors, methodAccessors))
     }
 
     /**
@@ -178,13 +179,14 @@ abstract class AbstractGenerationContext(
      * that have been generated in this context.
      */
     override fun generateLookupClass() {
-        generateLookupClass(generatedClasses.toList())
+        // try reconstructing necessary information for name generation
+        generateLookupClass(generatedClasses.map { cl -> namingStrategy.klass(ClassAccessor(cl), GeneratedClassType.MAPPING) })
     }
 
     /**
      * Generates a mapping lookup class from class names.
      *
-     * @param names internal names of classes declared in accessor models
+     * @param names fully qualified names of generated mapping classes
      */
     protected open fun generateLookupClass(names: List<String>) {
     }
@@ -219,16 +221,22 @@ abstract class AbstractGenerationContext(
      *
      * @param tree the ancestry tree
      * @param model the model
-     * @return the nodes
+     * @param overloadIndex the model overload index
+     * @return the resolved model
      */
-    protected open fun resolveFieldChain(tree: FieldAncestryTree, model: FieldAccessor): List<ResolvedFieldPair> = buildList {
-        var nextNode: FieldAccessor? = model
-        while (nextNode != null) {
-            add(ResolvedFieldPair(nextNode, resolveField(tree, nextNode)))
-            nextNode = nextNode.chain
-        }
+    protected open fun resolveFieldChain(tree: FieldAncestryTree, model: FieldAccessor, overloadIndex: Int): ResolvedFieldAccessor {
+        return ResolvedFieldAccessor(
+            buildOrderedMap {
+                var nextNode: FieldAccessor? = model
+                while (nextNode != null) {
+                    add(nextNode to resolveField(tree, nextNode))
+                    nextNode = nextNode.chain
+                }
 
-        reverse() // last chain member comes first
+                reverse() // last chain member comes first
+            },
+            overloadIndex
+        )
     }
 
     /**
@@ -309,16 +317,22 @@ abstract class AbstractGenerationContext(
      *
      * @param tree the ancestry tree
      * @param model the model
-     * @return the nodes
+     * @param overloadIndex the model overload index
+     * @return the resolved model
      */
-    protected open fun resolveMethodChain(tree: MethodAncestryTree, model: MethodAccessor): List<ResolvedMethodPair> = buildList {
-        var nextNode: MethodAccessor? = model
-        while (nextNode != null) {
-            add(ResolvedMethodPair(nextNode, resolveMethod(tree, nextNode)))
-            nextNode = nextNode.chain
-        }
+    protected open fun resolveMethodChain(tree: MethodAncestryTree, model: MethodAccessor, overloadIndex: Int): ResolvedMethodAccessor {
+        return ResolvedMethodAccessor(
+            buildOrderedMap {
+                var nextNode: MethodAccessor? = model
+                while (nextNode != null) {
+                    add(nextNode to resolveMethod(tree, nextNode))
+                    nextNode = nextNode.chain
+                }
 
-        reverse() // last chain member comes first
+                reverse() // last chain member comes first
+            },
+            overloadIndex
+        )
     }
 
     /**
@@ -429,9 +443,10 @@ abstract class AbstractGenerationContext(
      * Groups the generator's mappings by version.
      *
      * @param node the ancestry node
+     * @param exact whether descriptors should be matched exactly or without return types
      * @return the grouped method mappings
      */
-    protected open fun groupMethodNames(node: MethodAncestryNode): Map<MethodKey, List<Version>> = buildMap<MethodKey, MutableList<Version>> {
+    protected open fun groupMethodNames(node: MethodAncestryNode, exact: Boolean = false): Map<MethodKey, List<Version>> = buildMap<MethodKey, MutableList<Version>> {
         node.forEach { (version, method) ->
             val nmsVersion = method.tree.craftBukkitNmsVersion
 
@@ -439,30 +454,9 @@ abstract class AbstractGenerationContext(
                 method.getDesc(ns)?.let { desc ->
                     val name = method.getName(ns) ?: method.srcName
 
-                    getOrPut(MethodKey(ns, name, desc.replaceCraftBukkitNMSVersion(nmsVersion)), ::mutableListOf) += version
+                    getOrPut(MethodKey(ns, name, desc.replaceCraftBukkitNMSVersion(nmsVersion), exact), ::mutableListOf) += version
                 }
             }
-        }
-    }
-
-    /**
-     * Sanitizes an accessor model name for generating an accessor class in this context.
-     *
-     * @param name a fully qualified name
-     * @return a non-conflicting simple name
-     */
-    protected open fun generateNonConflictingName(name: String): String {
-        val simpleName = name.substringAfterLast('/')
-
-        synchronized(accessedSimpleNames) {
-            val names = accessedSimpleNames.getOrPut(simpleName, ::mutableMapOf)
-
-            val index = names.getOrPut(name) { names.size }
-            if (index > 0) {
-                return simpleName + index
-            }
-
-            return simpleName // don't add a zero
         }
     }
 
@@ -474,3 +468,15 @@ abstract class AbstractGenerationContext(
     }
 }
 
+/**
+ * A utility class for managing name overloads.
+ */
+private class NameOverloads(delegate: MutableMap<String, Int> = mutableMapOf()) : MutableMap<String, Int> by delegate {
+    /**
+     * Generates an available index for the supplied name.
+     *
+     * @param key the name
+     * @return the index
+     */
+    fun generate(key: String): Int = compute(key) { _, i -> i?.inc() ?: 0 }!!
+}

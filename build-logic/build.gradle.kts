@@ -12,6 +12,7 @@ repositories {
 dependencies {
     implementation(libs.build.licenser)
     implementation(libs.build.gradle.versions)
+    implementation(libs.build.kotlin.jvm)
 }
 
 dependencies {

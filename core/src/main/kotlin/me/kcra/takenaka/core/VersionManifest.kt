@@ -30,6 +30,7 @@ import java.nio.file.Path
 import java.time.Instant
 import kotlin.io.path.createDirectories
 import kotlin.io.path.fileSize
+import kotlin.io.path.getLastModifiedTime
 import kotlin.io.path.isRegularFile
 
 /**
@@ -42,7 +43,51 @@ const val VERSION_MANIFEST_V2 = "https://piston-meta.mojang.com/mc/game/version_
  *
  * @return the version manifest
  */
+@Deprecated(
+    "Jackson will be an implementation detail in the future.",
+    ReplaceWith("versionManifestOf()", "me.kcra.takenaka.core.versionManifestOf")
+)
 fun ObjectMapper.versionManifest(): VersionManifest = readValue(URL(VERSION_MANIFEST_V2))
+
+/**
+ * Fetches and deserializes the version manifest from Mojang's API.
+ *
+ * @param url the version manifest url, defaults to [VERSION_MANIFEST_V2]
+ * @return the version manifest
+ */
+fun versionManifestOf(url: String = VERSION_MANIFEST_V2): VersionManifest = MAPPER.readValue(URL(url))
+
+/**
+ * Retrieves the version manifest from Mojang's API or a cache file,
+ * fetching it again if the cache missed, or it could not be deserialized.
+ *
+ * @param cacheFile the cache file, does not need to exist
+ * @param url the version manifest url, defaults to [VERSION_MANIFEST_V2]
+ * @return the version manifest
+ */
+fun versionManifestFrom(cacheFile: Path, url: String = VERSION_MANIFEST_V2): VersionManifest {
+    val url0 = URL(url)
+    if (cacheFile.isRegularFile()) {
+        if (url0.lastModified > cacheFile.getLastModifiedTime().toMillis()) {
+            try {
+                return MAPPER.readValue(cacheFile)
+            } catch (_: JacksonException) {
+                // failed to read cached file, corrupted? fetch it again
+            }
+        }
+    }
+
+    url0.httpRequest {
+        if (it.ok) {
+            cacheFile.parent.createDirectories()
+            it.copyTo(cacheFile)
+
+            return MAPPER.readValue(cacheFile)
+        }
+
+        throw IOException("Failed to fetch v2 Mojang manifest, received ${it.responseCode}")
+    }
+}
 
 /**
  * Retrieves the version manifest from Mojang's API or a cache file,
@@ -51,6 +96,10 @@ fun ObjectMapper.versionManifest(): VersionManifest = readValue(URL(VERSION_MANI
  * @param cacheFile the cache file, does not need to exist
  * @return the version manifest
  */
+@Deprecated(
+    "Jackson will be an implementation detail in the future.",
+    ReplaceWith("versionManifestFrom(cacheFile)", "me.kcra.takenaka.core.versionManifestFrom")
+)
 fun ObjectMapper.cachedVersionManifest(cacheFile: Path): VersionManifest {
     val url = URL(VERSION_MANIFEST_V2)
 
@@ -178,6 +227,24 @@ data class Version(
         private const val serialVersionUID = 1L
     }
 }
+
+/**
+ * Fetches and deserializes version attributes from Mojang's API.
+ *
+ * @param url the version attributes url
+ * @return the version attributes
+ */
+fun versionAttributesOf(url: String): VersionAttributes {
+    return MAPPER.readValue(URL(url))
+}
+
+/**
+ * Fetches and deserializes version attributes from Mojang's API.
+ *
+ * @param version the version
+ * @return the version attributes
+ */
+fun versionAttributesOf(version: Version): VersionAttributes = versionAttributesOf(version.url)
 
 /**
  * The version attributes from Mojang's v2 version manifest.

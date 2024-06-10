@@ -18,11 +18,14 @@
 package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.*
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch
@@ -66,29 +69,30 @@ abstract class AbstractMojangMappingResolver(
             val fileName = "${mappingAttribute.name}.txt"
             val file = workspace[fileName]
 
-            if (fileName in workspace) {
-                val checksum = file.getChecksum(sha1Digest)
+            withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                if (fileName in workspace) {
+                    val checksum = file.getChecksum(sha1Digest)
 
-                if (mappingAttribute.checksum == checksum) {
-                    logger.info { "matched checksum for cached ${version.id} Mojang mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value})" }
-                    return@resolver file
+                    if (mappingAttribute.checksum == checksum) {
+                        logger.info { "matched checksum for cached ${version.id} Mojang mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value})" }
+                        return@withContext file
+                    }
+
+                    logger.warn { "checksum mismatch for ${version.id} Mojang mapping cache, fetching them again (name: ${mappingAttribute.name}, value: ${mappingAttribute.value})" }
                 }
 
-                logger.warn { "checksum mismatch for ${version.id} Mojang mapping cache, fetching them again (name: ${mappingAttribute.name}, value: ${mappingAttribute.value})" }
-            }
+                URL(mappingAttribute.value!!).httpRequest {
+                    if (it.ok) {
+                        it.copyTo(file)
 
-            URL(mappingAttribute.value!!).httpRequest {
-                if (it.ok) {
-                    it.copyTo(file)
+                        logger.info { "fetched ${version.id} Mojang mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value})" }
+                        return@httpRequest file
+                    }
 
-                    logger.info { "fetched ${version.id} Mojang mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value})" }
-                    return@resolver file
+                    logger.info { "failed to fetch ${version.id} Mojang mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value}), received ${it.responseCode}" }
+                    return@httpRequest null
                 }
-
-                logger.info { "failed to fetch ${version.id} Mojang mappings (name: ${mappingAttribute.name}, value: ${mappingAttribute.value}), received ${it.responseCode}" }
             }
-
-            return@resolver null
         }
 
         upToDateWhen { it == null || it.isRegularFile() }
@@ -99,16 +103,18 @@ abstract class AbstractMojangMappingResolver(
             val file = workspace[LICENSE]
             val mappingPath by mappingOutput
 
-            mappingPath?.bufferedReader()?.use {
-                val line = it.readLine()
+            withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                mappingPath?.bufferedReader()?.use {
+                    val line = it.readLine()
 
-                if (line.startsWith("# ")) {
-                    file.writeText(line.drop(2))
-                    return@resolver file
+                    if (line.startsWith("# ")) {
+                        file.writeText(line.drop(2))
+                        return@withContext file
+                    }
                 }
-            }
 
-            return@resolver null
+                return@withContext null
+            }
         }
 
         upToDateWhen { it == null || it.isRegularFile() }
@@ -135,7 +141,6 @@ abstract class AbstractMojangMappingResolver(
         }
 
         val licensePath by licenseOutput
-
         licensePath?.reader()?.use {
             visitor.visitMetadata(META_LICENSE, it.readText())
             visitor.visitMetadata(META_LICENSE_SOURCE, licenseSource)
@@ -178,8 +183,22 @@ class MojangClientMappingResolver(
      * @param objectMapper an [ObjectMapper] that can deserialize JSON data
      * @param relaxedCache whether output cache verification constraints should be relaxed
      */
+    @Deprecated(
+        "Jackson will be an implementation detail in the future.",
+        ReplaceWith("MojangClientMappingResolver(workspace, relaxedCache)")
+    )
+    @Suppress("DEPRECATION")
     constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true) :
             this(workspace, MojangManifestAttributeProvider(workspace, objectMapper, relaxedCache))
+
+    /**
+     * Creates a new resolver with a default metadata provider.
+     *
+     * @param workspace the workspace
+     * @param relaxedCache whether output cache verification constraints should be relaxed
+     */
+    constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true) :
+            this(workspace, MojangManifestAttributeProvider(workspace, relaxedCache))
 
     /**
      * Resolves a Mojang manifest mapping attribute.
@@ -213,8 +232,22 @@ class MojangServerMappingResolver(
      * @param objectMapper an [ObjectMapper] that can deserialize JSON data
      * @param relaxedCache whether output cache verification constraints should be relaxed
      */
-    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true)
-            : this(workspace, MojangManifestAttributeProvider(workspace, objectMapper, relaxedCache))
+    @Deprecated(
+        "Jackson will be an implementation detail in the future.",
+        ReplaceWith("MojangServerMappingResolver(workspace, relaxedCache)")
+    )
+    @Suppress("DEPRECATION")
+    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true) :
+            this(workspace, MojangManifestAttributeProvider(workspace, objectMapper, relaxedCache))
+
+    /**
+     * Creates a new resolver with a default metadata provider.
+     *
+     * @param workspace the workspace
+     * @param relaxedCache whether output cache verification constraints should be relaxed
+     */
+    constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true) :
+            this(workspace, MojangManifestAttributeProvider(workspace, relaxedCache))
 
     /**
      * Resolves a Mojang manifest mapping attribute.
