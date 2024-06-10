@@ -180,4 +180,4 @@ The expected value can be:
 
 ## Licensing
 
-This library is licensed under the [Apache License, Version 2.0](https://github.com/zlataovce/takenaka/blob/master/LICENSE).
+This library is licensed under the [Apache License, Version 2.0](https://github.com/zlataovce/takenaka/blob/main/LICENSE).

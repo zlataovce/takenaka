@@ -13,7 +13,7 @@ publishing {
                 licenses {
                     license {
                         name.set("Apache License, Version 2.0")
-                        url.set("https://github.com/zlataovce/takenaka/blob/master/LICENSE")
+                        url.set("https://github.com/zlataovce/takenaka/blob/main/LICENSE")
                     }
                 }
                 developers {
@@ -26,7 +26,7 @@ publishing {
                 scm {
                     connection.set("scm:git:github.com/zlataovce/takenaka.git")
                     developerConnection.set("scm:git:ssh://github.com/zlataovce/takenaka.git")
-                    url.set("https://github.com/zlataovce/takenaka/tree/master")
+                    url.set("https://github.com/zlataovce/takenaka/tree/main")
                 }
             }
         }
