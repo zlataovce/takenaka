@@ -86,6 +86,11 @@ open class JavaGenerationContext(
                     .build()
             )
 
+        if (generator.config.mappingWebsite != null) {
+            val link = "${generator.config.mappingWebsite}/${resolvedAccessor.node.last.key.id}/${getFriendlyName(resolvedAccessor.node.last.value).replace('.', '/')}.html"
+            accessorBuilder.addJavadoc("\n@see <a href=\"\$L\">\$L</a>", link, link)
+        }
+
         JTypeSpec.interfaceBuilder(mappingClassName)
             .addModifiers(Modifier.PUBLIC)
             .addJavadoc(

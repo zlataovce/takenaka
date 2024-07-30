@@ -40,6 +40,7 @@ const val DEFAULT_RUNTIME_PACKAGE = "me.kcra.takenaka.accessor"
  * @property craftBukkitVersionReplaceCandidates namespaces that should have [me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion] applied (most likely Spigot mappings or a flavor of them)
  * @property namingStrategy the strategy used to name generated classes and their members
  * @property runtimePackage the package of the used accessor runtime
+ * @property mappingWebsite the base url of the mapping website
  * @author Matouš Kučera
  */
 data class AccessorConfiguration(
@@ -52,5 +53,6 @@ data class AccessorConfiguration(
     val accessedNamespaces: List<String> = namespaceFriendlinessIndex,
     val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
     val namingStrategy: NamingStrategy = StandardNamingStrategies.SIMPLE.prefixed(basePackage).resolveSimpleConflicts(),
-    val runtimePackage: String = DEFAULT_RUNTIME_PACKAGE
+    val runtimePackage: String = DEFAULT_RUNTIME_PACKAGE,
+    val mappingWebsite: String? = null
 )

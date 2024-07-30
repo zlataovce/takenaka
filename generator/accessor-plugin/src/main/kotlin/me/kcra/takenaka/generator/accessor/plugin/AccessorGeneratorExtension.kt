@@ -129,6 +129,11 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      */
     abstract val runtimePackage: Property<String>
 
+    /**
+     * Base URL of the mapping website including protocol, defaults to `null`.
+     */
+    abstract val mappingWebsite: Property<String?>
+
     init {
         outputDirectory.convention(project.layout.buildDirectory.dir("takenaka/output"))
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
@@ -142,6 +147,7 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
         @Suppress("DEPRECATION")
         namingStrategy.convention(basePackage.map { pack -> StandardNamingStrategies.SIMPLE.prefixed(pack).resolveSimpleConflicts() })
         runtimePackage.convention(DEFAULT_RUNTIME_PACKAGE)
+        mappingWebsite.convention(null)
     }
 
     /**
@@ -327,6 +333,15 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      */
     fun runtimePackage(runtimePackage: String) {
         this.runtimePackage.set(runtimePackage)
+    }
+
+    /**
+     * Sets the [mappingWebsite] property.
+     *
+     * @param mappingWebsite base url of the website including protocol
+     */
+    fun mappingWebsite(mappingWebsite: String?) {
+        this.mappingWebsite.set(mappingWebsite)
     }
 
     /**
