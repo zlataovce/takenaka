@@ -27,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
+import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.GeneratedClassType
@@ -65,18 +66,23 @@ open class KotlinGenerationContext(
                     Accessors for the `%L` class.
                     
                     `%L` - `%L`
-                    @see·%L
                 """.trimIndent(),
                 accessedQualifiedName,
                 resolvedAccessor.node.first.key.id,
-                resolvedAccessor.node.last.key.id,
-                mappingClassName.canonicalName
+                resolvedAccessor.node.last.key.id
             )
             .addProperty(
                 PropertySpec.builder(namingStrategy.member(GeneratedMemberType.TYPE), types.KT_NULLABLE_CLASS_WILDCARD)
                     .delegate("%M(%T::getClazz)", types.KT_LAZY_DSL, mappingClassName)
                     .build()
             )
+
+        if (generator.config.mappingWebsite != null) {
+            val link = "${generator.config.mappingWebsite}/${resolvedAccessor.node.last.key.id}/${getFriendlyName(resolvedAccessor.node.last.value).toInternalName()}.html"
+            accessorBuilder.addKdoc("\nSee: [%L](%L)", link, link)
+        }
+
+        accessorBuilder.addKdoc("\n@see·%L", mappingClassName.canonicalName)
 
         KTypeSpec.objectBuilder(mappingClassName)
             .addKdoc(

@@ -156,6 +156,14 @@ abstract class GenerationTask : DefaultTask() {
     abstract val runtimePackage: Property<String>
 
     /**
+     * Base URL of the mapping website including protocol, defaults to `null`.
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.mappingWebsite
+     */
+    @get:Input
+    abstract val mappingWebsite: Property<String>
+
+    /**
      * The output workspace ([outputDir]).
      */
     @get:Internal
@@ -177,5 +185,6 @@ abstract class GenerationTask : DefaultTask() {
         @Suppress("DEPRECATION")
         namingStrategy.convention(basePackage.map { pack -> StandardNamingStrategies.SIMPLE.prefixed(pack).resolveSimpleConflicts() })
         runtimePackage.convention(DEFAULT_RUNTIME_PACKAGE)
+        mappingWebsite.convention(null)
     }
 }

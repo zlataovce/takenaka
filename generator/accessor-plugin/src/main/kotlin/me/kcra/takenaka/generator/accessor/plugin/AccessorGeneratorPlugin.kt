@@ -90,6 +90,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.historyIndexNamespace.set(config.historyIndexNamespace)
             this.namingStrategy.set(config.namingStrategy)
             this.runtimePackage.set(config.runtimePackage)
+            this.mappingWebsite.set(config.mappingWebsite)
         }
         val traceAccessors by target.tasks.creating(TraceAccessorsTask::class) {
             group = "takenaka"
@@ -106,6 +107,7 @@ class AccessorGeneratorPlugin : Plugin<Project> {
             this.historyIndexNamespace.set(config.historyIndexNamespace)
             this.namingStrategy.set(config.namingStrategy)
             this.runtimePackage.set(config.runtimePackage)
+            this.mappingWebsite.set(config.mappingWebsite)
         }
 
         target.tasks.withType<JavaCompile> {

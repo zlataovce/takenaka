@@ -29,6 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
+import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.GeneratedClassType
@@ -85,6 +86,11 @@ open class JavaGenerationContext(
                     .initializer("\$T.of(\$T.\$L::getClazz)", types.LAZY_SUPPLIER, mappingClassName, mappingFieldName)
                     .build()
             )
+
+        if (generator.config.mappingWebsite != null) {
+            val link = "${generator.config.mappingWebsite}/${resolvedAccessor.node.last.key.id}/${getFriendlyName(resolvedAccessor.node.last.value).toInternalName()}.html"
+            accessorBuilder.addJavadoc("\n@see <a href=\"\$L\">\$L</a>", link, link)
+        }
 
         JTypeSpec.interfaceBuilder(mappingClassName)
             .addModifiers(Modifier.PUBLIC)
