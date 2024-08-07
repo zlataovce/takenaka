@@ -27,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
+import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.GeneratedClassType
@@ -77,8 +78,8 @@ open class KotlinGenerationContext(
             )
 
         if (generator.config.mappingWebsite != null) {
-            val link = "${generator.config.mappingWebsite}/${resolvedAccessor.node.last.key.id}/${getFriendlyName(resolvedAccessor.node.last.value).replace('.', '/')}.html"
-            accessorBuilder.addKdoc("\nSee [\$L](\$L)", link, link)
+            val link = "${generator.config.mappingWebsite}/${resolvedAccessor.node.last.key.id}/${getFriendlyName(resolvedAccessor.node.last.value).toInternalName()}.html"
+            accessorBuilder.addKdoc("\nSee: [%L](%L)", link, link)
         }
 
         accessorBuilder.addKdoc("\n@see·%L", mappingClassName.canonicalName)
