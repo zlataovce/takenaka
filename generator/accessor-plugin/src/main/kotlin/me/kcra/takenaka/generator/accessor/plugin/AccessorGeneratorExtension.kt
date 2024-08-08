@@ -20,10 +20,15 @@ package me.kcra.takenaka.generator.accessor.plugin
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.VersionRangeBuilder
+import me.kcra.takenaka.generator.accessor.DEFAULT_RUNTIME_PACKAGE
 import me.kcra.takenaka.generator.accessor.AccessorConfiguration
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.CodeLanguage
 import me.kcra.takenaka.generator.accessor.model.*
+import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
+import me.kcra.takenaka.generator.accessor.naming.StandardNamingStrategies
+import me.kcra.takenaka.generator.accessor.naming.prefixed
+import me.kcra.takenaka.generator.accessor.naming.resolveSimpleConflicts
 import me.kcra.takenaka.generator.accessor.plugin.tasks.DEFAULT_INDEX_NS
 import org.gradle.api.Action
 import org.gradle.api.Project
@@ -77,8 +82,9 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
     abstract val accessors: ListProperty<ClassAccessor>
 
     /**
-     * Base package of the generated accessors, required.
+     * Base package of the generated accessors.
      */
+    @Deprecated("The base package concept was superseded by naming strategies.")
     abstract val basePackage: Property<String>
 
     /**
@@ -92,9 +98,16 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
     abstract val accessorType: Property<AccessorType>
 
     /**
-     * Namespaces that should be used in accessors, empty if all namespaces should be used.
+     * Namespaces that should be used in accessors, defaults to all supported namespaces ("mojang", "spigot", "yarn", "quilt", "searge", "intermediary" and "hashed").
      */
-    abstract val accessedNamespaces: ListProperty<String>
+    abstract val namespaces: ListProperty<String>
+
+    /**
+     * Alias for [namespaces].
+     */
+    @Deprecated("Use namespaces.", ReplaceWith("namespaces"))
+    val accessedNamespaces: ListProperty<String>
+        get() = namespaces
 
     /**
      * Namespaces that should be used for computing history, defaults to "mojang", "spigot", "searge" and "intermediary".
@@ -106,15 +119,43 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      */
     abstract val historyIndexNamespace: Property<String?>
 
+    /**
+     * Strategy used to name generated classes and their members, defaults to a conflict-resolving variant of [StandardNamingStrategies.SIMPLE].
+     */
+    abstract val namingStrategy: Property<NamingStrategy>
+
+    /**
+     * Package containing the accessor runtime, defaults to [DEFAULT_RUNTIME_PACKAGE].
+     */
+    abstract val runtimePackage: Property<String>
+
+    /**
+     * Base URL of the mapping website including protocol, defaults to `null`.
+     */
+    abstract val mappingWebsite: Property<String?>
+
     init {
         outputDirectory.convention(project.layout.buildDirectory.dir("takenaka/output"))
         cacheDirectory.convention(project.layout.buildDirectory.dir("takenaka/cache"))
         codeLanguage.convention(CodeLanguage.JAVA)
         accessorType.convention(AccessorType.NONE)
+        namespaces.convention(listOf("mojang", "spigot", "yarn", "quilt", "searge", "intermediary", "hashed"))
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         relaxedCache.convention(true)
         platform.convention(PlatformTristate.SERVER)
+        @Suppress("DEPRECATION")
+        namingStrategy.convention(basePackage.map { pack -> StandardNamingStrategies.SIMPLE.prefixed(pack).resolveSimpleConflicts() })
+        runtimePackage.convention(DEFAULT_RUNTIME_PACKAGE)
+        mappingWebsite.convention(null)
+    }
+
+    /**
+     * Alias for [version].
+     */
+    @Deprecated("Use version(vararg String).", ReplaceWith("version(*versions)"))
+    fun versions(vararg versions: String) {
+        this.version(*versions)
     }
 
     /**
@@ -122,7 +163,7 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      *
      * @param versions the versions
      */
-    fun versions(vararg versions: String) {
+    fun version(vararg versions: String) {
         this.versions.addAll(*versions)
     }
 
@@ -200,8 +241,9 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      *
      * @param basePackage the base package
      */
+    @Suppress("DEPRECATION")
     fun basePackage(basePackage: String) {
-        this.basePackage.set(basePackage)
+        this.basePackage.set(basePackage) // TODO: immediately wrap the strategy instead
     }
 
     /**
@@ -241,12 +283,20 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
     }
 
     /**
-     * Adds new namespaces to the [accessedNamespaces] property.
+     * Adds new namespaces to the [namespaces] property.
      *
-     * @param accessedNamespaces the namespaces
+     * @param namespaces the namespaces
      */
+    fun namespaces(vararg namespaces: String) {
+        this.namespaces.addAll(*namespaces)
+    }
+
+    /**
+     * Alias for [namespaces].
+     */
+    @Deprecated("Use namespaces(vararg String).", ReplaceWith("namespaces(*accessedNamespaces)"))
     fun accessedNamespaces(vararg accessedNamespaces: String) {
-        this.accessedNamespaces.addAll(*accessedNamespaces)
+        this.namespaces(*accessedNamespaces)
     }
 
     /**
@@ -265,6 +315,33 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      */
     fun historyIndexNamespace(historyIndexNamespace: String?) {
         this.historyIndexNamespace.set(historyIndexNamespace)
+    }
+
+    /**
+     * Sets the [namingStrategy] property.
+     *
+     * @param strategy the naming strategy
+     */
+    fun namingStrategy(strategy: NamingStrategy) {
+        this.namingStrategy.set(strategy)
+    }
+
+    /**
+     * Sets the [runtimePackage] property.
+     *
+     * @param runtimePackage the package
+     */
+    fun runtimePackage(runtimePackage: String) {
+        this.runtimePackage.set(runtimePackage)
+    }
+
+    /**
+     * Sets the [mappingWebsite] property.
+     *
+     * @param mappingWebsite base url of the website including protocol
+     */
+    fun mappingWebsite(mappingWebsite: String?) {
+        this.mappingWebsite.set(mappingWebsite)
     }
 
     /**
@@ -340,5 +417,59 @@ class GradleFlavoredClassAccessorBuilder(name: String) : AbstractClassAccessorBu
      */
     fun methodChain(block: Action<MethodChainBuilder>) {
         methodChain0(block::execute)
+    }
+
+    // naming strategy shortcuts
+
+    /**
+     * Shortcut for [me.kcra.takenaka.generator.accessor.naming.prefixed].
+     */
+    fun prefixed(strategy: NamingStrategy, basePackage: String): NamingStrategy {
+        return strategy.prefixed(basePackage)
+    }
+
+    /**
+     * Shortcut for [StandardNamingStrategies.SIMPLE].
+     */
+    fun simple(): NamingStrategy {
+        return StandardNamingStrategies.SIMPLE
+    }
+
+    /**
+     * Shortcut for [me.kcra.takenaka.generator.accessor.naming.prefixed] and
+     * [me.kcra.takenaka.generator.accessor.naming.resolveSimpleConflicts] called on [StandardNamingStrategies.SIMPLE].
+     */
+    fun prefixedSimple(basePackage: String): NamingStrategy {
+        return StandardNamingStrategies.SIMPLE.prefixed(basePackage).resolveSimpleConflicts()
+    }
+
+    /**
+     * Shortcut for [StandardNamingStrategies.SEMI_QUALIFIED].
+     */
+    fun semiQualified(): NamingStrategy {
+        return StandardNamingStrategies.SEMI_QUALIFIED
+    }
+
+    /**
+     * Shortcut for [me.kcra.takenaka.generator.accessor.naming.prefixed]
+     * called on [StandardNamingStrategies.SEMI_QUALIFIED].
+     */
+    fun prefixedSemiQualified(basePackage: String): NamingStrategy {
+        return StandardNamingStrategies.SEMI_QUALIFIED.prefixed(basePackage)
+    }
+
+    /**
+     * Shortcut for [StandardNamingStrategies.FULLY_QUALIFIED].
+     */
+    fun fullyQualified(): NamingStrategy {
+        return StandardNamingStrategies.FULLY_QUALIFIED
+    }
+
+    /**
+     * Shortcut for [me.kcra.takenaka.generator.accessor.naming.prefixed]
+     * called on [StandardNamingStrategies.FULLY_QUALIFIED].
+     */
+    fun prefixedFullyQualified(basePackage: String): NamingStrategy {
+        return StandardNamingStrategies.FULLY_QUALIFIED.prefixed(basePackage)
     }
 }

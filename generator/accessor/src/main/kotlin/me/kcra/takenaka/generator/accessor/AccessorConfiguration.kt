@@ -18,6 +18,15 @@
 package me.kcra.takenaka.generator.accessor
 
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
+import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
+import me.kcra.takenaka.generator.accessor.naming.StandardNamingStrategies
+import me.kcra.takenaka.generator.accessor.naming.prefixed
+import me.kcra.takenaka.generator.accessor.naming.resolveSimpleConflicts
+
+/**
+ * The default package of the `generator-accessor-plugin` module.
+ */
+const val DEFAULT_RUNTIME_PACKAGE = "me.kcra.takenaka.accessor"
 
 /**
  * Configuration for [AccessorGenerator].
@@ -29,14 +38,21 @@ import me.kcra.takenaka.generator.accessor.model.ClassAccessor
  * @property namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
  * @property accessedNamespaces the namespaces that should be used in accessors
  * @property craftBukkitVersionReplaceCandidates namespaces that should have [me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion] applied (most likely Spigot mappings or a flavor of them)
+ * @property namingStrategy the strategy used to name generated classes and their members
+ * @property runtimePackage the package of the used accessor runtime
+ * @property mappingWebsite the base url of the mapping website
  * @author Matouš Kučera
  */
 data class AccessorConfiguration(
     val accessors: List<ClassAccessor>, // TODO: move to AccessorGenerator constructor
-    val basePackage: String,
+    @Deprecated("The base package concept was superseded by naming strategies.")
+    val basePackage: String = "",
     val codeLanguage: CodeLanguage = CodeLanguage.JAVA,
     val accessorType: AccessorType = AccessorType.NONE,
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val accessedNamespaces: List<String> = namespaceFriendlinessIndex,
-    val craftBukkitVersionReplaceCandidates: List<String> = emptyList()
+    val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
+    val namingStrategy: NamingStrategy = StandardNamingStrategies.SIMPLE.prefixed(basePackage).resolveSimpleConflicts(),
+    val runtimePackage: String = DEFAULT_RUNTIME_PACKAGE,
+    val mappingWebsite: String? = null
 )

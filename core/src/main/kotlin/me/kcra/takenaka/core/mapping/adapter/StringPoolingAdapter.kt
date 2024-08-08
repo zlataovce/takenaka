@@ -17,43 +17,34 @@
 
 package me.kcra.takenaka.core.mapping.adapter
 
-import io.github.oshai.kotlinlogging.KotlinLogging
+import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
 
-private val logger = KotlinLogging.logger {}
-
 /**
- * A mapping visitor that skips field and method mappings with a null descriptor.
- * This is adapted from the mapping-io [net.fabricmc.mappingio.adapter.MissingDescFilter] class, this one includes logging on top.
+ * Pools element name and descriptor strings (using [String.intern]).
  *
  * @param next the visitor to delegate to
  * @author Matouš Kučera
  */
-class MissingDescriptorFilter(next: MappingVisitor) : ForwardingMappingVisitor(next) {
-    private var currentClass: String? = null
-
+class StringPoolingAdapter(next: MappingVisitor) : ForwardingMappingVisitor(next) {
     override fun visitClass(srcName: String?): Boolean {
-        currentClass = srcName
-
-        return super.visitClass(srcName)
+        return super.visitClass(srcName?.intern())
     }
 
     override fun visitField(srcName: String?, srcDesc: String?): Boolean {
-        if (srcDesc == null) {
-            logger.debug { "ignored null descriptor of field $srcName in class $currentClass" }
-            return false
-        }
-
-        return super.visitField(srcName, srcDesc)
+        return super.visitField(srcName?.intern(), srcDesc?.intern())
     }
 
     override fun visitMethod(srcName: String?, srcDesc: String?): Boolean {
-        if (srcDesc == null) {
-            logger.debug { "ignored null descriptor of method $srcName in class $currentClass" }
-            return false
-        }
+        return super.visitMethod(srcName?.intern(), srcDesc?.intern())
+    }
 
-        return super.visitMethod(srcName, srcDesc)
+    override fun visitDstName(targetKind: MappedElementKind?, namespace: Int, name: String?) {
+        super.visitDstName(targetKind, namespace, name?.intern())
+    }
+
+    override fun visitDstDesc(targetKind: MappedElementKind?, namespace: Int, desc: String?) {
+        super.visitDstDesc(targetKind, namespace, desc?.intern())
     }
 }

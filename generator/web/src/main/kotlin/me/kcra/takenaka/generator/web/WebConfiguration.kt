@@ -201,7 +201,7 @@ class WebConfigurationBuilder {
      * @param licenseSourceKey the license source metadata key in the mapping tree
      */
     fun namespace(name: String, friendlyName: String, color: String, licenseContentKey: String, licenseSourceKey: String = "${licenseContentKey}_source") {
-        namespaces += name to NamespaceDescription(friendlyName, color, LicenseReference(licenseContentKey, licenseSourceKey))
+        namespaces += name to NamespaceDescription(friendlyName, color, licenseContentKey, licenseSourceKey)
     }
 
     /**

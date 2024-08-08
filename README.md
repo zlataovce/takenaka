@@ -24,8 +24,8 @@ The goal of this project is to improve the maintainability and performance of th
 - [x] Searge (Forge) mappings
 - [x] Spigot mappings
 - [x] Yarn (FabricMC) mappings
-- [ ] Hashed (QuiltMC) mappings (PRs welcome!)
-- [ ] QuiltMC mappings (PRs welcome!)
+- [x] Hashed (QuiltMC) mappings
+- [x] QuiltMC mappings
 
 ## Usage
 
@@ -83,7 +83,7 @@ accessors {
     // if you don't, you will get accessors mapped for everything that the bundle offers, i.e. 1.8.8 to 1.20.6
     
     basePackage("org.example.myplugin.accessors") // this is the base package of the generated output, probably somewhere in your plugin/library's namespace
-    accessedNamespaces("spigot", "mojang") // these are the "namespaces" that can be queried on runtime, i.e. "spigot" (for Spigot/CraftBukkit/Paper), "searge" (for Forge), "mojang" (for Mojang-mapped Paper - >1.20.4), "yarn" (not useful on runtime) or "intermediary" (for Fabric)
+    namespaces("spigot", "mojang") // these are the "namespaces" that can be queried on runtime, i.e. "spigot" (for Spigot/CraftBukkit/Paper), "searge" (for Forge), "mojang" (for Mojang-mapped Paper - >1.20.4), "yarn" (not useful on runtime), "intermediary" (for Fabric), "quilt" or "hashed" (for Quilt)
     accessorType("reflection") // this is the generated accessor type, can be "none" (no accessor breakout classes are generated, only a mapping class that can be queried), "reflection" or "method_handles" (self-explanatory, java.lang.reflect or java.lang.invoke accessors)
     
     // there are many more options, like mapping for clients, IntelliJ's source JAR view and auto-complete are your friends (Ctrl+Click)
@@ -126,6 +126,8 @@ Usage: web-cli options_list
 Options: 
     --output, -o [output] -> Output directory { String }
     --version, -v -> Target Minecraft version, can be specified multiple times (always required) { String }
+    --namespace, -n -> Target namespace, can be specified multiple times, order matters { String }
+    --ancestryNamespace, -a -> Target ancestry namespace, can be specified multiple times, has to be a subset of --namespace { String }
     --cache, -c [cache] -> Caching directory for mappings and other resources { String }
     --server [false] -> Include server mappings in the documentation 
     --client [false] -> Include client mappings in the documentation 
@@ -141,7 +143,28 @@ Options:
 ```
 
 The command-line to build a [mappings.dev](https://mappings.dev) clone would look something like this:
-`java -jar generator-web-cli-<latest version here>.jar --client --server -v 1.20.2 -v 1.20.1 ... (more versions follow)`
+`java -jar generator-web-cli-<latest version here>.jar --client --server -n mojang -n spigot -n yarn -n searge -n intermediary -v 1.20.2 -v 1.20.1 ... (more versions follow)`
+
+#### `--namespace` option
+
+This option allows you to specify a custom namespace subset and preference ordering.
+Useful if you want to build an instance for only modding mappings for example.
+
+For the Fabric toolchain, you would specify something along the lines of `-n yarn -n intermediary`,
+that resolves only the Yarn and Intermediary mappings, with Yarn names used for the links/overview pages/...
+and Intermediary being a fallback that is used if a Yarn name is not present.
+Both namespaces will still be shown as usual on class detail pages.
+
+*The `source` (obfuscated) namespace is always implicitly appended last.*
+
+By default, all available namespaces are used (`mojang, spigot, yarn, quilt, searge, intermediary, hashed`).
+
+#### `--ancestryNamespace` option
+
+This option allows you to select a subset of defined namespaces (`--namespace` choices or its default), which will be
+used for ancestry computation. This option is more advanced and most users won't need to use it, the default suffices for most cases.
+
+By default, the `mojang, spigot, searge, intermediary` namespaces are used, minus ones that haven't been defined (`--namespace` choices or its default).
 
 #### `--javadoc` option
 
@@ -149,7 +172,7 @@ The expected value can be:
 - a plus-sign delimited pair of a supported package and a link to the Javadoc root (Javadoc sites _with no modules_): `org.slf4j+https://www.slf4j.org/api`
 - a link to the Javadoc root (Javadoc sites _with modules_): `https://docs.oracle.com/en/java/javase/17/docs/api`
 
-**Java 17 API is included automatically for indexing.**
+**Java 21 API is included automatically for indexing.**
 
 ## Acknowledgements
 

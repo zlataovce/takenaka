@@ -27,5 +27,14 @@ package me.kcra.takenaka.generator.web
 data class NamespaceDescription(
     val friendlyName: String,
     val color: String,
-    val license: LicenseReference?
-)
+    val license: LicenseReference? = null
+) {
+    /**
+     * @param friendlyName the namespace friendly name, which will be shown on the site
+     * @param color the namespace badge color
+     * @param licenseContentKey the license content metadata key for this namespace version
+     * @param licenseSourceKey the license source metadata key for this namespace version
+     */
+    constructor(friendlyName: String, color: String, licenseContentKey: String, licenseSourceKey: String = "${licenseContentKey}_source") :
+            this(friendlyName, color, LicenseReference(licenseContentKey, licenseSourceKey))
+}

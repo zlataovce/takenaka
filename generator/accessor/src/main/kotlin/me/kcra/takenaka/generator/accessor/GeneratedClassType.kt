@@ -15,25 +15,27 @@
  * limitations under the License.
  */
 
-package me.kcra.takenaka.core.util
+package me.kcra.takenaka.generator.accessor
 
 /**
- * Creates a new immutable map entry.
+ * Generated class types.
  *
- * @param key the entry key
- * @param value the entry value
- * @return the entry
+ * @author Michal Turek
+ * @author Matouš Kučera
  */
-fun <K, V> entryOf(key: K, value: V): Map.Entry<K, V> = java.util.AbstractMap.SimpleImmutableEntry(key, value)
+enum class GeneratedClassType {
+    /**
+     * Mapping class.
+     */
+    MAPPING,
 
-/**
- * Builds an ordered [Map] from a collection of pairs.
- *
- * Useful for doing in-place ordering changes before the map is created.
- *
- * @param action the builder action
- * @return the built map
- */
-fun <K, V> buildOrderedMap(action: MutableList<Pair<K, V>>.() -> Unit): Map<K, V> {
-    return mutableListOf<Pair<K, V>>().apply(action).toMap()
+    /**
+     * Accessor class.
+     */
+    ACCESSOR,
+
+    /**
+     * Mapping lookup class.
+     */
+    LOOKUP
 }

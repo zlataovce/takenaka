@@ -20,6 +20,7 @@ package me.kcra.takenaka.core.util
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
@@ -27,10 +28,22 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import java.nio.file.Path
 
 /**
+ * An internal instance of an [ObjectMapper].
+ */
+@Suppress("DEPRECATION")
+internal val MAPPER = objectMapper()
+
+/**
+ * An internal instance of an [XmlMapper].
+ */
+internal val XML_MAPPER = XmlMapper()
+
+/**
  * Creates a new ObjectMapper with all modules necessary for deserializing manifests.
  *
  * @return the object mapper
  */
+@Deprecated("Jackson will be an implementation detail in the future.")
 fun objectMapper(): ObjectMapper = jsonMapper {
     addModule(kotlinModule())
     addModule(JavaTimeModule())

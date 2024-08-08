@@ -17,12 +17,15 @@
 
 package me.kcra.takenaka.core.mapping.resolve.impl
 
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.*
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingNsRenamer
@@ -59,7 +62,7 @@ class IntermediaryMappingResolver(
             val url = URL("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/${version.id}.tiny")
             val length = url.contentLength
 
-            if (length == (-1).toLong()) {
+            if (length == -1L) {
                 logger.info { "did not find Intermediary mappings for ${version.id}" }
                 return@resolver null
             }
@@ -73,18 +76,19 @@ class IntermediaryMappingResolver(
                 logger.warn { "length mismatch for ${version.id} Intermediary mapping cache, fetching them again" }
             }
 
-            url.httpRequest {
-                if (it.ok) {
-                    it.copyTo(file)
+            withContext(Dispatchers.IO + CoroutineName("resolve-coro")) {
+                url.httpRequest {
+                    if (it.ok) {
+                        it.copyTo(file)
 
-                    logger.info { "fetched ${version.id} Intermediary mappings" }
-                    return@resolver file
+                        logger.info { "fetched ${version.id} Intermediary mappings" }
+                        return@httpRequest file
+                    }
+
+                    logger.warn { "failed to fetch ${version.id} Intermediary mappings, received ${it.responseCode}" }
+                    return@httpRequest null
                 }
-
-                logger.warn { "failed to fetch ${version.id} Intermediary mappings, received ${it.responseCode}" }
             }
-
-            return@resolver null
         }
 
         upToDateWhen { it == null || it.isRegularFile() }
@@ -94,13 +98,12 @@ class IntermediaryMappingResolver(
         resolver {
             licenseWorkspace.withLock(WORKSPACE_LOCK) {
                 val file = licenseWorkspace[LICENSE]
-
                 if (LICENSE in licenseWorkspace) {
                     logger.info { "found cached Intermediary license file" }
                     return@withLock file
                 }
 
-                URL(licenseSource).copyTo(file)
+                URL(licenseSource).copyTo(file) // TODO: use IO context
 
                 logger.info { "fetched Intermediary license file" }
                 return@withLock file

@@ -19,7 +19,6 @@ package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.util.*
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -28,19 +27,16 @@ import java.net.URL
 private val logger = KotlinLogging.logger {}
 
 /**
- * A provider of Yarn's maven-metadata.xml file.
+ * A provider of Quilt's maven-metadata.xml file.
  *
  * This class is thread-safe, but presumes that only one instance will operate on a workspace at a time.
  *
  * @property workspace the workspace
- * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
  * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
+ * @author Florentin Schleuß
  */
-class YarnMetadataProvider @Deprecated(
-    "Jackson will be an implementation detail in the future.",
-    ReplaceWith("YarnMetadataProvider(workspace, relaxedCache)")
-) constructor(val workspace: Workspace, private val xmlMapper: ObjectMapper, val relaxedCache: Boolean = true) {
+class QuiltMetadataProvider(val workspace: Workspace, val relaxedCache: Boolean = true) {
     /**
      * A map of versions and their builds.
      */
@@ -52,32 +48,14 @@ class YarnMetadataProvider @Deprecated(
     private val metadata by lazy(::readMetadata)
 
     /**
-     * Creates a new metadata provider.
-     *
-     * @param workspace the workspace
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    @Suppress("DEPRECATION")
-    constructor(workspace: Workspace, relaxedCache: Boolean = true) : this(workspace, XML_MAPPER, relaxedCache)
-
-    /**
-     * Parses Yarn version strings in the metadata file.
+     * Parses Quilt version strings in the metadata file.
      *
      * @return the version metadata
      */
-    private fun parseVersions(): Map<String, List<YarnBuild>> = buildMap<String, MutableList<YarnBuild>> {
+    private fun parseVersions(): Map<String, List<QuiltBuild>> = buildMap<String, MutableList<QuiltBuild>> {
         metadata["versioning"]["versions"]["version"].forEach { versionNode ->
-            val buildString = versionNode.asText()
-            val isNewFormat = "+build" in buildString
-
-            val lastDotIndex = buildString.lastIndexOf('.')
-
-            var version = buildString.substring(0, lastDotIndex)
-            if (isNewFormat) version = version.removeSuffix("+build")
-
-            val buildNumber = buildString.substring(lastDotIndex + 1, buildString.length).toInt()
-
-            getOrPut(version, ::mutableListOf) += YarnBuild(version, buildNumber, isNewFormat)
+            val (version, buildNumber) = versionNode.asText().split("+build.", limit = 2)
+            getOrPut(version, ::mutableListOf) += QuiltBuild(version, buildNumber.toInt())
         }
     }
 
@@ -89,49 +67,45 @@ class YarnMetadataProvider @Deprecated(
     private fun readMetadata(): JsonNode {
         val file = workspace[METADATA]
 
-        val metadataLocation = "https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml"
+        val metadataLocation = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/maven-metadata.xml"
         if (relaxedCache && METADATA in workspace) {
             URL("$metadataLocation.sha1").httpRequest {
                 if (it.readText() == file.getChecksum(sha1Digest)) {
                     try {
-                        return xmlMapper.readTree(file).apply {
-                            logger.info { "read cached Yarn mappings metadata" }
+                        return XML_MAPPER.readTree(file).apply {
+                            logger.info { "read cached Quilt mappings metadata" }
                         }
                     } catch (e: JacksonException) {
-                        logger.warn(e) { "failed to read cached Yarn mappings metadata, fetching it again" }
+                        logger.warn(e) { "failed to read cached Quilt mappings metadata, fetching it again" }
                     }
                 } else {
-                    logger.warn { "cached Yarn mappings metadata is outdated or corrupt, fetching it again" }
+                    logger.warn { "cached Quilt mappings metadata is outdated or corrupt, fetching it again" }
                 }
             }
         }
 
         URL(metadataLocation).copyTo(file)
 
-        logger.info { "fetched Yarn metadata" }
-        return xmlMapper.readTree(file)
+        logger.info { "fetched Quilt metadata" }
+        return XML_MAPPER.readTree(file)
     }
 
     companion object {
         /**
          * The file name of the cached version metadata.
          */
-        const val METADATA = "yarn_metadata.xml"
+        const val METADATA = "quilt_metadata.xml"
     }
 }
 
 /**
- * Information about one Yarn build.
+ * Information about one Quilt build.
  *
  * @property version the Minecraft version that this build is for
- * @property buildNumber the Yarn build number, higher is newer
- * @property isNewFormat whether this build is named via the new format ("version+build.build_number" as opposed to "version.build_number")
+ * @property buildNumber the Quilt build number, higher is newer
  */
-data class YarnBuild(val version: String, val buildNumber: Int, val isNewFormat: Boolean) {
+data class QuiltBuild(val version: String, val buildNumber: Int) {
     override fun toString(): String {
-        if (isNewFormat) {
-            return "$version+build.$buildNumber"
-        }
-        return "$version.$buildNumber"
+        return "$version+build.$buildNumber"
     }
 }

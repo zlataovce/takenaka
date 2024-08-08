@@ -2,7 +2,7 @@
 kotlin = "1.9.22"
 asm = "9.7"
 jackson = "2.17.1"
-kotlinpoet = "1.16.0"
+kotlinpoet = "1.17.0"
 
 [libraries]
 kotlin-stdlib-jdk8 = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib-jdk8", version.ref = "kotlin" }
@@ -13,9 +13,9 @@ jackson-module-kotlin = { group = "com.fasterxml.jackson.module", name = "jackso
 jackson-datatype-jsr310 = { group = "com.fasterxml.jackson.datatype", name = "jackson-datatype-jsr310", version.ref = "jackson" }
 jackson-dataformat-xml = { group = "com.fasterxml.jackson.dataformat", name = "jackson-dataformat-xml", version.ref = "jackson" }
 mapping-io = { group = "net.fabricmc", name = "mapping-io", version = "0.4.2" }
-kotlin-logging-jvm = { group = "io.github.microutils", name = "kotlin-logging-jvm", version = "3.0.5" }
+kotlin-logging-jvm = { group = "io.github.oshai", name = "kotlin-logging-jvm", version = "6.0.9" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version = "2.0.13" }
-kotlinx-coroutines-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core-jvm", version = "1.8.0" }
+kotlinx-coroutines-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core-jvm", version = "1.8.1" }
 kotlinx-html-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-html-jvm", version = "0.11.0" }
 kotlinx-cli-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-cli-jvm", version = "0.3.6" }
 jb-annotations = { group = "org.jetbrains", name = "annotations", version = "24.1.0" }
@@ -24,6 +24,7 @@ kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotli
 kotlinpoet-javapoet = { group = "com.squareup", name = "kotlinpoet-javapoet", version.ref = "kotlinpoet" }
 build-licenser = { group = "org.cadixdev.licenser", name = "org.cadixdev.licenser.gradle.plugin", version = "0.6.1" }
 build-gradle-versions = { group = "com.github.ben-manes", name = "gradle-versions-plugin", version = "0.46.0" }
+build-kotlin-jvm = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 
 [bundles]
 kotlin = ["kotlin-stdlib-jdk8", "kotlin-reflect"]
@@ -31,7 +32,6 @@ asm = ["asm", "asm-commons"]
 jackson = ["jackson-module-kotlin", "jackson-datatype-jsr310", "jackson-dataformat-xml"]
 
 [plugins]
-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 shadow = { id = "io.github.goooler.shadow", version = "8.1.7" }
 gradle-plugin-publish = { id = "com.gradle.plugin-publish", version = "1.2.1" }
 build-config = { id = "com.github.gmazzo.buildconfig", version = "5.3.5" }
