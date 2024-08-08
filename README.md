@@ -89,7 +89,7 @@ accessors {
     // there are many more options, like mapping for clients, IntelliJ's source JAR view and auto-complete are your friends (Ctrl+Click)
     
     // now, let's define what we want to access
-    mapClass("net.minecraft.network.Connection") { // basically any name on mappings.cephx.dev apart from the obfuscated one, applies to other definitions as well
+    mapClass("net.minecraft.network.Connection") { // basically any name on mappings.dev apart from the obfuscated one, applies to other definitions as well
         // NOTE: in one member declaration, the field type, method or constructor argument types and the method return type MUST all be from the same namespace (you CAN'T mix e.g. Mojang and Searge names in one declaration)
         // the generation WILL fail if you do this!
         
@@ -114,7 +114,7 @@ accessors {
 
 ### generator-web-cli
 
-A CLI to generate your own mapping documentation site ([mappings.cephx.dev](https://mappings.cephx.dev)).
+A CLI to generate your own mapping documentation site ([mappings.dev](https://mappings.dev)).
 
 The CLI artifact can be acquired either from [the ScreamingSandals Maven repository](https://repo.screamingsandals.org/#/releases/me/kcra/takenaka/generator-web-cli)
 (be sure to select the artifact with the `-all` classifier, else you're going to run into errors) or built and executed from source using the `runShadow` task:
@@ -142,7 +142,7 @@ Options:
     --help, -h -> Usage info
 ```
 
-The command-line to build a [mappings.cephx.dev](https://mappings.cephx.dev) clone would look something like this:
+The command-line to build a [mappings.dev](https://mappings.dev) clone would look something like this:
 `java -jar generator-web-cli-<latest version here>.jar --client --server -n mojang -n spigot -n yarn -n searge -n intermediary -v 1.20.2 -v 1.20.1 ... (more versions follow)`
 
 #### `--namespace` option
