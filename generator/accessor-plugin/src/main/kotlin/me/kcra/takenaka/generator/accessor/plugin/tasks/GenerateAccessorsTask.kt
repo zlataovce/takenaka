@@ -45,7 +45,7 @@ abstract class GenerateAccessorsTask : GenerationTask() {
                 craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get(),
                 namingStrategy = namingStrategy.get(),
                 runtimePackage = runtimePackage.get(),
-                mappingWebsite = mappingWebsite.get()
+                mappingWebsite = mappingWebsite.getOrNull()
             )
         )
 
