@@ -127,9 +127,13 @@ class AncestryTree<T : MappingTreeView, E : ElementMappingView>(
  * Respects existing ordering in case of conflicts - only latest entries are kept, older are discarded.
  *
  * @param nodes the nodes to merge
+ * @param tree the parent tree of the merged node, defaults to the tree of the first specified node
  * @return the merged node
  */
-fun <T : MappingTreeView, E : ElementMappingView> nodeOf(vararg nodes: AncestryTree.Node<T, E>): AncestryTree.Node<T, E> {
+fun <T : MappingTreeView, E : ElementMappingView> nodeOf(
+    vararg nodes: AncestryTree.Node<T, E>,
+    tree: AncestryTree<T, E>? = null,
+): AncestryTree.Node<T, E> {
     require(nodes.isNotEmpty()) {
         "No nodes provided"
     }
@@ -137,11 +141,9 @@ fun <T : MappingTreeView, E : ElementMappingView> nodeOf(vararg nodes: AncestryT
     if (nodes.size == 1) return nodes.first()
 
     // create merged node
-    val lastNode = nodes.last()
     return AncestryTree.Node(
-        lastNode.tree,
+        tree ?: nodes.first().tree,
         nodes.flatMap { it.entries }
-            .associate { it.key to it.value },
-        last = lastNode.last
+            .associateTo(sortedMapOf()) { it.key to it.value }
     )
 }
