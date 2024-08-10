@@ -45,7 +45,7 @@ abstract class GenerateAccessorsTask : GenerationTask() {
                 craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get(),
                 namingStrategy = namingStrategy.get(),
                 runtimePackage = runtimePackage.get(),
-                mappingWebsite = mappingWebsite.get()
+                mappingWebsite = mappingWebsite.orNull
             )
         )
 
@@ -53,7 +53,7 @@ abstract class GenerateAccessorsTask : GenerationTask() {
         runBlocking {
             generator.generate(
                 mappingProvider.get(),
-                SimpleAncestryProvider(historyIndexNamespace.get(), historyNamespaces.get())
+                SimpleAncestryProvider(historyIndexNamespace.orNull, historyNamespaces.get())
             )
         }
     }

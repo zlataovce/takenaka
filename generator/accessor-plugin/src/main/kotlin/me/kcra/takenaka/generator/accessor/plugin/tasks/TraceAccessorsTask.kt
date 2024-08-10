@@ -67,14 +67,15 @@ abstract class TraceAccessorsTask : GenerationTask() {
                     accessedNamespaces = namespaces.get(),
                     craftBukkitVersionReplaceCandidates = craftBukkitVersionReplaceCandidates.get(),
                     namingStrategy = namingStrategy.get(),
-                    runtimePackage = runtimePackage.get()
+                    runtimePackage = runtimePackage.get(),
+                    mappingWebsite = mappingWebsite.orNull
                 )
             )
 
             runBlocking {
                 generator.generate(
                     mappingProvider.get(),
-                    SimpleAncestryProvider(historyIndexNamespace.get(), historyNamespaces.get())
+                    SimpleAncestryProvider(historyIndexNamespace.orNull, historyNamespaces.get())
                 )
             }
 

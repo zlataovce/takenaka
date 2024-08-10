@@ -115,9 +115,9 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
     abstract val historyNamespaces: ListProperty<String>
 
     /**
-     * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch, defaults to [DEFAULT_INDEX_NS].
+     * Namespace that contains ancestry node indices, empty if ancestry should be recomputed from scratch, defaults to [DEFAULT_INDEX_NS].
      */
-    abstract val historyIndexNamespace: Property<String?>
+    abstract val historyIndexNamespace: Property<String>
 
     /**
      * Strategy used to name generated classes and their members, defaults to a conflict-resolving variant of [StandardNamingStrategies.SIMPLE].
@@ -130,9 +130,9 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
     abstract val runtimePackage: Property<String>
 
     /**
-     * Base URL of the mapping website including protocol, defaults to `null`.
+     * Base URL of the mapping website including protocol, defaults to no value.
      */
-    abstract val mappingWebsite: Property<String?>
+    abstract val mappingWebsite: Property<String>
 
     init {
         outputDirectory.convention(project.layout.buildDirectory.dir("takenaka/output"))
@@ -147,7 +147,6 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
         @Suppress("DEPRECATION")
         namingStrategy.convention(basePackage.map { pack -> StandardNamingStrategies.SIMPLE.prefixed(pack).resolveSimpleConflicts() })
         runtimePackage.convention(DEFAULT_RUNTIME_PACKAGE)
-        mappingWebsite.convention(null)
     }
 
     /**
@@ -314,7 +313,12 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      * @param historyIndexNamespace the index namespace, can be null
      */
     fun historyIndexNamespace(historyIndexNamespace: String?) {
-        this.historyIndexNamespace.set(historyIndexNamespace)
+        if (historyIndexNamespace == null) {
+            // workaround to clear the property and ignore the convention
+            this.historyIndexNamespace.set(project.provider { null })
+        } else {
+            this.historyIndexNamespace.set(historyIndexNamespace)
+        }
     }
 
     /**

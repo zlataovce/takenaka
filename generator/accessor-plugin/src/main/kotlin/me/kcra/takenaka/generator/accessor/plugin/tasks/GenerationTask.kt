@@ -127,17 +127,20 @@ abstract class GenerationTask : DefaultTask() {
 
     /**
      * Namespaces that should be used for computing history, defaults to "mojang", "spigot", "searge" and "intermediary".
+     *
+     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.historyNamespaces
      */
     @get:Input
     abstract val historyNamespaces: ListProperty<String>
 
     /**
-     * Namespace that contains ancestry node indices, null if ancestry should be recomputed from scratch, defaults to [DEFAULT_INDEX_NS].
+     * Namespace that contains ancestry node indices, empty if ancestry should be recomputed from scratch, defaults to [DEFAULT_INDEX_NS].
      *
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.historyIndexNamespace
      */
     @get:Input
-    abstract val historyIndexNamespace: Property<String?>
+    @get:Optional
+    abstract val historyIndexNamespace: Property<String>
 
     /**
      * Strategy used to name generated classes and their members.
@@ -156,11 +159,12 @@ abstract class GenerationTask : DefaultTask() {
     abstract val runtimePackage: Property<String>
 
     /**
-     * Base URL of the mapping website including protocol, defaults to `null`.
+     * Base URL of the mapping website including protocol.
      *
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.mappingWebsite
      */
     @get:Input
+    @get:Optional
     abstract val mappingWebsite: Property<String>
 
     /**
@@ -185,6 +189,5 @@ abstract class GenerationTask : DefaultTask() {
         @Suppress("DEPRECATION")
         namingStrategy.convention(basePackage.map { pack -> StandardNamingStrategies.SIMPLE.prefixed(pack).resolveSimpleConflicts() })
         runtimePackage.convention(DEFAULT_RUNTIME_PACKAGE)
-        mappingWebsite.convention(null)
     }
 }
