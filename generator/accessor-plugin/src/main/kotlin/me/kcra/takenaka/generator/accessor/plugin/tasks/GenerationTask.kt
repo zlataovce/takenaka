@@ -161,6 +161,7 @@ abstract class GenerationTask : DefaultTask() {
      * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.mappingWebsite
      */
     @get:Input
+    @get:Optional
     abstract val mappingWebsite: Property<String>
 
     /**
