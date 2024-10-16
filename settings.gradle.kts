@@ -1,5 +1,10 @@
 pluginManagement {
     includeBuild("build-logic")
+
+    repositories {
+        gradlePluginPortal()
+        maven("https://maven.neoforged.net/releases")
+    }
 }
 
 fun includeComposite(name: String, vararg modules: String) {

@@ -1,7 +1,7 @@
 import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
 
 plugins {
-    id("org.cadixdev.licenser")
+    id("net.neoforged.licenser")
     id("com.github.ben-manes.versions")
     `maven-publish`
     `java-library`

@@ -1,7 +1,7 @@
 [versions]
-kotlin = "1.9.22"
-asm = "9.7"
-jackson = "2.17.1"
+kotlin = "1.9.24"
+asm = "9.7.1"
+jackson = "2.18.0"
 kotlinpoet = "1.17.0"
 
 [libraries]
@@ -14,16 +14,16 @@ jackson-datatype-jsr310 = { group = "com.fasterxml.jackson.datatype", name = "ja
 jackson-dataformat-xml = { group = "com.fasterxml.jackson.dataformat", name = "jackson-dataformat-xml", version.ref = "jackson" }
 mapping-io = { group = "net.fabricmc", name = "mapping-io", version = "0.4.2" }
 kotlin-logging-jvm = { group = "io.github.oshai", name = "kotlin-logging-jvm", version = "6.0.9" }
-slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version = "2.0.13" }
+slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version = "2.0.16" }
 kotlinx-coroutines-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core-jvm", version = "1.8.1" }
 kotlinx-html-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-html-jvm", version = "0.11.0" }
 kotlinx-cli-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-cli-jvm", version = "0.3.6" }
-jb-annotations = { group = "org.jetbrains", name = "annotations", version = "24.1.0" }
+jb-annotations = { group = "org.jetbrains", name = "annotations", version = "26.0.1" }
 javapoet = { group = "com.squareup", name = "javapoet", version = "1.13.0" }
 kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotlinpoet" }
 kotlinpoet-javapoet = { group = "com.squareup", name = "kotlinpoet-javapoet", version.ref = "kotlinpoet" }
-build-licenser = { group = "org.cadixdev.licenser", name = "org.cadixdev.licenser.gradle.plugin", version = "0.6.1" }
-build-gradle-versions = { group = "com.github.ben-manes", name = "gradle-versions-plugin", version = "0.46.0" }
+build-licenser = { group = "net.neoforged.licenser", name = "licenser", version = "0.7.5" }
+build-gradle-versions = { group = "com.github.ben-manes", name = "gradle-versions-plugin", version = "0.51.0" }
 build-kotlin-jvm = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 
 [bundles]
@@ -32,6 +32,6 @@ asm = ["asm", "asm-commons"]
 jackson = ["jackson-module-kotlin", "jackson-datatype-jsr310", "jackson-dataformat-xml"]
 
 [plugins]
-shadow = { id = "io.github.goooler.shadow", version = "8.1.7" }
-gradle-plugin-publish = { id = "com.gradle.plugin-publish", version = "1.2.1" }
-build-config = { id = "com.github.gmazzo.buildconfig", version = "5.3.5" }
+shadow = { id = "com.gradleup.shadow", version = "8.3.3" }
+gradle-plugin-publish = { id = "com.gradle.plugin-publish", version = "1.3.0" }
+build-config = { id = "com.github.gmazzo.buildconfig", version = "5.5.0" }
