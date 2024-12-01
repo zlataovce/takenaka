@@ -17,7 +17,6 @@
 
 package me.kcra.takenaka.core.mapping.resolve.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -62,21 +61,6 @@ class YarnMappingResolver(
     override val targetNamespace: String = "yarn"
     override val outputs: List<Output<out Path?>>
         get() = listOf(mappingOutput, licenseOutput)
-
-    /**
-     * Creates a new resolver with a default metadata provider.
-     *
-     * @param workspace the workspace
-     * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    @Deprecated(
-        "Jackson will be an implementation detail in the future.",
-        ReplaceWith("YarnMappingResolver(workspace, relaxedCache)")
-    )
-    @Suppress("DEPRECATION")
-    constructor(workspace: VersionedWorkspace, xmlMapper: ObjectMapper, relaxedCache: Boolean = true)
-            : this(workspace, YarnMetadataProvider(workspace, xmlMapper), relaxedCache)
 
     /**
      * Creates a new resolver with a default metadata provider.

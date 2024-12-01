@@ -17,8 +17,6 @@
 
 package me.kcra.takenaka.generator.web.pages
 
-import kotlinx.html.*
-import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
@@ -30,9 +28,9 @@ import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.generator.web.ContextualElementRemapper
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.*
+import me.kcra.takenaka.generator.web.util.*
 import net.fabricmc.mappingio.tree.MappingTreeView
 import net.fabricmc.mappingio.tree.MappingTreeView.*
-import org.w3c.dom.Document
 import java.util.*
 
 /**
@@ -41,7 +39,7 @@ import java.util.*
  * @param node the ancestry node
  * @return the generated document
  */
-fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTMLDocument().html {
+fun GenerationContext.historyPage(node: ClassAncestryNode): String = buildHTML {
     val lastFriendlyMapping = getFriendlyDstName(node.last.value).fromInternalName()
 
     val classNameRows = buildDiff {
@@ -181,110 +179,107 @@ fun GenerationContext.historyPage(node: ClassAncestryNode): Document = createHTM
         }
     }
 
-    lang = "en"
-    head {
-        defaultResourcesComponent(rootPath = "../")
-        if (generator.config.emitMetaTags) {
-            metadataComponent(
-                title = lastFriendlyMapping,
-                description = if (node.size == 1) "1 version, ${node.first.key.id}" else "${node.size} versions, ${node.first.key.id} - ${node.last.key.id}",
-                themeColor = generator.config.themeColor
-            )
-        }
-        title(content = "history - $lastFriendlyMapping")
-    }
-    body {
-        navPlaceholderComponent()
-        main {
-            h1 {
-                +"History - $lastFriendlyMapping"
+    html(lang = "en") {
+        head {
+            defaultResourcesComponent(rootPath = "../")
+            if (generator.config.emitMetaTags) {
+                metadataComponent(
+                    title = lastFriendlyMapping,
+                    description = if (node.size == 1) "1 version, ${node.first.key.id}" else "${node.size} versions, ${node.first.key.id} - ${node.last.key.id}",
+                    themeColor = generator.config.themeColor
+                )
             }
-            spacerBottomComponent()
-
-            classNameRows.entries.forEachIndexed { i, (version, rows) ->
-                val klass = checkNotNull(node[version]) {
-                    "Could not resolve ${version.id} mapping of $lastFriendlyMapping"
-                }
-
-                h3 {
-                    a(href = "../${version.id}/${getFriendlyDstName(klass)}.html") {
-                        +version.id
-                    }
-                }
-                if (i == (classNameRows.size - 1)) { // is last (oldest)?
-                    p(classes = "diff-status diff-first-occurrence")
-                }
-                p(classes = "diff-title") {
-                    +"Names"
-                }
-                if (rows.isNotEmpty()) {
-                    rows.forEach { row ->
-                        p(classes = "diff-${row.type}") {
-                            textBadgeComponent(row.key, getFriendlyNamespaceBadgeColor(row.key), styleProvider)
-                            +row.value
-                        }
-                    }
-                } else {
-                    p(classes = "diff-status diff-no-changes")
-                }
-
-                val versionFieldRows = fieldRows[version] ?: emptyList()
-
-                p(classes = "diff-title") {
-                    +"Fields"
-                }
-                if (versionFieldRows.isNotEmpty()) {
-                    versionFieldRows.forEach { row ->
-                        p(classes = "diff-${row.type}") {
-                            unsafe {
-                                +row.value.toString()
-                            }
-                        }
-                    }
-                } else {
-                    p(classes = "diff-status diff-no-changes")
-                }
-
-                val versionCtorRows = constructorRows[version] ?: emptyList()
-
-                p(classes = "diff-title") {
-                    +"Constructors"
-                }
-                if (versionCtorRows.isNotEmpty()) {
-                    versionCtorRows.forEach { row ->
-                        p(classes = "diff-${row.type}") {
-                            unsafe {
-                                +row.value.descriptor
-                            }
-                        }
-                    }
-                } else {
-                    p(classes = "diff-status diff-no-changes")
-                }
-
-                val versionMethodRows = methodRows[version] ?: emptyList()
-
-                p(classes = "diff-title") {
-                    +"Methods"
-                }
-                if (versionMethodRows.isNotEmpty()) {
-                    versionMethodRows.forEach { row ->
-                        p(classes = "diff-${row.type}") {
-                            unsafe {
-                                +row.value.toString()
-                            }
-                        }
-                    }
-                } else {
-                    p(classes = "diff-status diff-no-changes")
-                }
-
-                if (i != (classNameRows.size - 1)) {
-                    spacerYComponent()
-                }
+            title {
+                append("history - $lastFriendlyMapping")
             }
         }
-        footerPlaceholderComponent()
+        body {
+            navPlaceholderComponent()
+            main {
+                h1 {
+                    append("History - $lastFriendlyMapping")
+                }
+                spacerBottomComponent()
+
+                classNameRows.entries.forEachIndexed { i, (version, rows) ->
+                    val klass = checkNotNull(node[version]) {
+                        "Could not resolve ${version.id} mapping of $lastFriendlyMapping"
+                    }
+
+                    h3 {
+                        a(href = "../${version.id}/${getFriendlyDstName(klass)}.html") {
+                            append(version.id)
+                        }
+                    }
+                    if (i == (classNameRows.size - 1)) { // is last (oldest)?
+                        p(classes = "diff-status diff-first-occurrence")
+                    }
+                    p(classes = "diff-title") {
+                        append("Names")
+                    }
+                    if (rows.isNotEmpty()) {
+                        rows.forEach { row ->
+                            p(classes = "diff-${row.type}") {
+                                textBadgeComponent(row.key, getFriendlyNamespaceBadgeColor(row.key), styleProvider)
+                                append(row.value)
+                            }
+                        }
+                    } else {
+                        p(classes = "diff-status diff-no-changes")
+                    }
+
+                    val versionFieldRows = fieldRows[version] ?: emptyList()
+
+                    p(classes = "diff-title") {
+                        append("Fields")
+                    }
+                    if (versionFieldRows.isNotEmpty()) {
+                        versionFieldRows.forEach { row ->
+                            p(classes = "diff-${row.type}") {
+                                append(row.value.toString())
+                            }
+                        }
+                    } else {
+                        p(classes = "diff-status diff-no-changes")
+                    }
+
+                    val versionCtorRows = constructorRows[version] ?: emptyList()
+
+                    p(classes = "diff-title") {
+                        append("Constructors")
+                    }
+                    if (versionCtorRows.isNotEmpty()) {
+                        versionCtorRows.forEach { row ->
+                            p(classes = "diff-${row.type}") {
+                                append(row.value.descriptor)
+                            }
+                        }
+                    } else {
+                        p(classes = "diff-status diff-no-changes")
+                    }
+
+                    val versionMethodRows = methodRows[version] ?: emptyList()
+
+                    p(classes = "diff-title") {
+                        append("Methods")
+                    }
+                    if (versionMethodRows.isNotEmpty()) {
+                        versionMethodRows.forEach { row ->
+                            p(classes = "diff-${row.type}") {
+                                append(row.value.toString())
+                            }
+                        }
+                    } else {
+                        p(classes = "diff-status diff-no-changes")
+                    }
+
+                    if (i != (classNameRows.size - 1)) {
+                        spacerYComponent()
+                    }
+                }
+            }
+            footerPlaceholderComponent()
+        }
     }
 }
 

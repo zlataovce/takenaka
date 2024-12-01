@@ -17,13 +17,11 @@
 
 package me.kcra.takenaka.generator.web.pages
 
-import kotlinx.html.*
-import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.*
-import org.w3c.dom.Document
+import me.kcra.takenaka.generator.web.util.*
 
 /**
  * Generates an overview page.
@@ -32,48 +30,51 @@ import org.w3c.dom.Document
  * @param packages the packages in this version
  * @return the generated document
  */
-fun GenerationContext.overviewPage(workspace: VersionedWorkspace, packages: Set<String>): Document = createHTMLDocument().html {
-    lang = "en"
-    head {
-        versionRootComponent()
-        defaultResourcesComponent(rootPath = "../")
-        if (generator.config.emitMetaTags) {
-            metadataComponent(
-                title = workspace.version.id,
-                description = if (packages.size == 1) "1 package" else "${packages.size} packages",
-                themeColor = generator.config.themeColor
-            )
-        }
-        title(content = "overview - ${workspace.version.id}")
-    }
-    body {
-        navPlaceholderComponent()
-        main {
-            h1 {
-                +workspace.version.id
+fun GenerationContext.overviewPage(workspace: VersionedWorkspace, packages: Set<String>): String = buildHTML {
+    html(lang = "en") {
+        head {
+            versionRootComponent()
+            defaultResourcesComponent(rootPath = "../")
+            if (generator.config.emitMetaTags) {
+                metadataComponent(
+                    title = workspace.version.id,
+                    description = if (packages.size == 1) "1 package" else "${packages.size} packages",
+                    themeColor = generator.config.themeColor
+                )
             }
-            spacerBottomComponent()
-            table(classes = "styled-table") {
-                thead {
-                    tr {
-                        th {
-                            +"Package"
+            title {
+                append("overview - ${workspace.version.id}")
+            }
+        }
+        body {
+            navPlaceholderComponent()
+            main {
+                h1 {
+                    append(workspace.version.id)
+                }
+                spacerBottomComponent()
+                table(classes = "styled-table") {
+                    thead {
+                        tr {
+                            th {
+                                append("Package")
+                            }
                         }
                     }
-                }
-                tbody {
-                    packages.forEach { packageName ->
-                        tr {
-                            td {
-                                a(href = "$packageName/index.html") {
-                                    +packageName.fromInternalName()
+                    tbody {
+                        packages.forEach { packageName ->
+                            tr {
+                                td {
+                                    a(href = "$packageName/index.html") {
+                                        append(packageName.fromInternalName())
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+            footerPlaceholderComponent()
         }
-        footerPlaceholderComponent()
     }
 }

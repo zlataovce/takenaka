@@ -17,7 +17,7 @@
 
 package me.kcra.takenaka.core.mapping.resolve.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,7 +33,6 @@ import me.kcra.takenaka.core.util.XML_MAPPER
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.httpRequest
 import me.kcra.takenaka.core.util.ok
-import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.MappedElementKind
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
@@ -55,18 +54,12 @@ private val logger = KotlinLogging.logger {}
  * A base resolver for Spigot mapping files.
  *
  * @property workspace the workspace
- * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
  * @property spigotProvider the Spigot manifest provider
  * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-abstract class AbstractSpigotMappingResolver @Deprecated(
-    "Jackson will be an implementation detail in the future.",
-    ReplaceWith("AbstractSpigotMappingResolver(workspace, spigotProvider, relaxedCache)")
-) constructor(
+abstract class AbstractSpigotMappingResolver(
     override val workspace: VersionedWorkspace,
-    @Deprecated("Jackson will be an implementation detail in the future.")
-    val xmlMapper: ObjectMapper,
     val spigotProvider: SpigotManifestProvider,
     val relaxedCache: Boolean = true
 ) : AbstractMappingResolver(), MappingContributor, LicenseResolver {
@@ -80,17 +73,6 @@ abstract class AbstractSpigotMappingResolver @Deprecated(
     override val targetNamespace: String = "spigot"
     override val outputs: List<Output<out Path?>>
         get() = listOf(mappingOutput, licenseOutput, pomOutput)
-
-    /**
-     * Creates a new resolver.
-     *
-     * @param workspace the workspace
-     * @param spigotProvider the Spigot manifest provider
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    @Suppress("DEPRECATION")
-    constructor(workspace: VersionedWorkspace, spigotProvider: SpigotManifestProvider, relaxedCache: Boolean = true)
-            : this(workspace, XML_MAPPER, spigotProvider, relaxedCache)
 
     /**
      * The resolved mapping attribute.
@@ -221,8 +203,7 @@ abstract class AbstractSpigotMappingResolver @Deprecated(
 
         // prepend "v" before the NMS version to match the package name
         pomPath?.reader()?.use {
-            @Suppress("DEPRECATION")
-            xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v ->
+            XML_MAPPER.readTree(it)["properties"]["minecraft_version"].asText()?.let { v ->
                 visitor.visitMetadata(META_CB_NMS_VERSION, "v$v")
             }
         }
@@ -280,36 +261,15 @@ inline val MappingTreeView.craftBukkitNmsVersion: String?
  * A resolver for Spigot class mapping files.
  *
  * @param workspace the workspace
- * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
  * @param spigotProvider the Spigot manifest provider
  * @param relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-@Suppress("DEPRECATION")
-class SpigotClassMappingResolver @Deprecated(
-    "Jackson will be an implementation detail in the future.",
-    ReplaceWith("SpigotClassMappingResolver(workspace, spigotProvider, relaxedCache)")
-) constructor(
+class SpigotClassMappingResolver(
     workspace: VersionedWorkspace,
-    xmlMapper: ObjectMapper,
     spigotProvider: SpigotManifestProvider,
     relaxedCache: Boolean = true
-) : AbstractSpigotMappingResolver(workspace, xmlMapper, spigotProvider, relaxedCache) {
-    /**
-     * Creates a new resolver with a default metadata provider.
-     *
-     * @param workspace the workspace
-     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
-     * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    @Deprecated(
-        "Jackson will be an implementation detail in the future.",
-        ReplaceWith("SpigotClassMappingResolver(workspace, relaxedCache)")
-    )
-    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper, relaxedCache: Boolean = true) :
-            this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper, relaxedCache), relaxedCache)
-
+) : AbstractSpigotMappingResolver(workspace, spigotProvider, relaxedCache) {
     /**
      * Creates a new resolver with a default metadata provider.
      *
@@ -317,17 +277,7 @@ class SpigotClassMappingResolver @Deprecated(
      * @param relaxedCache whether output cache verification constraints should be relaxed
      */
     constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true) :
-            this(workspace, XML_MAPPER, SpigotManifestProvider(workspace, relaxedCache), relaxedCache)
-
-    /**
-     * Creates a new resolver with a supplied metadata provider.
-     *
-     * @param workspace the workspace
-     * @param spigotProvider the Spigot manifest provider
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    constructor(workspace: VersionedWorkspace, spigotProvider: SpigotManifestProvider, relaxedCache: Boolean = true) :
-            this(workspace, XML_MAPPER, spigotProvider, relaxedCache)
+            this(workspace, SpigotManifestProvider(workspace, relaxedCache), relaxedCache)
 
     /**
      * Resolves a BuildData mapping attribute.
@@ -412,37 +362,16 @@ class SpigotClassMappingResolver @Deprecated(
  * A resolver for Spigot member mapping files.
  *
  * @param workspace the workspace
- * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
  * @param spigotProvider the Spigot manifest provider
  * @param relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-@Suppress("DEPRECATION")
-class SpigotMemberMappingResolver @Deprecated(
-    "Jackson will be an implementation detail in the future.",
-    ReplaceWith("SpigotMemberMappingResolver(workspace, spigotProvider, relaxedCache)")
-) constructor(
+class SpigotMemberMappingResolver(
     workspace: VersionedWorkspace,
-    xmlMapper: ObjectMapper,
     spigotProvider: SpigotManifestProvider,
     relaxedCache: Boolean = true
-) : AbstractSpigotMappingResolver(workspace, xmlMapper, spigotProvider, relaxedCache) {
+) : AbstractSpigotMappingResolver(workspace, spigotProvider, relaxedCache) {
     private var expectPrefixedClassNames = false
-
-    /**
-     * Creates a new resolver with a default metadata provider.
-     *
-     * @param workspace the workspace
-     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
-     * @param xmlMapper an [ObjectMapper] that can deserialize XML trees
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    @Deprecated(
-        "Jackson will be an implementation detail in the future.",
-        ReplaceWith("SpigotMemberMappingResolver(workspace, relaxedCache)")
-    )
-    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, xmlMapper: ObjectMapper, relaxedCache: Boolean = true) :
-            this(workspace, xmlMapper, SpigotManifestProvider(workspace, objectMapper, relaxedCache), relaxedCache)
 
     /**
      * Creates a new resolver with a default metadata provider.
@@ -451,17 +380,7 @@ class SpigotMemberMappingResolver @Deprecated(
      * @param relaxedCache whether output cache verification constraints should be relaxed
      */
     constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true) :
-            this(workspace, XML_MAPPER, SpigotManifestProvider(workspace, relaxedCache), relaxedCache)
-
-    /**
-     * Creates a new resolver with a supplied metadata provider.
-     *
-     * @param workspace the workspace
-     * @param spigotProvider the Spigot manifest provider
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    constructor(workspace: VersionedWorkspace, spigotProvider: SpigotManifestProvider, relaxedCache: Boolean = true) :
-            this(workspace, XML_MAPPER, spigotProvider, relaxedCache)
+            this(workspace, SpigotManifestProvider(workspace, relaxedCache), relaxedCache)
 
     /**
      * Resolves a BuildData mapping attribute.

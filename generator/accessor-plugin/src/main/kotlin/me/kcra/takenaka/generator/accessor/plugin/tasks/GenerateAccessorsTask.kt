@@ -36,8 +36,8 @@ abstract class GenerateAccessorsTask : GenerationTask() {
     fun run() {
         val generator = AccessorGenerator(
             outputWorkspace,
+            accessors.get(),
             AccessorConfiguration(
-                accessors = accessors.get(),
                 codeLanguage = codeLanguage.get(),
                 accessorType = accessorType.get(),
                 namespaceFriendlinessIndex = namespaceFriendlinessIndex.get(),

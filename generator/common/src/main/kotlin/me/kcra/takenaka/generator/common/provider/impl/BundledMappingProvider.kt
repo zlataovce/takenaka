@@ -17,18 +17,15 @@
 
 package me.kcra.takenaka.generator.common.provider.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
 import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
-import me.kcra.takenaka.core.util.objectMapper
-import me.kcra.takenaka.core.versionManifest
 import me.kcra.takenaka.core.versionManifestOf
 import me.kcra.takenaka.generator.common.provider.MappingProvider
-import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.format.Tiny2Reader
 import net.fabricmc.mappingio.tree.MemoryMappingTree
 import java.nio.file.Path
@@ -49,21 +46,6 @@ private val logger = KotlinLogging.logger {}
  * @author Matouš Kučera
  */
 class BundledMappingProvider(val file: Path, val versions: List<String>, val manifest: VersionManifest = versionManifestOf()) : MappingProvider {
-    /**
-     * Constructs this provider with a new manifest.
-     *
-     * @param file the bundle file
-     * @param versions a version subset of the bundle to be loaded, everything is loaded if empty
-     * @param objectMapper a JSON object mapper instance
-     */
-    @Deprecated(
-        "Jackson will be an implementation detail in the future.",
-        ReplaceWith("BundledMappingProvider(file, versions)")
-    )
-    @Suppress("DEPRECATION")
-    constructor(file: Path, versions: List<String>, objectMapper: ObjectMapper = objectMapper())
-            : this(file, versions, objectMapper.versionManifest())
-
     /**
      * Resolves the mappings.
      *

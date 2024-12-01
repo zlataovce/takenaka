@@ -20,7 +20,6 @@ package me.kcra.takenaka.core
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.core.JacksonException
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import me.kcra.takenaka.core.util.*
 import java.io.IOException
@@ -36,17 +35,6 @@ import kotlin.io.path.isRegularFile
  * The URL to the v2 version manifest.
  */
 const val VERSION_MANIFEST_V2 = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
-
-/**
- * Fetches and deserializes the version manifest from Mojang's API.
- *
- * @return the version manifest
- */
-@Deprecated(
-    "Jackson will be an implementation detail in the future.",
-    ReplaceWith("versionManifestOf()", "me.kcra.takenaka.core.versionManifestOf")
-)
-fun ObjectMapper.versionManifest(): VersionManifest = readValue(URL(VERSION_MANIFEST_V2))
 
 /**
  * Fetches and deserializes the version manifest from Mojang's API.
@@ -80,43 +68,6 @@ fun versionManifestFrom(cacheFile: Path, url: String = VERSION_MANIFEST_V2): Ver
             it.copyTo(cacheFile)
 
             return MAPPER.readValue(cacheFile)
-        }
-
-        throw IOException("Failed to fetch v2 Mojang manifest, received ${it.responseCode}")
-    }
-}
-
-/**
- * Retrieves the version manifest from Mojang's API or a cache file,
- * fetching it if it could not be deserialized or the content length changed.
- *
- * @param cacheFile the cache file, does not need to exist
- * @return the version manifest
- */
-@Deprecated(
-    "Jackson will be an implementation detail in the future.",
-    ReplaceWith("versionManifestFrom(cacheFile)", "me.kcra.takenaka.core.versionManifestFrom")
-)
-fun ObjectMapper.cachedVersionManifest(cacheFile: Path): VersionManifest {
-    val url = URL(VERSION_MANIFEST_V2)
-
-    if (cacheFile.isRegularFile()) {
-        val length = url.contentLength
-        if (cacheFile.fileSize() == length) {
-            try {
-                return readValue(cacheFile)
-            } catch (_: JacksonException) {
-                // failed to read cached file, corrupted? fetch it again
-            }
-        }
-    }
-
-    url.httpRequest {
-        if (it.ok) {
-            cacheFile.parent.createDirectories()
-            it.copyTo(cacheFile)
-
-            return readValue(cacheFile)
         }
 
         throw IOException("Failed to fetch v2 Mojang manifest, received ${it.responseCode}")

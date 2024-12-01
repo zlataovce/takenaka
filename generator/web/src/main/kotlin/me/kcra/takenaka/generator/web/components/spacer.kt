@@ -17,39 +17,39 @@
 
 package me.kcra.takenaka.generator.web.components
 
-import kotlinx.html.*
+import me.kcra.takenaka.generator.web.util.*
 
 /**
  * Appends a spacer component with a top margin.
  */
-fun FlowContent.spacerTopComponent() {
+fun HTMLBuilder.spacerTopComponent() {
     p(classes = "spacer-top")
 }
 
 /**
  * Appends a spacer component with a top margin, but without a bottom margin.
  */
-fun FlowContent.spacerTopSlimComponent() {
+fun HTMLBuilder.spacerTopSlimComponent() {
     p(classes = "spacer-top-slim")
 }
 
 /**
  * Appends a spacer component with a bottom margin.
  */
-fun FlowContent.spacerBottomComponent() {
+fun HTMLBuilder.spacerBottomComponent() {
     p(classes = "spacer-bottom")
 }
 
 /**
  * Appends a spacer component with a bottom margin, but without a top margin.
  */
-fun FlowContent.spacerBottomSlimComponent() {
+fun HTMLBuilder.spacerBottomSlimComponent() {
     p(classes = "spacer-bottom-slim")
 }
 
 /**
  * Appends a spacer component with a top and bottom margin.
  */
-fun FlowContent.spacerYComponent() {
+fun HTMLBuilder.spacerYComponent() {
     p(classes = "spacer-y")
 }

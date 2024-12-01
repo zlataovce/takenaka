@@ -17,14 +17,12 @@
 
 package me.kcra.takenaka.generator.web.pages
 
-import kotlinx.html.*
-import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.generator.web.ClassType
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.*
-import org.w3c.dom.Document
+import me.kcra.takenaka.generator.web.util.*
 
 /**
  * Generates a package overview page.
@@ -34,54 +32,57 @@ import org.w3c.dom.Document
  * @param classes the friendly class names
  * @return the generated document
  */
-fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: String, classes: Map<ClassType, Set<String>>): Document = createHTMLDocument().html {
+fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: String, classes: Map<ClassType, Set<String>>): String = buildHTML {
     val packageName0 = packageName.fromInternalName()
 
-    lang = "en"
-    head {
-        val versionRootPath = getPackageRelativeVersionRoot(packageName0)
+    html(lang = "en") {
+        head {
+            val versionRootPath = getPackageRelativeVersionRoot(packageName0)
 
-        versionRootComponent(rootPath = versionRootPath)
-        defaultResourcesComponent(rootPath = "../$versionRootPath")
-        if (generator.config.emitMetaTags) {
-            metadataComponent(
-                title = packageName0,
-                description = classes
-                    .map { (type, names) ->
-                        if (names.size == 1) {
-                            "1 ${type.name.lowercase()}"
-                        } else {
-                            "${names.size} ${type.plural}"
-                        }
-                    }
-                    .joinToString(),
-                themeColor = generator.config.themeColor
-            )
-        }
-        title(content = "${workspace.version.id} - $packageName0")
-    }
-    body {
-        navPlaceholderComponent()
-        main {
-            h1 {
-                +packageName0
-            }
-            classes.forEach { (type, names) ->
-                spacerBottomComponent()
-                table(classes = "styled-table") {
-                    thead {
-                        tr {
-                            th {
-                                +type.toString()
+            versionRootComponent(rootPath = versionRootPath)
+            defaultResourcesComponent(rootPath = "../$versionRootPath")
+            if (generator.config.emitMetaTags) {
+                metadataComponent(
+                    title = packageName0,
+                    description = classes
+                        .map { (type, names) ->
+                            if (names.size == 1) {
+                                "1 ${type.name.lowercase()}"
+                            } else {
+                                "${names.size} ${type.plural}"
                             }
                         }
-                    }
-                    tbody {
-                        names.forEach { klass ->
+                        .joinToString(),
+                    themeColor = generator.config.themeColor
+                )
+            }
+            title {
+                append("${workspace.version.id} - $packageName0")
+            }
+        }
+        body {
+            navPlaceholderComponent()
+            main {
+                h1 {
+                    append(packageName0)
+                }
+                classes.forEach { (type, names) ->
+                    spacerBottomComponent()
+                    table(classes = "styled-table") {
+                        thead {
                             tr {
-                                td {
-                                    a(href = "$klass.html") {
-                                        +klass
+                                th {
+                                    append(type.toString())
+                                }
+                            }
+                        }
+                        tbody {
+                            names.forEach { klass ->
+                                tr {
+                                    td {
+                                        a(href = "$klass.html") {
+                                            append(klass)
+                                        }
                                     }
                                 }
                             }
@@ -89,7 +90,7 @@ fun GenerationContext.packagePage(workspace: VersionedWorkspace, packageName: St
                     }
                 }
             }
+            footerPlaceholderComponent()
         }
-        footerPlaceholderComponent()
     }
 }

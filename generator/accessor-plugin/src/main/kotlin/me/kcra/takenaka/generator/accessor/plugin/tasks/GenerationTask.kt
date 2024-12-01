@@ -18,14 +18,11 @@
 package me.kcra.takenaka.generator.accessor.plugin.tasks
 
 import me.kcra.takenaka.core.workspace
-import me.kcra.takenaka.generator.accessor.DEFAULT_RUNTIME_PACKAGE
 import me.kcra.takenaka.generator.accessor.AccessorType
 import me.kcra.takenaka.generator.accessor.CodeLanguage
+import me.kcra.takenaka.generator.accessor.DEFAULT_RUNTIME_PACKAGE
 import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
-import me.kcra.takenaka.generator.accessor.naming.StandardNamingStrategies
-import me.kcra.takenaka.generator.accessor.naming.prefixed
-import me.kcra.takenaka.generator.accessor.naming.resolveSimpleConflicts
 import me.kcra.takenaka.generator.common.provider.MappingProvider
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -70,16 +67,6 @@ abstract class GenerationTask : DefaultTask() {
     abstract val accessors: ListProperty<ClassAccessor>
 
     /**
-     * Base package of the generated accessors.
-     *
-     * @see me.kcra.takenaka.generator.accessor.plugin.AccessorGeneratorExtension.basePackage
-     */
-    @Deprecated("The base package concept was superseded by naming strategies.")
-    @get:Optional
-    @get:Input
-    abstract val basePackage: Property<String>
-
-    /**
      * An ordered list of namespaces that will be considered when selecting a "friendly" name,
      * defaults to "mojang", "spigot", "yarn", "quilt", "searge", "intermediary", "hashed" and "source".
      */
@@ -109,14 +96,6 @@ abstract class GenerationTask : DefaultTask() {
      */
     @get:Input
     abstract val namespaces: ListProperty<String>
-
-    /**
-     * Alias for [namespaces].
-     */
-    @get:Internal
-    @Deprecated("Use namespaces.", ReplaceWith("namespaces"))
-    val accessedNamespaces: ListProperty<String>
-        get() = namespaces
 
     /**
      * Namespaces that should have [me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion] applied
@@ -186,8 +165,6 @@ abstract class GenerationTask : DefaultTask() {
         namespaces.convention(listOf("mojang", "spigot", "yarn", "quilt", "searge", "intermediary", "hashed"))
         historyNamespaces.convention(listOf("mojang", "spigot", "searge", "intermediary"))
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
-        @Suppress("DEPRECATION")
-        namingStrategy.convention(basePackage.map { pack -> StandardNamingStrategies.SIMPLE.prefixed(pack).resolveSimpleConflicts() })
         runtimePackage.convention(DEFAULT_RUNTIME_PACKAGE)
     }
 }

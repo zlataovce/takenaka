@@ -17,13 +17,11 @@
 
 package me.kcra.takenaka.generator.web.pages
 
-import kotlinx.html.*
-import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.License
 import me.kcra.takenaka.generator.web.components.*
-import org.w3c.dom.Document
+import me.kcra.takenaka.generator.web.util.*
 
 private val PROTOCOL_REGEX = "^[a-z-]+://.+$".toRegex()
 
@@ -34,48 +32,51 @@ private val PROTOCOL_REGEX = "^[a-z-]+://.+$".toRegex()
  * @param licenses a map of namespace-license
  * @return the generated document
  */
-fun GenerationContext.licensePage(workspace: VersionedWorkspace, licenses: Map<String, License>): Document = createHTMLDocument().html {
-    lang = "en"
-    head {
-        versionRootComponent()
-        defaultResourcesComponent(rootPath = "../")
-        title(content = "licenses - ${workspace.version.id}")
-    }
-    body {
-        navPlaceholderComponent()
-        main {
-            h1 {
-                +"Licenses - ${workspace.version.id}"
+fun GenerationContext.licensePage(workspace: VersionedWorkspace, licenses: Map<String, License>): String = buildHTML {
+    html(lang = "en") {
+        head {
+            versionRootComponent()
+            defaultResourcesComponent(rootPath = "../")
+            title {
+                append("licenses - ${workspace.version.id}")
             }
-            spacerBottomComponent()
+        }
+        body {
+            navPlaceholderComponent()
+            main {
+                h1 {
+                    append("Licenses - ${workspace.version.id}")
+                }
+                spacerBottomComponent()
 
-            licenses.entries.forEachIndexed { i, (ns, license) ->
-                val namespace = generator.config.namespaces[ns]
-                if (namespace != null) {
-                    div(classes = "license-header") {
-                        badgeComponent(namespace.friendlyName, namespace.color, styleProvider)
+                licenses.entries.forEachIndexed { i, (ns, license) ->
+                    val namespace = generator.config.namespaces[ns]
+                    if (namespace != null) {
+                        div(classes = "license-header") {
+                            badgeComponent(namespace.friendlyName, namespace.color, styleProvider)
 
-                        if (license.source.matches(PROTOCOL_REGEX)) {
-                            a(href = license.source) {
-                                +license.source
-                            }
-                        } else {
-                            p {
-                                +license.source
+                            if (license.source.matches(PROTOCOL_REGEX)) {
+                                a(href = license.source) {
+                                    append(license.source)
+                                }
+                            } else {
+                                p {
+                                    append(license.source)
+                                }
                             }
                         }
-                    }
 
-                    pre {
-                        +license.content.replace("\\n", "\n")
-                    }
+                        pre {
+                            append(license.content.replace("\\n", "\n"))
+                        }
 
-                    if (i != (licenses.size - 1)) {
-                        spacerYComponent()
+                        if (i != (licenses.size - 1)) {
+                            spacerYComponent()
+                        }
                     }
                 }
             }
+            footerPlaceholderComponent()
         }
-        footerPlaceholderComponent()
     }
 }

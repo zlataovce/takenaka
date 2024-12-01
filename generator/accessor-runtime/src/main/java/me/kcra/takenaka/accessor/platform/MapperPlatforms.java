@@ -17,7 +17,6 @@
 
 package me.kcra.takenaka.accessor.platform;
 
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.InvocationTargetException;
@@ -117,30 +116,6 @@ public enum MapperPlatforms implements MapperPlatform {
         @Override
         public @NotNull String[] getMappingNamespaces() {
             return new String[] { "spigot" };
-        }
-    },
-
-    /**
-     * An abstraction for NeoForge-based platforms (Mojang mappings).
-     *
-     * @deprecated use {@link #MOJANG}
-     */
-    @Deprecated
-    @ApiStatus.ScheduledForRemoval(inVersion = "2.0.0")
-    NEOFORGE {
-        @Override
-        public boolean isSupported() {
-            return MOJANG.isSupported();
-        }
-
-        @Override
-        public @NotNull String getVersion() {
-            return MOJANG.getVersion();
-        }
-
-        @Override
-        public @NotNull String[] getMappingNamespaces() {
-            return MOJANG.getMappingNamespaces();
         }
     },
 

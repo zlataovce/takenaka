@@ -16,7 +16,6 @@ mapping-io = { group = "net.fabricmc", name = "mapping-io", version = "0.4.2" }
 kotlin-logging-jvm = { group = "io.github.oshai", name = "kotlin-logging-jvm", version = "6.0.9" }
 slf4j-simple = { group = "org.slf4j", name = "slf4j-simple", version = "2.0.16" }
 kotlinx-coroutines-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core-jvm", version = "1.8.1" }
-kotlinx-html-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-html-jvm", version = "0.11.0" }
 kotlinx-cli-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-cli-jvm", version = "0.3.6" }
 jb-annotations = { group = "org.jetbrains", name = "annotations", version = "26.0.1" }
 javapoet = { group = "com.squareup", name = "javapoet", version = "1.13.0" }

@@ -18,17 +18,13 @@
 package me.kcra.takenaka.generator.web
 
 import kotlinx.coroutines.*
-import kotlinx.html.dom.serialize
-import kotlinx.html.dom.write
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.resolve.impl.craftBukkitNmsVersion
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import net.fabricmc.mappingio.tree.MappingTreeView
-import org.w3c.dom.Document
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
-import kotlin.io.path.writer
 
 /**
  * A generation context, not version-bound.
@@ -38,30 +34,25 @@ import kotlin.io.path.writer
 class GenerationContext(
     val generator: WebGenerator,
     val ancestryProvider: AncestryProvider,
-    val styleProvider: StyleProvider?,
-    contextScope: CoroutineScope
-) : CoroutineScope by contextScope {
+    val styleProvider: StyleProvider?
+) {
     /**
      * A [Set] variant of the [generator]'s [WebConfiguration.craftBukkitVersionReplaceCandidates].
      */
     internal val versionReplaceCandidates = generator.config.craftBukkitVersionReplaceCandidates.toSet()
 
     /**
-     * Serializes a [Document] to a file in the specified workspace.
+     * Writes a document string to a file in the specified workspace.
      *
      * @param workspace the workspace
      * @param path the path, relative in the workspace
      */
-    suspend fun Document.serialize(workspace: Workspace, path: String) {
+    suspend fun String.write(workspace: Workspace, path: String) {
         withContext(Dispatchers.IO + CoroutineName("io-coro")) {
             val file = workspace[path]
             file.parent.createDirectories()
 
-            if (generator.config.transformers.isEmpty()) {
-                file.writer().use { it.write(this@serialize) }
-            } else {
-                file.writeText(generator.transformHtml(serialize(prettyPrint = !generator.hasMinifier)))
-            }
+            file.writeText(generator.transformHtml(this@write))
         }
     }
 
@@ -188,5 +179,5 @@ suspend inline fun <R> WebGenerator.generationContext(
     styleProvider: StyleProvider? = null,
     crossinline block: suspend GenerationContext.() -> R
 ): R = coroutineScope {
-    block(GenerationContext(this@generationContext, ancestryProvider, styleProvider, this))
+    block(GenerationContext(this@generationContext, ancestryProvider, styleProvider))
 }
