@@ -276,7 +276,7 @@ inline fun HTMLBuilder.a(id: String? = null, href: String? = null, classes: Stri
  * @param spellCheck the `spellcheck` attribute
  * @param placeholder the `placeholder` attribute
  */
-fun HTMLBuilder.input(id: String? = null, type: String? = null, classes: String? = null, spellCheck: Boolean = false, placeholder: String? = null) =
+fun HTMLBuilder.input(id: String? = null, type: String? = null, classes: String? = null, spellCheck: String? = null, placeholder: String? = null) =
     tag("input", mapOf("id" to id, "type" to type, "class" to classes, "spellcheck" to spellCheck, "placeholder" to placeholder))
 
 /**
