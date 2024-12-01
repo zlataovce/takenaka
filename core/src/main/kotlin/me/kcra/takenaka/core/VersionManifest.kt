@@ -30,7 +30,6 @@ import java.nio.file.Path
 import java.time.Instant
 import kotlin.io.path.createDirectories
 import kotlin.io.path.fileSize
-import kotlin.io.path.getLastModifiedTime
 import kotlin.io.path.isRegularFile
 
 /**
@@ -67,13 +66,11 @@ fun versionManifestOf(url: String = VERSION_MANIFEST_V2): VersionManifest = MAPP
  */
 fun versionManifestFrom(cacheFile: Path, url: String = VERSION_MANIFEST_V2): VersionManifest {
     val url0 = URL(url)
-    if (cacheFile.isRegularFile()) {
-        if (url0.lastModified > cacheFile.getLastModifiedTime().toMillis()) {
-            try {
-                return MAPPER.readValue(cacheFile)
-            } catch (_: JacksonException) {
-                // failed to read cached file, corrupted? fetch it again
-            }
+    if (cacheFile.isRegularFile() && cacheFile.fileSize() == url0.contentLength) {
+        try {
+            return MAPPER.readValue(cacheFile)
+        } catch (_: JacksonException) {
+            // failed to read cached file, corrupted? fetch it again
         }
     }
 
