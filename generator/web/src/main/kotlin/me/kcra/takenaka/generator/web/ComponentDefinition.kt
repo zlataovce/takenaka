@@ -17,13 +17,8 @@
 
 package me.kcra.takenaka.generator.web
 
-import kotlinx.html.BODY
-import kotlinx.html.body
-import kotlinx.html.consumers.filter
-import kotlinx.html.dom.append
-import kotlinx.html.dom.document
-import kotlinx.html.html
-import org.w3c.dom.Document
+import me.kcra.takenaka.generator.web.util.HTMLBuilder
+import me.kcra.takenaka.generator.web.util.buildHTML
 import kotlin.properties.Delegates
 
 /**
@@ -37,7 +32,7 @@ import kotlin.properties.Delegates
  */
 data class ComponentDefinition(
     val tag: String,
-    val content: Document,
+    val content: String,
     val callback: String?
 )
 
@@ -53,7 +48,7 @@ class ComponentDefinitionBuilder {
     /**
      * The component content/body.
      */
-    var content by Delegates.notNull<Document>()
+    var content by Delegates.notNull<String>()
 
     /**
      * A raw JS script that is called after the component has been loaded onto the site, a variable `e` of type `HTMLElement` is available.
@@ -65,15 +60,8 @@ class ComponentDefinitionBuilder {
      *
      * @param block the builder action
      */
-    inline fun content(crossinline block: BODY.() -> Unit) {
-        content = document {
-            append.filter { if (it.tagName == "html" || it.tagName == "body") SKIP else PASS }
-                .html {
-                    body {
-                        block()
-                    }
-                }
-        }
+    inline fun content(crossinline block: HTMLBuilder.() -> Unit) {
+        content = buildHTML(false, block)
     }
 
     /**

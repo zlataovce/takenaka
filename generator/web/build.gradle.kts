@@ -6,7 +6,6 @@ plugins {
 
 dependencies {
     api(project(":generator-common"))
-    api(libs.kotlinx.html.jvm)
     implementation(libs.bundles.jackson)
     testImplementation(kotlin("test"))
     testRuntimeOnly(libs.slf4j.simple)

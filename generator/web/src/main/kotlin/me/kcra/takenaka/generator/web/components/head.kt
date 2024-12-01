@@ -17,17 +17,17 @@
 
 package me.kcra.takenaka.generator.web.components
 
-import kotlinx.html.*
+import me.kcra.takenaka.generator.web.util.*
 
 /**
  * Appends default resources (scripts, stylesheets, meta, ...) to a head element.
  *
  * @param rootPath the path to the website root directory
  */
-fun HEAD.defaultResourcesComponent(rootPath: String = "/") {
+fun HTMLBuilder.defaultResourcesComponent(rootPath: String = "/") {
     meta(name = "viewport", content = "width=device-width, initial-scale=1")
     link(href = "${rootPath}assets/main.css", rel = "stylesheet")
-    script(src = "${rootPath}assets/main.js") {}
+    script(src = "${rootPath}assets/main.js")
 }
 
 /**
@@ -35,18 +35,16 @@ fun HEAD.defaultResourcesComponent(rootPath: String = "/") {
  *
  * @param rootPath the path to the version root directory
  */
-fun HEAD.versionRootComponent(rootPath: String = "./") {
+fun HTMLBuilder.versionRootComponent(rootPath: String = "./") {
     script {
-        unsafe {
-            +"""window.root = "$rootPath";"""
-        }
+        append("""window.root = "$rootPath";""")
     }
 }
 
 /**
  * Appends [OpenGraph](https://ogp.me/#metadata) and `theme-color` metadata to a head element.
  */
-fun HEAD.metadataComponent(title: String? = null, description: String? = null, themeColor: String? = null) {
+fun HTMLBuilder.metadataComponent(title: String? = null, description: String? = null, themeColor: String? = null) {
     if (themeColor != null) meta(name = "theme-color", content = themeColor)
 
     // https://ogp.me/#metadata

@@ -19,7 +19,8 @@
 
 package me.kcra.takenaka.generator.web
 
-import kotlinx.html.dom.serialize
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.*
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
@@ -33,10 +34,7 @@ import me.kcra.takenaka.generator.common.provider.MappingProvider
 import me.kcra.takenaka.generator.web.components.footerComponent
 import me.kcra.takenaka.generator.web.components.navComponent
 import me.kcra.takenaka.generator.web.pages.*
-import me.kcra.takenaka.generator.web.transformers.MinifyingTransformer
 import me.kcra.takenaka.generator.web.transformers.Transformer
-import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.*
 import net.fabricmc.mappingio.tree.MappingTreeView
 import java.io.BufferedReader
 import java.nio.file.Files
@@ -60,8 +58,6 @@ private val logger = KotlinLogging.logger {}
 open class WebGenerator(override val workspace: Workspace, val config: WebConfiguration) : Generator, Transformer {
     protected val namespaceFriendlyNames = config.namespaces.mapValues { it.value.friendlyName }
     protected val currentComposite by workspace
-
-    internal val hasMinifier = config.transformers.any { it is MinifyingTransformer }
 
     /**
      * A [Comparator] for comparing the friendliness of namespaces, useful for sorting.
@@ -118,7 +114,7 @@ open class WebGenerator(override val workspace: Workspace, val config: WebConfig
                 launch(DISPATCHER + CoroutineName("gen-coro")) {
                     val time = measureTimeMillis {
                         historyNodes.forEach { (node, fileHash) ->
-                            historyPage(node).serialize(historyWorkspace, "$fileHash.html")
+                            historyPage(node).write(historyWorkspace, "$fileHash.html")
                         }
                     }
                     logger.info { "history pages generated in ${time}ms" }
@@ -163,7 +159,7 @@ open class WebGenerator(override val workspace: Workspace, val config: WebConfig
                                     val friendlyName = getFriendlyDstName(klass)
 
                                     classPage(klass, type, hashMap[klass], nmsVersion, versionWorkspace, friendlyNameRemapper)
-                                        .serialize(versionWorkspace, "$friendlyName.html")
+                                        .write(versionWorkspace, "$friendlyName.html")
 
                                     classMap.getOrPut(friendlyName.substringBeforeLast('/')) { sortedMapOf(compareBy(ClassType::ordinal)) }
                                         .getOrPut(type, ::sortedSetOf) += friendlyName.substringAfterLast('/')
@@ -178,7 +174,7 @@ open class WebGenerator(override val workspace: Workspace, val config: WebConfig
 
                             classMap.forEach { (packageName, classes) ->
                                 packagePage(versionWorkspace, packageName, classes)
-                                    .serialize(versionWorkspace, "$packageName/index.html")
+                                    .write(versionWorkspace, "$packageName/index.html")
                             }
 
                             val licenses = config.namespaces
@@ -193,10 +189,10 @@ open class WebGenerator(override val workspace: Workspace, val config: WebConfig
                                 .toMap()
 
                             licensePage(versionWorkspace, licenses)
-                                .serialize(versionWorkspace, "licenses.html")
+                                .write(versionWorkspace, "licenses.html")
 
                             overviewPage(versionWorkspace, classMap.keys)
-                                .serialize(versionWorkspace, "index.html")
+                                .write(versionWorkspace, "index.html")
 
                             versionWorkspace["class-index.js"].writeText("updateClassIndex(`${classIndex.trim()}`);") // do not minify this file
                         }
@@ -208,7 +204,7 @@ open class WebGenerator(override val workspace: Workspace, val config: WebConfig
                 val versions = mappings.mapValuesTo(TreeMap(Collections.reverseOrder())) { it.value.dstNamespaces }
 
                 versionsPage(config.welcomeMessage, versions)
-                    .serialize(workspace, "index.html")
+                    .write(workspace, "index.html")
             }
         }
 
@@ -310,7 +306,7 @@ open class WebGenerator(override val workspace: Workspace, val config: WebConfig
         )
 
         components.forEach { (tag, content, callback) ->
-            appendLine("const ${tag}Component = `${transformHtml(content.documentElement.serialize(prettyPrint = false))}`;")
+            appendLine("const ${tag}Component = `${transformHtml(content)}`;")
             appendLine("const ${tag}ComponentCallback = (e) => {")
             if (callback != null) {
                 appendLine(callback)
