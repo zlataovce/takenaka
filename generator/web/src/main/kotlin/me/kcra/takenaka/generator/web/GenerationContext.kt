@@ -38,9 +38,8 @@ import kotlin.io.path.writer
 class GenerationContext(
     val generator: WebGenerator,
     val ancestryProvider: AncestryProvider,
-    val styleProvider: StyleProvider?,
-    contextScope: CoroutineScope
-) : CoroutineScope by contextScope {
+    val styleProvider: StyleProvider?
+) {
     /**
      * A [Set] variant of the [generator]'s [WebConfiguration.craftBukkitVersionReplaceCandidates].
      */
@@ -188,5 +187,5 @@ suspend inline fun <R> WebGenerator.generationContext(
     styleProvider: StyleProvider? = null,
     crossinline block: suspend GenerationContext.() -> R
 ): R = coroutineScope {
-    block(GenerationContext(this@generationContext, ancestryProvider, styleProvider, this))
+    block(GenerationContext(this@generationContext, ancestryProvider, styleProvider))
 }

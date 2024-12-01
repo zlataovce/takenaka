@@ -30,25 +30,16 @@ import java.nio.file.Path
 /**
  * An internal instance of an [ObjectMapper].
  */
-@Suppress("DEPRECATION")
-internal val MAPPER = objectMapper()
+internal val MAPPER = jsonMapper {
+    addModule(kotlinModule())
+    addModule(JavaTimeModule())
+    enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
+}
 
 /**
  * An internal instance of an [XmlMapper].
  */
 internal val XML_MAPPER = XmlMapper()
-
-/**
- * Creates a new ObjectMapper with all modules necessary for deserializing manifests.
- *
- * @return the object mapper
- */
-@Deprecated("Jackson will be an implementation detail in the future.")
-fun objectMapper(): ObjectMapper = jsonMapper {
-    addModule(kotlinModule())
-    addModule(JavaTimeModule())
-    enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
-}
 
 /**
  * Reads contents of a file.

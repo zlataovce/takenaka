@@ -17,7 +17,6 @@
 
 package me.kcra.takenaka.generator.accessor.context.impl
 
-import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.ancestry.AncestryTree
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
@@ -33,25 +32,22 @@ import kotlin.io.path.outputStream
  * @property output the stream where output should be printed
  * @param generator the generator
  * @param ancestryProvider the ancestry provider
- * @param contextScope the coroutine scope of this context
  * @author Matouš Kučera
  */
 open class TracingGenerationContext(
     val output: PrintStream,
     generator: AccessorGenerator,
-    ancestryProvider: AncestryProvider,
-    contextScope: CoroutineScope
-) : AbstractGenerationContext(generator, ancestryProvider, contextScope) {
+    ancestryProvider: AncestryProvider
+) : AbstractGenerationContext(generator, ancestryProvider) {
     /**
      * Constructs a new [TracingGenerationContext] with an [OutputStream].
      *
      * @param out the stream where output should be printed
      * @param generator the generator
      * @param ancestryProvider the ancestry provider
-     * @param contextScope the coroutine scope of this context
      */
-    constructor(out: OutputStream, generator: AccessorGenerator, ancestryProvider: AncestryProvider, contextScope: CoroutineScope)
-            : this(PrintStream(out), generator, ancestryProvider, contextScope)
+    constructor(out: OutputStream, generator: AccessorGenerator, ancestryProvider: AncestryProvider)
+            : this(PrintStream(out), generator, ancestryProvider)
 
     /**
      * Constructs a new [TracingGenerationContext] with a file.
@@ -59,20 +55,18 @@ open class TracingGenerationContext(
      * @param out the file where output should be written
      * @param generator the generator
      * @param ancestryProvider the ancestry provider
-     * @param contextScope the coroutine scope of this context
      */
-    constructor(out: Path, generator: AccessorGenerator, ancestryProvider: AncestryProvider, contextScope: CoroutineScope)
-            : this(PrintStream(out.outputStream()), generator, ancestryProvider, contextScope)
+    constructor(out: Path, generator: AccessorGenerator, ancestryProvider: AncestryProvider)
+            : this(PrintStream(out.outputStream()), generator, ancestryProvider)
 
     /**
      * Constructs a new [TracingGenerationContext] that writes to standard output.
      *
      * @param generator the generator
      * @param ancestryProvider the ancestry provider
-     * @param contextScope the coroutine scope of this context
      */
-    constructor(generator: AccessorGenerator, ancestryProvider: AncestryProvider, contextScope: CoroutineScope)
-            : this(System.out, generator, ancestryProvider, contextScope)
+    constructor(generator: AccessorGenerator, ancestryProvider: AncestryProvider)
+            : this(System.out, generator, ancestryProvider)
 
     /**
      * Writes an accessor report to the stream.

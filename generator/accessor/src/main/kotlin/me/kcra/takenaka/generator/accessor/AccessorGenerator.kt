@@ -21,6 +21,7 @@ import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryTree
 import me.kcra.takenaka.generator.accessor.context.GenerationContext
 import me.kcra.takenaka.generator.accessor.context.generationContext
+import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.accessor.util.isGlob
 import me.kcra.takenaka.generator.common.Generator
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
@@ -34,10 +35,15 @@ import me.kcra.takenaka.generator.common.provider.MappingProvider
  * An instance can be reused, but it is **not** thread-safe!
  *
  * @property workspace the workspace in which this generator can move around
+ * @property accessors the class accessor models
  * @property config the accessor generation configuration
  * @author Matouš Kučera
  */
-open class AccessorGenerator(override val workspace: Workspace, val config: AccessorConfiguration) : Generator {
+open class AccessorGenerator(
+    override val workspace: Workspace,
+    val accessors: List<ClassAccessor>,
+    val config: AccessorConfiguration
+) : Generator {
     /**
      * Launches the generator with mappings provided by the provider.
      *
@@ -59,7 +65,7 @@ open class AccessorGenerator(override val workspace: Workspace, val config: Acce
      */
     protected open suspend fun generateAccessors(context: GenerationContext, tree: ClassAncestryTree) {
         // generate non-glob accessors before glob ones to ensure that an explicit accessor doesn't get ignored
-        config.accessors.sortedBy { it.internalName.isGlob }
+        accessors.sortedBy { it.internalName.isGlob }
             .forEach { accessor -> context.generateClass(accessor, tree) }
 
         context.generateLookupClass()
