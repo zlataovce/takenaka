@@ -216,19 +216,16 @@ public class FieldMapping {
             return null;
         }
 
-        try {
-            return clazz.getField(name);
-        } catch (NoSuchFieldException ignored) {
-            do {
-                try {
-                    final Field field = clazz.getDeclaredField(name);
-                    field.setAccessible(true);
+        do {
+            try {
+                final Field field = clazz.getDeclaredField(name);
+                field.setAccessible(true);
 
-                    return field;
-                } catch (NoSuchFieldException ignored2) {
-                }
-            } while ((clazz = clazz.getSuperclass()) != null && clazz != Object.class);
-        }
+                return field;
+            } catch (NoSuchFieldException ignored) {
+            }
+        } while ((clazz = clazz.getSuperclass()) != null && clazz != Object.class);
+
         return null;
     }
 

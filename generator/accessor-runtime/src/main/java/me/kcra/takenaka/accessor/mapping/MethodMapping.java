@@ -245,19 +245,16 @@ public class MethodMapping {
             paramClasses[i] = paramClass;
         }
 
-        try {
-            return clazz.getMethod(namePair.getName(), paramClasses);
-        } catch (NoSuchMethodException ignored) {
-            do {
-                try {
-                    final Method method = clazz.getDeclaredMethod(namePair.getName(), paramClasses);
-                    method.setAccessible(true);
+        do {
+            try {
+                final Method method = clazz.getDeclaredMethod(namePair.getName(), paramClasses);
+                method.setAccessible(true);
 
-                    return method;
-                } catch (NoSuchMethodException ignored2) {
-                }
-            } while ((clazz = clazz.getSuperclass()) != null && clazz != Object.class);
-        }
+                return method;
+            } catch (NoSuchMethodException ignored) {
+            }
+        } while ((clazz = clazz.getSuperclass()) != null && clazz != Object.class);
+
         return null;
     }
 
