@@ -18,13 +18,12 @@
 package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.core.JacksonException
-import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.kcra.takenaka.core.VersionAttributes
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.util.MAPPER
 import me.kcra.takenaka.core.util.copyTo
 import me.kcra.takenaka.core.util.readValue
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.URL
 
 private val logger = KotlinLogging.logger {}
@@ -35,27 +34,14 @@ private val logger = KotlinLogging.logger {}
  * This class is thread-safe and presumes multiple instances operate on a single workspace.
  *
  * @property workspace the workspace
- * @property objectMapper an [ObjectMapper] that can deserialize JSON data
  * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-class MojangManifestAttributeProvider @Deprecated(
-    "Jackson will be an implementation detail in the future.",
-    ReplaceWith("MojangManifestAttributeProvider(workspace, relaxedCache)")
-) constructor(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper, val relaxedCache: Boolean = true) {
+class MojangManifestAttributeProvider(val workspace: VersionedWorkspace, val relaxedCache: Boolean = true) {
     /**
      * The version attributes.
      */
     val attributes: VersionAttributes by lazy(::readAttributes)
-
-    /**
-     * Creates a new attribute provider.
-     *
-     * @param workspace the workspace
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    @Suppress("DEPRECATION")
-    constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true) : this(workspace, MAPPER, relaxedCache)
 
     /**
      * Reads the attributes of the targeted version from cache, fetching it if the cache missed.
@@ -68,7 +54,7 @@ class MojangManifestAttributeProvider @Deprecated(
 
             if (relaxedCache && ATTRIBUTES in workspace) {
                 try {
-                    return@withLock objectMapper.readValue<VersionAttributes>(file).apply {
+                    return@withLock MAPPER.readValue<VersionAttributes>(file).apply {
                         logger.info { "read cached ${workspace.version.id} attributes" }
                     }
                 } catch (e: JacksonException) {
@@ -79,7 +65,7 @@ class MojangManifestAttributeProvider @Deprecated(
             URL(workspace.version.url).copyTo(file)
 
             logger.info { "fetched ${workspace.version.id} attributes" }
-            return@withLock objectMapper.readValue(file)
+            return@withLock MAPPER.readValue(file)
         }
     }
 

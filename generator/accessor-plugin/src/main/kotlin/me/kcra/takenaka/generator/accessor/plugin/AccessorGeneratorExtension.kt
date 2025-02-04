@@ -82,12 +82,6 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
     abstract val accessors: ListProperty<ClassAccessor>
 
     /**
-     * Base package of the generated accessors.
-     */
-    @Deprecated("The base package concept was superseded by naming strategies.")
-    abstract val basePackage: Property<String>
-
-    /**
      * The language of the generated code, defaults to [CodeLanguage.JAVA].
      */
     abstract val codeLanguage: Property<CodeLanguage>
@@ -101,13 +95,6 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      * Namespaces that should be used in accessors, defaults to all supported namespaces ("mojang", "spigot", "yarn", "quilt", "searge", "intermediary" and "hashed").
      */
     abstract val namespaces: ListProperty<String>
-
-    /**
-     * Alias for [namespaces].
-     */
-    @Deprecated("Use namespaces.", ReplaceWith("namespaces"))
-    val accessedNamespaces: ListProperty<String>
-        get() = namespaces
 
     /**
      * Namespaces that should be used for computing history, defaults to "mojang", "spigot", "searge" and "intermediary".
@@ -144,17 +131,7 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
         historyIndexNamespace.convention(DEFAULT_INDEX_NS)
         relaxedCache.convention(true)
         platform.convention(PlatformTristate.SERVER)
-        @Suppress("DEPRECATION")
-        namingStrategy.convention(basePackage.map { pack -> StandardNamingStrategies.SIMPLE.prefixed(pack).resolveSimpleConflicts() })
         runtimePackage.convention(DEFAULT_RUNTIME_PACKAGE)
-    }
-
-    /**
-     * Alias for [version].
-     */
-    @Deprecated("Use version(vararg String).", ReplaceWith("version(*versions)"))
-    fun versions(vararg versions: String) {
-        this.version(*versions)
     }
 
     /**
@@ -236,13 +213,12 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
     }
 
     /**
-     * Sets the [basePackage] property.
+     * Sets the [namingStrategy] to a conflict-resolving [StandardNamingStrategies.SIMPLE] strategy with a package prefix.
      *
      * @param basePackage the base package
      */
-    @Suppress("DEPRECATION")
     fun basePackage(basePackage: String) {
-        this.basePackage.set(basePackage) // TODO: immediately wrap the strategy instead
+        this.namingStrategy.set(StandardNamingStrategies.SIMPLE.prefixed(basePackage).resolveSimpleConflicts())
     }
 
     /**
@@ -288,14 +264,6 @@ abstract class AccessorGeneratorExtension(protected val project: Project, protec
      */
     fun namespaces(vararg namespaces: String) {
         this.namespaces.addAll(*namespaces)
-    }
-
-    /**
-     * Alias for [namespaces].
-     */
-    @Deprecated("Use namespaces(vararg String).", ReplaceWith("namespaces(*accessedNamespaces)"))
-    fun accessedNamespaces(vararg accessedNamespaces: String) {
-        this.namespaces(*accessedNamespaces)
     }
 
     /**

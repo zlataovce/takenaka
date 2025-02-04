@@ -95,12 +95,6 @@ open class WorkspaceBuilder {
     open var rootDirectory by Delegates.notNull<Path>()
 
     /**
-     * The resolver options.
-     */
-    @Deprecated("Unused.")
-    var options = 0
-
-    /**
      * Sets the root directory.
      *
      * @param path the root directory path

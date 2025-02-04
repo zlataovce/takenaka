@@ -59,8 +59,8 @@ abstract class TraceAccessorsTask : GenerationTask() {
             val generator = TracingAccessorGenerator(
                 PrintStream(out),
                 outputWorkspace,
+                accessors.get(),
                 AccessorConfiguration(
-                    accessors = accessors.get(),
                     codeLanguage = codeLanguage.get(),
                     accessorType = accessorType.get(),
                     namespaceFriendlinessIndex = namespaceFriendlinessIndex.get(),

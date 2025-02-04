@@ -19,10 +19,9 @@ package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.util.*
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.URL
 
 private val logger = KotlinLogging.logger {}
@@ -33,14 +32,10 @@ private val logger = KotlinLogging.logger {}
  * This class is thread-safe, but presumes that only one instance will operate on a workspace at a time.
  *
  * @property workspace the workspace
- * @property xmlMapper an [ObjectMapper] that can deserialize XML trees
  * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-class YarnMetadataProvider @Deprecated(
-    "Jackson will be an implementation detail in the future.",
-    ReplaceWith("YarnMetadataProvider(workspace, relaxedCache)")
-) constructor(val workspace: Workspace, private val xmlMapper: ObjectMapper, val relaxedCache: Boolean = true) {
+class YarnMetadataProvider(val workspace: Workspace, val relaxedCache: Boolean = true) {
     /**
      * A map of versions and their builds.
      */
@@ -50,15 +45,6 @@ class YarnMetadataProvider @Deprecated(
      * The XML node of the maven-metadata file.
      */
     private val metadata by lazy(::readMetadata)
-
-    /**
-     * Creates a new metadata provider.
-     *
-     * @param workspace the workspace
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    @Suppress("DEPRECATION")
-    constructor(workspace: Workspace, relaxedCache: Boolean = true) : this(workspace, XML_MAPPER, relaxedCache)
 
     /**
      * Parses Yarn version strings in the metadata file.
@@ -94,7 +80,7 @@ class YarnMetadataProvider @Deprecated(
             URL("$metadataLocation.sha1").httpRequest {
                 if (it.readText() == file.getChecksum(sha1Digest)) {
                     try {
-                        return xmlMapper.readTree(file).apply {
+                        return XML_MAPPER.readTree(file).apply {
                             logger.info { "read cached Yarn mappings metadata" }
                         }
                     } catch (e: JacksonException) {
@@ -109,7 +95,7 @@ class YarnMetadataProvider @Deprecated(
         URL(metadataLocation).copyTo(file)
 
         logger.info { "fetched Yarn metadata" }
-        return xmlMapper.readTree(file)
+        return XML_MAPPER.readTree(file)
     }
 
     companion object {

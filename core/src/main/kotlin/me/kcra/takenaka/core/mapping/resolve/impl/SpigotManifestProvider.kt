@@ -18,11 +18,11 @@
 package me.kcra.takenaka.core.mapping.resolve.impl
 
 import com.fasterxml.jackson.core.JacksonException
-import com.fasterxml.jackson.databind.ObjectMapper
-import me.kcra.takenaka.core.*
-import me.kcra.takenaka.core.util.*
-import me.kcra.takenaka.core.util.MAPPER
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.kcra.takenaka.core.SpigotVersionAttributes
+import me.kcra.takenaka.core.SpigotVersionManifest
+import me.kcra.takenaka.core.VersionedWorkspace
+import me.kcra.takenaka.core.util.*
 import java.net.URL
 
 private val logger = KotlinLogging.logger {}
@@ -33,14 +33,10 @@ private val logger = KotlinLogging.logger {}
  * This class is thread-safe and presumes multiple instances operate on a single workspace.
  *
  * @property workspace the workspace
- * @property objectMapper an [ObjectMapper] that can deserialize JSON data
  * @property relaxedCache whether output cache verification constraints should be relaxed
  * @author Matouš Kučera
  */
-class SpigotManifestProvider @Deprecated(
-    "Jackson will be an implementation detail in the future.",
-    ReplaceWith("SpigotManifestProvider(workspace, relaxedCache)")
-) constructor(val workspace: VersionedWorkspace, private val objectMapper: ObjectMapper, val relaxedCache: Boolean = true) {
+class SpigotManifestProvider(val workspace: VersionedWorkspace, val relaxedCache: Boolean = true) {
     /**
      * The version manifest.
      */
@@ -58,15 +54,6 @@ class SpigotManifestProvider @Deprecated(
         get() = attributes?.let { workspace.version.id != it.minecraftVersion } ?: false
 
     /**
-     * Creates a new manifest provider.
-     *
-     * @param workspace the workspace
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    @Suppress("DEPRECATION")
-    constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true) : this(workspace, MAPPER, relaxedCache)
-
-    /**
      * Reads the manifest of the targeted version from cache, fetching it if the cache missed.
      *
      * @return the manifest
@@ -77,7 +64,7 @@ class SpigotManifestProvider @Deprecated(
 
             if (relaxedCache && MANIFEST in workspace) {
                 try {
-                    return@withLock objectMapper.readValue<SpigotVersionManifest>(file).apply {
+                    return@withLock MAPPER.readValue<SpigotVersionManifest>(file).apply {
                         logger.info { "read cached ${workspace.version.id} Spigot manifest" }
                     }
                 } catch (e: JacksonException) {
@@ -90,7 +77,7 @@ class SpigotManifestProvider @Deprecated(
                     it.copyTo(file)
 
                     logger.info { "fetched ${workspace.version.id} Spigot manifest" }
-                    return@withLock objectMapper.readValue(file)
+                    return@withLock MAPPER.readValue(file)
                 }
 
                 logger.warn { "failed to fetch ${workspace.version.id} Spigot manifest, received ${it.responseCode}" }
@@ -113,7 +100,7 @@ class SpigotManifestProvider @Deprecated(
 
             if (relaxedCache && BUILDDATA_INFO in workspace) {
                 try {
-                    return@withLock objectMapper.readValue<SpigotVersionAttributes>(file).apply {
+                    return@withLock MAPPER.readValue<SpigotVersionAttributes>(file).apply {
                         logger.info { "read cached ${workspace.version.id} Spigot attributes" }
                     }
                 } catch (e: JacksonException) {
@@ -124,7 +111,7 @@ class SpigotManifestProvider @Deprecated(
             URL("https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/raw/info.json?at=${manifest!!.refs["BuildData"]}").copyTo(file)
 
             logger.info { "fetched ${workspace.version.id} Spigot attributes" }
-            return@withLock objectMapper.readValue(file)
+            return@withLock MAPPER.readValue(file)
         }
     }
 

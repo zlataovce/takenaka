@@ -17,11 +17,8 @@
 
 package me.kcra.takenaka.generator.accessor
 
-import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
 import me.kcra.takenaka.generator.accessor.naming.StandardNamingStrategies
-import me.kcra.takenaka.generator.accessor.naming.prefixed
-import me.kcra.takenaka.generator.accessor.naming.resolveSimpleConflicts
 
 /**
  * The default package of the `generator-accessor-plugin` module.
@@ -31,8 +28,6 @@ const val DEFAULT_RUNTIME_PACKAGE = "me.kcra.takenaka.accessor"
 /**
  * Configuration for [AccessorGenerator].
  *
- * @property accessors the class accessor models
- * @property basePackage the base package name of the generated accessors
  * @property codeLanguage the language of the generated code
  * @property accessorType the form of generated accessors (not the mapping classes)
  * @property namespaceFriendlinessIndex an ordered list of namespaces that will be considered when selecting a "friendly" name
@@ -44,15 +39,12 @@ const val DEFAULT_RUNTIME_PACKAGE = "me.kcra.takenaka.accessor"
  * @author Matouš Kučera
  */
 data class AccessorConfiguration(
-    val accessors: List<ClassAccessor>, // TODO: move to AccessorGenerator constructor
-    @Deprecated("The base package concept was superseded by naming strategies.")
-    val basePackage: String = "",
     val codeLanguage: CodeLanguage = CodeLanguage.JAVA,
     val accessorType: AccessorType = AccessorType.NONE,
     val namespaceFriendlinessIndex: List<String> = emptyList(),
     val accessedNamespaces: List<String> = namespaceFriendlinessIndex,
     val craftBukkitVersionReplaceCandidates: List<String> = emptyList(),
-    val namingStrategy: NamingStrategy = StandardNamingStrategies.SIMPLE.prefixed(basePackage).resolveSimpleConflicts(),
+    val namingStrategy: NamingStrategy = StandardNamingStrategies.FULLY_QUALIFIED,
     val runtimePackage: String = DEFAULT_RUNTIME_PACKAGE,
     val mappingWebsite: String? = null
 )

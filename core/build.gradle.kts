@@ -6,8 +6,8 @@ plugins {
 
 dependencies {
     api(libs.bundles.asm)
-    api(libs.bundles.jackson)
     api(libs.mapping.io)
+    implementation(libs.bundles.jackson)
     implementation(libs.bundles.kotlin)
     implementation(libs.kotlin.logging.jvm)
     implementation(libs.kotlinx.coroutines.core.jvm)

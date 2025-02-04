@@ -17,8 +17,6 @@
 
 package me.kcra.takenaka.generator.web.pages
 
-import kotlinx.html.*
-import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.ElementRemapper
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
@@ -36,11 +34,10 @@ import me.kcra.takenaka.core.mapping.toInternalName
 import me.kcra.takenaka.core.mapping.util.allNamespaceIds
 import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.components.*
-import me.kcra.takenaka.generator.web.util.escapeHtml
+import me.kcra.takenaka.generator.web.util.*
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
-import org.w3c.dom.Document
 
 /**
  * Generates a class overview page.
@@ -60,7 +57,7 @@ fun GenerationContext.classPage(
     nmsVersion: String?,
     workspace: VersionedWorkspace,
     friendlyNameRemapper: ElementRemapper
-): Document = createHTMLDocument().html {
+): String = buildHTML {
     val klassName = getFriendlyDstName(klass)
     val friendlyKlassName = klassName.fromInternalName()
 
@@ -73,135 +70,131 @@ fun GenerationContext.classPage(
 
     val klassDeclaration = klass.formatDescriptor(friendlyKlassName, remapper)
 
-    lang = "en"
-    head {
-        versionRootComponent(rootPath = versionRootPath)
-        defaultResourcesComponent(rootPath)
-        if (generator.config.emitMetaTags) {
-            metadataComponent(
-                title = friendlyKlassName,
-                description = buildString {
-                    append("version: ${workspace.version.id}")
-                    if (hash != null) {
-                        append(", hash: $hash")
-                    }
-                },
-                themeColor = generator.config.themeColor
-            )
+    html(lang = "en") {
+        head {
+            versionRootComponent(rootPath = versionRootPath)
+            defaultResourcesComponent(rootPath)
+            if (generator.config.emitMetaTags) {
+                metadataComponent(
+                    title = friendlyKlassName,
+                    description = buildString {
+                        append("version: ${workspace.version.id}")
+                        if (hash != null) {
+                            append(", hash: $hash")
+                        }
+                    },
+                    themeColor = generator.config.themeColor
+                )
+            }
+            title {
+                append("${workspace.version.id} - $friendlyKlassName")
+            }
         }
-        title(content = "${workspace.version.id} - $friendlyKlassName")
-    }
-    body {
-        navPlaceholderComponent()
-        main {
-            a(href = "index.html") {
-                +friendlyKlassName.substringBeforeLast('.')
-            }
-
-            div(classes = "class-header") {
-                p {
-                    unsafe {
-                        +klassDeclaration.modifiersAndName
-                        klassDeclaration.formals?.unaryPlus()
-                    }
+        body {
+            navPlaceholderComponent()
+            main {
+                a(href = "index.html") {
+                    append(friendlyKlassName.substringBeforeLast('.'))
                 }
-                if (hash != null) {
-                    a(classes = "history-icon", href = "${rootPath}history/$hash.html") {
-                        attributes["aria-label"] = "History"
-                        unsafe {
-                            +"""<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>"""
+
+                div(classes = "class-header") {
+                    p {
+                        append(klassDeclaration.modifiersAndName)
+                        klassDeclaration.formals?.let(::append)
+                    }
+                    if (hash != null) {
+                        a(classes = "history-icon", href = "${rootPath}history/$hash.html", ariaLabel = "History") {
+                            append("""<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>""")
                         }
                     }
                 }
-            }
-            if (klassDeclaration.superTypes != null) {
-                p(classes = "class-description") {
-                    unsafe {
-                        +klassDeclaration.superTypes
+                if (klassDeclaration.superTypes != null) {
+                    p(classes = "class-description") {
+                        append(klassDeclaration.superTypes)
                     }
                 }
-            }
 
-            if (klassDeclaration.hasVisibleSuperClass) { // don't show superinterfaces when there's no actual superclass
-                val superInterfaces = klass.resolveSuperTypes(InheritanceWalkMode.INTERFACES)
-                if (superInterfaces.isNotEmpty()) {
-                    p(classes = "interfaces-header") {
-                        +"All mapped superinterfaces:"
-                    }
-                    p(classes = "interfaces-description") {
-                        superInterfaces.forEachIndexed { i, s ->
-                            val friendlyName = getFriendlyDstName(s)
-
-                            a(href = getClassRelativePath(klassName, friendlyName)) {
-                                +friendlyName.substringAfterLast('/')
-                            }
-                            if (i != superInterfaces.lastIndex) +", "
+                if (klassDeclaration.hasVisibleSuperClass) { // don't show superinterfaces when there's no actual superclass
+                    val superInterfaces = klass.resolveSuperTypes(InheritanceWalkMode.INTERFACES)
+                    if (superInterfaces.isNotEmpty()) {
+                        p(classes = "interfaces-header") {
+                            append("All mapped superinterfaces:")
                         }
-                    }
-                }
-            }
+                        p(classes = "interfaces-description") {
+                            superInterfaces.forEachIndexed { i, s ->
+                                val friendlyName = getFriendlyDstName(s)
 
-            spacerTopComponent()
-            table {
-                tbody {
-                    klass.tree.allNamespaceIds.forEach { id ->
-                        val ns = klass.tree.getNamespaceName(id)
-                        val namespace = generator.config.namespaces[ns] ?: return@forEach
-
-                        val namespacedNmsVersion = if (ns in versionReplaceCandidates) nmsVersion else null
-                        val name = klass.getName(id)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) ?: return@forEach
-                        tr {
-                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
-                            td(classes = "mapping-value") {
-                                +name.fromInternalName()
+                                a(href = getClassRelativePath(klassName, friendlyName)) {
+                                    append(friendlyName.substringAfterLast('/'))
+                                }
+                                if (i != superInterfaces.lastIndex) append(", ")
                             }
                         }
                     }
                 }
-            }
 
-            var nextSpacerSlim = false
-            fun addContentSpacer() {
-                if (nextSpacerSlim) {
-                    spacerBottomSlimComponent()
-                } else {
-                    spacerBottomComponent()
-                    nextSpacerSlim = true
-                }
-            }
-
-            val (enumFields, fields) = klass.fields.partition { (it.modifiers and Opcodes.ACC_ENUM) != 0 }
-
-            if (enumFields.isNotEmpty()) {
-                addContentSpacer()
-                h4 {
-                    +"Enum constant summary"
-                }
-                table(classes = "styled-table") {
-                    thead {
-                        tr {
-                            th {
-                                +"Enum Constant"
-                            }
-                        }
-                    }
+                spacerTopComponent()
+                table {
                     tbody {
-                        enumFields.forEach { field ->
-                            tr {
-                                td {
-                                    table {
-                                        tbody {
-                                            klass.tree.allNamespaceIds.forEach { id ->
-                                                val ns = klass.tree.getNamespaceName(id)
-                                                val namespace = generator.config.namespaces[ns]
+                        klass.tree.allNamespaceIds.forEach { id ->
+                            val ns = klass.tree.getNamespaceName(id)
+                            val namespace = generator.config.namespaces[ns] ?: return@forEach
 
-                                                if (namespace != null) {
-                                                    val name = field.getName(id)
-                                                    if (name != null) {
-                                                        tr {
-                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
-                                                            td(classes = "mapping-value") {
-                                                                +name
+                            val namespacedNmsVersion = if (ns in versionReplaceCandidates) nmsVersion else null
+                            val name = klass.getName(id)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) ?: return@forEach
+                            tr {
+                                badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
+                                td(classes = "mapping-value") {
+                                    append(name.fromInternalName())
+                                }
+                            }
+                        }
+                    }
+                }
+
+                var nextSpacerSlim = false
+                fun addContentSpacer() {
+                    if (nextSpacerSlim) {
+                        spacerBottomSlimComponent()
+                    } else {
+                        spacerBottomComponent()
+                        nextSpacerSlim = true
+                    }
+                }
+
+                val (enumFields, fields) = klass.fields.partition { (it.modifiers and Opcodes.ACC_ENUM) != 0 }
+
+                if (enumFields.isNotEmpty()) {
+                    addContentSpacer()
+                    h4 {
+                        append("Enum constant summary")
+                    }
+                    table(classes = "styled-table") {
+                        thead {
+                            tr {
+                                th {
+                                    append("Enum Constant")
+                                }
+                            }
+                        }
+                        tbody {
+                            enumFields.forEach { field ->
+                                tr {
+                                    td {
+                                        table {
+                                            tbody {
+                                                klass.tree.allNamespaceIds.forEach { id ->
+                                                    val ns = klass.tree.getNamespaceName(id)
+                                                    val namespace = generator.config.namespaces[ns]
+
+                                                    if (namespace != null) {
+                                                        val name = field.getName(id)
+                                                        if (name != null) {
+                                                            tr {
+                                                                badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
+                                                                td(classes = "mapping-value") {
+                                                                    append(name)
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -214,48 +207,45 @@ fun GenerationContext.classPage(
                         }
                     }
                 }
-            }
 
-            if (fields.isNotEmpty()) {
-                addContentSpacer()
-                h4 {
-                    +"Field summary"
-                }
-                table(classes = "styled-table styled-mobile-table") {
-                    thead {
-                        tr {
-                            th {
-                                +"Modifier and Type"
-                            }
-                            th {
-                                +"Field"
+                if (fields.isNotEmpty()) {
+                    addContentSpacer()
+                    h4 {
+                        append("Field summary")
+                    }
+                    table(classes = "styled-table styled-mobile-table") {
+                        thead {
+                            tr {
+                                th {
+                                    append("Modifier and Type")
+                                }
+                                th {
+                                    append("Field")
+                                }
                             }
                         }
-                    }
-                    tbody {
-                        fields.forEach { field ->
-                            tr {
-                                td(classes = "modifier-value") {
-                                    +field.modifiers.formatModifiers(ModifierMask.FIELD, type)
-
-                                    unsafe {
-                                        +field.formatDescriptor(remapper)
+                        tbody {
+                            fields.forEach { field ->
+                                tr {
+                                    td(classes = "modifier-value") {
+                                        append(field.modifiers.formatModifiers(ModifierMask.FIELD, type))
+                                        append(field.formatDescriptor(remapper))
                                     }
-                                }
-                                td {
-                                    table {
-                                        tbody {
-                                            klass.tree.allNamespaceIds.forEach { id ->
-                                                val ns = klass.tree.getNamespaceName(id)
-                                                val namespace = generator.config.namespaces[ns]
+                                    td {
+                                        table {
+                                            tbody {
+                                                klass.tree.allNamespaceIds.forEach { id ->
+                                                    val ns = klass.tree.getNamespaceName(id)
+                                                    val namespace = generator.config.namespaces[ns]
 
-                                                if (namespace != null) {
-                                                    val name = field.getName(id)
-                                                    if (name != null) {
-                                                        tr {
-                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
-                                                            td(classes = "mapping-value") {
-                                                                +name
+                                                    if (namespace != null) {
+                                                        val name = field.getName(id)
+                                                        if (name != null) {
+                                                            tr {
+                                                                badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
+                                                                td(classes = "mapping-value") {
+                                                                    append(name)
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -268,109 +258,103 @@ fun GenerationContext.classPage(
                         }
                     }
                 }
-            }
 
-            val (constructors, methods) = klass.methods.partition(MappingTreeView.MethodMappingView::isConstructor)
+                val (constructors, methods) = klass.methods.partition(MappingTreeView.MethodMappingView::isConstructor)
 
-            if (constructors.isNotEmpty()) {
-                addContentSpacer()
-                h4 {
-                    +"Constructor summary"
-                }
-                table(classes = "styled-table") {
-                    thead {
-                        tr {
-                            th {
-                                +"Modifier"
-                            }
-                            th {
-                                +"Constructor"
+                if (constructors.isNotEmpty()) {
+                    addContentSpacer()
+                    h4 {
+                        append("Constructor summary")
+                    }
+                    table(classes = "styled-table") {
+                        thead {
+                            tr {
+                                th {
+                                    append("Modifier")
+                                }
+                                th {
+                                    append("Constructor")
+                                }
                             }
                         }
-                    }
-                    tbody {
-                        constructors.forEach { ctor ->
-                            val ctorMod = ctor.modifiers
-                            tr {
-                                td(classes = "modifier-value") {
-                                    +ctorMod.formatModifiers(ModifierMask.CONSTRUCTOR, type)
-                                }
-                                td(classes = "constructor-value") {
-                                    unsafe {
+                        tbody {
+                            constructors.forEach { ctor ->
+                                val ctorMod = ctor.modifiers
+                                tr {
+                                    td(classes = "modifier-value") {
+                                        append(ctorMod.formatModifiers(ModifierMask.CONSTRUCTOR, type))
+                                    }
+                                    td(classes = "constructor-value") {
                                         val ctorDeclaration = ctor.formatDescriptor(remapper, ctorMod)
 
-                                        ctorDeclaration.formals?.unaryPlus()
-                                        +ctorDeclaration.args
-                                        ctorDeclaration.exceptions?.let { +" throws $it" }
+                                        ctorDeclaration.formals?.let(::append)
+                                        append(ctorDeclaration.args)
+                                        ctorDeclaration.exceptions?.let { append(" throws $it") }
                                     }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            fun ContextualElementRemapper.reset() {
-                nameRemapper = friendlyNameRemapper
-                linkRemapper = null
-            }
-
-            // skip constructors and implicit enum methods
-            val nonImplicitMethods = if (type == ClassType.ENUM) methods.filterNot { it.isEnumValueOf || it.isEnumValues } else methods
-
-            if (nonImplicitMethods.isNotEmpty()) {
-                addContentSpacer()
-                h4 {
-                    +"Method summary"
+                fun ContextualElementRemapper.reset() {
+                    nameRemapper = friendlyNameRemapper
+                    linkRemapper = null
                 }
-                table(classes = "styled-table styled-mobile-table") {
-                    thead {
-                        tr {
-                            th {
-                                +"Modifier and Type"
-                            }
-                            th {
-                                +"Method"
+
+                // skip constructors and implicit enum methods
+                val nonImplicitMethods = if (type == ClassType.ENUM) methods.filterNot { it.isEnumValueOf || it.isEnumValues } else methods
+
+                if (nonImplicitMethods.isNotEmpty()) {
+                    addContentSpacer()
+                    h4 {
+                        append("Method summary")
+                    }
+                    table(classes = "styled-table styled-mobile-table") {
+                        thead {
+                            tr {
+                                th {
+                                    append("Modifier and Type")
+                                }
+                                th {
+                                    append("Method")
+                                }
                             }
                         }
-                    }
-                    tbody {
-                        nonImplicitMethods.forEach { method ->
-                            val methodMod = method.modifiers
-                            tr {
-                                td(classes = "modifier-value") {
-                                    unsafe {
-                                        +methodMod.formatModifiers(ModifierMask.METHOD, type)
+                        tbody {
+                            nonImplicitMethods.forEach { method ->
+                                val methodMod = method.modifiers
+                                tr {
+                                    td(classes = "modifier-value") {
+                                        append(methodMod.formatModifiers(ModifierMask.METHOD, type))
 
                                         val methodDeclaration = method.formatDescriptor(remapper, methodMod)
-                                        methodDeclaration.formals?.let { +"$it " }
-                                        +methodDeclaration.returnType
+                                        methodDeclaration.formals?.let { append("$it ") }
+                                        append(methodDeclaration.returnType)
                                     }
-                                }
-                                td {
-                                    table {
-                                        tbody {
-                                            method.tree.allNamespaceIds.forEach { id ->
-                                                val ns = method.tree.getNamespaceName(id)
-                                                val namespace = generator.config.namespaces[ns]
+                                    td {
+                                        table {
+                                            tbody {
+                                                method.tree.allNamespaceIds.forEach { id ->
+                                                    val ns = method.tree.getNamespaceName(id)
+                                                    val namespace = generator.config.namespaces[ns]
 
-                                                val namespacedNmsVersion = if (ns in versionReplaceCandidates) nmsVersion else null
-                                                if (namespace != null) {
-                                                    val methodName = method.getName(id)
-                                                    if (methodName != null) {
-                                                        tr {
-                                                            badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
-                                                            td(classes = "mapping-value") {
-                                                                unsafe {
+                                                    val namespacedNmsVersion = if (ns in versionReplaceCandidates) nmsVersion else null
+                                                    if (namespace != null) {
+                                                        val methodName = method.getName(id)
+                                                        if (methodName != null) {
+                                                            tr {
+                                                                badgeColumnComponent(namespace.friendlyName, namespace.color, styleProvider)
+                                                                td(classes = "mapping-value") {
                                                                     remapper.nameRemapper = ElementRemapper(method.tree) { it.getName(id)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) }
                                                                     remapper.linkRemapper = friendlyNameRemapper
 
                                                                     val methodDeclaration = method.formatDescriptor(remapper, methodMod)
                                                                     remapper.reset()
 
-                                                                    +methodName
-                                                                    +methodDeclaration.args
-                                                                    methodDeclaration.exceptions?.let { +" throws $it" }
+                                                                    append(methodName)
+                                                                    append(methodDeclaration.args)
+                                                                    methodDeclaration.exceptions?.let { append(" throws $it") }
                                                                 }
                                                             }
                                                         }
@@ -385,8 +369,8 @@ fun GenerationContext.classPage(
                     }
                 }
             }
+            footerPlaceholderComponent()
         }
-        footerPlaceholderComponent()
     }
 }
 
