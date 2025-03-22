@@ -17,7 +17,7 @@
 
 package me.kcra.takenaka.generator.accessor.context.impl
 
-import kotlinx.coroutines.CoroutineScope
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.mapping.adapter.replaceCraftBukkitNMSVersion
 import me.kcra.takenaka.core.mapping.ancestry.ConstructorComputationMode
@@ -36,7 +36,6 @@ import me.kcra.takenaka.generator.accessor.naming.NamingStrategy
 import me.kcra.takenaka.generator.accessor.util.globAsRegex
 import me.kcra.takenaka.generator.accessor.util.isGlob
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
-import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.tree.MappingTreeView.*
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -52,9 +51,8 @@ private val logger = KotlinLogging.logger {}
  */
 abstract class AbstractGenerationContext(
     final override val generator: AccessorGenerator,
-    val ancestryProvider: AncestryProvider,
-    contextScope: CoroutineScope
-) : GenerationContext, CoroutineScope by contextScope {
+    val ancestryProvider: AncestryProvider
+) : GenerationContext {
     /**
      * Names of accessor models that had accessor classes generated.
      */

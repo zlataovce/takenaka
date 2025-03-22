@@ -44,12 +44,6 @@ private val DUMMY_IMPL = object : ClassSearchIndex {
 }
 
 /**
- * The base URL of the Java 17 JDK documentation.
- */
-@Deprecated("Use JDK_21_BASE_URL.", ReplaceWith("JDK_21_BASE_URL"))
-const val JDK_17_BASE_URL = "https://docs.oracle.com/en/java/javase/17/docs/api"
-
-/**
  * The base URL of the Java 21 JDK documentation.
  */
 const val JDK_21_BASE_URL = "https://docs.oracle.com/en/java/javase/21/docs/api"
@@ -60,29 +54,14 @@ const val JDK_21_BASE_URL = "https://docs.oracle.com/en/java/javase/21/docs/api"
  * @param baseUrl the base URL of the Javadoc site
  * @return the index
  */
-@Deprecated(
-    "Jackson will be an implementation detail in the future.",
-    ReplaceWith("modularClassSearchIndexOf(baseUrl)", "me.kcra.takenaka.generator.web.modularClassSearchIndexOf")
-)
-fun ObjectMapper.modularClassSearchIndexOf(baseUrl: String): ModularClassSearchIndex {
+fun modularClassSearchIndexOf(baseUrl: String): ModularClassSearchIndex {
     val content = URL("$baseUrl/package-search-index.js").httpRequest(action = HttpURLConnection::readText)
     val nodeArray = content.substring(
         content.indexOf('['),
         content.lastIndexOf(']') + 1
     )
 
-    return ModularClassSearchIndex(baseUrl, readValue(nodeArray))
-}
-
-/**
- * Fetches and deserializes the package index on the base URL.
- *
- * @param baseUrl the base URL of the Javadoc site
- * @return the index
- */
-fun modularClassSearchIndexOf(baseUrl: String): ModularClassSearchIndex {
-    @Suppress("DEPRECATION")
-    return MAPPER.modularClassSearchIndexOf(baseUrl)
+    return ModularClassSearchIndex(baseUrl, MAPPER.readValue(nodeArray))
 }
 
 /**

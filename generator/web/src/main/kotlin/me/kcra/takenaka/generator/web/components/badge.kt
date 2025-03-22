@@ -17,8 +17,8 @@
 
 package me.kcra.takenaka.generator.web.components
 
-import kotlinx.html.*
 import me.kcra.takenaka.generator.web.StyleProvider
+import me.kcra.takenaka.generator.web.util.*
 
 /**
  * Appends a namespace badge component.
@@ -27,16 +27,15 @@ import me.kcra.takenaka.generator.web.StyleProvider
  * @param color the badge color in a CSS compatible format
  * @param styleProvider the style provider, used for generating stylesheets
  */
-fun FlowContent.badgeComponent(content: String, color: String, styleProvider: StyleProvider? = null) {
+fun HTMLBuilder.badgeComponent(content: String, color: String, styleProvider: StyleProvider? = null) {
     if (styleProvider != null) {
         val lowercase = content.lowercase()
 
         p(classes = "badge ${styleProvider.apply("badge-$lowercase", "background-color:$color;")}")
         styleProvider.apply("badge-$lowercase::before", "content:\"$content\";")
     } else {
-        p(classes = "badge") {
-            style = "background-color:$color"
-            +content
+        p(classes = "badge", style = "background-color:$color") {
+            append(content)
         }
     }
 }
@@ -48,16 +47,15 @@ fun FlowContent.badgeComponent(content: String, color: String, styleProvider: St
  * @param color the badge color in a CSS compatible format
  * @param styleProvider the style provider, used for generating stylesheets
  */
-fun TR.badgeColumnComponent(content: String, color: String, styleProvider: StyleProvider? = null) {
+fun HTMLBuilder.badgeColumnComponent(content: String, color: String, styleProvider: StyleProvider? = null) {
     if (styleProvider != null) {
         val lowercase = content.lowercase()
 
         td(classes = "badge ${styleProvider.apply("badge-$lowercase", "background-color:$color;")}")
         styleProvider.apply("badge-$lowercase::before", "content:\"$content\";")
     } else {
-        td(classes = "badge") {
-            style = "background-color:$color"
-            +content
+        td(classes = "badge", style = "background-color:$color") {
+            append(content)
         }
     }
 }
@@ -69,7 +67,7 @@ fun TR.badgeColumnComponent(content: String, color: String, styleProvider: Style
  * @param color the badge color in a CSS compatible format
  * @param styleProvider the style provider, used for generating stylesheets
  */
-fun FlowContent.textBadgeComponent(content: String, color: String, styleProvider: StyleProvider? = null) {
+fun HTMLBuilder.textBadgeComponent(content: String, color: String, styleProvider: StyleProvider? = null) {
     val lowercase = content.lowercase()
 
     if (styleProvider != null) {
@@ -77,11 +75,10 @@ fun FlowContent.textBadgeComponent(content: String, color: String, styleProvider
         styleProvider.apply("badge-text-$lowercase::before", "color:$color;content:\"$content\";")
         styleProvider.apply("badge-text-$lowercase::after", "content:\": \";")
     } else {
-        span(classes = "badge-text") {
-            style = "color:$color"
-            +content
+        span(classes = "badge-text", style = "color:$color") {
+            append(content)
         }
-        +": "
+        append(": ")
     }
 }
 

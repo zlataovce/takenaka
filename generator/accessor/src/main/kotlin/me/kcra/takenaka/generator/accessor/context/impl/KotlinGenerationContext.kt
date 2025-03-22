@@ -23,7 +23,6 @@ import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.javapoet.KClassName
 import com.squareup.kotlinpoet.javapoet.KTypeSpec
 import com.squareup.kotlinpoet.javapoet.KotlinPoetJavaPoetPreview
-import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
@@ -42,14 +41,12 @@ import org.objectweb.asm.Type
  *
  * @param generator the generator
  * @param ancestryProvider the ancestryProvider
- * @param contextScope the coroutine scope of this context
  * @author Matouš Kučera
  */
 open class KotlinGenerationContext(
     generator: AccessorGenerator,
-    ancestryProvider: AncestryProvider,
-    contextScope: CoroutineScope
-) : AbstractGenerationContext(generator, ancestryProvider, contextScope) {
+    ancestryProvider: AncestryProvider
+) : AbstractGenerationContext(generator, ancestryProvider) {
     /**
      * Generates an accessor class from a model in Kotlin.
      *

@@ -17,8 +17,6 @@
 
 package me.kcra.takenaka.generator.accessor.context
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.coroutineScope
 import me.kcra.takenaka.core.mapping.ancestry.impl.ClassAncestryTree
 import me.kcra.takenaka.generator.accessor.AccessorGenerator
 import me.kcra.takenaka.generator.accessor.CodeLanguage
@@ -34,7 +32,7 @@ import java.io.PrintStream
  *
  * @author Matouš Kučera
  */
-interface GenerationContext : CoroutineScope { // TODO: remove CoroutineScope
+interface GenerationContext {
     /**
      * The generator.
      */
@@ -68,11 +66,12 @@ interface GenerationContext : CoroutineScope { // TODO: remove CoroutineScope
  * @param ancestryProvider the ancestry provider of the context
  * @param flavor the accessor flavor of the context
  * @return the context
+ * @return the context
  */
-suspend inline fun AccessorGenerator.generationContext(ancestryProvider: AncestryProvider, flavor: CodeLanguage): GenerationContext = coroutineScope {
-    when (flavor) {
-        CodeLanguage.JAVA -> JavaGenerationContext(this@generationContext, ancestryProvider, this)
-        CodeLanguage.KOTLIN -> KotlinGenerationContext(this@generationContext, ancestryProvider, this)
+fun AccessorGenerator.generationContext(ancestryProvider: AncestryProvider, flavor: CodeLanguage): GenerationContext {
+    return when (flavor) {
+        CodeLanguage.JAVA -> JavaGenerationContext(this@generationContext, ancestryProvider)
+        CodeLanguage.KOTLIN -> KotlinGenerationContext(this@generationContext, ancestryProvider)
     }
 }
 
@@ -98,9 +97,8 @@ suspend inline fun <R> AccessorGenerator.generationContext(
  * @param ancestryProvider the ancestry provider of the context
  * @return the context
  */
-suspend inline fun AccessorGenerator.tracingContext(out: PrintStream, ancestryProvider: AncestryProvider): GenerationContext = coroutineScope {
-    TracingGenerationContext(out, this@tracingContext, ancestryProvider, this)
-}
+fun AccessorGenerator.tracingContext(out: PrintStream, ancestryProvider: AncestryProvider): GenerationContext =
+    TracingGenerationContext(out, this@tracingContext, ancestryProvider)
 
 /**
  * Opens a tracing generation context and operates on it.

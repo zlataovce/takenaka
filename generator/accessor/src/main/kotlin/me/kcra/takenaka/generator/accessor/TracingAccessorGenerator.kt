@@ -19,6 +19,7 @@ package me.kcra.takenaka.generator.accessor
 
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.generator.accessor.context.tracingContext
+import me.kcra.takenaka.generator.accessor.model.ClassAccessor
 import me.kcra.takenaka.generator.common.provider.AncestryProvider
 import me.kcra.takenaka.generator.common.provider.MappingProvider
 import java.io.PrintStream
@@ -30,14 +31,16 @@ import java.io.PrintStream
  *
  * @property out the stream where output should be printed
  * @param workspace the workspace in which this generator can move around
+ * @param accessors the class accessor models
  * @param config the accessor generation configuration
  * @author Matouš Kučera
  */
 open class TracingAccessorGenerator(
     val out: PrintStream,
     workspace: Workspace,
+    accessors: List<ClassAccessor>,
     config: AccessorConfiguration
-) : AccessorGenerator(workspace, config) {
+) : AccessorGenerator(workspace, accessors, config) {
     /**
      * Launches the generator with mappings provided by the provider.
      *

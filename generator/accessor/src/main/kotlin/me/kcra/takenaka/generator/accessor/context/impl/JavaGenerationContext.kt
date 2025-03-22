@@ -25,7 +25,6 @@ import com.squareup.kotlinpoet.javapoet.JClassName
 import com.squareup.kotlinpoet.javapoet.JParameterizedTypeName
 import com.squareup.kotlinpoet.javapoet.JTypeSpec
 import com.squareup.kotlinpoet.javapoet.KotlinPoetJavaPoetPreview
-import kotlinx.coroutines.CoroutineScope
 import me.kcra.takenaka.core.Workspace
 import me.kcra.takenaka.core.mapping.fromInternalName
 import me.kcra.takenaka.core.mapping.resolve.impl.modifiers
@@ -45,14 +44,12 @@ import javax.lang.model.element.Modifier
  *
  * @param generator the generator
  * @param ancestryProvider the ancestry provider
- * @param contextScope the coroutine scope of this context
  * @author Matouš Kučera
  */
 open class JavaGenerationContext(
     generator: AccessorGenerator,
-    ancestryProvider: AncestryProvider,
-    contextScope: CoroutineScope
-) : AbstractGenerationContext(generator, ancestryProvider, contextScope) {
+    ancestryProvider: AncestryProvider
+) : AbstractGenerationContext(generator, ancestryProvider) {
     /**
      * Generates an accessor class from a model in Java.
      *

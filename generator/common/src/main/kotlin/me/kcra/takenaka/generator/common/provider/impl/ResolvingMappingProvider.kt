@@ -17,8 +17,7 @@
 
 package me.kcra.takenaka.generator.common.provider.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.xml.XmlMapper
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.mapping.MutableMappingsMap
@@ -27,11 +26,8 @@ import me.kcra.takenaka.core.mapping.analysis.MappingAnalyzer
 import me.kcra.takenaka.core.mapping.buildMappingTree
 import me.kcra.takenaka.core.mapping.resolve.OutputContainer
 import me.kcra.takenaka.core.mapping.unwrap
-import me.kcra.takenaka.core.util.objectMapper
-import me.kcra.takenaka.core.versionManifest
 import me.kcra.takenaka.core.versionManifestOf
 import me.kcra.takenaka.generator.common.provider.MappingProvider
-import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.format.Tiny2Reader
 import net.fabricmc.mappingio.format.Tiny2Writer
 import net.fabricmc.mappingio.tree.MemoryMappingTree
@@ -47,42 +43,9 @@ private val logger = KotlinLogging.logger {}
  *
  * @property mappingConfig configuration to alter the mapping fetching and correction process
  * @property manifest the Mojang version manifest
- * @property xmlMapper an XML object mapper instance for this provider
  * @author Matouš Kučera
  */
-class ResolvingMappingProvider @Deprecated(
-    "Jackson will be an implementation detail in the future.",
-    ReplaceWith("ResolvingMappingProvider(mappingConfig, manifest)")
-) constructor(
-    val mappingConfig: MappingConfiguration,
-    val manifest: VersionManifest,
-    @Deprecated("Jackson will be an implementation detail in the future.")
-    val xmlMapper: ObjectMapper
-) : MappingProvider {
-    /**
-     * Constructs this provider with a new manifest.
-     *
-     * @param mappingConfig configuration to alter the mapping fetching and correction process
-     * @param objectMapper a JSON object mapper instance
-     * @param xmlMapper an XML object mapper instance
-     */
-    @Deprecated(
-        "Jackson will be an implementation detail in the future.",
-        ReplaceWith("ResolvingMappingProvider(mappingConfig)")
-    )
-    @Suppress("DEPRECATION")
-    constructor(mappingConfig: MappingConfiguration, objectMapper: ObjectMapper = objectMapper(), xmlMapper: ObjectMapper = XmlMapper())
-            : this(mappingConfig, objectMapper.versionManifest(), xmlMapper)
-
-    /**
-     * Constructs this provider with a supplied manifest.
-     *
-     * @param mappingConfig configuration to alter the mapping fetching and correction process
-     * @param manifest the Mojang version manifest
-     */
-    @Suppress("DEPRECATION")
-    constructor(mappingConfig: MappingConfiguration, manifest: VersionManifest) : this(mappingConfig, manifest, XmlMapper())
-
+class ResolvingMappingProvider(val mappingConfig: MappingConfiguration, val manifest: VersionManifest) : MappingProvider {
     /**
      * Constructs this provider with a new manifest.
      *

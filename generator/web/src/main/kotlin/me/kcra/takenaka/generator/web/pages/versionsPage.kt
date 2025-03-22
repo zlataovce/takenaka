@@ -17,12 +17,10 @@
 
 package me.kcra.takenaka.generator.web.pages
 
-import kotlinx.html.*
-import kotlinx.html.dom.createHTMLDocument
 import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.generator.web.GenerationContext
 import me.kcra.takenaka.generator.web.components.*
-import org.w3c.dom.Document
+import me.kcra.takenaka.generator.web.util.*
 
 /**
  * Generates a version list page.
@@ -31,54 +29,55 @@ import org.w3c.dom.Document
  * @param versions the versions with their supported mappings
  * @return the generated document
  */
-fun GenerationContext.versionsPage(welcomeMessage: String?, versions: Map<Version, List<String>>): Document = createHTMLDocument().html {
-    lang = "en"
-    head {
-        defaultResourcesComponent(rootPath = "")
-        title(content = "mappings")
-    }
-    body {
-        navPlaceholderComponent()
-        main {
-            if (welcomeMessage != null) {
-                div(classes = "welcome-message") {
-                    unsafe {
-                        +welcomeMessage
-                    }
-                    spacerBottomComponent()
-                }
-            }
-
-            table(classes = "styled-table styled-mobile-table") {
-                thead {
-                    tr {
-                        th {
-                            +"Version"
-                        }
-                        th {
-                            +"Mappings"
-                        }
-                    }
-                }
-                tbody {
-                    versions.forEach { (version, mappings) ->
-                        tr {
-                            td {
-                                a(href = "${version.id}/index.html") {
-                                    +version.id
-                                }
-                            }
-                            td(classes = "mapping-badges") {
-                                mappings.forEach { ns ->
-                                    generator.config.namespaces[ns]
-                                        ?.let { badgeComponent(it.friendlyName, it.color, styleProvider) }
-                                }
-                            }
-                        }
-                    }
-                }
+fun GenerationContext.versionsPage(welcomeMessage: String?, versions: Map<Version, List<String>>): String = buildHTML {
+    html(lang = "en") {
+        head {
+            defaultResourcesComponent(rootPath = "")
+            title {
+                append("mappings")
             }
         }
-        footerPlaceholderComponent()
+        body {
+            navPlaceholderComponent()
+            main {
+                if (welcomeMessage != null) {
+                    div(classes = "welcome-message") {
+                        append(welcomeMessage)
+                        spacerBottomComponent()
+                    }
+                }
+
+                table(classes = "styled-table styled-mobile-table") {
+                    thead {
+                        tr {
+                            th {
+                                append("Version")
+                            }
+                            th {
+                                append("Mappings")
+                            }
+                        }
+                    }
+                    tbody {
+                        versions.forEach { (version, mappings) ->
+                            tr {
+                                td {
+                                    a(href = "${version.id}/index.html") {
+                                        append(version.id)
+                                    }
+                                }
+                                td(classes = "mapping-badges") {
+                                    mappings.forEach { ns ->
+                                        generator.config.namespaces[ns]
+                                            ?.let { badgeComponent(it.friendlyName, it.color, styleProvider) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            footerPlaceholderComponent()
+        }
     }
 }

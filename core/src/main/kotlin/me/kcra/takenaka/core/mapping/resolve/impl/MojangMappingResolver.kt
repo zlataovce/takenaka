@@ -17,15 +17,17 @@
 
 package me.kcra.takenaka.core.mapping.resolve.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.kcra.takenaka.core.VersionedWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
-import me.kcra.takenaka.core.mapping.resolve.*
+import me.kcra.takenaka.core.mapping.resolve.AbstractMappingResolver
+import me.kcra.takenaka.core.mapping.resolve.LicenseResolver
+import me.kcra.takenaka.core.mapping.resolve.Output
+import me.kcra.takenaka.core.mapping.resolve.lazyOutput
 import me.kcra.takenaka.core.util.*
-import io.github.oshai.kotlinlogging.KotlinLogging
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch
@@ -180,21 +182,6 @@ class MojangClientMappingResolver(
      * Creates a new resolver with a default metadata provider.
      *
      * @param workspace the workspace
-     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    @Deprecated(
-        "Jackson will be an implementation detail in the future.",
-        ReplaceWith("MojangClientMappingResolver(workspace, relaxedCache)")
-    )
-    @Suppress("DEPRECATION")
-    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true) :
-            this(workspace, MojangManifestAttributeProvider(workspace, objectMapper, relaxedCache))
-
-    /**
-     * Creates a new resolver with a default metadata provider.
-     *
-     * @param workspace the workspace
      * @param relaxedCache whether output cache verification constraints should be relaxed
      */
     constructor(workspace: VersionedWorkspace, relaxedCache: Boolean = true) :
@@ -225,21 +212,6 @@ class MojangServerMappingResolver(
     workspace: VersionedWorkspace,
     val mojangProvider: MojangManifestAttributeProvider
 ) : AbstractMojangMappingResolver(workspace) {
-    /**
-     * Creates a new resolver with a default metadata provider.
-     *
-     * @param workspace the workspace
-     * @param objectMapper an [ObjectMapper] that can deserialize JSON data
-     * @param relaxedCache whether output cache verification constraints should be relaxed
-     */
-    @Deprecated(
-        "Jackson will be an implementation detail in the future.",
-        ReplaceWith("MojangServerMappingResolver(workspace, relaxedCache)")
-    )
-    @Suppress("DEPRECATION")
-    constructor(workspace: VersionedWorkspace, objectMapper: ObjectMapper, relaxedCache: Boolean = true) :
-            this(workspace, MojangManifestAttributeProvider(workspace, objectMapper, relaxedCache))
-
     /**
      * Creates a new resolver with a default metadata provider.
      *
