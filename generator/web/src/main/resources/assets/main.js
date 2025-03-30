@@ -15,130 +15,242 @@
  * limitations under the License.
  */
 
+// Schedules a callback to be executed when the DOM is fully loaded.
 const scheduleOnDOMLoad = (callback) => {
     if (document.readyState === "loading") {
+        // If the document is still loading, add an event listener for DOMContentLoaded.
         document.addEventListener("DOMContentLoaded", callback);
     } else {
+        // If the document is already loaded, execute the callback immediately.
         callback();
     }
 };
 
+// Key used to store the theme in local storage.
 const themeKey = "_theme";
 
+// Toggles the theme between "light" and "dark".
 const toggleTheme = () => setTheme(getTheme() === "light" ? "dark" : "light");
+
+// Gets the current theme from local storage or defaults to the preferred color scheme of the user's system.
 const getTheme = () => localStorage.getItem(themeKey) || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+
+// Sets the current theme in local storage and updates the data-theme attribute of the document element.
 const setTheme = (theme) => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem(themeKey, theme);
 };
 
+// Sets the initial theme when the DOM is loaded.
 scheduleOnDOMLoad(() => document.documentElement.setAttribute("data-theme", getTheme()));
 
-// a map of "<namespace>" to "<namespace badge color>"
+// Object to store colors associated with namespaces.
 let colors = {};
-// a list of { "<namespace>": <mapping string or null> }
+// Array to store the class index data.
 let classIndex = [];
+// Array to store the member index data.
+let memberIndex = [];
 
+// Promises used to signal when the class and member indices have been loaded.
 let resolveClassIndexPromise;
-const initialIndexLoadPromise = new Promise((resolve, _) => (resolveClassIndexPromise = resolve));
+let resolveMemberIndexPromise;
+// Promise that resolves when both class and member indices are loaded.
+const initialIndexLoadPromise = Promise.all([
+    new Promise((resolve) => (resolveClassIndexPromise = resolve)),
+    new Promise((resolve) => (resolveMemberIndexPromise = resolve))
+]);
 
-const updateClassIndex = (indexString) => {
+// Parses the index data string and populates the target array.
+const parseIndex = (indexString, targetArray) => {
+    // Replace common namespace prefixes with their full names.
     indexString = indexString.replaceAll("%nm", "net/minecraft").replaceAll("%cm", "com/mojang");
 
     const header = [];
+    let firstLine = true;
+    // Iterate over each line of the index string.
     for (const line of indexString.match(/[^\r\n]+/g)) {
-        if (header.length === 0) {
+        if (firstLine) {
+            // The first line contains the header information.
+            firstLine = false;
             for (const col of line.split("\t")) {
+                // Split each column by ":" to separate namespace and color.
                 const colParts = col.split(":", 2);
-
-                header.push(colParts[0]);
-                colors[colParts[0]] = colParts[1];
+                const nsName = colParts[0];
+                header.push(nsName);
+                if (colParts.length > 1) {
+                    // Store the color associated with the namespace.
+                    colors[nsName] = colParts[1];
+                }
             }
         } else {
+            // Subsequent lines contain the actual index data.
             const obj = {};
-
-            for (const [index, col] of line.split("\t", header.length).entries()) {
-                obj[header[index]] = col || null;
+            const cols = line.split("\t");
+            for (let i = 0; i < header.length; i++) {
+                // Populate an object with the data from each column, using the header as keys.
+                obj[header[i]] = cols[i] || null;
             }
-
-            classIndex.push(obj);
+            targetArray.push(obj);
         }
     }
+};
 
+// Updates the class index array with the parsed data.
+const updateClassIndex = (indexString) => {
+    parseIndex(indexString, classIndex);
     resolveClassIndexPromise();
 };
 
-// dynamically load class index
-if (window.root) {
-    const indexScript = document.createElement("script");
-    indexScript.async = true;
-    indexScript.src = `${window.root}class-index.js`;
+// Updates the member index array with the parsed data.
+const updateMemberIndex = (indexString) => {
+    parseIndex(indexString, memberIndex);
+    resolveMemberIndexPromise();
+};
 
-    document.head.appendChild(indexScript);
+// Loads the class and member index data from external JavaScript files.
+if (window.root) {
+    const classIndexScript = document.createElement("script");
+    classIndexScript.async = true;
+    classIndexScript.src = `${window.root}class-index.js`;
+    document.head.appendChild(classIndexScript);
+
+    const memberIndexScript = document.createElement("script");
+    memberIndexScript.async = true;
+    memberIndexScript.src = `${window.root}member-index.js`;
+    document.head.appendChild(memberIndexScript);
 }
 
+// Key used to store the selected search namespaces in local storage.
 const searchNamespacesKey = "_namespaces";
 
+// Gets the stored search namespaces from local storage.
 const getStoredSearchNamespaces = () => {
     const nsString = localStorage.getItem(searchNamespacesKey);
 
     return nsString ? nsString.split(",") : (nsString != null ? [] : null);
 };
+// Array to store the currently selected search namespaces.
 let searchNamespaces = getStoredSearchNamespaces();
 
+// Updates the stored search namespaces in local storage.
 const updateSearchNamespaces = (newNamespaces) => {
     searchNamespaces = newNamespaces;
     localStorage.setItem(searchNamespacesKey, newNamespaces.join(","));
 };
 
+// Searches the class and member indices for the given query.
 const search = (query) => {
     const resultsBox = document.getElementById("search-results-box");
 
+    // Normalize the query by replacing "." with "/" and converting to lowercase.
     query = query.replaceAll(".", "/").toLowerCase().trim();
     if (!query) {
+        // If the query is empty, clear the results box.
         resultsBox.replaceChildren();
         return;
     }
 
-    const results = [];
+    const classResults = [];
+    const memberResults = [];
     const hasPackage = query.includes("/");
+    const hasArgs = query.includes("(");
 
-    klassLoop:
+    classLoop:
     for (const klass of classIndex) {
         for (const ns in klass) {
+            // Skip namespaces that are not selected for searching.
             if (!searchNamespaces.includes(ns)) continue;
 
             const klassName = klass[ns];
             if (klassName) {
-                if (!klassName.toLowerCase().includes(query)) continue;
+                const klassNameLower = klassName.toLowerCase();
+                if (!klassNameLower.includes(query)) continue;
 
                 const lastSlashIndex = klassName.lastIndexOf("/");
                 const simpleName = lastSlashIndex !== -1 ? klassName.substring(lastSlashIndex + 1) : klassName;
 
-                // if a package is not specified, match only against simple class names, not fully qualified ones
                 if (!hasPackage && !simpleName.toLowerCase().includes(query)) continue;
 
-                // more similar = lower number
-                results.push({
-                    klass: klass,
+                classResults.push({
+                    type: 'class',
+                    data: klass,
                     ns: ns,
                     simpleName: simpleName,
                     packageName: lastSlashIndex !== -1 ? klassName.substring(0, lastSlashIndex).replaceAll("/", ".") : null,
                     similarity: (hasPackage ? klassName.length : simpleName.length) - query.length
                 });
-
-                // only show a class once, skip the other namespaces
-                continue klassLoop;
+                continue classLoop;
             }
         }
     }
 
-    results.sort((a, b) => a.similarity - b.similarity);
+    memberLoop:
+    for (const member of memberIndex) {
+        for (const ns in member) {
+            // Skip the "Link" namespace and namespaces that are not selected for searching.
+            if (ns === "Link" || !searchNamespaces.includes(ns)) continue;
+
+            const memberName = member[ns];
+            if (memberName) {
+                const memberNameLower = memberName.toLowerCase();
+                if ((hasArgs && !memberName.includes("(")) || !memberNameLower.includes(query)) continue;
+
+                const linkParts = member.Link.split('#');
+                const classFriendlyName = linkParts[0];
+                const memberAnchor = linkParts[1];
+                const isMethod = memberAnchor.includes("(");
+
+                let simpleName = memberName;
+                if (isMethod) {
+                    const parenIndex = simpleName.indexOf('(');
+                    if (parenIndex !== -1) simpleName = simpleName.substring(0, parenIndex);
+                }
+
+                memberResults.push({
+                    type: isMethod ? 'method' : 'field',
+                    data: member,
+                    ns: ns,
+                    simpleName: simpleName,
+                    fullMemberName: memberName,
+                    classFriendlyName: classFriendlyName,
+                    similarity: memberName.length - query.length
+                });
+                continue memberLoop;
+            }
+        }
+    }
+
+
+    // Combine class and member results, then sort them by similarity.
+    const combinedResults = [...classResults, ...memberResults];
+    combinedResults.sort((a, b) => {
+
+        // If the similarity is the same, prioritize classes.
+        if (a.similarity === b.similarity) {
+            if (a.type === 'class' && b.type !== 'class') return -1;
+            if (a.type !== 'class' && b.type === 'class') return 1;
+        }
+        return a.similarity - b.similarity;
+    });
+
+
+    // Display the search results in the results box.
     resultsBox.replaceChildren(...(
-        // limit results to 50, should be plenty
-        results.slice(0, Math.min(results.length, 50 + 1 /* exclusive */)).map((r) => {
+        combinedResults.slice(0, Math.min(combinedResults.length, 50 + 1 )).map((r) => {
             const resultWrap = document.createElement("a");
-            resultWrap.href = `${window.root}${Object.values(r.klass).find((e) => e != null)}.html`;
+
+            let linkTargetBase;
+            let linkAnchor = '';
+            if (r.type === 'class') {
+
+                linkTargetBase = Object.values(r.data).find(e => e != null);
+            } else {
+                const linkParts = r.data.Link.split('#');
+                linkTargetBase = linkParts[0];
+                linkAnchor = linkParts.length > 1 ? `#${linkParts[1]}` : '';
+            }
+
+            resultWrap.href = `${window.root}${linkTargetBase}.html${linkAnchor}`;
             resultWrap.style.textDecoration = "none";
 
             const resultElem = document.createElement("div");
@@ -147,15 +259,25 @@ const search = (query) => {
             const title = document.createElement("p");
             title.classList.add("search-result-title");
             title.innerText = r.simpleName;
+            if (r.type === 'method') {
+                 const sig = r.fullMemberName.substring(r.simpleName.length);
+                 const sigSpan = document.createElement("span");
+                 sigSpan.style.opacity = "0.7";
+                 sigSpan.innerText = sig;
+                 title.appendChild(sigSpan);
+            }
             resultElem.appendChild(title);
 
-            if (r.packageName) {
-                const packageSubtitle = document.createElement("p");
-                packageSubtitle.classList.add("search-result-subtitle");
-                packageSubtitle.innerText = `package: ${r.packageName}`;
-                // add line break opportunities on raw HTML
-                packageSubtitle.innerHTML = packageSubtitle.innerHTML.replaceAll(".", ".<wbr>");
-                resultElem.appendChild(packageSubtitle);
+            const subtitleText = r.type === 'class'
+                ? (r.packageName ? `package: ${r.packageName}` : null)
+                : `in class: ${r.classFriendlyName.replaceAll("/", ".")}`;
+
+            if (subtitleText) {
+                const subtitle = document.createElement("p");
+                subtitle.classList.add("search-result-subtitle");
+                subtitle.innerText = subtitleText;
+                subtitle.innerHTML = subtitle.innerHTML.replaceAll(".", ".<wbr>");
+                resultElem.appendChild(subtitle);
             }
 
             const nsSubtitle = document.createElement("p");
@@ -175,16 +297,17 @@ const search = (query) => {
     ));
 };
 
+// Toggles the visibility of the options box.
 const toggleOptions = () => {
     const optionBox = document.getElementById("option-box");
     optionBox.style.display = optionBox.style.display === "grid" ? "none" : "grid";
 };
 
+// Updates the options box with the available namespaces and their associated colors.
 const updateOptions = () => {
     const searchInput = document.getElementById("search-input");
     const optionBox = document.getElementById("option-box");
 
-    // searchNamespaces is null if it wasn't loaded from localStorage, so just set it to all namespaces
     if (!searchNamespaces) {
         searchNamespaces = Object.keys(colors);
     }
@@ -202,7 +325,6 @@ const updateOptions = () => {
             inputElem.addEventListener("change", () => {
                 updateSearchNamespaces(inputElem.checked ? [...searchNamespaces, ns] : searchNamespaces.filter((e) => e !== ns));
 
-                // manually refresh search results
                 searchInput.dispatchEvent(new Event("input"));
             });
 

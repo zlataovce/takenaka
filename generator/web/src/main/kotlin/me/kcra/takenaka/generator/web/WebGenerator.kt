@@ -138,51 +138,94 @@ open class WebGenerator(override val workspace: Workspace, val config: WebConfig
                         val friendlyNameRemapper = ElementRemapper(tree, ::getFriendlyDstName)
                         val classMap = sortedMapOf<String, MutableMap<ClassType, MutableSet<String>>>()
 
-                        // class index format, similar to a CSV:
+                        // Index format, similar to a CSV:
                         // first line is a "header", this is a tab-delimited string with friendly namespace names + its badge colors, which are delimited by a colon ("namespace:#color")
                         // following lines are tab-separated strings with the mappings, each substring belongs to its column (header.split("\t").get(substringIndex) -> "namespace:#color")
                         // the column order is based on namespaceFriendlinessIndex, so the first non-null column is the friendly name
                         // "net/minecraft" and "com/mojang" are replaced with "%nm" and "%cm" to reduce duplication
 
-                        // example:
+                        // Class Index Example:
                         // Mojang:#4D7C0F   Intermediary:#0369A1    Obfuscated:#581C87
                         // %cm/math/Matrix3f %nm/class_4581    a
                         // %cm/math/Matrix4f %nm/class_1159    b
                         // ... (repeats like this for all classes)
-                        val classIndex = buildString {
-                            val namespaces = tree.allNamespaceIds
-                                .mapNotNull { nsId ->
-                                    val nsName = tree.getNamespaceName(nsId)
-                                    if (nsName in namespaceFriendlyNames) nsName to nsId else null
-                                }
-                                .sortedBy { config.namespaceFriendlinessIndex.indexOf(it.first) }
-                                .toMap()
 
-                            appendLine(namespaces.keys.joinToString("\t") { "${namespaceFriendlyNames[it]}:${getNamespaceBadgeColor(it)}" })
+                        // Member Index Example (first column is link anchor: ClassFriendlyName#member(args)):
+                        // Link                  Mojang:#4D7C0F      Intermediary:#0369A1 Obfuscated:#581C87
+                        // %cm/math/Matrix3f#f_123 fieldName1        field_123           a
+                        // %cm/math/Matrix3f#m_456(II)Ljava/lang/String; methodName1(int, int) method_456(II)Ljava/lang/String; b(II)Ljava/lang/String;
+                        // ...
 
-                            tree.classes.forEach { klass ->
-                                val type = classTypeOf(klass.modifiers)
-                                val friendlyName = getFriendlyDstName(klass)
+                        val namespaces = tree.allNamespaceIds
+                            .mapNotNull { nsId ->
+                                val nsName = tree.getNamespaceName(nsId)
+                                if (nsName in namespaceFriendlyNames) nsName to nsId else null
+                            }
+                            .sortedBy { config.namespaceFriendlinessIndex.indexOf(it.first) }
+                            .toMap()
 
-                                classPage(klass, type, hashMap[klass], nmsVersion, versionWorkspace, friendlyNameRemapper)
-                                    .serialize(versionWorkspace, "$friendlyName.html")
+                        val classIndexBuilder = StringBuilder()
+                        val memberIndexBuilder = StringBuilder()
 
-                                classMap.getOrPut(friendlyName.substringBeforeLast('/')) { sortedMapOf(compareBy(ClassType::ordinal)) }
-                                    .getOrPut(type, ::sortedSetOf) += friendlyName.substringAfterLast('/')
+                        // Write headers
+                        classIndexBuilder.appendLine(namespaces.keys.joinToString("\t") { "${namespaceFriendlyNames[it]}:${getNamespaceBadgeColor(it)}" })
+                        memberIndexBuilder.append("Link\t")
+                        memberIndexBuilder.appendLine(namespaces.keys.joinToString("\t") { "${namespaceFriendlyNames[it]}:${getNamespaceBadgeColor(it)}" })
 
-                                appendLine(namespaces.values.joinToString("\t") { nsId ->
-                                    val namespacedNmsVersion = if (tree.getNamespaceName(nsId) in versionReplaceCandidates) nmsVersion else null
+                        tree.classes.forEach { klass ->
+                            val type = classTypeOf(klass.modifiers)
+                            val friendlyName = getFriendlyDstName(klass)
 
-                                    klass.getName(nsId)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) ?: ""
+                            // Generate class page
+                            classPage(klass, type, hashMap[klass], nmsVersion, versionWorkspace, friendlyNameRemapper)
+                                .serialize(versionWorkspace, "$friendlyName.html")
+
+                            // Add to package map
+                            classMap.getOrPut(friendlyName.substringBeforeLast('/')) { sortedMapOf(compareBy(ClassType::ordinal)) }
+                                .getOrPut(type, ::sortedSetOf) += friendlyName.substringAfterLast('/')
+
+                            // Add class entry to class index
+                            classIndexBuilder.appendLine(namespaces.values.joinToString("\t") { nsId ->
+                                val namespacedNmsVersion = if (tree.getNamespaceName(nsId) in versionReplaceCandidates) nmsVersion else null
+                                klass.getName(nsId)?.replaceCraftBukkitNMSVersion(namespacedNmsVersion) ?: ""
+                            })
+
+                            // Add member entries to member index
+                            val klassFriendlyName = getFriendlyDstName(klass) // Re-get friendly name for member links
+
+                            // Process fields
+                            klass.fields.forEach { field ->
+                                val fieldFriendlyName = getFriendlyDstName(field) // Use field's friendly name for anchor
+                                memberIndexBuilder.append("$klassFriendlyName#$fieldFriendlyName\t") // Link column
+                                memberIndexBuilder.appendLine(namespaces.values.joinToString("\t") { nsId ->
+                                    field.getName(nsId) ?: ""
                                 })
                             }
-                        }.replace("net/minecraft", "%nm").replace("com/mojang", "%cm")
 
+                            // Process methods (including constructors)
+                            klass.methods.forEach { method ->
+                                val methodFriendlyName = getFriendlyDstName(method) // Use method's friendly name + desc for anchor
+                                val methodDesc = method.srcDesc // Use srcDesc for anchor stability
+                                memberIndexBuilder.append("$klassFriendlyName#$methodFriendlyName$methodDesc\t") // Link column
+                                memberIndexBuilder.appendLine(namespaces.values.joinToString("\t") { nsId ->
+                                    val name = method.getName(nsId)
+                                    val desc = method.getDesc(nsId)
+                                    if (name != null && desc != null) "$name$desc" else ""
+                                })
+                            }
+                        }
+
+                        // Finalize indices
+                        val classIndex = classIndexBuilder.toString().replace("net/minecraft", "%nm").replace("com/mojang", "%cm")
+                        val memberIndex = memberIndexBuilder.toString().replace("net/minecraft", "%nm").replace("com/mojang", "%cm")
+
+                        // Generate package pages
                         classMap.forEach { (packageName, classes) ->
                             packagePage(versionWorkspace, packageName, classes)
                                 .serialize(versionWorkspace, "$packageName/index.html")
                         }
 
+                        // Generate license page
                         val licenses = config.namespaces
                             .mapNotNull { (ns, nsDesc) ->
                                 if (nsDesc.license == null) return@mapNotNull null
@@ -193,14 +236,16 @@ open class WebGenerator(override val workspace: Workspace, val config: WebConfig
                                 return@mapNotNull ns to License(content, source)
                             }
                             .toMap()
-
                         licensePage(versionWorkspace, licenses)
                             .serialize(versionWorkspace, "licenses.html")
 
+                        // Generate overview page
                         overviewPage(versionWorkspace, classMap.keys)
                             .serialize(versionWorkspace, "index.html")
 
+                        // Write index JS files
                         versionWorkspace["class-index.js"].writeText("updateClassIndex(`${classIndex.trim()}`);") // do not minify this file
+                        versionWorkspace["member-index.js"].writeText("updateMemberIndex(`${memberIndex.trim()}`);") // do not minify this file
                     }
                     logger.info { "${version.id} pages generated in ${time}ms" }
                 }
@@ -226,16 +271,16 @@ open class WebGenerator(override val workspace: Workspace, val config: WebConfig
                     const licensesLink = document.getElementById("licenses-link");
                     const searchInput = document.getElementById("search-input");
                     const searchBox = document.getElementById("search-box");
-                    
+
                     if (window.root) {
                         overviewLink.href = `${'$'}{window.root}index.html`;
                         licensesLink.href = `${'$'}{window.root}licenses.html`;
-                        
+
                         searchInput.addEventListener("input", (evt) => search(evt.target.value));
                         document.addEventListener("mouseup", (evt) => {
                             searchBox.style.display = !searchInput.contains(evt.target) && !searchBox.contains(evt.target) ? "none" : "block";
                         });
-                        
+
                         initialIndexLoadPromise.then(updateOptions);
                     } else {
                         overviewLink.remove();
@@ -300,7 +345,7 @@ open class WebGenerator(override val workspace: Workspace, val config: WebConfig
                         if (e.children.length === 0) {
                             const template = document.createElement("template");
                             template.innerHTML = component;
-                            
+
                             const newElem = template.content.firstElementChild.cloneNode(true);
                             e.replaceWith(newElem);
                             callback(newElem);
