@@ -45,7 +45,20 @@ public enum MapperPlatforms implements MapperPlatform {
                 final Class<?> constClass = Class.forName("net.minecraft.SharedConstants", true, getClassLoader());
                 final Object gameVersion = constClass.getMethod("getCurrentVersion").invoke(null);
 
-                minecraftVersion = (String) gameVersion.getClass().getMethod("getName").invoke(gameVersion);
+                try {
+                    minecraftVersion = (String) gameVersion.getClass().getMethod("id").invoke(gameVersion);
+                } catch (NoSuchMethodException ignored) {
+                    minecraftVersion = (String) gameVersion.getClass().getMethod("getId").invoke(gameVersion);
+                }
+
+                // When BUILT_IN object is used, current version may contain random UUID in id (without dashes) and the actual id in name
+                if (minecraftVersion == null || (minecraftVersion.length() == 32 && !minecraftVersion.contains("."))) {
+                    try {
+                        minecraftVersion = (String) gameVersion.getClass().getMethod("name").invoke(gameVersion);
+                    } catch (NoSuchMethodException ignored) {
+                        minecraftVersion = (String) gameVersion.getClass().getMethod("getName").invoke(gameVersion);
+                    }
+                }
             } catch (IllegalAccessException | InvocationTargetException e) {
                 throw new RuntimeException("Failed to get Minecraft version", e);
             } catch (ClassNotFoundException | NoSuchMethodException ignored) {
