@@ -32,6 +32,7 @@ import me.kcra.takenaka.core.versionManifest
 import me.kcra.takenaka.core.versionManifestOf
 import me.kcra.takenaka.generator.common.provider.MappingProvider
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.kcra.takenaka.generator.common.provider.ResolveException
 import net.fabricmc.mappingio.format.Tiny2Reader
 import net.fabricmc.mappingio.format.Tiny2Writer
 import net.fabricmc.mappingio.tree.MemoryMappingTree
@@ -144,12 +145,17 @@ class ResolvingMappingProvider @Deprecated(
                     }
                 }
 
-                val tree = buildMappingTree {
-                    contributor(contributors)
+                val treeResult = runCatching {
+                    buildMappingTree {
+                        contributor(contributors)
 
-                    interceptors += mappingConfig.interceptors
+                        interceptors += mappingConfig.interceptors
+                    }
                 }
 
+                val tree = treeResult.getOrElse { exc ->
+                    throw ResolveException("Failed to create mapping tree for version ${workspace.version}", exc)
+                }
                 if (analyzer != null) {
                     val time = measureTimeMillis { analyzer.accept(tree) }
                     logger.info { "analyzed ${workspace.version.id} mappings in ${time}ms" }
