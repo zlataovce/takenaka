@@ -138,7 +138,8 @@ class ResolvingMappingProvider @Deprecated(
                         if (contributor is OutputContainer<*>) {
                             contributor.forEach { output ->
                                 launch(Dispatchers.Default + CoroutineName("resolve-coro")) {
-                                    output.resolve()
+                                    runCatching { output.resolve() }
+                                        .onFailure { e -> logger.error(e) { "Failed to pre-fetch output $output" } }
                                 }
                             }
                         }
@@ -147,14 +148,14 @@ class ResolvingMappingProvider @Deprecated(
 
                 val treeResult = runCatching {
                     buildMappingTree {
-                        contributor(contributors)
+                        contributor(contributors.map { RetryingContributor(it, 5) })
 
                         interceptors += mappingConfig.interceptors
                     }
                 }
 
-                val tree = treeResult.getOrElse { exc ->
-                    throw ResolveException("Failed to create mapping tree for version ${workspace.version}", exc)
+                val tree = treeResult.getOrElse { e ->
+                    throw ResolveException("Failed to create mapping tree for version ${workspace.version.id}", e)
                 }
                 if (analyzer != null) {
                     val time = measureTimeMillis { analyzer.accept(tree) }
