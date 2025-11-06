@@ -199,7 +199,7 @@ data class Version(
     val complianceLevel: Int
 ) : Comparable<Version>, Serializable {
     enum class Type {
-        RELEASE, SNAPSHOT, OLD_BETA, OLD_ALPHA
+        RELEASE, SNAPSHOT, OLD_BETA, OLD_ALPHA, UNOBFUSCATED
     }
 
     /**
@@ -307,6 +307,9 @@ data class VersionAttributes(
          */
         val url: String
     )
+
+    val isUnobfuscated: Boolean
+        get() = type == Version.Type.UNOBFUSCATED || (releaseTime.toEpochMilli() > 1762265228000 && downloads.clientMappings == null && downloads.serverMappings == null)
 }
 
 /**

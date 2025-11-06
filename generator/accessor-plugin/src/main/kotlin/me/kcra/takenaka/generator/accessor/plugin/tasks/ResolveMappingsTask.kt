@@ -237,7 +237,8 @@ abstract class ResolveMappingsTask : DefaultTask() {
                                     VanillaServerMappingContributor(
                                         versionWorkspace,
                                         mojangProvider,
-                                        relaxedCache.get()
+                                        relaxedCache.get(),
+                                        "mojang" !in requiredNamespaces
                                     )
                                 )
                                 addIfSupported(MojangServerMappingResolver(versionWorkspace, mojangProvider))
@@ -247,7 +248,8 @@ abstract class ResolveMappingsTask : DefaultTask() {
                                     VanillaClientMappingContributor(
                                         versionWorkspace,
                                         mojangProvider,
-                                        relaxedCache.get()
+                                        relaxedCache.get(),
+                                        "mojang" !in requiredNamespaces
                                     )
                                 )
                                 addIfSupported(MojangClientMappingResolver(versionWorkspace, mojangProvider))

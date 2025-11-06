@@ -53,7 +53,8 @@ private val logger = KotlinLogging.logger {}
  */
 abstract class AbstractVanillaMappingContributor(
     val workspace: VersionedWorkspace,
-    val relaxedCache: Boolean = true
+    val relaxedCache: Boolean = true,
+    val prohibitUsageOfMojang: Boolean = false,
 ) : AbstractOutputContainer<Path?>(), MappingContributor {
     override val targetNamespace: String = MappingUtil.NS_SOURCE_FALLBACK
     override val outputs: List<Output<out Path?>>
@@ -125,7 +126,7 @@ abstract class AbstractVanillaMappingContributor(
         val jarPath by jarOutput
 
         fun read(zf: ZipFile) {
-            val classVisitor = MappingClassVisitor(visitor, targetNamespace)
+            val classVisitor = MappingClassVisitor(visitor, if (jarAttribute.isUnobfuscated && !prohibitUsageOfMojang) "mojang" else targetNamespace)
 
             zf.entries()
                 .asSequence()
@@ -194,7 +195,7 @@ abstract class AbstractVanillaMappingContributor(
      * @property visitor the targeted mapping visitor
      * @param sourceNs the source namespace (contains the names of the visited classes)
      */
-    class MappingClassVisitor(val visitor: MappingVisitor, sourceNs: String) : ClassVisitor(Opcodes.ASM9) {
+    class MappingClassVisitor(val visitor: MappingVisitor, sourceNs: String, val visitParamNames: Boolean) : ClassVisitor(Opcodes.ASM9) {
         init {
             if (visitor.visitHeader()) {
                 visitor.visitNamespaces(sourceNs, listOf(NS_MODIFIERS, NS_SIGNATURE, NS_SUPER, NS_INTERFACES))
@@ -303,8 +304,9 @@ fun String?.parseInterfaces(): List<String> = this?.split(',') ?: emptyList()
 class VanillaClientMappingContributor(
     workspace: VersionedWorkspace,
     val mojangProvider: MojangManifestAttributeProvider,
-    relaxedCache: Boolean = true
-) : AbstractVanillaMappingContributor(workspace, relaxedCache) {
+    relaxedCache: Boolean = true,
+    prohibitUsageOfMojang: Boolean = false
+) : AbstractVanillaMappingContributor(workspace, relaxedCache, prohibitUsageOfMojang) {
     /**
      * Creates a new resolver with a default metadata provider.
      *
@@ -338,7 +340,8 @@ class VanillaClientMappingContributor(
         return ManifestAttribute(
             "client",
             mojangProvider.attributes.downloads.client.url,
-            mojangProvider.attributes.downloads.client.sha1
+            mojangProvider.attributes.downloads.client.sha1,
+            mojangProvider.attributes.isUnobfuscated
         )
     }
 }
@@ -354,8 +357,9 @@ class VanillaClientMappingContributor(
 class VanillaServerMappingContributor(
     workspace: VersionedWorkspace,
     val mojangProvider: MojangManifestAttributeProvider,
-    relaxedCache: Boolean = true
-) : AbstractVanillaMappingContributor(workspace, relaxedCache) {
+    relaxedCache: Boolean = true,
+    prohibitUsageOfMojang: Boolean = false
+) : AbstractVanillaMappingContributor(workspace, relaxedCache, prohibitUsageOfMojang) {
     /**
      * Creates a new resolver with a default metadata provider.
      *
@@ -389,7 +393,8 @@ class VanillaServerMappingContributor(
         return ManifestAttribute(
             "server",
             mojangProvider.attributes.downloads.server.url,
-            mojangProvider.attributes.downloads.server.sha1
+            mojangProvider.attributes.downloads.server.sha1,
+            mojangProvider.attributes.isUnobfuscated
         )
     }
 }
