@@ -33,6 +33,7 @@ import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.*
+import org.objectweb.asm.Opcodes
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
@@ -126,7 +127,13 @@ abstract class AbstractVanillaMappingContributor(
         val jarPath by jarOutput
 
         fun read(zf: ZipFile) {
-            val classVisitor = MappingClassVisitor(visitor, if (jarAttribute.isUnobfuscated && !prohibitUsageOfMojang) "mojang" else targetNamespace)
+            val useMojangNamespace = jarAttribute.isUnobfuscated && !prohibitUsageOfMojang
+
+            val classVisitor = MappingClassVisitor(
+                visitor,
+                if (useMojangNamespace) "mojang" else targetNamespace,
+                !useMojangNamespace
+            )
 
             zf.entries()
                 .asSequence()
@@ -134,7 +141,7 @@ abstract class AbstractVanillaMappingContributor(
                 .forEach { entry ->
                     zf.getInputStream(entry).use { inputStream ->
                         // ignore any method content and debugging data
-                        ClassReader(inputStream).accept(classVisitor, ClassReader.SKIP_CODE or ClassReader.SKIP_DEBUG)
+                        ClassReader(inputStream).accept(classVisitor, ClassReader.SKIP_CODE or (if (useMojangNamespace) 0 else ClassReader.SKIP_DEBUG))
                     }
                 }
         }
@@ -195,7 +202,7 @@ abstract class AbstractVanillaMappingContributor(
      * @property visitor the targeted mapping visitor
      * @param sourceNs the source namespace (contains the names of the visited classes)
      */
-    class MappingClassVisitor(val visitor: MappingVisitor, sourceNs: String) : ClassVisitor(Opcodes.ASM9) {
+    class MappingClassVisitor(val visitor: MappingVisitor, sourceNs: String, val skipParams: Boolean) : ClassVisitor(Opcodes.ASM9) {
         init {
             if (visitor.visitHeader()) {
                 visitor.visitNamespaces(sourceNs, listOf(NS_MODIFIERS, NS_SIGNATURE, NS_SUPER, NS_INTERFACES))
@@ -255,6 +262,23 @@ abstract class AbstractVanillaMappingContributor(
                 visitor.visitDstName(MappedElementKind.METHOD, 1, signature)
                 // TODO: exception mapping?
                 visitor.visitElementContent(MappedElementKind.METHOD)
+
+                if (!skipParams) {
+                    return object : MethodVisitor(Opcodes.ASM9) {
+                        var index = 0
+
+                        override fun visitParameter(name: String?, access2: Int) {
+                            if (name != null && name.isNotBlank()) {
+                                visitor.visitMethodArg(
+                                    index,
+                                    if ((access and Opcodes.ACC_STATIC) != 0) index else (index + 1),
+                                    name
+                                )
+                            }
+                            index++
+                        }
+                    }
+                }
             }
 
             return null

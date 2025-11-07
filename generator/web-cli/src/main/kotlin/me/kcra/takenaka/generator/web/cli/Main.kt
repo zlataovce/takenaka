@@ -166,7 +166,7 @@ fun main(args: Array<String>) {
         // remove overrides of java/lang/Object, they are implicit
         intercept(::ObjectOverrideFilter)
         // remove obfuscated method parameter names, they are a filler from Searge
-        intercept(::MethodArgSourceFilter)
+//        intercept(::MethodArgSourceFilter) // TODO: fix the interceptor
         // intern names to save memory
         intercept(::StringPoolingAdapter)
 
