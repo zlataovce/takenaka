@@ -87,8 +87,8 @@ class AncestryTree<T : MappingTreeView, E : ElementMappingView>(
 
                 tree.allowedNamespaces[lastVersion]
                     ?.mapNotNullTo(mutableSetOf()) { (_, id) ->
-                        val name = if (isConstructor) "<init>" else (lastMapping.getDstName(id) ?: return@mapNotNullTo null)
-                        val desc = lastMapping.getDstDesc(id)
+                        val name = if (isConstructor) "<init>" else (lastMapping.getName(id) ?: return@mapNotNullTo null)
+                        val desc = lastMapping.getDesc(id)
                             ?: return@mapNotNullTo null
 
                         name to desc
@@ -96,7 +96,7 @@ class AncestryTree<T : MappingTreeView, E : ElementMappingView>(
                     ?: error("Version $lastVersion is not mapped in parent tree")
             } else {
                 tree.allowedNamespaces[lastVersion]
-                    ?.mapNotNullTo(mutableSetOf()) { (_, id) -> lastMapping.getDstName(id) }
+                    ?.mapNotNullTo(mutableSetOf()) { (_, id) -> lastMapping.getName(id) }
                     ?: error("Version $lastVersion is not mapped in parent tree")
             }
         }
