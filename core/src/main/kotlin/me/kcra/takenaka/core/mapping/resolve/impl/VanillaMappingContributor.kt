@@ -195,7 +195,7 @@ abstract class AbstractVanillaMappingContributor(
      * @property visitor the targeted mapping visitor
      * @param sourceNs the source namespace (contains the names of the visited classes)
      */
-    class MappingClassVisitor(val visitor: MappingVisitor, sourceNs: String, val visitParamNames: Boolean) : ClassVisitor(Opcodes.ASM9) {
+    class MappingClassVisitor(val visitor: MappingVisitor, sourceNs: String) : ClassVisitor(Opcodes.ASM9) {
         init {
             if (visitor.visitHeader()) {
                 visitor.visitNamespaces(sourceNs, listOf(NS_MODIFIERS, NS_SIGNATURE, NS_SUPER, NS_INTERFACES))
