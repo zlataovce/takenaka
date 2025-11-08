@@ -258,15 +258,13 @@ abstract class AbstractVanillaMappingContributor(
                 val type = Type.getMethodType(descriptor)
                 return object : MethodVisitor(Opcodes.ASM9) {
                     var paramIndex = 0
+                    var lvIndex = if ((access and Opcodes.ACC_STATIC) == 0) 1 else 0
 
                     override fun visitParameter(name: String?, paramAccess: Int) {
-                        var lvIndex = type.argumentTypes.getOrNull(paramIndex)?.let(Type::getSize) ?: 1
-                        if ((access and Opcodes.ACC_STATIC) != 0) {
-                            lvIndex++ // account for 'this'
-                        }
-
                         visitor.visitMethodArg(paramIndex, lvIndex, name)
+
                         paramIndex++
+                        lvIndex += type.argumentTypes.getOrNull(paramIndex)?.let(Type::getSize) ?: 1
                     }
                 }
             }
