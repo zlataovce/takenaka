@@ -33,7 +33,6 @@ import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.tree.MappingTreeView
 import org.objectweb.asm.*
-import org.objectweb.asm.Opcodes
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
