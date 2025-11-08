@@ -263,8 +263,8 @@ abstract class AbstractVanillaMappingContributor(
                     override fun visitParameter(name: String?, paramAccess: Int) {
                         visitor.visitMethodArg(paramIndex, lvIndex, name)
 
-                        paramIndex++
                         lvIndex += type.argumentTypes.getOrNull(paramIndex)?.let(Type::getSize) ?: 1
+                        paramIndex++
                     }
                 }
             }
