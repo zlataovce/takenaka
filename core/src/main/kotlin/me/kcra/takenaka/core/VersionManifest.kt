@@ -206,7 +206,7 @@ data class Version(
      * Whether this version may lack mappings due to being unobfuscated.
      */
     val maybeUnobfuscated: Boolean
-        get() = releaseTime.toEpochMilli() > 1762265228000
+        get() = releaseTime.toEpochMilli() >= 1762265228000
 
     /**
      * Compares the release date of this version to another version.
