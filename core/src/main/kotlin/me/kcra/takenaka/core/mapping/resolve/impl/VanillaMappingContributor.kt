@@ -261,7 +261,9 @@ abstract class AbstractVanillaMappingContributor(
                     var lvIndex = if ((access and Opcodes.ACC_STATIC) == 0) 1 else 0
 
                     override fun visitParameter(name: String?, paramAccess: Int) {
-                        visitor.visitMethodArg(paramIndex, lvIndex, name)
+                        if (name != null && name.isNotBlank()) {
+                            visitor.visitMethodArg(paramIndex, lvIndex, name)
+                        }
 
                         lvIndex += type.argumentTypes.getOrNull(paramIndex)?.let(Type::getSize) ?: 1
                         paramIndex++
