@@ -54,8 +54,7 @@ private val logger = KotlinLogging.logger {}
  */
 abstract class AbstractVanillaMappingContributor(
     val workspace: VersionedWorkspace,
-    val relaxedCache: Boolean = true,
-    val prohibitUsageOfMojang: Boolean = false,
+    val relaxedCache: Boolean = true
 ) : AbstractOutputContainer<Path?>(), MappingContributor {
     override val targetNamespace: String = MappingUtil.NS_SOURCE_FALLBACK
     override val outputs: List<Output<out Path?>>
@@ -127,21 +126,15 @@ abstract class AbstractVanillaMappingContributor(
         val jarPath by jarOutput
 
         fun read(zf: ZipFile) {
-            val useMojangNamespace = jarAttribute.isUnobfuscated && !prohibitUsageOfMojang
-
-            val classVisitor = MappingClassVisitor(
-                visitor,
-                if (useMojangNamespace) "mojang" else targetNamespace,
-                !useMojangNamespace
-            )
+            val classVisitor = MappingClassVisitor(visitor, targetNamespace)
 
             zf.entries()
                 .asSequence()
                 .filter { !it.isDirectory && it.name.matches(CLASS_PATTERN) }
                 .forEach { entry ->
                     zf.getInputStream(entry).use { inputStream ->
-                        // ignore any method content and debugging data
-                        ClassReader(inputStream).accept(classVisitor, ClassReader.SKIP_CODE or (if (useMojangNamespace) 0 else ClassReader.SKIP_DEBUG))
+                        // ignore any method content
+                        ClassReader(inputStream).accept(classVisitor, ClassReader.SKIP_CODE)
                     }
                 }
         }
@@ -202,7 +195,7 @@ abstract class AbstractVanillaMappingContributor(
      * @property visitor the targeted mapping visitor
      * @param sourceNs the source namespace (contains the names of the visited classes)
      */
-    class MappingClassVisitor(val visitor: MappingVisitor, sourceNs: String, val skipParams: Boolean) : ClassVisitor(Opcodes.ASM9) {
+    class MappingClassVisitor(val visitor: MappingVisitor, sourceNs: String) : ClassVisitor(Opcodes.ASM9) {
         init {
             if (visitor.visitHeader()) {
                 visitor.visitNamespaces(sourceNs, listOf(NS_MODIFIERS, NS_SIGNATURE, NS_SUPER, NS_INTERFACES))
@@ -263,20 +256,18 @@ abstract class AbstractVanillaMappingContributor(
                 // TODO: exception mapping?
                 visitor.visitElementContent(MappedElementKind.METHOD)
 
-                if (!skipParams) {
-                    return object : MethodVisitor(Opcodes.ASM9) {
-                        var index = 0
+                val type = Type.getMethodType(descriptor)
+                return object : MethodVisitor(Opcodes.ASM9) {
+                    var paramIndex = 0
 
-                        override fun visitParameter(name: String?, access2: Int) {
-                            if (name != null && name.isNotBlank()) {
-                                visitor.visitMethodArg(
-                                    index,
-                                    if ((access and Opcodes.ACC_STATIC) != 0) index else (index + 1),
-                                    name
-                                )
-                            }
-                            index++
+                    override fun visitParameter(name: String?, paramAccess: Int) {
+                        var lvIndex = type.argumentTypes.getOrNull(paramIndex)?.let(Type::getSize) ?: 1
+                        if ((access and Opcodes.ACC_STATIC) != 0) {
+                            lvIndex++ // account for 'this'
                         }
+
+                        visitor.visitMethodArg(paramIndex, lvIndex, name)
+                        paramIndex++
                     }
                 }
             }
@@ -328,9 +319,8 @@ fun String?.parseInterfaces(): List<String> = this?.split(',') ?: emptyList()
 class VanillaClientMappingContributor(
     workspace: VersionedWorkspace,
     val mojangProvider: MojangManifestAttributeProvider,
-    relaxedCache: Boolean = true,
-    prohibitUsageOfMojang: Boolean = false
-) : AbstractVanillaMappingContributor(workspace, relaxedCache, prohibitUsageOfMojang) {
+    relaxedCache: Boolean = true
+) : AbstractVanillaMappingContributor(workspace, relaxedCache) {
     /**
      * Creates a new resolver with a default metadata provider.
      *
@@ -364,8 +354,7 @@ class VanillaClientMappingContributor(
         return ManifestAttribute(
             "client",
             mojangProvider.attributes.downloads.client.url,
-            mojangProvider.attributes.downloads.client.sha1,
-            mojangProvider.attributes.isUnobfuscated
+            mojangProvider.attributes.downloads.client.sha1
         )
     }
 }
@@ -381,9 +370,8 @@ class VanillaClientMappingContributor(
 class VanillaServerMappingContributor(
     workspace: VersionedWorkspace,
     val mojangProvider: MojangManifestAttributeProvider,
-    relaxedCache: Boolean = true,
-    prohibitUsageOfMojang: Boolean = false
-) : AbstractVanillaMappingContributor(workspace, relaxedCache, prohibitUsageOfMojang) {
+    relaxedCache: Boolean = true
+) : AbstractVanillaMappingContributor(workspace, relaxedCache) {
     /**
      * Creates a new resolver with a default metadata provider.
      *
@@ -417,8 +405,7 @@ class VanillaServerMappingContributor(
         return ManifestAttribute(
             "server",
             mojangProvider.attributes.downloads.server.url,
-            mojangProvider.attributes.downloads.server.sha1,
-            mojangProvider.attributes.isUnobfuscated
+            mojangProvider.attributes.downloads.server.sha1
         )
     }
 }

@@ -22,6 +22,7 @@ import me.kcra.takenaka.core.Version
 import me.kcra.takenaka.core.VersionManifest
 import me.kcra.takenaka.core.compositeWorkspace
 import me.kcra.takenaka.core.mapping.MappingContributor
+import me.kcra.takenaka.core.mapping.WrappingContributor
 import me.kcra.takenaka.core.mapping.adapter.*
 import me.kcra.takenaka.core.mapping.analysis.impl.AnalysisOptions
 import me.kcra.takenaka.core.mapping.analysis.impl.MappingAnalyzerImpl
@@ -222,8 +223,6 @@ abstract class ResolveMappingsTask : DefaultTask() {
                     intercept(::StaticInitializerFilter)
                     // remove overrides of java/lang/Object, they are implicit
                     intercept(::ObjectOverrideFilter)
-                    // remove obfuscated method parameter names, they are a filler from Searge
-                    intercept(::MethodArgSourceFilter)
                     // intern names to save memory
                     intercept(::StringPoolingAdapter)
 
@@ -237,8 +236,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
                                     VanillaServerMappingContributor(
                                         versionWorkspace,
                                         mojangProvider,
-                                        relaxedCache.get(),
-                                        "mojang" !in requiredNamespaces
+                                        relaxedCache.get()
                                     )
                                 )
                                 addIfSupported(MojangServerMappingResolver(versionWorkspace, mojangProvider))
@@ -248,8 +246,7 @@ abstract class ResolveMappingsTask : DefaultTask() {
                                     VanillaClientMappingContributor(
                                         versionWorkspace,
                                         mojangProvider,
-                                        relaxedCache.get(),
-                                        "mojang" !in requiredNamespaces
+                                        relaxedCache.get()
                                     )
                                 )
                                 addIfSupported(MojangClientMappingResolver(versionWorkspace, mojangProvider))
@@ -260,10 +257,14 @@ abstract class ResolveMappingsTask : DefaultTask() {
                             addIfSupported(YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache.get()))
                             addIfSupported(QuiltMappingResolver(versionWorkspace, quiltProvider, relaxedCache.get()))
                             addIfSupported(
-                                SeargeMappingResolver(
-                                    versionWorkspace,
-                                    sharedCacheWorkspace,
-                                    relaxedCache = relaxedCache.get()
+                                WrappingContributor(
+                                    SeargeMappingResolver(
+                                        versionWorkspace,
+                                        sharedCacheWorkspace,
+                                        relaxedCache = relaxedCache.get()
+                                    ),
+                                    // remove obfuscated method parameter names, they are a filler from Searge
+                                    ::MethodArgSourceFilter
                                 )
                             )
 

@@ -23,8 +23,6 @@ import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
 /**
  * A [MappingVisitor] that filters out source (obfuscated) names of method parameters.
  *
- * In most cases, you won't have obfuscated names of method parameters, so they are a filler that mapping vendors put in (like in Searge).
- *
  * @param next the visitor to delegate to
  * @author Matouš Kučera
  */

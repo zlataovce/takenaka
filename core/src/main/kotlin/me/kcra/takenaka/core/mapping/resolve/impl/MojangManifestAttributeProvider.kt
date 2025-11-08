@@ -99,9 +99,8 @@ class MojangManifestAttributeProvider @Deprecated(
  * @property name the attribute name
  * @property value the attribute value
  * @property checksum the attribute checksum
- * @property isUnobfuscated is jar unobfuscated?
  */
-data class ManifestAttribute(val name: String, val value: String?, val checksum: String?, val isUnobfuscated: Boolean = false) {
+data class ManifestAttribute(val name: String, val value: String?, val checksum: String?) {
     /**
      * Whether this attribute exists in the manifest, i.e. [value] is not null.
      */

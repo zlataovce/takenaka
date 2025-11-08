@@ -176,11 +176,11 @@ fun main(args: Array<String>) {
 
             buildList {
                 if (server) {
-                    add(VanillaServerMappingContributor(versionWorkspace, mojangProvider, relaxedCache = !strictCache, prohibitUsageOfMojang = "mojang" !in namespaceKeys))
+                    add(VanillaServerMappingContributor(versionWorkspace, mojangProvider, relaxedCache = !strictCache))
                     addIfSupported(MojangServerMappingResolver(versionWorkspace, mojangProvider))
                 }
                 if (client) {
-                    add(VanillaClientMappingContributor(versionWorkspace, mojangProvider, relaxedCache = !strictCache, prohibitUsageOfMojang = "mojang" !in namespaceKeys))
+                    add(VanillaClientMappingContributor(versionWorkspace, mojangProvider, relaxedCache = !strictCache))
                     addIfSupported(MojangClientMappingResolver(versionWorkspace, mojangProvider))
                 }
 

@@ -95,7 +95,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView> classAncestryTre
             (tree.classes as Collection<C>).forEach { klass ->
                 // try to resolve a node by its index
                 if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
-                    val nodeIndex = klass.getName(indexNsId)?.toIntOrNull()
+                    val nodeIndex = klass.getDstName(indexNsId)?.toIntOrNull()
                     if (nodeIndex != null) {
                         val node = findByIndex(nodeIndex)
 
@@ -110,7 +110,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView> classAncestryTre
 
                 val isInner = srcNameParts.size > 1
                 val classMappings = treeAllowedNamespaces.mapNotNullTo(HashSet(treeAllowedNamespaces.size)) { (ns, id) ->
-                    klass.getName(id)?.let { name ->
+                    klass.getDstName(id)?.let { name ->
                         if (isInner && name != srcName) { // inner and not unobfuscated
                             if (name.split('$').any(srcNameParts::contains)) {
                                 return@let null // mapping not suitable for history - contains an obfuscated inner name
@@ -128,7 +128,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView> classAncestryTre
                     val (lastVersion, lastMapping) = node.last ?: error("Encountered a node without a last mapping")
                     val lastNames = node.lastNames
                         ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNullTo(HashSet()) { (ns, id) ->
-                            lastMapping.getName(id)?.let { name -> NamespacedMapping(ns, name) }
+                            lastMapping.getDstName(id)?.let { name -> NamespacedMapping(ns, name) }
                         }
                         ?: error("Version ${version.id} has not been mapped yet, make sure mappings are sorted correctly")
 
@@ -188,7 +188,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, F : MappingTreeV
             (realKlass.fields as Collection<F>).forEach { field ->
                 // try to resolve a node by its index
                 if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
-                    val nodeIndex = field.getName(indexNsId)?.toIntOrNull()
+                    val nodeIndex = field.getDstName(indexNsId)?.toIntOrNull()
                     if (nodeIndex != null) {
                         val node = findByIndex(nodeIndex)
 
@@ -198,7 +198,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, F : MappingTreeV
                 }
 
                 val fieldNameMappings = treeAllowedNamespaces.mapNotNullTo(HashSet(treeAllowedNamespaces.size)) { (ns, id) ->
-                    field.getName(id)?.let { name -> NamespacedMapping(ns, name) }
+                    field.getDstName(id)?.let { name -> NamespacedMapping(ns, name) }
                 }
                 val fieldDescMappings = treeAllowedNamespaces.mapNotNullTo(HashSet(treeAllowedNamespaces.size)) { (ns, id) ->
                     field.getDstDesc(id)?.let { name -> NamespacedMapping(ns, name) }
@@ -214,7 +214,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, F : MappingTreeV
                     val (lastVersion, lastMapping) = node.last ?: error("Encountered a node without a last mapping")
                     val lastNames = node.lastNames
                         ?: this@buildAncestryTree.allowedNamespaces[lastVersion]?.mapNotNullTo(HashSet()) { (ns, id) ->
-                            lastMapping.getName(id)?.let { name -> NamespacedMapping(ns, name) }
+                            lastMapping.getDstName(id)?.let { name -> NamespacedMapping(ns, name) }
                         }
                         ?: error("Version ${lastVersion.id} has not been mapped yet")
 
@@ -302,7 +302,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeV
 
                 // try to resolve a node by its index
                 if (indexNsId != MappingTreeView.NULL_NAMESPACE_ID) {
-                    val nodeIndex = method.getName(indexNsId)?.toIntOrNull()
+                    val nodeIndex = method.getDstName(indexNsId)?.toIntOrNull()
                     if (nodeIndex != null) {
                         val node = findByIndex(nodeIndex)
 
@@ -312,7 +312,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeV
                 }
 
                 val methodNameMappings = if (isConstructor) CTOR_NAME_SET else treeAllowedNamespaces.mapNotNullTo(HashSet(treeAllowedNamespaces.size)) { (ns, id) ->
-                    method.getName(id)?.let { name -> NamespacedMapping(ns, name) }
+                    method.getDstName(id)?.let { name -> NamespacedMapping(ns, name) }
                 }
                 val methodDescMappings = treeAllowedNamespaces.mapNotNullTo(HashSet(treeAllowedNamespaces.size)) { (ns, id) ->
                     method.getDstDesc(id)?.let { name -> NamespacedMapping(ns, name) }
@@ -334,7 +334,7 @@ fun <T : MappingTreeView, C : MappingTreeView.ClassMappingView, M : MappingTreeV
                     val lastNames = node.lastNames
                         ?: if (isLastConstructor) CTOR_NAME_SET else this@buildAncestryTree.allowedNamespaces[lastVersion]
                             ?.mapNotNullTo(HashSet()) { (ns, id) ->
-                                lastMapping.getName(id)?.let { name -> NamespacedMapping(ns, name) }
+                                lastMapping.getDstName(id)?.let { name -> NamespacedMapping(ns, name) }
                             }
                             ?: error("Version ${lastVersion.id} has not been mapped yet")
 
@@ -410,7 +410,7 @@ fun <T : MappingTreeView, M : MappingTreeView.MemberMappingView> AncestryTree<T,
         val namespaces = node.tree.allowedNamespaces[version] ?: return@stdFind false
 
         namespaces.any { (_, id) ->
-            member.getName(id) == name && (descriptor == null || member.getDstDesc(id).startsWith(descriptor))
+            member.getDstName(id) == name && (descriptor == null || member.getDstDesc(id).startsWith(descriptor))
         }
     }
 }

@@ -40,7 +40,6 @@ import me.kcra.takenaka.generator.web.pages.*
 import me.kcra.takenaka.generator.web.transformers.MinifyingTransformer
 import me.kcra.takenaka.generator.web.transformers.Transformer
 import io.github.oshai.kotlinlogging.KotlinLogging
-import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.tree.MappingTreeView
 import java.io.BufferedReader
 import java.nio.file.Files
@@ -208,13 +207,7 @@ open class WebGenerator(override val workspace: Workspace, val config: WebConfig
             }
 
             // reverse order = newest first
-            val versions = mappings.mapValuesTo(TreeMap(Collections.reverseOrder())) {
-                ArrayList(it.value.dstNamespaces).apply {
-                    if (it.value.srcNamespace != MappingUtil.NS_SOURCE_FALLBACK) {
-                        add(0, it.value.srcNamespace)
-                    }
-                }
-            }
+            val versions = mappings.mapValuesTo(TreeMap(Collections.reverseOrder())) { it.value.dstNamespaces }
 
             versionsPage(config.welcomeMessage, versions)
                 .serialize(workspace, "index.html")
