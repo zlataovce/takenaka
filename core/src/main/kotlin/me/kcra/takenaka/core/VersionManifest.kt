@@ -199,7 +199,7 @@ data class Version(
     val complianceLevel: Int
 ) : Comparable<Version>, Serializable {
     enum class Type {
-        RELEASE, SNAPSHOT, OLD_BETA, OLD_ALPHA
+        RELEASE, SNAPSHOT, OLD_BETA, OLD_ALPHA, UNOBFUSCATED
     }
 
     /**
