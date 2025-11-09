@@ -168,6 +168,8 @@ fun main(args: Array<String>) {
         intercept(::ObjectOverrideFilter)
         // intern names to save memory
         intercept(::StringPoolingAdapter)
+        // remove Javadocs from mappings
+        intercept(::CommentFilter)
 
         contributors { versionWorkspace ->
             val mojangProvider = MojangManifestAttributeProvider(versionWorkspace, relaxedCache = !strictCache)

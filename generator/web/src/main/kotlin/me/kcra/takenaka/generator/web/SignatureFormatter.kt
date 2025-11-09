@@ -552,7 +552,7 @@ class SignatureFormatter : SignatureVisitor {
             declaration_.append(' ')
                 .append(
                     remapper?.nameRemapper?.mapper
-                        ?.let { method?.getArg(-1, lvIndex, null)?.let(it) }
+                        ?.let { method?.getArg(currArgIndex, lvIndex, null)?.let(it) }
                         ?.escapeHtml()
                         ?: "arg$currArgIndex"
                 )
