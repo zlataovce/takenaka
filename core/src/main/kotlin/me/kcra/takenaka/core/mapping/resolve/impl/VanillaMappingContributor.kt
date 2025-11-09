@@ -132,8 +132,8 @@ abstract class AbstractVanillaMappingContributor(
                 .filter { !it.isDirectory && it.name.matches(CLASS_PATTERN) }
                 .forEach { entry ->
                     zf.getInputStream(entry).use { inputStream ->
-                        // ignore any method content and debugging data
-                        ClassReader(inputStream).accept(classVisitor, ClassReader.SKIP_CODE or ClassReader.SKIP_DEBUG)
+                        // ignore any method content
+                        ClassReader(inputStream).accept(classVisitor, ClassReader.SKIP_CODE)
                     }
                 }
         }
@@ -254,6 +254,21 @@ abstract class AbstractVanillaMappingContributor(
                 visitor.visitDstName(MappedElementKind.METHOD, 1, signature)
                 // TODO: exception mapping?
                 visitor.visitElementContent(MappedElementKind.METHOD)
+
+                val type = Type.getMethodType(descriptor)
+                return object : MethodVisitor(Opcodes.ASM9) {
+                    var paramIndex = 0
+                    var lvIndex = if ((access and Opcodes.ACC_STATIC) == 0) 1 else 0
+
+                    override fun visitParameter(name: String?, paramAccess: Int) {
+                        if (name != null && name.isNotBlank()) {
+                            visitor.visitMethodArg(paramIndex, lvIndex, name)
+                        }
+
+                        lvIndex += type.argumentTypes.getOrNull(paramIndex)?.let(Type::getSize) ?: 1
+                        paramIndex++
+                    }
+                }
             }
 
             return null

@@ -26,10 +26,12 @@ import me.kcra.takenaka.core.mapping.MappingContributor
 import me.kcra.takenaka.core.mapping.resolve.*
 import me.kcra.takenaka.core.util.*
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.kcra.takenaka.core.mapping.util.unwrap
 import net.fabricmc.mappingio.MappingUtil
 import net.fabricmc.mappingio.MappingVisitor
 import net.fabricmc.mappingio.adapter.MappingSourceNsSwitch
 import net.fabricmc.mappingio.format.ProGuardReader
+import net.fabricmc.mappingio.tree.MappingTree
 import java.net.URL
 import java.nio.file.Path
 import kotlin.io.path.bufferedReader
@@ -133,11 +135,32 @@ abstract class AbstractMojangMappingResolver(
      * @param visitor the visitor
      */
     override fun accept(visitor: MappingVisitor) {
+        val visitor0 = visitor.unwrap()
         val mappingPath by mappingOutput
 
-        // Mojang maps are original -> obfuscated, so we need to switch it beforehand
-        mappingPath?.reader()?.use {
-            ProGuardReader.read(it, targetNamespace, MappingUtil.NS_SOURCE_FALLBACK, MappingSourceNsSwitch(visitor, MappingUtil.NS_SOURCE_FALLBACK))
+        val isUnobfuscated = workspace.version.maybeUnobfuscated && mappingPath == null
+        if (isUnobfuscated && visitor0 is MappingTree) {
+            visitor0.visitNamespaces(visitor0.srcNamespace, visitor0.dstNamespaces + targetNamespace)
+
+            // copy everything verbatim to the "mojang" namespace
+            val nsId = visitor0.getNamespaceId(targetNamespace)
+            visitor0.classes.forEach { klass ->
+                klass.setDstName(klass.srcName, nsId)
+                klass.fields.forEach { field ->
+                    field.setDstName(field.srcName, nsId)
+                }
+                klass.methods.forEach { method ->
+                    method.setDstName(method.srcName, nsId)
+                    method.args.forEach { arg ->
+                        arg.setDstName(arg.srcName, nsId)
+                    }
+                }
+            }
+        } else {
+            // Mojang maps are original -> obfuscated, so we need to switch it beforehand
+            mappingPath?.reader()?.use {
+                ProGuardReader.read(it, targetNamespace, MappingUtil.NS_SOURCE_FALLBACK, MappingSourceNsSwitch(visitor, MappingUtil.NS_SOURCE_FALLBACK))
+            }
         }
 
         val licensePath by licenseOutput

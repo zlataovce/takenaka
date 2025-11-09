@@ -199,8 +199,14 @@ data class Version(
     val complianceLevel: Int
 ) : Comparable<Version>, Serializable {
     enum class Type {
-        RELEASE, SNAPSHOT, OLD_BETA, OLD_ALPHA
+        RELEASE, SNAPSHOT, OLD_BETA, OLD_ALPHA, UNOBFUSCATED
     }
+
+    /**
+     * Whether this version may lack mappings due to being unobfuscated.
+     */
+    val maybeUnobfuscated: Boolean
+        get() = releaseTime.toEpochMilli() >= 1762265228000
 
     /**
      * Compares the release date of this version to another version.

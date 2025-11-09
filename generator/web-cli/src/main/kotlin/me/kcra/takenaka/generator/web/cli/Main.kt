@@ -39,6 +39,7 @@ import me.kcra.takenaka.generator.web.*
 import me.kcra.takenaka.generator.web.transformers.CSSInliningTransformer
 import me.kcra.takenaka.generator.web.transformers.MinifyingTransformer
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.kcra.takenaka.core.mapping.WrappingContributor
 import kotlin.system.exitProcess
 import kotlin.system.measureTimeMillis
 
@@ -165,8 +166,6 @@ fun main(args: Array<String>) {
         intercept(::StaticInitializerFilter)
         // remove overrides of java/lang/Object, they are implicit
         intercept(::ObjectOverrideFilter)
-        // remove obfuscated method parameter names, they are a filler from Searge
-        intercept(::MethodArgSourceFilter)
         // intern names to save memory
         intercept(::StringPoolingAdapter)
 
@@ -188,7 +187,17 @@ fun main(args: Array<String>) {
                 addIfSupported(HashedMappingResolver(versionWorkspace))
                 addIfSupported(YarnMappingResolver(versionWorkspace, yarnProvider, relaxedCache = !strictCache))
                 addIfSupported(QuiltMappingResolver(versionWorkspace, quiltProvider, relaxedCache = !strictCache))
-                addIfSupported(SeargeMappingResolver(versionWorkspace, sharedCache, relaxedCache = !strictCache))
+                addIfSupported(
+                    WrappingContributor(
+                        SeargeMappingResolver(
+                            versionWorkspace,
+                            sharedCache,
+                            relaxedCache = !strictCache
+                        ),
+                        // remove obfuscated method parameter names, they are a filler from Searge
+                        ::MethodArgSourceFilter
+                    )
+                )
 
                 // Spigot resolvers have to be last
                 if (server) {
