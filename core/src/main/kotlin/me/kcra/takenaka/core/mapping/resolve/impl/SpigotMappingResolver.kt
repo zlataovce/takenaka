@@ -222,7 +222,7 @@ abstract class AbstractSpigotMappingResolver @Deprecated(
         // prepend "v" before the NMS version to match the package name
         pomPath?.reader()?.use {
             @Suppress("DEPRECATION")
-            xmlMapper.readTree(it)["properties"]["minecraft_version"].asText()?.let { v ->
+            xmlMapper.readTree(it)["properties"]["minecraft_version"]?.asText()?.let { v ->
                 visitor.visitMetadata(META_CB_NMS_VERSION, "v$v")
             }
         }
