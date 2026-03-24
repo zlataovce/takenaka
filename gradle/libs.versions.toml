@@ -1,6 +1,6 @@
 [versions]
 kotlin = "1.9.24"
-asm = "9.7.1"
+asm = "9.9.1"
 jackson = "2.18.0"
 kotlinpoet = "1.17.0"
 
