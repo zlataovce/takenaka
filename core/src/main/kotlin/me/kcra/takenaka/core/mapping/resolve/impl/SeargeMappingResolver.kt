@@ -61,6 +61,11 @@ class SeargeMappingResolver(
 
     override val mappingOutput = lazyOutput<Path?> {
         resolver {
+            if (Regex("^(2[6789]|[3456789]\\d+|\\d{3,})\\..*").matches(version.id)) {
+                // Skip Searge for 26.1+ since it exists but it is completely f*cked
+                return null
+            }
+
             val file = workspace[MCP_CONFIG]
             var url = URL("https://maven.minecraftforge.net/de/oceanlabs/mcp/mcp_config/${version.id}/mcp_config-${version.id}.zip.sha1")
 
